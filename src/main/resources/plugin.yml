@@ -1,0 +1,25 @@
+name: deepwither
+version: '1.0-SNAPSHOT'
+main: com.lunar_prototype.deepwither.Deepwither
+author: RS Team(Lunar_prototype)
+api-version: '1.21'
+
+commands:
+  giveitem:
+    description: this is a sample command.
+    permission: giveitem.op
+    usage: /<command>
+  attributes:
+    description: ステータス割り振りGUIを開きます
+    aliases: [ att ]
+    usage: /<command>
+  skilltree:
+    description: スキルツリーGUIを開きます
+    aliases: [ st ]
+    usage: /<command>
+  skills:
+    description: スキル割り当てGUIを開きます
+    usage: /<command>
+  artifact:
+    description: Opens the artifact GUI.
+    usage: /<command>
