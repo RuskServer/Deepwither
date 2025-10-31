@@ -84,7 +84,7 @@ public class DamageManager implements Listener {
         boolean isCrit = Math.random() * 100 < critChance;
 
         if (!isCrit) {
-            player.sendMessage("§7クリティカル失敗！");
+            //player.sendMessage("§7クリティカル失敗！");
             return; // クリティカルでない場合は何もしない
         }
 

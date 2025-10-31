@@ -64,7 +64,7 @@ public class SkillCastSessionManager implements Listener {
                         } else if (notEnoughMana) {
                             display = "§9" + def.name;
                         } else {
-                            display = def.name;
+                            display = "§a" + def.name;
                         }
 
                         sb.append("[").append(displayKey).append("] ").append(display).append(" ");
