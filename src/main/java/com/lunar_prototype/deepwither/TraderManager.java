@@ -219,6 +219,13 @@ public class TraderManager {
         return traderOffers.containsKey(traderId);
     }
 
+    /**
+     * ロードされている全てのトレーダーIDのSetを返す。
+     */
+    public Set<String> getAllTraderIds() {
+        return traderOffers.keySet(); // traderOffers マップのキーがトレーダーIDなのでこれを使用
+    }
+
     public int getDailyTaskLimit(String traderId) {
         // loadAllTraders() で設定されたマップから取得
         return dailyTaskLimits.getOrDefault(traderId, 1);

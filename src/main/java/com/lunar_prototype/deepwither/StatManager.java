@@ -17,6 +17,7 @@ import java.util.*;
 public class StatManager {
 
     private final Map<UUID, Double> actualCurrentHealth = new HashMap<>();
+    private final Map<UUID, StatMap> temporaryBuffs = new HashMap<>();
 
     private static final UUID ATTACK_DAMAGE_MODIFIER_ID = UUID.fromString("a3bb7af7-3c5b-4df1-a17e-cdeae1db1d32");
     private static final UUID DEFENSE_MODIFIER_ID = UUID.fromString("3811b7a8-4756-415d-be35-5ed4ba14228b");
@@ -40,6 +41,20 @@ public class StatManager {
         StatMap total = getTotalStatsFromEquipment(player);
         // getTotalStatsFromEquipment内で既に baseHp (20.0) が加算されているので、その値をそのまま使用
         return total.getFlat(StatType.MAX_HEALTH);
+    }
+
+    // ----------------------------------------------------
+    // ★ 一時バフの適用
+    // ----------------------------------------------------
+    public void applyTemporaryBuff(UUID playerUUID, StatMap buff) {
+        temporaryBuffs.put(playerUUID, buff);
+    }
+
+    // ----------------------------------------------------
+    // ★ 一時バフの削除
+    // ----------------------------------------------------
+    public void removeTemporaryBuff(UUID playerUUID) {
+        temporaryBuffs.remove(playerUUID);
     }
 
 
@@ -223,6 +238,11 @@ public class StatManager {
         SkilltreeManager.SkillData skillData = Deepwither.getInstance().getSkilltreeManager().load(player.getUniqueId());
         if (skillData != null) {
             total.add(skillData.getPassiveStats());
+        }
+
+        StatMap tempBuff = Deepwither.getInstance().statManager.temporaryBuffs.get(player.getUniqueId());
+        if (tempBuff != null) {
+            total.add(tempBuff); // StatMapのaddメソッドを使用
         }
 
         // 体力の基礎値を追加（例えば20）

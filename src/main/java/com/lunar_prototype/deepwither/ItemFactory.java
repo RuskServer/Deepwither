@@ -541,7 +541,7 @@ class ItemLoader {
                         item.setData(DataComponentTypes.TRIM, ItemArmorTrim.itemArmorTrim(armorTrim));
 
                         // Debugging message to confirm the trim was applied.
-                        System.out.println("Applied armor trim: " + armortrim + " with material: " + armortrimmaterial + " to item " + key);
+                        //System.out.println("Applied armor trim: " + armortrim + " with material: " + armortrimmaterial + " to item " + key);
                     } else {
                         System.err.println("Failed to get trim pattern or material for item: " + key);
                     }

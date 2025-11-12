@@ -76,7 +76,7 @@ public class DamageManager implements Listener {
             e.setDamage(0.0);
 
             if (targetLiving instanceof Player targetPlayer) {
-                applyCustomDamageToPlayer(targetPlayer, finalMagicDamage, player.getName()); // プレイヤー名を渡す
+                processPlayerDamageWithAbsorption(targetPlayer, finalMagicDamage, player.getName()); // プレイヤー名を渡す
                 e.setCancelled(true);
             }
         }
@@ -287,7 +287,7 @@ public class DamageManager implements Listener {
     private void applyCustomDamage(LivingEntity target, double damage, Player damager) { // Player damager はそのまま
         if (target instanceof Player targetPlayer) {
             // ★ 修正: Player damager から名前を取得して渡す
-            applyCustomDamageToPlayer(targetPlayer, damage, damager.getName());
+            processPlayerDamageWithAbsorption(targetPlayer, damage, damager.getName());
         } else {
             // MOBの場合の処理はそのまま
             isProcessingDamage.add(damager.getUniqueId());
@@ -345,13 +345,56 @@ public class DamageManager implements Listener {
         String attackerName = (attacker != null) ? attacker.getName() : "環境";
 
         // ★ ここで HP 圧縮ヘルパーメソッドを呼び出す
-        applyCustomDamageToPlayer(player, finalDamage, attackerName);
+        processPlayerDamageWithAbsorption(player, finalDamage, attackerName);
     }
 
     /**
      * HPバー圧縮ロジックを持つプレイヤーにダメージを適用する。
      */
-    private void applyCustomDamageToPlayer(Player targetPlayer, double damage, String damagerName) {
+    /**
+     * HPバー圧縮ロジックと衝撃吸収ロジックを持つプレイヤーにダメージを適用する。
+     */
+    private void processPlayerDamageWithAbsorption(Player targetPlayer, double damage, String damagerName) {
+
+        // 1. 衝撃吸収値の取得（バニラハート数）
+        double vanillaAbsorptionHearts = targetPlayer.getAbsorptionAmount();
+
+        // 2. カスタム値（カスタムHP換算）に変換
+        // 1 ハート = 10 カスタムHP と仮定
+        double currentAbsorptionCustom = vanillaAbsorptionHearts * 10.0;
+
+        if (currentAbsorptionCustom > 0) {
+            // --- 衝撃吸収がある場合の処理 ---
+
+            if (damage <= currentAbsorptionCustom) {
+                // A) ダメージが衝撃吸収値以下の場合
+                double newAbsorptionCustom = currentAbsorptionCustom - damage;
+
+                // バニラ値に戻して設定
+                double newAbsorptionHearts = newAbsorptionCustom / 10.0;
+                targetPlayer.setAbsorptionAmount((float) newAbsorptionHearts);
+
+                targetPlayer.sendMessage("§e-" + Math.round(damage) + " §7ダメージを§6衝撃吸収§7しました。 (§6" + String.format("%.0f", newAbsorptionCustom) + "§7)");
+
+                return;
+
+            } else {
+                // B) ダメージが衝撃吸収値を超える場合
+
+                // 衝撃吸収ハートを全て削除
+                targetPlayer.setAbsorptionAmount(0.0f);
+
+                targetPlayer.sendMessage("§e-" + String.format("%.0f", currentAbsorptionCustom) + " §7ダメージを§6衝撃吸収§7しましたが、§c吸収限界を超えました！");
+                targetPlayer.sendMessage("§cメインHPは守られました。");
+
+                // メインHPにダメージは与えないため、ここで処理を終了
+                return;
+            }
+
+        }
+
+        // --- 衝撃吸収がない場合のメインHP適用処理 (既存のロジック) ---
+
         double currentHealth = statManager.getActualCurrentHealth(targetPlayer);
         double newHealth = currentHealth - damage;
 
@@ -359,7 +402,6 @@ public class DamageManager implements Listener {
 
         if (newHealth <= 0.0) {
             targetPlayer.sendMessage("§4あなたは §c" + damagerName + " §4によって倒されました。");
-            // 死亡処理をトリガー（player.setHealth(0.0)はstatManagerで呼ばれる）
         } else {
             targetPlayer.sendMessage("§c-" + Math.round(damage) + " §7ダメージを受けました。(被弾)");
         }

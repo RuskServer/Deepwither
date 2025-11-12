@@ -7,14 +7,19 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Map;
+import java.util.Set;
+
 public class StatusCommand implements CommandExecutor {
 
     private final LevelManager levelManager;
     private final StatManager statManager;
+    private final CreditManager creditManager;
 
-    public StatusCommand(LevelManager levelManager, StatManager statManager) {
+    public StatusCommand(LevelManager levelManager, StatManager statManager,CreditManager creditManager) {
         this.levelManager = levelManager;
         this.statManager = statManager;
+        this.creditManager = creditManager;
     }
 
     @Override
@@ -72,8 +77,29 @@ public class StatusCommand implements CommandExecutor {
         displayStat(player, "クリダメ", StatType.CRIT_DAMAGE, finalStats, "§6", true);
         displayStat(player, "クリ率", StatType.CRIT_CHANCE, finalStats, "§6", true);
         displayStat(player, "魔力", StatType.MAGIC_DAMAGE, finalStats, "§d");
-        displayStat(player, "魔防", StatType.MAGIC_RESIST, finalStats, "§3");
+        displayStat(player, "魔法耐性", StatType.MAGIC_RESIST, finalStats, "§3");
         displayStat(player, "回復力", StatType.HP_REGEN, finalStats, "§a");
+
+        // TraderManagerはプラグインインスタンスから取得することを仮定
+        TraderManager traderManager = Deepwither.getInstance().getTraderManager();
+        Set<String> allTraderIds = traderManager.getAllTraderIds(); // 全トレーダーIDを取得
+
+        player.sendMessage("§b§l> トレーダー信用度");
+
+        if (allTraderIds.isEmpty()) {
+            player.sendMessage(" §7現在、ロードされているトレーダーがいません。");
+        } else {
+            // 全トレーダーIDをループし、CreditManagerから個別に信用度を取得
+            allTraderIds.stream()
+                    .sorted() // 見やすいようにソート
+                    .forEach(traderId -> {
+                        // CreditManagerに getCredit(UUID, traderId) があることを前提
+                        // 信用度がない場合は 0 を返す想定
+                        int credit = creditManager.getCredit(player.getUniqueId(), traderId);
+
+                        player.sendMessage(" §7" + formatTraderId(traderId) + ": §b" + credit);
+                    });
+        }
 
 
         player.sendMessage("§8§m----------------------------------");
@@ -115,5 +141,15 @@ public class StatusCommand implements CommandExecutor {
         }
         bar.append(colorChar).append("]");
         return bar.toString();
+    }
+
+    // トレーダーIDを見やすい名前に変換するヘルパーメソッド
+    private String formatTraderId(String traderId) {
+        // 例: lunaris_atelier -> Lunaris Atelier
+        if (traderId == null || traderId.isEmpty()) return "Unknown";
+
+        String formatted = traderId.replace('_', ' ');
+        // 各単語の先頭を大文字にする処理（シンプル化のため、ここでは最初の一文字のみ大文字化）
+        return formatted.substring(0, 1).toUpperCase() + formatted.substring(1);
     }
 }
