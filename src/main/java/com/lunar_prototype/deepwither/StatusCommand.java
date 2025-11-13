@@ -1,6 +1,7 @@
 package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.StatType;
+import net.milkbowl.vault.economy.Economy;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -42,9 +43,15 @@ public class StatusCommand implements CommandExecutor {
         double currentExp = levelData.getExp();
         double expToNextLevel = levelData.getRequiredExp();
         double expPercent = (double) currentExp / expToNextLevel;
+        Economy econ = Deepwither.getEconomy();
 
         player.sendMessage("§8§m----------------------------------");
         player.sendMessage("§e§l【 プレイヤー ステータス 】");
+        player.sendMessage(" ");
+
+        // 所持金情報
+        player.sendMessage("§b§l> 所持金");
+        player.sendMessage(" §e所持金: §a" + econ.getBalance(player));
         player.sendMessage(" ");
 
         // レベル情報
@@ -73,6 +80,7 @@ public class StatusCommand implements CommandExecutor {
 
         // 主要なステータス値を表示
         displayStat(player, "攻撃力", StatType.ATTACK_DAMAGE, finalStats, "§c");
+        displayStat(player, "魔法攻撃力", StatType.MAGIC_DAMAGE, finalStats, "§c");
         displayStat(player, "防御力", StatType.DEFENSE, finalStats, "§9");
         displayStat(player, "クリダメ", StatType.CRIT_DAMAGE, finalStats, "§6", true);
         displayStat(player, "クリ率", StatType.CRIT_CHANCE, finalStats, "§6", true);

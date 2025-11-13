@@ -8,6 +8,7 @@ import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.NamespacedKey;
+import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
@@ -181,7 +182,9 @@ public class StatManager {
 
         // 装備ステータス読み込み
         ItemStack mainHand = player.getInventory().getItemInMainHand();
-        total.add(readStatsFromItem(mainHand));
+        if (shouldReadStats(mainHand)) {
+            total.add(readStatsFromItem(mainHand));
+        }
 
         for (ItemStack armor : player.getInventory().getArmorContents()) {
             total.add(readStatsFromItem(armor));
@@ -365,5 +368,32 @@ public class StatManager {
             }
         }
         return false;
+    }
+
+    private static boolean shouldReadStats(ItemStack item) {
+        if (item.getType().isAir()) {
+            return false;
+        }
+
+        ItemMeta meta = item.getItemMeta();
+
+        // ItemMetaが存在し、耐久値を持つアイテム（Damageable）であるかチェック
+        if (meta instanceof Damageable damageable) {
+
+            int maxDurability = item.getType().getMaxDurability();
+            int currentDamage = damageable.getDamage(); // 現在の累積ダメージ量
+
+            // 残り耐久値を計算 (最大耐久値 - 累積ダメージ)
+            int remainingDurability = maxDurability - currentDamage;
+
+            // 残り耐久値が 1 でないことを確認
+            if (remainingDurability <= 1) {
+                // 耐久値が1以下の場合、統計値の読み込みをスキップ
+                return false;
+            }
+        }
+
+        // 通常のアイテム、または耐久値が2以上のアイテムの場合は読み込みを許可
+        return true;
     }
 }

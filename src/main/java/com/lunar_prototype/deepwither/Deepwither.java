@@ -41,6 +41,7 @@ public final class  Deepwither extends JavaPlugin {
     public ItemFactory itemFactory;
     public StatManager statManager;
     private DailyTaskManager dailyTaskManager;
+    private MobSpawnManager mobSpawnManager;
     private static Economy econ = null;
     private final java.util.Random random = new java.util.Random();
 
@@ -93,6 +94,10 @@ public final class  Deepwither extends JavaPlugin {
     }
     public DailyTaskManager getDailyTaskManager() { // ★ 新規追加
         return dailyTaskManager;
+    }
+
+    public MobSpawnManager getMobSpawnManager() {
+        return mobSpawnManager;
     }
 
     @Override
@@ -200,6 +205,8 @@ public final class  Deepwither extends JavaPlugin {
             }
         }, 20L, 20L); // 毎秒実行
 
+        this.mobSpawnManager = new MobSpawnManager(this);
+
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
             new LevelPlaceholderExpansion(levelManager,manaManager,statManager).register();
             getLogger().info("PlaceholderAPI拡張を登録しました。");
@@ -213,7 +220,9 @@ public final class  Deepwither extends JavaPlugin {
             e.printStackTrace();
         }
         // リスナー登録
+        getServer().getPluginManager().registerEvents(new ItemDurabilityFix(),this);
         getServer().getPluginManager().registerEvents(new AttributeGui(), this);
+
         getCommand("skills").setExecutor(new SkillAssignmentCommand());
     }
 
