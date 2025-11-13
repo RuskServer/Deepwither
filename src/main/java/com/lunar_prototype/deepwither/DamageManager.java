@@ -52,7 +52,10 @@ public class DamageManager implements Listener {
             double critChance = attacker.getFinal(StatType.CRIT_CHANCE);
             double critDamage = attacker.getFinal(StatType.CRIT_DAMAGE);
 
-            boolean isCrit = Math.random() * 100 < critChance;
+            // 【TRPG 1d100形式】1から100までのランダムな目を生成
+            int roll = (int)(Math.random() * 100) + 1;
+            // 判定：出目がクリティカル率以下なら成功
+            boolean isCrit = roll <= critChance;
 
             double baseDamage = magicAttack + e.getDamage();
             if (isCrit) {
@@ -108,13 +111,16 @@ public class DamageManager implements Listener {
         double defense = defender.getFinal(StatType.DEFENSE);
         double critChance = attacker.getFinal(StatType.CRIT_CHANCE);
         double critDamage = attacker.getFinal(StatType.CRIT_DAMAGE);
-        boolean isCrit = Math.random() * 100 < critChance;
+        // 【TRPG 1d100形式】1から100までのランダムな目を生成
+        int roll = (int)(Math.random() * 100) + 1;
+        // 判定：出目がクリティカル率以下なら成功
+        boolean isCrit = roll <= critChance;
 
         // ここで元のイベントをキャンセルし、独自にダメージを計算・適用
         e.setDamage(0.0);
 
         // クリティカルダメージ計算 (e.getDamage()は使わず、StatMapのATTACK_DAMAGEを基点とする)
-        double baseDamage = attack * (critDamage / 100.0);
+        double baseDamage = attack;
         double defenseRatio = defense / (defense + 100.0);
         if (isCrit) {
             baseDamage *= (critDamage / 100.0);
@@ -241,7 +247,10 @@ public class DamageManager implements Listener {
         double critChance = attacker.getFinal(StatType.CRIT_CHANCE);
         double critDamage = attacker.getFinal(StatType.CRIT_DAMAGE);
         double originalDamage = e.getDamage(); // 弓の基本ダメージとして使用
-        boolean isCrit = Math.random() * 100 < critChance;
+        // 【TRPG 1d100形式】1から100までのランダムな目を生成
+        int roll = (int)(Math.random() * 100) + 1;
+        // 判定：出目がクリティカル率以下なら成功
+        boolean isCrit = roll <= critChance;
         double distanceMultiplier = calculateDistanceMultiplier(player, targetLiving); // 既存のヘルパーメソッドが必要
 
         double baseDamage = attack + originalDamage;
