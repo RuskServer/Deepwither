@@ -35,16 +35,25 @@ public class SkillCastManager {
     }
 
     public void cast(Player player, SkillDefinition def) {
+        // 1. 基本的な発動条件（マナ残量・CD）をチェック
         if (!canCast(player, def)) return;
 
-        ManaData mana = Deepwither.getInstance().getManaManager().get(player.getUniqueId());
-        mana.consume(def.manaCost);
+        // 2. 先にMythicMobsのスキルを発動させる
+        // castSkillは条件(Conditions)に引っかかって不発だった場合 false を返します
+        boolean isCastSuccessful = MythicBukkit.inst().getAPIHelper().castSkill(player, def.mythicSkillId);
 
-        Deepwither.getInstance().getCooldownManager().setCooldown(player.getUniqueId(), def.id);
+        // 3. 発動が成功した場合のみ、コストを支払う
+        if (isCastSuccessful) {
+            ManaData mana = Deepwither.getInstance().getManaManager().get(player.getUniqueId());
+            mana.consume(def.manaCost);
 
-        MythicBukkit.inst().getAPIHelper().castSkill(player, def.mythicSkillId);
+            Deepwither.getInstance().getCooldownManager().setCooldown(player.getUniqueId(), def.id);
 
-        player.sendMessage(ChatColor.GREEN + "スキル「" + def.name + "」を発動！");
+            player.sendMessage(ChatColor.GREEN + "スキル「" + def.name + "」を発動！");
+        } else {
+            // 条件不一致で発動しなかった場合の処理（必要であればメッセージなど）
+            player.sendMessage(ChatColor.GRAY + "発動条件を満たしていません。");
+        }
     }
 }
 

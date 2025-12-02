@@ -1,19 +1,22 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.quest.GeneratedQuest;
+import com.lunar_prototype.deepwither.quest.QuestGenerator;
 import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.Equippable;
 import io.papermc.paper.datacomponent.item.ItemArmorTrim;
 import io.papermc.paper.datacomponent.item.ItemAttributeModifiers;
+import io.papermc.paper.datacomponent.item.TooltipDisplay;
 import jdk.jfr.DataAmount;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.component.DataComponentType;
-import org.bukkit.Bukkit;
-import org.bukkit.Material;
-import org.bukkit.Registry;
+import org.bukkit.*;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.command.*;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.craftbukkit.inventory.CraftItemStack;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemFlag;
@@ -21,6 +24,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.inventory.meta.ArmorMeta;
+import org.bukkit.inventory.meta.components.EquippableComponent;
 import org.bukkit.inventory.meta.trim.ArmorTrim;
 import org.bukkit.inventory.meta.trim.TrimMaterial;
 import org.bukkit.inventory.meta.trim.TrimPattern;
@@ -28,14 +32,15 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.NamespacedKey;
 import org.bukkit.profile.PlayerProfile;
 import org.bukkit.profile.PlayerTextures;
+import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
 import java.io.File;
 import java.net.URL;
 import java.util.*;
+import java.util.logging.Level;
 
 public class ItemFactory implements CommandExecutor, TabCompleter {
     private final Plugin plugin;
@@ -82,7 +87,7 @@ public class ItemFactory implements CommandExecutor, TabCompleter {
         }
         item.setItemMeta(meta);
 
-        item.setData(DataComponentTypes.ATTRIBUTE_MODIFIERS, ItemAttributeModifiers.itemAttributes().build().showInTooltip(false));
+        item.setData(DataComponentTypes.TOOLTIP_DISPLAY, TooltipDisplay.tooltipDisplay().addHiddenComponents(DataComponentTypes.ATTRIBUTE_MODIFIERS).build());
 
         return item;
     }
@@ -157,6 +162,46 @@ public class ItemFactory implements CommandExecutor, TabCompleter {
         }
 
         // ステータスリセット処理
+        if (args.length == 1 && args[0].equalsIgnoreCase("genquest")) {
+            // サーバーのメインスレッドをブロックしないように、LLM呼び出しを非同期タスクで実行
+            Bukkit.getScheduler().runTaskAsynchronously(this.plugin, () -> {
+                try {
+                    GeneratedQuest quest = new QuestGenerator().generateQuest(5);
+
+                    // -----------------------------------------------------------------------
+                    // 結果の処理をメインスレッドに戻して安全に行う
+                    // -----------------------------------------------------------------------
+                    Bukkit.getScheduler().runTask(this.plugin, () -> {
+                        // クエストの内容をプレイヤーに表示
+                        player.sendMessage("§6--- 冒険者ギルドからの緊急依頼 ---");
+                        player.sendMessage("§fタイトル：「§b" + quest.getTitle() + "§f」");
+                        player.sendMessage("§e[場所]§r " + quest.getLocationDetails().getLlmLocationText());
+                        player.sendMessage("§e[目標]§r " + quest.getTargetMobId() + "を" + quest.getRequiredQuantity() + "体");
+                        player.sendMessage(" ");
+
+                        // クエスト本文の表示 (改行を考慮して1行ずつ送る)
+                        for (String line : quest.getQuestText().split("\n")) {
+                            player.sendMessage("§7" + line);
+                        }
+
+                        player.sendMessage(" ");
+                        player.sendMessage("§a[報酬]§r 200 ゴールド、経験値 500、小さな回復薬 x1");
+                        player.sendMessage("§6-------------------------------------");
+                    });
+
+                } catch (Exception e) {
+                    // LLM通信でエラーが発生した場合、メインスレッドに戻ってエラーメッセージを送信
+                    Bukkit.getScheduler().runTask(this.plugin, () -> {
+                        player.sendMessage("§c[ギルド受付]§r 依頼の生成中にエラーが発生しました。時間を置いて再度お試しください。");
+                        this.plugin.getLogger().log(Level.SEVERE, "LLMクエスト生成中にエラー:", e);
+                    });
+                }
+            });
+
+            return true;
+        }
+
+        // ステータスリセット処理
         if (args.length == 1 && args[0].equalsIgnoreCase("resetpoints")) {
             UUID uuid = player.getUniqueId();
             AttributeManager attrManager = Deepwither.getInstance().getAttributeManager();
@@ -172,6 +217,14 @@ public class ItemFactory implements CommandExecutor, TabCompleter {
             } else {
                 player.sendMessage("§cステータスデータが読み込まれていません。");
             }
+            return true;
+        }
+
+        // ステータスリセット処理
+        if (args.length == 1 && args[0].equalsIgnoreCase("skilltreeresets")) {
+            UUID uuid = player.getUniqueId();
+            Deepwither.getInstance().getSkilltreeManager().resetSkillTree(uuid);
+            player.sendMessage("§6すべてのステータスポイントをリセットしました。");
             return true;
         }
 
@@ -251,6 +304,7 @@ public class ItemFactory implements CommandExecutor, TabCompleter {
             candidates.add("resetpoints");
             candidates.add("addpoints");
             candidates.add("addskillpoints");
+            candidates.add("skilltreeresets");
             return candidates.stream()
                     .filter(s -> s.toLowerCase().startsWith(args[0].toLowerCase()))
                     .toList();
@@ -266,11 +320,39 @@ public class ItemFactory implements CommandExecutor, TabCompleter {
 
         return Collections.emptyList();
     }
+
+    public void getCustomItem(Player player,String customitemid){
+        File itemFolder = new File(plugin.getDataFolder(), "items");
+        ItemStack item = ItemLoader.loadSingleItem(customitemid, this, itemFolder);
+        if (item == null) {
+            player.sendMessage("§cそのIDのアイテムは存在しません。");
+            return;
+        }
+        player.getInventory().addItem(item);
+    }
+
+    public ItemStack getCustomItemStack(String customitemid){
+        File itemFolder = new File(plugin.getDataFolder(), "items");
+        ItemStack item = ItemLoader.loadSingleItem(customitemid, this, itemFolder);
+        return item;
+    }
+
+    public ItemStack getCustomCountItemStack(String customitemid,Integer count){
+        File itemFolder = new File(plugin.getDataFolder(), "items");
+        ItemStack item = ItemLoader.loadSingleItem(customitemid, this, itemFolder);
+        item.setAmount(count);
+        return item;
+    }
 }
 
 class ItemLoader {
     private static final Random random = new Random();
     private static final String CUSTOM_ID_KEY = "custom_id";
+    public static final NamespacedKey RECOVERY_AMOUNT_KEY = new NamespacedKey(Deepwither.getInstance(), "recovery_amount");
+    public static final NamespacedKey COOLDOWN_KEY = new NamespacedKey(Deepwither.getInstance(), "cooldown_seconds");
+    public static final NamespacedKey SKILL_CHANCE_KEY = new NamespacedKey(Deepwither.getInstance(), "onhit_chance");
+    public static final NamespacedKey SKILL_COOLDOWN_KEY = new NamespacedKey(Deepwither.getInstance(), "onhit_cooldown");
+    public static final NamespacedKey SKILL_ID_KEY = new NamespacedKey(Deepwither.getInstance(), "onhit_skillid");
 
     // 品質判定用Enum
     enum QualityRank {
@@ -352,6 +434,24 @@ class ItemLoader {
             this.minFlat = minFlat;
             this.maxFlat = maxFlat;
         }
+    }
+
+    private static EquipmentSlot getSlotFromMaterial(Material material) {
+        String name = material.name().toLowerCase(Locale.ROOT);
+
+        // 防具
+        if (name.contains("helmet") || name.contains("skull") || name.contains("head")) return EquipmentSlot.HEAD;
+        if (name.contains("chestplate")) return EquipmentSlot.CHEST;
+        if (name.contains("leggings")) return EquipmentSlot.LEGS;
+        if (name.contains("boots")) return EquipmentSlot.FEET;
+
+        // 武器/ツール (メインハンド)
+        if (name.contains("sword") || name.contains("axe") || name.contains("pickaxe") || name.contains("hoe") || name.contains("shovel")) return EquipmentSlot.HAND;
+
+        // その他（例: オフハンド）
+        if (material == Material.SHIELD) return EquipmentSlot.OFF_HAND;
+
+        return null;
     }
 
     public static ItemStack loadSingleItem(String id, ItemFactory factory, File itemFolder) {
@@ -498,7 +598,6 @@ class ItemLoader {
                         weightedModifiers.removeIf(def -> def.type == selectedDef.type);
                     }
                 }
-
                 // 品質ランク判定
                 QualityRank rank = QualityRank.fromRatio(tracker.getRatio());
 
@@ -508,6 +607,9 @@ class ItemLoader {
                 meta.setDisplayName(newName);
                 NamespacedKey pdc_key = new NamespacedKey(Deepwither.getInstance(), CUSTOM_ID_KEY);
                 meta.getPersistentDataContainer().set(pdc_key,PersistentDataType.STRING,key);
+
+
+
                 item.setItemMeta(meta);
 
                 String itemType = config.getString(key + ".type", null);
@@ -515,10 +617,64 @@ class ItemLoader {
                 // Lore + PDC 書き込みをItemFactory側で処理
                 item = factory.applyStatsToItem(item, stats,itemType,flavorText,tracker,rarity,appliedModifiers);
 
+                double recoveryAmount = config.getDouble(key + ".recovery-amount", 0.0);
+                int cooldownSeconds = config.getInt(key + ".cooldown-seconds", 0);
+
+                if (recoveryAmount > 0.0) {
+                    ItemMeta meta2 = item.getItemMeta();
+                    PersistentDataContainer container = meta2.getPersistentDataContainer();
+
+                    // 回復量（例: DOUBLEで保存）
+                    container.set(RECOVERY_AMOUNT_KEY, PersistentDataType.DOUBLE, recoveryAmount);
+
+                    // クールダウン（例: INTEGERで保存）
+                    if (cooldownSeconds > 0) {
+                        container.set(COOLDOWN_KEY, PersistentDataType.INTEGER, cooldownSeconds);
+                    }
+
+                    item.setItemMeta(meta2);
+                }
+
+                if (config.isConfigurationSection(key + ".on_hit")) {
+                    ItemMeta meta3 = item.getItemMeta();
+                    PersistentDataContainer container = meta3.getPersistentDataContainer();
+
+                    double chance = config.getDouble(key + ".on_hit.chance", 0.0);
+                    int cooldown = config.getInt(key + ".on_hit.cooldown", 0);
+                    String skillId = config.getString(key + ".on_hit.mythic_skill_id", null);
+
+                    if (skillId != null) {
+                        // PDCに保存
+                        container.set(SKILL_CHANCE_KEY, PersistentDataType.DOUBLE, chance);
+                        container.set(SKILL_COOLDOWN_KEY, PersistentDataType.INTEGER, cooldown);
+                        container.set(SKILL_ID_KEY, PersistentDataType.STRING, skillId);
+
+                        item.setItemMeta(meta3);
+                        // System.out.println(key + "にOnHitスキル: " + skillId + " (確率: " + chance + "%) を設定"); // デバッグ用
+                    }
+                }
+
                 int durability = config.getInt(key + ".durability",0);
                 if (durability > 0){
                     item.setData(DataComponentTypes.MAX_DAMAGE,durability);
                 }
+
+                String customArmorAssetId = config.getString(key + ".custom_armor");
+
+                if (customArmorAssetId != null) {
+                    // 1. 適切な EquipmentSlot を Material から決定する
+                    EquipmentSlot slot = getSlotFromMaterial(material);
+
+                    if (slot != null) {
+
+                        NamespacedKey custom_armor_id = NamespacedKey.minecraft(customArmorAssetId);
+
+                        item.setData(DataComponentTypes.EQUIPPABLE, Equippable.equippable(slot).assetId(custom_armor_id).build());
+                    } else {
+                        System.err.println("Custom Armor Asset IDが設定されていますが、Material (" + materialName + ") は認識可能な防具/武器ではありません。");
+                    }
+                }
+
 
                 String armortrim = config.getString(key + ".armortrim");
                 String armortrimmaterial = config.getString(key + ".armortrimmaterial");

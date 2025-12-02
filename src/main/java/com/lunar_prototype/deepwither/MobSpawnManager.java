@@ -1,5 +1,9 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.quest.LocationDetails;
+import com.lunar_prototype.deepwither.quest.PlayerQuestData;
+import com.lunar_prototype.deepwither.quest.PlayerQuestManager;
+import com.lunar_prototype.deepwither.quest.QuestProgress;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.protection.ApplicableRegionSet;
@@ -8,40 +12,57 @@ import com.sk89q.worldguard.protection.regions.RegionContainer;
 import com.sk89q.worldguard.protection.regions.RegionQuery;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap; // スレッドセーフなマップを使用
 
 public class MobSpawnManager {
 
     private final Deepwither plugin;
+    private final PlayerQuestManager playerQuestManager;
 
     // 設定値
-    private final String targetWorldName = "Aether"; // 設定ファイルから読み込むべき
-    private final long spawnIntervalTicks = 8 * 20L; // 5秒 * 20ティック
+    private final String targetWorldName = "Aether";
+    private final long spawnIntervalTicks = 5 * 20L;
+
+    private static final int MOB_CAP_PER_PLAYER = 10;
+    private static final int COUNT_RADIUS = 20;
+
+    private static final double QUEST_AREA_RADIUS_SQUARED = 20.0 * 20.0;
+
+    // --- 新規追加: スポーンロック機能 ---
+    private final Map<UUID, Location> spawnLockLocations = new HashMap<>();
+    private static final double MOVE_UNLOCK_DISTANCE_SQUARED = 30.0 * 30.0;
+    // ----------------------------------
+
+    // ★★★★ 【追加】スポーンMob追跡マップ ★★★★
+    // Key: Player UUID, Value: そのプレイヤーのためにスポーンさせたMobのUUIDのセット
+    private final Map<UUID, Set<UUID>> spawnedMobsTracker = new ConcurrentHashMap<>();
+    // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★
 
     // Key: ティア番号 (1, 2, ...)
     private final Map<Integer, MobTierConfig> mobTierConfigs = new HashMap<>();
 
-    public MobSpawnManager(Deepwither plugin) {
+    public MobSpawnManager(Deepwither plugin, PlayerQuestManager playerQuestManager) {
         this.plugin = plugin;
+        this.playerQuestManager = playerQuestManager;
 
-        // 設定の読み込みとタイマーの開始
         loadMobTierConfigs();
         startSpawnScheduler();
     }
 
-    // ----------------------------------------------------
-    // --- 設定読み込み (実際は config.yml から読み込む) ---
-    // ----------------------------------------------------
+    // ... loadMobTierConfigs, startSpawnScheduler の部分は変更なし ...
+
     private void loadMobTierConfigs() {
         mobTierConfigs.clear(); // 既存データをクリア
 
-        // config.yml から "mob_spawns" セクションを取得
         ConfigurationSection mobSpawnsSection = plugin.getConfig().getConfigurationSection("mob_spawns");
 
         if (mobSpawnsSection == null) {
@@ -49,7 +70,6 @@ public class MobSpawnManager {
             return;
         }
 
-        // ティア番号のキー（"1", "2", ...）をループ
         for (String tierKey : mobSpawnsSection.getKeys(false)) {
             try {
                 int tierNumber = Integer.parseInt(tierKey);
@@ -57,10 +77,7 @@ public class MobSpawnManager {
 
                 if (tierSection == null) continue;
 
-                // regular_mobs リストを取得
                 List<String> regularMobs = tierSection.getStringList("regular_mobs");
-
-                // bandit_mobs リストを取得
                 List<String> banditMobs = tierSection.getStringList("bandit_mobs");
 
                 if (regularMobs.isEmpty() && banditMobs.isEmpty()) {
@@ -68,8 +85,15 @@ public class MobSpawnManager {
                     continue;
                 }
 
-                // MobTierConfig インスタンスを作成し、マップに格納
-                MobTierConfig config = new MobTierConfig(regularMobs, banditMobs);
+                ConfigurationSection bossSection = tierSection.getConfigurationSection("mini_bosses");
+                Map<String, Double> miniBosses = new HashMap<>();
+                if (bossSection != null) {
+                    for (String mobId : bossSection.getKeys(false)) {
+                        miniBosses.put(mobId, bossSection.getDouble(mobId));
+                    }
+                }
+
+                MobTierConfig config = new MobTierConfig(regularMobs, banditMobs,miniBosses);
                 mobTierConfigs.put(tierNumber, config);
 
                 plugin.getLogger().info("Mob Tier " + tierNumber + " の設定をロードしました。");
@@ -80,9 +104,6 @@ public class MobSpawnManager {
         }
     }
 
-    // ----------------------------------------------------
-    // --- スポーンスケジューラ ---
-    // ----------------------------------------------------
     private void startSpawnScheduler() {
         new BukkitRunnable() {
             @Override
@@ -90,12 +111,14 @@ public class MobSpawnManager {
                 World targetWorld = Bukkit.getWorld(targetWorldName);
                 if (targetWorld == null) return;
 
-                // Aetherワールドにいる全プレイヤーを対象に処理
                 for (Player player : targetWorld.getPlayers()) {
                     processPlayerSpawn(player);
                 }
+
+                // 【重要】死亡したMobのクリーンアップは別リスナーで処理する必要がある
+                cleanupDeadMobs();
             }
-        }.runTaskTimer(plugin, 20L, spawnIntervalTicks); // 1秒後から開始し、5秒ごとに繰り返す
+        }.runTaskTimer(plugin, 20L, spawnIntervalTicks);
     }
 
     // ----------------------------------------------------
@@ -103,17 +126,51 @@ public class MobSpawnManager {
     // ----------------------------------------------------
     private void processPlayerSpawn(Player player) {
         Location playerLoc = player.getLocation();
+        UUID playerId = player.getUniqueId();
 
-        // 1. Safezoneチェック: "safezone" を含むリージョン内ではスポーンしない
+        // ★追加: プレイヤーのゲームモードをチェック
+        GameMode mode = player.getGameMode();
+        if (mode != GameMode.SURVIVAL && mode != GameMode.ADVENTURE) {
+            return; // サバイバルまたはアドベンチャー以外なら処理を中断
+        }
+
+        // -----------------------------------------------------------------
+        // ★ 0A: ロック解除チェック (移動したか？)
+        // -----------------------------------------------------------------
+        Location lockLoc = spawnLockLocations.get(playerId);
+        if (lockLoc != null) {
+            if (playerLoc.distanceSquared(lockLoc) < MOVE_UNLOCK_DISTANCE_SQUARED) {
+                return;
+            } else {
+                spawnLockLocations.remove(playerId);
+            }
+        }
+
+        // ★ 0B: 沸き上限チェック & ロック設定
+        // countNearbyMobs の代わりに、追跡マップから数を取得する
+        int currentMobs = getTrackedMobCount(playerId);
+
+        if (currentMobs >= MOB_CAP_PER_PLAYER) {
+            // 上限に達した場合、現在の位置をスポーンロック地点として設定する
+            spawnLockLocations.put(playerId, playerLoc);
+            return; // スポーンをスキップ
+        }
+
+        // 1. Safezoneチェック
         if (isSafeZone(playerLoc)) {
             return;
         }
 
-        // 2. ティア (層) チェック: "t1", "t2" などのリージョン名からティア番号を取得
+        // ★ 2. クエストエリア内のスポーンを優先
+        if (trySpawnQuestMob(player, playerLoc, currentMobs)) {
+            return;
+        }
+
+        // 3. ティア (層) チェック
         int tier = getTierFromLocation(playerLoc);
 
         if (tier == 0) {
-            return; // ティア領域外
+            return;
         }
 
         MobTierConfig config = mobTierConfigs.get(tier);
@@ -122,125 +179,205 @@ public class MobSpawnManager {
             return;
         }
 
-        // 3. 沸かせるMobの決定
+        // 4. 中ボススポーンチェック
+        if (trySpawnMiniBoss(playerLoc, config, playerId)) { // playerId を渡す
+            return;
+        }
+
+        // 5. 沸かせるMobの決定
         List<String> regularMobs = config.getRegularMobs();
         String mobType = regularMobs.get(plugin.getRandom().nextInt(regularMobs.size()));
 
-        // 4. スポーン位置の決定 (プレイヤーから15ブロック以内)
+        // 6. スポーン位置の決定 (プレイヤーから15ブロック以内)
         Location spawnLoc = getRandomSpawnLocation(playerLoc, 15);
+        if (spawnLoc == null) return;
 
-        // 5. スポーン処理
-
+        // 7. スポーン処理
         if (mobType.equalsIgnoreCase("bandit")) {
-            // 4-A. Bandit の特別処理: 1-3体をランダムでスポーン
+            // Bandit の特別処理: 1-3体をランダムでスポーン
             List<String> banditList = config.getBanditMobs();
             if (banditList.isEmpty()) return;
 
-            // 1, 2, or 3人
-            int numBandits = plugin.getRandom().nextInt(3) + 1;
+            int numBandits = plugin.getRandom().nextInt(3) + 1; // 1, 2, or 3人
             for (int i = 0; i < numBandits; i++) {
                 String banditMobId = banditList.get(plugin.getRandom().nextInt(banditList.size()));
 
-                // MythicMobs APIでスポーン
-                spawnMythicMob(banditMobId, spawnLoc);
+                // MythicMobs APIでスポーンし、UUIDを追跡
+                UUID mobUuid = spawnMythicMob(banditMobId, spawnLoc);
+                trackSpawnedMob(playerId, mobUuid); // ★追跡
             }
 
         } else {
-            // 4-B. 通常のMob処理
-            spawnMythicMob(mobType, spawnLoc);
+            // 通常のMob処理
+            UUID mobUuid = spawnMythicMob(mobType, spawnLoc);
+            trackSpawnedMob(playerId, mobUuid); // ★追跡
         }
     }
 
     // ----------------------------------------------------
-    // --- ヘルパーメソッド ---
+    // --- ヘルパーメソッド (Mob追跡関連) ---
+    // ----------------------------------------------------
+
+    /**
+     * 追跡マップから、特定のプレイヤーのためにスポーンしたMobの数を返す。
+     */
+    private int getTrackedMobCount(UUID playerId) {
+        return spawnedMobsTracker.getOrDefault(playerId, Collections.emptySet()).size();
+    }
+
+    /**
+     * MobのUUIDをスポーン追跡マップに追加する。
+     */
+    private void trackSpawnedMob(UUID playerId, UUID mobUuid) {
+        if (mobUuid == null) return;
+        spawnedMobsTracker.computeIfAbsent(playerId, k -> ConcurrentHashMap.newKeySet()).add(mobUuid);
+    }
+
+    /**
+     * MobのUUIDをスポーン追跡マップから削除する。
+     * これは MobDeathEvent リスナーから呼び出されるべきです。
+     */
+    public void untrackMob(UUID mobUuid) {
+        // 全てのプレイヤーのSetをチェックし、該当するUUIDを削除する
+        for (Set<UUID> mobUuids : spawnedMobsTracker.values()) {
+            mobUuids.remove(mobUuid);
+        }
+    }
+
+    /**
+     * サーバー上に存在しないMobのUUIDを追跡マップから削除し、メモリを解放する。
+     * このメソッドは、Schedulerで定期的に呼び出されます。
+     */
+    private void cleanupDeadMobs() {
+        for (Map.Entry<UUID, Set<UUID>> entry : spawnedMobsTracker.entrySet()) {
+            Set<UUID> mobUuids = entry.getValue();
+            mobUuids.removeIf(uuid -> Bukkit.getEntity(uuid) == null);
+        }
+        // 追跡するMobがいなくなったプレイヤーのエントリを削除
+        spawnedMobsTracker.entrySet().removeIf(entry -> entry.getValue().isEmpty());
+    }
+
+    // ----------------------------------------------------
+    // --- ヘルパーメソッド (既存の修正) ---
     // ----------------------------------------------------
 
     /**
      * MythicMobsのMobをスポーンさせる
+     * @return スポーンしたMobのUUID
      */
-    private void spawnMythicMob(String mobId, Location loc) {
-        MythicBukkit.inst().getMobManager().spawnMob(mobId,loc);
+    private UUID spawnMythicMob(String mobId, Location loc) {
+        Entity entity = MythicBukkit.inst().getMobManager().spawnMob(mobId,loc).getEntity().getBukkitEntity();
+        return entity != null ? entity.getUniqueId() : null;
     }
 
-    /**
-     * 中心点から指定された半径内のランダムな地表位置を取得する
-     */
-    private Location getRandomSpawnLocation(Location center, int radius) {
-        Random random = plugin.getRandom();
+    // ... getRandomSpawnLocation, MobTierConfig は変更なし ...
 
-        // 1. X/Z座標のランダム化 (センターの周囲 radius 範囲)
+    private Location getRandomSpawnLocation(Location center, int radius) {
+        // ... (元の getRandomSpawnLocation の実装) ...
+        Random random = plugin.getRandom();
         double x = center.getX() + (random.nextDouble() * 2 * radius) - radius;
         double z = center.getZ() + (random.nextDouble() * 2 * radius) - radius;
-
         World world = center.getWorld();
-
-        // 2. Y座標の探索開始地点を決定
-        // プレイヤーのY座標±3ブロックの範囲から探索を開始する
         int startY = (int) Math.min(world.getMaxHeight() - 2, center.getY() + 3);
 
-        // 3. 地下に向かってスポーン可能な位置を探索
         for (int y = startY; y > (world.getMinHeight() + 1); y--) {
-
             Location checkLoc = new Location(world, x, y, z);
-
-            // プレイヤーのY座標より高すぎる場所はスキップ（任意）
-            // if (y > center.getY() + 10) continue;
-
-            // 空間のチェック：スポーン位置(y)とその上が空気ブロックであること
-            // Mobがハマらないように、高さ2ブロックの空間を保証
             if (checkLoc.getBlock().getType().isAir() &&
                     checkLoc.clone().add(0, 1, 0).getBlock().getType().isAir()) {
-
-                // 空間が見つかったら、その下のブロックをチェック
                 Location blockBelow = checkLoc.clone().subtract(0, 1, 0);
-
-                // スポーン可能条件:
-                // 1. スポーン位置とその上が空気である
-                // 2. スポーン位置の直下が固体ブロック、または水ではない（落下防止のため固体推奨）
-                //    -> ここでは、直下が空気でないことを確認する (足場があることを確認)
                 if (!blockBelow.getBlock().getType().isAir() && blockBelow.getBlock().isSolid()) {
-
-                    // スポーン位置を中央に補正し、Found!
                     return new Location(world, x + 0.5, y + 0.0, z + 0.5);
                 }
             }
         }
-
-        // 4. スポーンに適した場所が見つからなかった場合、デフォルトとしてプレイヤーの頭上を返すか、スポーンをキャンセルする。
-        // ここでは、スポーン位置が見つからなかったという警告をログに出し、スポーンロジック側で null チェックを推奨。
-        // 例として、探索範囲で見つからなかった場合は null を返すようにします。
-        // plugin.getLogger().info("警告: Mobスポーンに適した地下空間が見つかりませんでした。");
         return null;
     }
 
-    // MobSpawnManagerの内部クラスとして定義
-    private static class MobTierConfig {
-        private final List<String> regularMobs;
-        private final List<String> banditMobs; // Banditの場合にここから選ばれる
 
-        public MobTierConfig(List<String> regularMobs, List<String> banditMobs) {
-            this.regularMobs = regularMobs;
-            this.banditMobs = banditMobs;
+    /**
+     * 確率に基づいて中ボスをスポーンさせることを試みる。
+     * @return 中ボスがスポーンした場合 true
+     */
+    private boolean trySpawnMiniBoss(Location centerLoc, MobTierConfig config, UUID playerId) {
+        Map<String, Double> miniBosses = config.getMiniBosses();
+        if (miniBosses.isEmpty()) return false;
+
+        Random random = plugin.getRandom();
+        double roll = random.nextDouble();
+
+        for (Map.Entry<String, Double> entry : miniBosses.entrySet()) {
+            String mobId = entry.getKey();
+            double chance = entry.getValue();
+
+            if (roll <= chance) {
+                Location spawnLoc = getRandomSpawnLocation(centerLoc, 15);
+
+                if (spawnLoc != null) {
+                    UUID mobUuid = spawnMythicMob(mobId, spawnLoc);
+                    trackSpawnedMob(playerId, mobUuid); // ★追跡
+
+                    // プレイヤーに通知
+                    for (Player p : centerLoc.getWorld().getPlayers()) {
+                        if (p.getLocation().distanceSquared(centerLoc) < 40 * 40) {
+                            p.sendMessage("§4§l!!! 危険な反応 !!! §c" + mobId + "が付近に出現しました！");
+                        }
+                    }
+                    return true;
+                }
+            }
         }
 
-        public List<String> getRegularMobs() { return regularMobs; }
-        public List<String> getBanditMobs() { return banditMobs; }
+        return false;
     }
 
     /**
-     * 指定されたLocationが、名前に「safezone」を含むリージョン内にあるかを判定します。
+     * プレイヤーがクエストエリア内にいるかチェックし、いる場合はクエストMobのスポーンを試みる。
+     * @return クエストエリア内にいる場合は true (通常Mobスポーンを無効化するため)
      */
-    private boolean isSafeZone(Location loc) {
-        // WorldGuardのAPI経由でリージョンコンテナを取得
-        RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+    private boolean trySpawnQuestMob(Player player, Location playerLoc, int currentMobs) {
+        PlayerQuestData playerData = playerQuestManager.getPlayerData(player.getUniqueId());
 
-        // クエリを作成し、現在の場所がどのリージョンに含まれるかを取得
+        if (playerData == null || playerData.getActiveQuests().isEmpty()) {
+            return false;
+        }
+
+        QuestProgress progress = playerData.getActiveQuests().values().iterator().next();
+        LocationDetails locationDetails = progress.getQuestDetails().getLocationDetails();
+        Location objectiveLoc = locationDetails.toBukkitLocation();
+
+        if (objectiveLoc == null || !objectiveLoc.getWorld().equals(playerLoc.getWorld())) {
+            return false;
+        }
+
+        if (objectiveLoc.distanceSquared(playerLoc) <= QUEST_AREA_RADIUS_SQUARED) {
+
+            if (currentMobs >= MOB_CAP_PER_PLAYER) {
+                return true;
+            }
+
+            String questMobId = progress.getQuestDetails().getTargetMobId();
+            Location spawnLoc = getRandomSpawnLocation(playerLoc, 8);
+
+            if (spawnLoc != null) {
+                UUID mobUuid = spawnMythicMob(questMobId, spawnLoc);
+                trackSpawnedMob(player.getUniqueId(), mobUuid); // ★追跡
+                player.sendMessage("§a[クエストエリア] §e目標 Mob がスポーンしました！");
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    // ... isSafeZone, getTierFromLocation は変更なし ...
+
+    private boolean isSafeZone(Location loc) {
+        RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
         RegionQuery query = container.createQuery();
         ApplicableRegionSet set = query.getApplicableRegions(BukkitAdapter.adapt(loc));
 
-        // 適用可能なリージョンを全てチェック
         for (ProtectedRegion region : set) {
-            // リージョンID（名前）が「safezone」を含んでいるか（大文字小文字を無視）
             if (region.getId().toLowerCase().contains("safezone")) {
                 return true;
             }
@@ -248,44 +385,25 @@ public class MobSpawnManager {
         return false;
     }
 
-    /**
-     * 現在のLocationを含むリージョンIDから、層を示す数字 (t1 -> 1, t2 -> 2) を抽出して返す。
-     * Safezoneなどのスポーンを抑制する領域では 0 を返す。
-     *
-     * @param loc チェックする場所
-     * @return 抽出された層の番号 (1以上)。層を示すリージョンがない場合は 0 を返す。
-     */
     public int getTierFromLocation(Location loc) {
-        // WorldGuardのAPI経由でリージョンコンテナを取得
         RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
-
-        // クエリを作成し、現在の場所がどのリージョンに含まれるかを取得
         RegionQuery query = container.createQuery();
         ApplicableRegionSet set = query.getApplicableRegions(BukkitAdapter.adapt(loc));
 
-        int maxTier = 0; // 最も高いティア番号を保持
+        int maxTier = 0;
 
-        // 適用可能なリージョンを全てチェック
         for (ProtectedRegion region : set) {
             String id = region.getId().toLowerCase();
 
-            // 1. スポーンを抑制するリージョンをチェック（Safezone）
             if (id.contains("safezone")) {
-                // Safezoneにいる場合は、必ず 0 を返す
                 return 0;
             }
 
-            // 2. ティア (t1, t2, ...) の抽出
-            // 正規表現: "t"の後に続く数字を抽出
-            // 例: "aether_t2_zone" -> 2 を抽出
-
-            // "t" (または "tier") の後に数字が続くパターンを探す
             int tierIndex = id.indexOf("t");
             if (tierIndex != -1 && tierIndex + 1 < id.length()) {
                 char nextChar = id.charAt(tierIndex + 1);
 
                 if (Character.isDigit(nextChar)) {
-                    // "t" の次の文字から数字としてパースを試みる
                     StringBuilder tierStr = new StringBuilder();
                     int i = tierIndex + 1;
                     while (i < id.length() && Character.isDigit(id.charAt(i))) {
@@ -296,17 +414,28 @@ public class MobSpawnManager {
                     try {
                         int tier = Integer.parseInt(tierStr.toString());
                         if (tier > maxTier) {
-                            maxTier = tier; // 最も高いティアを優先
+                            maxTier = tier;
                         }
-                    } catch (NumberFormatException ignored) {
-                        // 数字が大きすぎる、または不正な形式の場合は無視
-                    }
+                    } catch (NumberFormatException ignored) {}
                 }
             }
         }
-
-        // Safezoneでなければ、見つかった最も高いティア番号を返す
         return maxTier;
     }
-}
 
+    // MobSpawnManagerの内部クラスとして定義
+    private static class MobTierConfig {
+        private final List<String> regularMobs;
+        private final List<String> banditMobs;
+        private final Map<String, Double> miniBosses;
+
+        public MobTierConfig(List<String> regularMobs, List<String> banditMobs, Map<String, Double> miniBosses) {
+            this.regularMobs = regularMobs;
+            this.banditMobs = banditMobs;
+            this.miniBosses = miniBosses;
+        }
+
+        public List<String> getRegularMobs() { return regularMobs; }
+        public List<String> getBanditMobs() { return banditMobs; }
+        public Map<String, Double> getMiniBosses() { return miniBosses; }
+    }}

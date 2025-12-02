@@ -34,22 +34,34 @@ public class TraderGUI implements Listener {
     public void openBuyGUI(Player player, String traderId, int playerCredit, TraderManager manager) {
 
         // 1. プレイヤーの信用度に基づき、購入可能なオファーを取得
-        List<TraderOffer> availableOffers = manager.getAvailableOffers(traderId, playerCredit);
+        List<TraderOffer> availableOffers = manager.getAllOffers(traderId);
 
         // 2. GUIのサイズを決定 (9の倍数、最大54スロット)
         int size = ((availableOffers.size() / 9) + 1) * 9;
         size = Math.min(size, 54);
 
         // 3. インベントリを作成
-        Inventory gui = Bukkit.createInventory(player, size, String.format(BUY_GUI_TITLE, traderId)); // ここではIDを名前に仮定
+        Inventory gui = Bukkit.createInventory(player, size, String.format(BUY_GUI_TITLE, traderId));
+
+        // ★ オファーを配置できる最大スロット数を計算
+        // 最後の2スロット(size-1とsize-2)はボタン用に予約
+        final int maxOfferSlots = size - 2;
 
         // 4. オファーをGUIに配置
         for (int i = 0; i < availableOffers.size(); i++) {
+
+            // ★ 予約スロットに到達したら、ループを終了する
+            if (i >= maxOfferSlots) {
+                // オファー数がスロット容量を超えたため、超過分は表示されない
+                break;
+            }
+
             TraderOffer offer = availableOffers.get(i);
 
             int finalI = i;
             offer.getLoadedItem().ifPresent(originalItem -> {
-                // 購入可能なアイテムを複製し、GUI用にカスタマイズ
+                // ... (アイテムの複製、Loreへの価格/信用度追加、PDC設定の既存ロジック) ...
+
                 ItemStack displayItem = originalItem.clone();
                 ItemMeta meta = displayItem.getItemMeta();
 
@@ -68,6 +80,7 @@ public class TraderGUI implements Listener {
                     lore.add(ChatColor.GREEN + "クリックして購入");
                 } else {
                     lore.add(ChatColor.RED + "信用度が不足しています");
+                    meta.getPersistentDataContainer().set(pdc_key, PersistentDataType.INTEGER, 0);
                 }
 
                 meta.setLore(lore);
@@ -80,7 +93,7 @@ public class TraderGUI implements Listener {
         // 5. 売却ボタンを追加 (最後のスロットに固定)
         addSellButton(gui, size - 1);
 
-        // 6. ★ デイリータスクボタンを追加 (売却ボタンの左隣)
+        // 6. デイリータスクボタンを追加 (売却ボタンの左隣)
         addDailyTaskButton(player, gui, size - 2, traderId, Deepwither.getInstance().getDailyTaskManager());
 
         player.openInventory(gui);
@@ -104,10 +117,13 @@ public class TraderGUI implements Listener {
 
     private void addDailyTaskButton(Player player, Inventory gui, int slot, String traderId, DailyTaskManager taskManager) {
         DailyTaskData data = taskManager.getTaskData(player);
-        // [Current Kill Count, Target Kill Count] のみを取得
         int[] progress = data.getProgress(traderId);
         int current = progress[0];
         int target = progress[1];
+
+        // ★追加: ターゲット名を取得
+        String targetMobId = data.getTargetMob(traderId);
+        String displayMobName = targetMobId.equals("bandit") ? "バンディット" : targetMobId;
 
         int completedCount = data.getCompletionCount(traderId);
         int limit = Deepwither.getInstance().getTraderManager().getDailyTaskLimit(traderId);
@@ -123,20 +139,22 @@ public class TraderGUI implements Listener {
         lore.add("§7残りのタスク完了回数: §b" + (limit - completedCount) + "§7/" + limit);
 
         if (completedCount >= limit) {
-            // 制限超過
             lore.add("");
             lore.add(ChatColor.RED + ">> 本日のタスク制限に達しました <<");
             taskButton.setType(org.bukkit.Material.BARRIER);
         } else if (target != 0) {
-            // タスク進行中 (Mobキルに一本化)
+            // タスク進行中
             lore.add("§a--- 現在の目標 ---");
-            lore.add("§7バンディットキル: §c" + current + "§7/" + target);
+            // ★変更: バンディット固定ではなくターゲット名を表示
+            lore.add("§7" + displayMobName + "討伐: §c" + current + "§7/" + target);
             lore.add("");
             lore.add(ChatColor.YELLOW + "目標を達成して報告してください。");
         } else {
             // タスク未開始
             lore.add("");
-            lore.add("§a[バンディットキルタスク] §7バンディットを数十体倒す。"); // PKタスクの記述を削除
+            // ★変更: タスク受注時の説明文
+            lore.add("§a[討伐依頼] §7現在のエリア周辺の");
+            lore.add("§7脅威となっている生命体を討伐する。");
             lore.add("");
             lore.add(ChatColor.GREEN + "クリックでタスクを受注");
         }
@@ -146,7 +164,6 @@ public class TraderGUI implements Listener {
 
         gui.setItem(slot, taskButton);
     }
-
 
     /**
      * GUIクリック時の処理（リスナーとしてメインクラスで登録が必要）

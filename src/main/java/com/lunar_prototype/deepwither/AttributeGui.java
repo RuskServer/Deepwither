@@ -127,7 +127,7 @@ class StatEffectText {
             }
             case AGI -> {
                 list.add("+ " + (level * 0.2) + "% 会心率");
-                list.add("+ " + (level * 1) + "% 移動速度");
+                list.add("+ " + (level * 0.25) + "% 移動速度");
             }
         }
         return list;

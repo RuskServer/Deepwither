@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither;
 
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
 import java.io.File;
@@ -71,21 +73,52 @@ public class LevelManager {
         data.addExp(amount);
         int after = data.getLevel();
 
-        player.sendMessage("§a+ " + amount + " EXP");
+        // EXP獲得メッセージはシンプルに
+        player.sendMessage("§a+ " + String.format("%.1f", amount) + " EXP"); // amountがdoubleなので、フォーマットを追加
 
         if (after > before) {
-            player.sendMessage("§6Level Up! §e" + before + " → " + after);
-            Deepwither.getInstance().getAttributeManager().givePoints(player.getUniqueId(),2);
+            // --- ★ レベルアップ通知を豪華にする ★ ---
+
+            // 1. タイトル/サブタイトル通知
+            String titleText = "§6§lLEVEL UP!";
+            String subtitleText = String.format("§e%d §f→ §6§l%d", before, after);
+
+            // タイトル表示 (フェードイン: 10 tick, 表示時間: 70 tick, フェードアウト: 20 tick)
+            player.sendTitle(titleText, subtitleText, 10, 70, 20);
+
+            // 2. サウンドエフェクト
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 0.5f); // 低いピッチで重厚な音
+            player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f); // 達成感を出す
+
+            // 4. チャットメッセージの装飾
+            int attrPoints = 2; // 属性ポイント
+            int skillPoints = 2; // スキルポイント
+
+            player.sendMessage("§b§m--------------------------------------");
+            player.sendMessage("§f§l    »» §6§lレベルアップ！ §f§l««");
+            player.sendMessage(String.format("§e   レベル: %d §f→ §a§l%d", before, after));
+            player.sendMessage("");
+            player.sendMessage(String.format("§7- 獲得したボーナス -"));
+            player.sendMessage(String.format("§c  » §c属性ポイント: §f§l%d", attrPoints));
+            player.sendMessage(String.format("§d  » §dスキルポイント: §f§l%d", skillPoints));
+            player.sendMessage("§b§m--------------------------------------");
+
+            // 5. ポイント付与処理 (既存ロジック)
+            Deepwither.getInstance().getAttributeManager().givePoints(player.getUniqueId(), attrPoints);
+
             UUID uuid = player.getUniqueId();
             SkilltreeManager.SkillData skilldata = Deepwither.getInstance().getSkilltreeManager().load(uuid);
             if (skilldata != null) {
-                skilldata.setSkillPoint(skilldata.getSkillPoint() + 2);
+                skilldata.setSkillPoint(skilldata.getSkillPoint() + skillPoints);
                 Deepwither.getInstance().getSkilltreeManager().save(uuid, skilldata);
             }
         }
 
         if (after >= MAX_LEVEL) {
-            player.sendMessage("§b最大レベルに到達しました！");
+            player.sendMessage("§b§l§m--------------------------------------");
+            player.sendMessage("§f§l    »» §3§l最大レベル到達！ §f§l««");
+            player.sendMessage("§b   全ての戦いを乗り越えた証！");
+            player.sendMessage("§b§l§m--------------------------------------");
         }
     }
 

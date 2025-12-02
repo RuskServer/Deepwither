@@ -49,7 +49,7 @@ public class SkillAssignmentGUI implements Listener {
                 translatedLine = translatedLine.replace("{cooldown}", String.format("%.1f", effectiveCooldown));
                 translatedLine = translatedLine.replace("{mana}", String.format("%.1f", manaCost));
 
-                lore.add(translatedLine);
+                lore.add(ChatColor.GRAY +translatedLine);
             }
             lore.add("");
             lore.add(ChatColor.GRAY + "クリックでスロットに割り当て");

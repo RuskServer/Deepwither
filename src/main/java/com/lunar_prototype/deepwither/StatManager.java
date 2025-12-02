@@ -106,6 +106,27 @@ public class StatManager {
     }
 
     /**
+     * プレイヤーのカスタムHPを回復させます。
+     * @param player 回復させるプレイヤー
+     * @param amount 回復量
+     */
+    public void healCustomHealth(Player player, double amount) {
+        // プレイヤーの現在のカスタムHPを取得。ない場合はデフォルトの最大HP（20.0）を初期値とする。
+        // StatManagerで最大HPも管理している場合は、そちらの値を参照してください。
+        double currentHealth = getActualCurrentHealth(player);
+
+        // プレイヤーの最大HPを取得 (StatManagerでカスタム最大HPを管理している場合はその値を使用)
+        // ここでは便宜上、標準のAttributeから取得しています。
+        double maxHealth = getActualMaxHealth(player);
+
+        // 回復後のHPを計算（最大HPを超えないようにする）
+        double newHealth = Math.min(currentHealth + amount, maxHealth);
+
+        // カスタムHPを更新
+        setActualCurrentHealth(player, newHealth);
+    }
+
+    /**
      * プレイヤーの現在の実際のHPを取得する。存在しない場合は最大HPで初期化。
      */
     public double getActualCurrentHealth(Player player) {
@@ -227,11 +248,13 @@ public class StatManager {
                         total.setFlat(StatType.MAX_MANA, manaVal + points * 5.0);
                     }
                     case AGI -> {
+                        // クリティカルチャンスの計算はそのまま (AGI 1ポイントあたり 0.2%上昇)
                         double critChanceVal = total.getFlat(StatType.CRIT_CHANCE);
                         total.setFlat(StatType.CRIT_CHANCE, critChanceVal + points * 0.2);
 
+                        // 移動速度の計算を修正 (AGI 1ポイントあたり 0.0025 上昇、つまり2ポイントで 0.005 上昇)
                         double speedVal = total.getFlat(StatType.MOVE_SPEED);
-                        total.setFlat(StatType.MOVE_SPEED, speedVal + points * 0.01);
+                        total.setFlat(StatType.MOVE_SPEED, speedVal + points * 0.0025);
                     }
                 }
             }
@@ -319,7 +342,7 @@ public class StatManager {
         //攻撃速度
         if (stats.getFinal(StatType.ATTACK_SPEED) > 0.1){
             double modifierValue = stats.getFinal(StatType.ATTACK_SPEED) - 4.0;
-            syncAttribute(player, Attribute.ATTACK_SPEED,ATTACK_SPEED_MODIFIER_ID,modifierValue);
+            syncAttribute(player,Attribute.ATTACK_SPEED,ATTACK_SPEED_MODIFIER_ID,modifierValue);
         }
 
         // 移動速度（注意：初期値が0.1くらいなので +0.01でも体感変わる）
@@ -330,10 +353,15 @@ public class StatManager {
         AttributeInstance attr = player.getAttribute(attrType);
         if (attr == null) return;
 
+        NamespacedKey att_key = new NamespacedKey(Deepwither.getInstance(),"RPG");
+        NamespacedKey baseAttackSpeed = NamespacedKey.minecraft("base_attack_speed");
+
+        attr.removeModifier(baseAttackSpeed);
+
         // 既存の同一IDのModifierを削除
         for (AttributeModifier mod : new HashSet<>(attr.getModifiers())) {
             try {
-                if (mod.getUniqueId().equals(uuid)) {
+                if (mod.getKey().equals(att_key)) {
                     attr.removeModifier(mod);
                 }
             } catch (IllegalArgumentException ex) {
@@ -347,7 +375,7 @@ public class StatManager {
         // 値が0ならスキップ（初期値に任せる）
         if (value == 0) return;
 
-        AttributeModifier modifier = new AttributeModifier(uuid, "custom_" + attrType.name(), value, AttributeModifier.Operation.ADD_NUMBER);
+        AttributeModifier modifier = new AttributeModifier(att_key,value, AttributeModifier.Operation.ADD_NUMBER);
         attr.addModifier(modifier);
     }
 
@@ -377,23 +405,25 @@ public class StatManager {
 
         ItemMeta meta = item.getItemMeta();
 
-        // ItemMetaが存在し、耐久値を持つアイテム（Damageable）であるかチェック
-        if (meta instanceof Damageable damageable) {
+        // 【修正点】アイテムが「耐久値を持つ」アイテムであるかを確認する
+        if (item.getType().getMaxDurability() > 0) {
 
-            int maxDurability = item.getType().getMaxDurability();
-            int currentDamage = damageable.getDamage(); // 現在の累積ダメージ量
+            // 耐久値を持つアイテムでのみ Damageable をチェック
+            if (meta instanceof Damageable damageable) {
 
-            // 残り耐久値を計算 (最大耐久値 - 累積ダメージ)
-            int remainingDurability = maxDurability - currentDamage;
+                int maxDurability = item.getType().getMaxDurability();
+                int currentDamage = damageable.getDamage();
 
-            // 残り耐久値が 1 でないことを確認
-            if (remainingDurability <= 1) {
-                // 耐久値が1以下の場合、統計値の読み込みをスキップ
-                return false;
+                int remainingDurability = maxDurability - currentDamage;
+
+                // 残り耐久値が 1 でないことを確認
+                if (remainingDurability <= 1) {
+                    // 耐久値が1以下の場合、読み込みをスキップ
+                    return false;
+                }
             }
         }
-
-        // 通常のアイテム、または耐久値が2以上のアイテムの場合は読み込みを許可
+        // Durabilityが0のアイテム（Stickなど）、または耐久値が2以上のアイテムは読み込みを許可
         return true;
     }
 }

@@ -43,31 +43,40 @@ public class SkillCastSessionManager implements Listener {
 
                         if (displayKey > 9) continue;
 
+                        // ■ 改善点1: キー番号の表示を統一（灰色ブラケット + 黄色数字）
+                        // §7[ §e1 §7] のようになります
+                        String keyPrefix = "§7[§e" + displayKey + "§7] ";
+
                         if (skillId == null) {
-                            sb.append("[").append(displayKey).append("] §7未設定 ");
+                            // 未設定は目立たないように暗い灰色で
+                            sb.append(keyPrefix).append("§8----  ");
                             continue;
                         }
 
                         SkillDefinition def = skillLoader.get(skillId);
                         if (def == null) {
-                            sb.append("[").append(displayKey).append("] §cエラー ");
+                            sb.append(keyPrefix).append("§cERROR  ");
                             continue;
                         }
 
-                        boolean onCooldown = cooldownManager.isOnCooldown(uuid, skillId, def.cooldown,def.cooldown_min);
+                        boolean onCooldown = cooldownManager.isOnCooldown(uuid, skillId, def.cooldown, def.cooldown_min);
                         boolean notEnoughMana = manaManager.get(uuid).getCurrentMana() < def.manaCost;
 
                         String display;
                         if (onCooldown) {
-                            double remaining = cooldownManager.getRemaining(uuid, skillId, def.cooldown,def.cooldown_min);
-                            display = "§c" + def.name + String.format("(%.1f)", remaining);
+                            double remaining = cooldownManager.getRemaining(uuid, skillId, def.cooldown, def.cooldown_min);
+                            // ■ 改善点2: クールダウン中は赤文字＋秒数は少し薄くして見やすく
+                            display = "§c" + def.name + " §7(" + String.format("%.1f", remaining) + ")";
                         } else if (notEnoughMana) {
-                            display = "§9" + def.name;
+                            // ■ 改善点3: マナ不足は §9(濃い青) だと見づらいので §b(水色) や §3(濃い水色) 推奨
+                            display = "§b" + def.name;
                         } else {
-                            display = "§a" + def.name;
+                            // ■ 改善点4: 使用可能時は緑 (§a) + 太字 (§l) で強調しても良い
+                            display = "§a§l" + def.name;
                         }
 
-                        sb.append("[").append(displayKey).append("] ").append(display).append(" ");
+                        // ■ 改善点5: 末尾にスペースを2つ入れて区切りを明確に
+                        sb.append(keyPrefix).append(display).append("  ");
                     }
 
                     player.sendActionBar(sb.toString().trim());

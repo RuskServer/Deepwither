@@ -12,8 +12,19 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
+
+import java.util.UUID;
 
 public class SafeZoneListener implements Listener {
+
+
+    private final Deepwither plugin; // メインクラスの参照を追加
+
+    // コンストラクタを追加
+    public SafeZoneListener(Deepwither plugin) {
+        this.plugin = plugin;
+    }
 
     // プレイヤーがブロックを跨いでいない移動は無視する
     @EventHandler
@@ -44,12 +55,17 @@ public class SafeZoneListener implements Listener {
             // セーフゾーンに侵入
             player.sendTitle(
                     ChatColor.AQUA + "セーフゾーン",
-                    ChatColor.GRAY + "",
+                    ChatColor.GRAY + "リスポーン地点を更新しました", // メッセージを更新
                     10, // フェードイン (0.5秒)
                     70, // 滞在時間 (3.5秒)
                     20  // フェードアウト (1.0秒)
             );
-            player.sendMessage(ChatColor.AQUA + ">> セーフゾーンに侵入しました。");
+            player.sendMessage(ChatColor.AQUA + ">> セーフゾーンに侵入しました。**リスポーン地点が現在地に設定されました。**");
+
+            plugin.setSafeZoneSpawn(player.getUniqueId(), to);
+            plugin.saveSafeZoneSpawns(); // 即座にファイルに保存
+            // -------------------------------------------------
+
         }
 
         // ----------------------------------------------------
@@ -85,5 +101,24 @@ public class SafeZoneListener implements Listener {
             }
         }
         return false;
+    }
+
+    @EventHandler
+    public void onPlayerRespawn(PlayerRespawnEvent event) {
+        Player player = event.getPlayer();
+        UUID playerUUID = player.getUniqueId();
+
+        // 永続化データから保存されたリスポーン地点を取得
+        Location safeZoneSpawn = plugin.getSafeZoneSpawn(playerUUID);
+
+        if (safeZoneSpawn != null) {
+            // イベントのリスポーン地点を保存された地点に設定
+            event.setRespawnLocation(safeZoneSpawn);
+
+            // 💡 補足: Bukkit 1.9以降では setRespawnLocation を使用すると、
+            // イベント処理後にサーバーが自動でテレポートを実行します。
+            // したがって、手動で player.teleport(safeZoneSpawn) を呼び出す必要はありません。
+            // （ただし、確実性を高めるために、後のティックで手動テレポートを追加することもあります）
+        }
     }
 }

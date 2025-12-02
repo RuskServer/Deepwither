@@ -33,7 +33,7 @@ public class ItemDurabilityFix implements Listener {
         int remainingDurability = maxDurability - currentDamage;
 
         // 次のダメージで耐久値がゼロ以下になる（＝破壊される）かチェック
-        if (damageToApply >= remainingDurability) {
+        if (remainingDurability <= 1) {
 
             // ★ 耐久値がゼロになるのをキャンセル
             e.setCancelled(true);
@@ -41,7 +41,7 @@ public class ItemDurabilityFix implements Listener {
             // 破壊をキャンセルした後、耐久値を強制的に 1 に設定して壊れない状態を維持する。
             // (オプション: ユーザーにアイテムが壊れる寸前であることをフィードバックする)
 
-            damageable.setDamage(maxDurability - 1); // 耐久値を残り1の状態に設定
+            damageable.setDamage(1); // 耐久値を残り1の状態に設定
             item.setItemMeta(damageable);
 
             // プレイヤーにメッセージを送信

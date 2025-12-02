@@ -185,25 +185,23 @@ public class TraderManager {
     // --- ゲッター ---
 
     /**
-     * プレイヤーの信用度に基づいて、購入可能なすべてのオファーを取得する。
+     * プレイヤーの信用度に関係なく、指定されたトレーダーの全オファーを信用度ティアレベルの低い順に取得する。
      */
-    public List<TraderOffer> getAvailableOffers(String traderId, int playerCredit) {
-        List<TraderOffer> available = new ArrayList<>();
+    public List<TraderOffer> getAllOffers(String traderId) {
+        List<TraderOffer> allOffers = new ArrayList<>();
         Map<Integer, List<TraderOffer>> tiers = traderOffers.getOrDefault(traderId, null);
 
-        if (tiers == null) return available;
+        if (tiers == null) return allOffers;
 
-        // 信用度レベルでソートして、低いレベルからチェック
-        tiers.keySet().stream().sorted().forEach(creditLevel -> {
-            if (playerCredit >= creditLevel) {
-                // ティアレベルをクリア
-                tiers.get(creditLevel).stream()
-                        .filter(offer -> playerCredit >= offer.getRequiredCredit()) // 個別オファーの必要信用度チェック
-                        .forEach(available::add);
-            }
-        });
+        // ティアレベルのキーセットを取得し、昇順でソートして処理する
+        tiers.keySet().stream()
+                .sorted() // ティアレベル（信用度）の低い順に並び替える
+                .forEach(creditLevel -> {
+                    // ソートされた順に、該当ティアのオファーリストをallOffersに追加する (1回のみ)
+                    allOffers.addAll(tiers.get(creditLevel));
+                });
 
-        return available;
+        return allOffers;
     }
 
     public int getSellPrice(String id) {

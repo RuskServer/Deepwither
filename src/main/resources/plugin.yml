@@ -25,6 +25,7 @@ commands:
     usage: /<command>
   trader:
     description: Opens the artifact GUI.
+    permission: giveitem.op
     usage: /<command>
   credit:
     description: Opens the artifact GUI.
@@ -32,3 +33,14 @@ commands:
   status:
     description: プレイヤーのレベルとステータスを表示します。
     usage: /status
+  questnpc:
+    description: クエストGUIを表示します
+    usage: /questnpc
+    permission: giveitem.op
+  blacksmith:
+    description: 鍛冶屋を開きます
+    permission: giveitem.op
+    usage: /blacksmith
+  task:
+    description: 進行中のクエストとデイリータスクの進捗を確認します。
+    usage: /task
