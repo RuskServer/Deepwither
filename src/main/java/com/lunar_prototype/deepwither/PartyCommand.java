@@ -9,11 +9,16 @@ import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
+import org.bukkit.util.StringUtil;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
-public class PartyCommand implements CommandExecutor {
+public class PartyCommand implements CommandExecutor, TabCompleter {
 
     private final PartyManager partyManager;
 
@@ -60,6 +65,81 @@ public class PartyCommand implements CommandExecutor {
         }
 
         return true;
+    }
+
+    // --- TAB補完処理 (ここを追加) ---
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        // プレイヤー以外からのTAB補完は処理しない（必要であれば変更可）
+        if (!(sender instanceof Player player)) {
+            return Collections.emptyList();
+        }
+
+        List<String> completions = new ArrayList<>();
+
+        // 引数が1つの場合 (サブコマンドの補完)
+        if (args.length == 1) {
+            List<String> subCommands = new ArrayList<>();
+            subCommands.add("invite");
+            subCommands.add("accept");
+            subCommands.add("leave");
+            subCommands.add("kick");
+            subCommands.add("disband");
+            subCommands.add("info");
+
+            // 入力された文字(args[0])と部分一致するものをリストに追加
+            StringUtil.copyPartialMatches(args[0], subCommands, completions);
+
+            // アルファベット順にソート
+            Collections.sort(completions);
+            return completions;
+        }
+
+        // 引数が2つの場合 (invite や kick の対象プレイヤー)
+        if (args.length == 2) {
+            String subCommand = args[0].toLowerCase();
+
+            if (subCommand.equals("invite")) {
+                // 全オンラインプレイヤー名を取得 (自分自身は除く)
+                List<String> playerNames = new ArrayList<>();
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    if (!p.getName().equals(player.getName())) {
+                        playerNames.add(p.getName());
+                    }
+                }
+                StringUtil.copyPartialMatches(args[1], playerNames, completions);
+
+            } else if (subCommand.equals("kick")) {
+                // パーティーメンバーの名前のみを取得
+                Party party = partyManager.getParty(player);
+                if (party != null) {
+                    List<String> memberNames = new ArrayList<>();
+                    // リーダーが自分なら、自分以外のメンバーを候補に出す
+                    if (party.getLeaderId().equals(player.getUniqueId())) {
+                        for (UUID memberId : party.getMemberIds()) {
+                            // 自分自身はキックできないのでリストに入れない
+                            if (!memberId.equals(player.getUniqueId())) {
+                                Player member = Bukkit.getPlayer(memberId);
+                                if (member != null) {
+                                    memberNames.add(member.getName());
+                                } else {
+                                    // オフラインプレイヤーの名前解決が必要な場合は別途処理が必要
+                                    // ここではオンラインでBukkitが認識できる場合のみ追加
+                                    String offlineName = Bukkit.getOfflinePlayer(memberId).getName();
+                                    if (offlineName != null) memberNames.add(offlineName);
+                                }
+                            }
+                        }
+                    }
+                    StringUtil.copyPartialMatches(args[1], memberNames, completions);
+                }
+            }
+
+            Collections.sort(completions);
+            return completions;
+        }
+
+        return Collections.emptyList();
     }
 
     private void handleInvite(Player player, String[] args) {

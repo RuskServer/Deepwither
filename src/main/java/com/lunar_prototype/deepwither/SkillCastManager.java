@@ -1,10 +1,12 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.api.event.SkillCastEvent;
 import io.lumine.mythic.api.MythicPlugin;
 import io.lumine.mythic.api.mobs.MythicMob;
 import io.lumine.mythic.bukkit.BukkitAPIHelper;
 import io.lumine.mythic.bukkit.BukkitAdapter;
 import io.lumine.mythic.bukkit.MythicBukkit;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
@@ -48,6 +50,8 @@ public class SkillCastManager {
             mana.consume(def.manaCost);
 
             Deepwither.getInstance().getCooldownManager().setCooldown(player.getUniqueId(), def.id);
+
+            Bukkit.getPluginManager().callEvent(new SkillCastEvent(player));
 
             player.sendMessage(ChatColor.GREEN + "スキル「" + def.name + "」を発動！");
         } else {

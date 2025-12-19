@@ -1,5 +1,8 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.api.event.OpenAttributes;
+import com.lunar_prototype.deepwither.api.event.OpenSkillassignment;
+import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -13,6 +16,7 @@ public class SkillAssignmentCommand implements CommandExecutor {
             commandSender.sendMessage("このコマンドはプレイヤー専用です。");
             return true;
         }
+        Bukkit.getPluginManager().callEvent(new OpenSkillassignment(player));
         Deepwither.getInstance().getSkillAssignmentGUI().open(player);
         return true;
     }

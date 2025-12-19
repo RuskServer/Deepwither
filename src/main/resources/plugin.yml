@@ -3,6 +3,7 @@ version: '1.0-SNAPSHOT'
 main: com.lunar_prototype.deepwither.Deepwither
 author: RS Team(Lunar_prototype)
 api-version: '1.21'
+depend : ["Votifier"]
 
 commands:
   giveitem:
@@ -44,7 +45,17 @@ commands:
   task:
     description: 進行中のクエストとデイリータスクの進捗を確認します。
     usage: /task
+  menu:
+    description: 基本的なステータス,タスク進捗,各種GUIへのアクセスが可能です
+    usage: /menu
   party:
     description: パーティー管理コマンド
     usage: /party <args>
     aliases: [ p ]
+  expbooster:
+    description: 経験値ブースターを付与します
+    usage: /expbooster
+  resetstatusgui:
+    description: ステータス・スキルリセット画面を指定プレイヤーに開きます
+    usage: /resetstatusgui <player>
+    permission: deepwither.admin

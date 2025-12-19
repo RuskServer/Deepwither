@@ -432,16 +432,21 @@ class ItemLoader {
     // 付与可能なモディファイアーとその重み（StatTypeと値の範囲）
     private static final List<ModifierDefinition> MODIFIER_DEFINITIONS = List.of(
             new ModifierDefinition(StatType.ATTACK_DAMAGE, 1.0, 3.0, 5.0),
-            new ModifierDefinition(StatType.DEFENSE, 1.0, 2.0, 5.0),
-            new ModifierDefinition(StatType.CRIT_CHANCE, 0.5, 1.0, 3.0),
-            new ModifierDefinition(StatType.CRIT_DAMAGE, 0.3, 5.0, 10.0),
+            new ModifierDefinition(StatType.DEFENSE, 1.0, 2.0, 15.0),
+            new ModifierDefinition(StatType.CRIT_CHANCE, 0.5, 1.0, 5.0),
+            new ModifierDefinition(StatType.CRIT_DAMAGE, 0.3, 5.0, 30.0),
             new ModifierDefinition(StatType.MAX_HEALTH, 1.0, 10.0, 20.0),
             new ModifierDefinition(StatType.MAGIC_DAMAGE, 1.0, 3.0, 5.0),
             new ModifierDefinition(StatType.MAGIC_RESIST, 1.0, 2.0, 5.0),
             new ModifierDefinition(StatType.PROJECTILE_DAMAGE, 1.0, 2.0, 10.0),
             new ModifierDefinition(StatType.MAGIC_BURST_DAMAGE, 1.0, 3.0, 5.0),
-            new ModifierDefinition(StatType.MAGIC_AOE_DAMAGE, 1.0, 3.0, 5.0)
-
+            new ModifierDefinition(StatType.MAGIC_AOE_DAMAGE, 1.0, 3.0, 5.0),
+            new ModifierDefinition(StatType.ATTACK_SPEED,0.1,0.1,0.2),
+            new ModifierDefinition(StatType.REACH,0.1,0.2,0.5),
+            new ModifierDefinition(StatType.MAX_MANA,0.5,10,40),
+            new ModifierDefinition(StatType.MOVE_SPEED,0.1,0.001,0.005),
+            new ModifierDefinition(StatType.COOLDOWN_REDUCTION,0.2,2,5),
+            new ModifierDefinition(StatType.HP_REGEN,0.1,1,3)
     );
 
     // モディファイアー定義用ヘルパークラス
@@ -631,7 +636,10 @@ class ItemLoader {
                 NamespacedKey pdc_key = new NamespacedKey(Deepwither.getInstance(), CUSTOM_ID_KEY);
                 meta.getPersistentDataContainer().set(pdc_key,PersistentDataType.STRING,key);
 
-
+                String unbreaking = config.getString(key + ".unbreaking","false");
+                if (unbreaking == "true"){
+                    meta.setUnbreakable(true);
+                }
 
                 item.setItemMeta(meta);
 

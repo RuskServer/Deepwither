@@ -326,6 +326,8 @@ public class MobSpawnManager {
 
     /**
      * Outpostイベントの要求に基づき、Mobをスポーンさせます。
+     * 修正: 窒息しない場所を探す再抽選ロジックを追加
+     *
      * @param mobId Mythic Mob ID
      * @param count スポーンさせる数
      * @param regionId 対象のリージョンID
@@ -339,9 +341,32 @@ public class MobSpawnManager {
 
         int spawnedCount = 0;
 
+        // 安全な場所が見つかるまで再抽選する最大回数
+        int maxRetries = 10;
+
         for (int i = 0; i < count; i++) {
-            // 1. リージョン内のランダムなLocationを取得
-            Location spawnLoc = getRandomLocationInRegion(world, regionId, fixedY);
+            Location spawnLoc = null;
+
+            // --- 再抽選ロジック開始 ---
+            for (int attempt = 0; attempt < maxRetries; attempt++) {
+                Location candidate = getRandomLocationInRegion(world, regionId, fixedY);
+
+                // リージョン設定ミス等でnullが返ってきた場合は中断
+                if (candidate == null) break;
+
+                // とりあえず候補として保存しておく (最後まで安全な場所が見つからなかった場合のフォールバック)
+                spawnLoc = candidate;
+
+                // 安全チェック: 足元と頭の位置が「固体ブロック(Solid)」ではないか確認
+                boolean isFeetSafe = !candidate.getBlock().getType().isSolid();
+                boolean isHeadSafe = !candidate.clone().add(0, 1, 0).getBlock().getType().isSolid();
+
+                if (isFeetSafe && isHeadSafe) {
+                    // 安全な場所が見つかったので、リトライループを抜けてこの座標を採用
+                    break;
+                }
+            }
+            // --- 再抽選ロジック終了 ---
 
             if (spawnLoc != null) {
                 // 2. Mythic Mobをスポーン

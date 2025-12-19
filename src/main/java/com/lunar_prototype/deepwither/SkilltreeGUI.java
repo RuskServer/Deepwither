@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.api.event.OpenAttributes;
+import com.lunar_prototype.deepwither.api.event.OpenSkilltree;
 import org.bukkit.*;
 import org.bukkit.command.*;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -65,6 +67,7 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
         }
 
         // ツリー選択画面を開く
+        Bukkit.getPluginManager().callEvent(new OpenSkilltree(player));
         Inventory inv = Bukkit.createInventory(player, 9 * ((trees.size() + 8) / 9), ChatColor.DARK_GREEN + "スキルツリー選択");
         int slot = 0;
         for (Map<?, ?> tree : trees) {

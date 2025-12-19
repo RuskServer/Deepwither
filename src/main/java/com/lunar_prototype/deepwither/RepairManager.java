@@ -43,8 +43,18 @@ public class RepairManager {
         int remainingDurability = maxDurability - currentDamage;
 
         // 1. 修理条件チェック: 耐久値が1の壊れる寸前の状態でのみ修理可能
-        if (remainingDurability > 1) {
-            player.sendMessage(ChatColor.YELLOW + "このアイテムはまだ修理できません。耐久値が限界に達するまでお待ちください。");
+
+        // 修理可能となる閾値（30%）を計算
+        double thresholdRatio = 0.30; // 30%
+        int repairThreshold = (int) (maxDurability * thresholdRatio);
+
+        // 現在の残り耐久率を計算（表示用）
+        int currentPercent = (int) (((double) remainingDurability / maxDurability) * 100);
+
+        // 1. 修理条件チェック: 残り耐久が閾値(30%)より多い場合は修理不可
+        if (remainingDurability > repairThreshold) {
+            player.sendMessage(ChatColor.YELLOW + "このアイテムはまだ修理できません。");
+            player.sendMessage(ChatColor.YELLOW + "修理可能ライン: 30%以下 (現在: " + currentPercent + "%)");
             return;
         }
 

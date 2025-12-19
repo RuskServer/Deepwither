@@ -1,6 +1,9 @@
 package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.api.DeepwitherPartyAPI;
+import com.lunar_prototype.deepwither.booster.BoosterManager;
+import com.lunar_prototype.deepwither.command.BoosterCommand;
+import com.lunar_prototype.deepwither.command.ResetGUICommand;
 import com.lunar_prototype.deepwither.crafting.CraftingGUI;
 import com.lunar_prototype.deepwither.crafting.CraftingListener;
 import com.lunar_prototype.deepwither.crafting.CraftingManager;
@@ -15,11 +18,14 @@ import com.lunar_prototype.deepwither.party.PartyManager;
 import com.lunar_prototype.deepwither.profession.ProfessionManager;
 import com.lunar_prototype.deepwither.quest.*;
 import com.lunar_prototype.deepwither.town.TownBurstManager;
+import com.lunar_prototype.deepwither.tutorial.TutorialController;
 import com.lunar_prototype.deepwither.util.MythicMobSafeZoneManager;
+import com.vexsoftware.votifier.model.VotifierEvent;
 import io.lumine.mythic.bukkit.events.MythicDropLoadEvent;
 import io.lumine.mythic.bukkit.events.MythicMechanicLoadEvent;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
@@ -36,6 +42,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import com.lunar_prototype.deepwither.LevelManager;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.File;
 import java.io.IOException;
@@ -92,6 +99,7 @@ public final class  Deepwither extends JavaPlugin {
     private ProfessionManager professionManager;
     private PartyManager partyManager;
     private DeepwitherPartyAPI partyAPI;
+    private BoosterManager boosterManager;
     private static Economy econ = null;
     private final java.util.Random random = new java.util.Random();
     private OutpostManager outpostManager;
@@ -218,6 +226,7 @@ public final class  Deepwither extends JavaPlugin {
         mythicMobSafeZoneManager = new MythicMobSafeZoneManager(this);
         professionManager = new ProfessionManager(this);
         partyManager = new PartyManager();
+        boosterManager = new BoosterManager();
         this.partyAPI = new DeepwitherPartyAPI(partyManager); // ★ 初期化
         this.craftingManager = new CraftingManager(this);
         this.craftingGUI = new CraftingGUI(this);
@@ -236,6 +245,7 @@ public final class  Deepwither extends JavaPlugin {
         getCommand("credit").setExecutor(new CreditCommand(creditManager));
         getServer().getPluginManager().registerEvents(new TraderGUI(), this);
         getServer().getPluginManager().registerEvents(new SellGUI(), this);
+        getServer().getPluginManager().registerEvents(new TutorialController(this), this);
 
         new RegenTask(statManager).start(this);
         guildQuestManager.startup();
@@ -265,7 +275,7 @@ public final class  Deepwither extends JavaPlugin {
 
         OutpostManager.initialize(this, outpostConfig);
 
-        Bukkit.getPluginManager().registerEvents(new MobKillListener(levelManager, getConfig(),OutpostManager.getInstance(),partyManager), this);
+        Bukkit.getPluginManager().registerEvents(new MobKillListener(levelManager, getConfig(),OutpostManager.getInstance(),partyManager,boosterManager), this);
         getServer().getPluginManager().registerEvents(new SafeZoneListener(this),this);
         getServer().getPluginManager().registerEvents(new PlayerAnimationListener(),this);
         this.getCommand("status").setExecutor(new StatusCommand(levelManager, statManager,creditManager,professionManager));
@@ -353,11 +363,31 @@ public final class  Deepwither extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new GUIListener(playerQuestManager), this);
         getServer().getPluginManager().registerEvents(new CustomOreListener(this), this);
 
+        MenuGUI menuGUI = new MenuGUI(this);
+        getCommand("menu").setExecutor(new MenuCommand(menuGUI));
+
         getCommand("skills").setExecutor(new SkillAssignmentCommand());
         getCommand("blacksmith").setExecutor(new BlacksmithCommand());
         getCommand("questnpc").setExecutor(new QuestCommand(this, guildQuestManager));
         getCommand("task").setExecutor(new TaskCommand(this));
-        getCommand("party").setExecutor(new PartyCommand(partyManager));
+        PartyCommand partyCommand = new PartyCommand(partyManager);
+        getCommand("party").setExecutor(partyCommand);
+        getCommand("party").setTabCompleter(partyCommand);
+        getCommand("expbooster").setExecutor(new BoosterCommand(boosterManager));
+        ResetGUI resetGUI = new ResetGUI(this);
+        getCommand("resetstatusgui").setExecutor(new ResetGUICommand(resetGUI));
+
+        String message = ChatColor.translateAlternateColorCodes('&',
+                "&b[Echoes of Aether] &cまだ今日の投票が終わっていないようです！ &a/vote &cで投票して報酬をゲットしましょう！");
+
+        // 定期実行タスクの設定
+        // 20 ticks = 1秒 なので、120秒 = 2400 ticks
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                Bukkit.broadcastMessage(message);
+            }
+        }.runTaskTimer(this, 0L, 2400L); // 0Lは開始遅延、2400Lは実行間隔
     }
 
     @Override
