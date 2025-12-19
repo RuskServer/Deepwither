@@ -20,6 +20,7 @@ public class OutpostEvent {
     private int currentWave = 0;
     private int totalMobs = 0; // 現在アクティブなOutpostモブの総数
     private int waveTaskId = -1; // ウェーブタイマーのID
+    private int spawnTaskId = -1;
 
     // ★追加: イベント開始を待機するタスクID
     private int initialWaitTaskId = -1;
@@ -65,6 +66,12 @@ public class OutpostEvent {
     }
 
     private void runNextWave() {
+        // 前のウェーブのスポーンタスクがまだ動いていればキャンセルしてリセット
+        if (spawnTaskId != -1) {
+            Bukkit.getScheduler().cancelTask(spawnTaskId);
+            spawnTaskId = -1;
+        }
+
         currentWave++;
         OutpostConfig.WaveData waveData = outpostData.getWaves().get(currentWave);
 
@@ -74,18 +81,20 @@ public class OutpostEvent {
             return;
         }
 
-        // Mobスポーン
+        // Mobスポーン処理を開始
+        // ※内部でタイマーが動き出しますが、出現予定の総数(totalMobs)は即座に確定させます
         totalMobs = spawnWaveMobs(waveData.getMobList());
 
-        sendParticipantMessage("§6§l--- ウェーブ " + currentWave + " / " + outpostData.getWaves().size() + " 開始 ---"); // ウェーブ総数を表示
+        sendParticipantMessage("§6§l--- ウェーブ " + currentWave + " / " + outpostData.getWaves().size() + " 開始 ---");
 
         // ウェーブタイマー設定
         long durationTicks = waveData.getDurationSeconds() * 20L;
         waveTaskId = Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            // managerフィールドを使ってOutpostManagerにアクセスし、
-            // アクティブなイベントが自分自身（this）であり、ウェーブ番号が一致するかを確認する
             if (manager.getActiveEvent() == this && this.currentWave == currentWave) {
-                // ★修正: Mobが残っていても強制終了せず、次のウェーブへ強制移行する
+                // ウェーブ強制終了時、まだ湧ききっていないスポーンタスクがあれば止める
+                if (spawnTaskId != -1) {
+                    Bukkit.getScheduler().cancelTask(spawnTaskId);
+                }
                 forceNextWave();
             }
         }, durationTicks).getTaskId();
@@ -156,23 +165,66 @@ public class OutpostEvent {
     }
 
     /**
-     * MobSpawnManagerを使用してMobをスポーンさせます。
-     * @return スポーンさせたMobの総数
+     * MobSpawnManagerを使用してMobを段階的にスポーンさせます。
+     * @return 出現予定のMob総数
      */
     private int spawnWaveMobs(Map<String, Integer> mobList) {
-        int count = 0;
+        // 1. スポーンさせるMobをすべてリスト化（フラットにする）
+        List<String> spawnQueue = new ArrayList<>();
+        mobList.forEach((mobId, count) -> {
+            for (int i = 0; i < count; i++) {
+                spawnQueue.add(mobId);
+            }
+        });
+
+        // リストをシャッフルして、種類がランダムな順序で湧くようにする（お好みで削除可）
+        Collections.shuffle(spawnQueue);
+
+        int totalToSpawn = spawnQueue.size();
+        if (totalToSpawn == 0) return 0;
+
+        // 2. スポーン設定 (調整してください)
+        // 例: 2秒(40ticks)ごとに 3体ずつ 湧かせる
+        final int mobsPerBatch = 3;
+        final long intervalTicks = 40L;
+
         double fixedY = outpostData.getSpawnYCoordinate();
-        // MobSpawnManagerにスポーン処理を依頼 (OutpostEventの参照とRegionIDを渡す)
-        for (Map.Entry<String, Integer> entry : mobList.entrySet()) {
-            count += Deepwither.getInstance().getMobSpawnManager().spawnOutpostMobs(
-                    entry.getKey(),
-                    entry.getValue(),
-                    outpostData.getRegionName(),
-                    fixedY,
-                    this // イベントの参照を渡してMobの追跡に使う
-            );
-        }
-        return count;
+        final int targetWave = this.currentWave; // タスク内で現在のウェーブを保証するため保持
+
+        // 3. タイマータスクで段階的にスポーン実行
+        spawnTaskId = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            // 安全策: イベントが終了している、またはウェーブが進んでしまった場合は停止
+            if (manager.getActiveEvent() != this || this.currentWave != targetWave) {
+                Bukkit.getScheduler().cancelTask(spawnTaskId);
+                return;
+            }
+
+            // リストが空になったらタスク終了
+            if (spawnQueue.isEmpty()) {
+                Bukkit.getScheduler().cancelTask(spawnTaskId);
+                return;
+            }
+
+            // 今回のバッチ分だけスポーンさせる
+            int count = 0;
+            while (count < mobsPerBatch && !spawnQueue.isEmpty()) {
+                String mobId = spawnQueue.remove(0); // 先頭から取り出し
+
+                // 1体ずつスポーン処理
+                Deepwither.getInstance().getMobSpawnManager().spawnOutpostMobs(
+                        mobId,
+                        1,
+                        outpostData.getRegionName(),
+                        fixedY,
+                        this
+                );
+                count++;
+            }
+
+        }, 0L, intervalTicks).getTaskId(); // 0L(即時開始)、intervalTicks間隔で実行
+
+        // 実際のスポーンは遅れて行われますが、ウェーブ管理のために予定総数を返します
+        return totalToSpawn;
     }
 
     /**

@@ -5,10 +5,7 @@ import io.lumine.mythic.bukkit.events.MythicDamageEvent;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
-import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Mob;
-import org.bukkit.entity.Player;
-import org.bukkit.entity.Projectile;
+import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority; // 追加
 import org.bukkit.event.Listener;
@@ -35,6 +32,14 @@ public class DamageManager implements Listener {
     private static final double MAGIC_DEFENSE_DIVISOR = 100.0;
     private static final double DEFENSE_DIVISOR = 100.0; // 物理防御用
     private static final double HEAVY_DEFENSE_DIVISOR = 500.0; // 高耐久用
+
+    // ★ I-Frame/無敵時間 関連
+    private final Map<UUID, Long> iFrameEndTimes = new HashMap<>();
+    private static final long DAMAGE_I_FRAME_MS = 300; // 0.3秒 = 300ミリ秒
+
+    // ★ 攻撃クールダウン減衰無視 関連
+    private static final long COOLDOWN_IGNORE_MS = 300; // 0.3秒 = 300ミリ秒
+    private final Map<UUID, Long> lastSpecialAttackTime = new HashMap<>(); // Key: Attacker UUID
 
     // 盾のクールダウン (ms) - 連続ブロック防止用など
     private static final long SHIELD_COOLDOWN_MS = 500;
@@ -63,6 +68,23 @@ public class DamageManager implements Listener {
     public void onMythicDamage(MythicDamageEvent e) {
         if (!(e.getCaster().getEntity().getBukkitEntity() instanceof Player player)) return;
         if (!(e.getTarget().getBukkitEntity() instanceof LivingEntity targetLiving)) return;
+
+        if (targetLiving instanceof Player pTarget && statManager.getActualCurrentHealth(pTarget) <= 0) {
+            e.setCancelled(true);
+            return;
+        }
+
+        long currentTime = System.currentTimeMillis();
+        long iFrameEndTime = iFrameEndTimes.getOrDefault(targetLiving.getUniqueId(), 0L);
+
+        if (currentTime < iFrameEndTime) {
+            // 無敵時間中のため、ダメージをキャンセル
+            e.setCancelled(true);
+            return;
+        }
+        // ダメージが適用される場合、I-Frameを更新
+        iFrameEndTimes.put(targetLiving.getUniqueId(), currentTime + DAMAGE_I_FRAME_MS);
+
 
         // 特攻タグ処理
         if (e.getDamageMetadata().getTags().contains("UNDEAD")) {
@@ -149,6 +171,29 @@ public class DamageManager implements Listener {
         if (isProcessingDamage.contains(attacker.getUniqueId())) return;
         if (!(e.getEntity() instanceof LivingEntity targetLiving)) return;
 
+        if (targetLiving instanceof Player pTarget && statManager.getActualCurrentHealth(pTarget) <= 0) {
+            e.setCancelled(true);
+            return;
+        }
+
+        // Player攻撃によるEntityDamageByEntityEventは既に処理済みだが、
+        // バニラロジック等で漏れた場合や環境ダメージをここで拾う
+
+        long currentTime = System.currentTimeMillis();
+        long iFrameEndTime = iFrameEndTimes.getOrDefault(targetLiving.getUniqueId(), 0L);
+
+        if (currentTime < iFrameEndTime) {
+            // 無敵時間中のため、ダメージをキャンセル
+            e.setCancelled(true);
+            return;
+        }
+
+        // 落下ダメージは特殊処理のため、ここでI-Frameを更新しない
+        if (e.getCause() != EntityDamageEvent.DamageCause.FALL) {
+            // ダメージが適用される場合、I-Frameを更新
+            iFrameEndTimes.put(targetLiving.getUniqueId(), currentTime + DAMAGE_I_FRAME_MS);
+        }
+
         // 爆発などは除外
         if (e.getCause() == EntityDamageEvent.DamageCause.ENTITY_EXPLOSION ||
                 e.getCause() == EntityDamageEvent.DamageCause.BLOCK_EXPLOSION) return;
@@ -183,35 +228,110 @@ public class DamageManager implements Listener {
         // 防御計算
         double finalDamage = applyDefense(baseDamage, defenderStats.getFinal(StatType.DEFENSE), DEFENSE_DIVISOR);
 
+        boolean ignoreAttackCooldown = false;
+
+        if (!isProjectile) { // 近接攻撃である場合
+            long lastAttack = lastSpecialAttackTime.getOrDefault(attacker.getUniqueId(), 0L);
+
+            // 最後の特殊攻撃から0.3秒以内であれば無視
+            if (currentTime < lastAttack + COOLDOWN_IGNORE_MS) {
+                ignoreAttackCooldown = true;
+            }
+
+            // 最後の攻撃時刻を更新 (スキルの発動時刻はここでは一旦考慮せず、純粋な攻撃時刻を記録)
+            // ※ このロジックは、攻撃系スキルが発動されたときに別途更新する必要があります。
+            //    例: スキル実行時に lastSpecialAttackTime.put(playerAttacker.getUniqueId(), currentTime); を呼び出す
+            lastSpecialAttackTime.put(attacker.getUniqueId(), currentTime);
+        }
+
         // クールダウン減衰 (近接のみ)
         if (!isProjectile) {
-            float cooldown = attacker.getAttackCooldown();
-            if (cooldown < 1.0f) {
-                double reduced = finalDamage * (1.0 - cooldown);
-                finalDamage *= cooldown;
-                attacker.sendMessage("§c攻撃クールダウン！ §c-" + Math.round(reduced) + " §7ダメージ §a(" + Math.round(finalDamage) + ")");
+            if (!ignoreAttackCooldown) {
+                float cooldown = attacker.getAttackCooldown();
+                if (cooldown < 1.0f) {
+                    double reduced = finalDamage * (1.0 - cooldown);
+                    finalDamage *= cooldown;
+                    attacker.sendMessage("§c攻撃クールダウン！ §c-" + Math.round(reduced) + " §7ダメージ §a(" + Math.round(finalDamage) + ")");
+                }
+            }
+        }
+
+        // ----------------------------------------------------
+        // ★ 追加: 剣・大剣の範囲攻撃 (スイープ) ロジック
+        // ----------------------------------------------------
+        if (!isProjectile && isSwordWeapon(attacker.getInventory().getItemInMainHand())) {
+            // クールダウンがほぼ満タン (0.9以上) の場合のみ発動
+            if (attacker.getAttackCooldown() >= 0.9f) {
+
+                // 攻撃中心点: 被害者を中心に 3x3 の範囲 (半径約1.5~2.0ブロック)
+                // 要望に合わせて「横方向3ブロック」なので、半径1.5~2.0程度を設定
+                double rangeH = 3.0; // 横幅半径 (直径6ブロック相当になるので、もし直径3ブロックなら1.5にしてください)
+                double rangeV = 1.5; // 縦幅
+
+                List<Entity> nearbyEntities = targetLiving.getNearbyEntities(rangeH, rangeV, rangeH);
+
+                // スイープのエフェクトと音
+                targetLiving.getWorld().spawnParticle(Particle.SWEEP_ATTACK, targetLiving.getLocation().add(0, 1, 0), 1);
+                attacker.playSound(attacker.getLocation(), Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1.0f, 1.0f);
+
+                // 範囲ダメージ量 (元のダメージの 75% などを適用するとバランスが良い)
+                double sweepDamage = finalDamage * 0.5;
+
+                for (Entity nearby : nearbyEntities) {
+                    // 自分自身と、直接殴った相手(victim)は除外
+                    if (nearby.equals(attacker) || nearby.equals(targetLiving)) continue;
+
+                    if (nearby instanceof LivingEntity livingTarget) {
+                        // ペットや味方への誤爆を防ぐならここに判定を追加 (例: keepPVP check)
+
+                        // ダメージを与える (これにより新たなEntityDamageEventが発生し、防御計算などが適用される)
+                        // ※注意: damage()を使うとクールダウン0扱いのイベントが飛ぶため、
+                        //        このスイープ処理が無限ループすることはありません。
+                        applyCustomDamage(targetLiving,sweepDamage,attacker);
+
+                        // ノックバックを少し与える
+                        livingTarget.setVelocity(attacker.getLocation().getDirection().multiply(0.3).setY(0.1));
+                    }
+                }
             }
         }
 
         // ★★★ 盾による軽減処理 ★★★
         if (targetLiving instanceof Player defenderPlayer && defenderPlayer.isBlocking()) {
-            // 正面からの攻撃かチェック
-            Vector attackerDir = attacker.getLocation().toVector().subtract(defenderPlayer.getLocation().toVector()).normalize();
-            Vector defenderDir = defenderPlayer.getLocation().getDirection();
-            if (attackerDir.dot(defenderDir) < 0) { // 内積が負なら向き合っている(前方)
-                // 盾の軽減率を取得 (SHIELD_BLOCK_RATE: 0.0=0% ~ 1.0=100%カット)
-                double blockRate = defenderStats.getFinal(StatType.SHIELD_BLOCK_RATE);
 
-                // デフォルト軽減率 (例: 0.2 = 20%軽減) を設定してもよい
+            // 1. ベクトル計算の修正
+            // 攻撃者の方向へのベクトル (Defender -> Attacker)
+            Vector toAttackerVec = attacker.getLocation().toVector().subtract(defenderPlayer.getLocation().toVector()).normalize();
+            // 防御者の視線ベクトル
+            Vector defenderLookVec = defenderPlayer.getLocation().getDirection().normalize();
+
+            // 2. 角度チェックの修正
+            // dot > 0.5 は約60度の範囲(正面)を意味します。バニラ挙動に近づけるなら > 0.0 (180度) でも可
+            if (toAttackerVec.dot(defenderLookVec) > 0.5) {
+
+                // 3. バニラの盾防御(ダメージ0化)を無効にする処理
+                // これをしないと、計算前にダメージがバニラ仕様で0や大幅軽減されてしまいます
+                if (e.isApplicable(EntityDamageEvent.DamageModifier.BLOCKING)) {
+                    e.setDamage(EntityDamageEvent.DamageModifier.BLOCKING, 0);
+                }
+
+                // --- ここから独自の軽減計算 ---
+
+                // 盾の軽減率を取得 (例: 0.2 = 20%カット)
+                double blockRate = defenderStats.getFinal(StatType.SHIELD_BLOCK_RATE);
                 blockRate = Math.max(0.0, Math.min(blockRate, 1.0));
 
+                // 軽減量を計算
                 double blockedDamage = finalDamage * blockRate;
                 finalDamage -= blockedDamage;
 
+                // SE再生 (バニラの「キンッ」という音が別途鳴るのを防ぐのは難しいですが、追加効果音として)
                 defenderPlayer.getWorld().playSound(defenderPlayer.getLocation(), Sound.ITEM_SHIELD_BLOCK, 1f, 1f);
+
+                // メッセージ表示
                 defenderPlayer.sendMessage("§b盾防御！ §7軽減: §a" + Math.round(blockedDamage) + " §c(" + Math.round(finalDamage) + "被弾)");
 
-                // バニラの盾SE/ノックバックイベントを防ぐ必要があればここで調整
+                // 独自のノックバック処理等が必要な場合はここに記述
             }
         }
 
@@ -236,6 +356,7 @@ public class DamageManager implements Listener {
 
         // 槍の貫通処理 (近接のみ)
         if (!isProjectile && isSpearWeapon(attacker.getInventory().getItemInMainHand())) {
+            spawnSpearThrustEffect(attacker);
             handleSpearCleave(attacker, targetLiving, finalDamage);
         }
     }
@@ -248,8 +369,27 @@ public class DamageManager implements Listener {
         if (!(e.getEntity() instanceof Player player)) return;
         if (e.isCancelled()) return;
 
+        if (statManager.getActualCurrentHealth(player) <= 0) {
+            return;
+        }
+
         // Player攻撃によるEntityDamageByEntityEventは既に処理済みだが、
         // バニラロジック等で漏れた場合や環境ダメージをここで拾う
+
+        long currentTime = System.currentTimeMillis();
+        long iFrameEndTime = iFrameEndTimes.getOrDefault(player.getUniqueId(), 0L);
+
+        if (currentTime < iFrameEndTime) {
+            // 無敵時間中のため、ダメージをキャンセル
+            e.setCancelled(true);
+            return;
+        }
+
+        // 落下ダメージは特殊処理のため、ここでI-Frameを更新しない
+        if (e.getCause() != EntityDamageEvent.DamageCause.FALL) {
+            // ダメージが適用される場合、I-Frameを更新
+            iFrameEndTimes.put(player.getUniqueId(), currentTime + DAMAGE_I_FRAME_MS);
+        }
 
         // ダメージソース特定
         LivingEntity attacker = null;
@@ -284,21 +424,42 @@ public class DamageManager implements Listener {
         // 物理防御適用 (高耐久用計算式)
         double finalDamage = applyDefense(incomingDamage, defenderStats.getFinal(StatType.DEFENSE), HEAVY_DEFENSE_DIVISOR);
 
-        // ★★★ 盾の処理 (PvE) ★★★
-        // プレイヤーが盾を構えている場合、ここでも軽減ロジックを適用
-        if (player.isBlocking() && attacker != null) {
-            Vector attackerDir = attacker.getLocation().toVector().subtract(player.getLocation().toVector()).normalize();
-            Vector playerDir = player.getLocation().getDirection();
+        // ★★★ 盾による軽減処理 ★★★
+        if (player.isBlocking()) {
 
-            if (attackerDir.dot(playerDir) < 0) { // 正面
+            // 1. ベクトル計算の修正
+            // 攻撃者の方向へのベクトル (Defender -> Attacker)
+            Vector toAttackerVec = attacker.getLocation().toVector().subtract(player.getLocation().toVector()).normalize();
+            // 防御者の視線ベクトル
+            Vector defenderLookVec = player.getLocation().getDirection().normalize();
+
+            // 2. 角度チェックの修正
+            // dot > 0.5 は約60度の範囲(正面)を意味します。バニラ挙動に近づけるなら > 0.0 (180度) でも可
+            if (toAttackerVec.dot(defenderLookVec) > 0.5) {
+
+                // 3. バニラの盾防御(ダメージ0化)を無効にする処理
+                // これをしないと、計算前にダメージがバニラ仕様で0や大幅軽減されてしまいます
+                if (e.isApplicable(EntityDamageEvent.DamageModifier.BLOCKING)) {
+                    e.setDamage(EntityDamageEvent.DamageModifier.BLOCKING, 0);
+                }
+
+                // --- ここから独自の軽減計算 ---
+
+                // 盾の軽減率を取得 (例: 0.2 = 20%カット)
                 double blockRate = defenderStats.getFinal(StatType.SHIELD_BLOCK_RATE);
                 blockRate = Math.max(0.0, Math.min(blockRate, 1.0));
 
-                double blocked = finalDamage * blockRate;
-                finalDamage -= blocked;
+                // 軽減量を計算
+                double blockedDamage = finalDamage * blockRate;
+                finalDamage -= blockedDamage;
 
+                // SE再生 (バニラの「キンッ」という音が別途鳴るのを防ぐのは難しいですが、追加効果音として)
                 player.getWorld().playSound(player.getLocation(), Sound.ITEM_SHIELD_BLOCK, 1f, 1f);
-                player.sendMessage("§b盾防御(PvE)！ §7軽減: §a" + Math.round(blocked));
+
+                // メッセージ表示
+                player.sendMessage("§b盾防御！ §7軽減: §a" + Math.round(blockedDamage) + " §c(" + Math.round(finalDamage) + "被弾)");
+
+                // 独自のノックバック処理等が必要な場合はここに記述
             }
         }
 
@@ -385,6 +546,34 @@ public class DamageManager implements Listener {
                     }
                 });
     }
+    //槍のエフェクト
+    private void spawnSpearThrustEffect(Player attacker) {
+        Location start = attacker.getEyeLocation();
+        Vector dir = start.getDirection().normalize();
+
+        double length = 2.8;   // 槍のリーチ
+        double step = 0.2;     // パーティクル密度
+
+        for (double i = 0; i <= length; i += step) {
+            Location point = start.clone().add(dir.clone().multiply(i));
+
+            attacker.getWorld().spawnParticle(
+                    Particle.CRIT,   // 槍っぽい鋭さ
+                    point,
+                    1,
+                    0, 0, 0,
+                    0
+            );
+        }
+
+        attacker.getWorld().playSound(
+                attacker.getLocation(),
+                Sound.ENTITY_PLAYER_ATTACK_STRONG,
+                0.6f,
+                1.4f
+        );
+    }
+
 
     private void applyCustomDamage(LivingEntity target, double damage, Player damager) {
         if (target instanceof Player p) {
@@ -431,6 +620,9 @@ public class DamageManager implements Listener {
 
     // HP圧縮 + 衝撃吸収処理
     private void processPlayerDamageWithAbsorption(Player player, double damage, String sourceName) {
+        if (statManager.getActualCurrentHealth(player) <= 0) {
+            return;
+        }
         double absorption = player.getAbsorptionAmount() * 10.0; // カスタム換算
 
         if (absorption > 0) {
@@ -503,6 +695,29 @@ public class DamageManager implements Listener {
             for (String line : lore) {
                 // "タイプ: 槍" をチェック
                 if (line.contains("§7カテゴリ:§f槍")) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * ★ 追加: 剣または大剣かどうかを判定する
+     */
+    private boolean isSwordWeapon(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) {
+            return false;
+        }
+
+        ItemMeta meta = item.getItemMeta();
+        if (meta.hasLore()) {
+            List<String> lore = meta.getLore();
+            for (String line : lore) {
+                // "タイプ: 槍" をチェック
+                if (line.contains("§7カテゴリ:§f剣")) {
+                    return true;
+                } else if (line.contains("§7カテゴリ:§f大剣")) {
                     return true;
                 }
             }

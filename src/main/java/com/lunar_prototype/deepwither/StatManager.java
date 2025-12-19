@@ -21,10 +21,7 @@ public class StatManager {
     private final Map<UUID, StatMap> temporaryBuffs = new HashMap<>();
 
     private static final UUID ATTACK_DAMAGE_MODIFIER_ID = UUID.fromString("a3bb7af7-3c5b-4df1-a17e-cdeae1db1d32");
-    private static final UUID DEFENSE_MODIFIER_ID = UUID.fromString("3811b7a8-4756-415d-be35-5ed4ba14228b");
     private static final UUID MAX_HEALTH_MODIFIER_ID = UUID.fromString("ff5dd7e3-d781-4fee-b3d4-bfe3a5fda85d");
-    private static final UUID MOVE_SPEED_MODIFIER_ID = UUID.fromString("6692942f-af28-454e-b945-474de887286d");
-    private static final UUID ATTACK_SPEED_MODIFIER_ID = UUID.fromString("06b4e42e-9c53-4b72-80d1-4d59fb7dc1ef");
 
     public void updatePlayerStats(Player player) {
         StatMap total = getTotalStatsFromEquipment(player);
@@ -70,8 +67,11 @@ public class StatManager {
             // ログイン時: 最大HPで初期化
             actualCurrentHealth.put(player.getUniqueId(), maxHp);
         } else {
-            // 死亡/リスポーン時: 最小HP (0.0) で初期化
-            actualCurrentHealth.put(player.getUniqueId(), 0.0);
+            // ★修正点1: 死亡/リスポーン時
+            // HP 0.0 にするとリスポーン直後に即死して無限ループするため、
+            // 「1.0」または「最大HPの数%」のような "死なないギリギリの値" をセットする。
+            double respawnHp = Math.max(1.0, maxHp * 0.1); // 例: 最大HPの10%または最低1.0
+            actualCurrentHealth.put(player.getUniqueId(), respawnHp);
         }
 
         // BukkitのHPバーも同期
@@ -152,20 +152,36 @@ public class StatManager {
     }
 
     /**
+     * プレイヤーの実際のHPを更新し、BukkitのHPバーと同期する。（ダメージ/回復処理のコア）
+     */
+    public void setActualCurrenttoMaxHelth(Player player) {
+        double max = StatManager.getTotalStatsFromEquipment(player).getFinal(StatType.MAX_HEALTH);
+
+        // 内部マップを更新
+        actualCurrentHealth.put(player.getUniqueId(), max);
+
+        // BukkitのHPバーを同期する
+        syncBukkitHealth(player);
+    }
+
+    /**
      * 実際のHP割合に基づいて、BukkitのHPバー表示を更新する。
      * このメソッドは、最大HPが更新された場合（装備変更など）の現行値の維持も兼ねる。
      */
     public void syncBukkitHealth(Player player) {
+        // ★修正点2: プレイヤーが既に死んでいる場合はHP操作をしない
+        // これを行わないと、死体に対してsetHealth(0)が走って死亡イベントが多重発生する
+        if (player.isDead()) {
+            return;
+        }
+
         double actualMax = getActualMaxHealth(player);
         double actualCurrent = getActualCurrentHealth(player);
 
         // ------------------------------------------------------------------
         // ★ 追加ロジック: 装備変更などで最大HPが減少した場合の現行HP調整
-        // (maintainHealthOnStatUpdate の役割を統合)
         if (actualCurrent > actualMax) {
-            // 現在のHPが新しい最大HPを超えていたら、上限に合わせる
             actualCurrent = actualMax;
-            // 内部マップも更新
             actualCurrentHealth.put(player.getUniqueId(), actualCurrent);
         }
         // ------------------------------------------------------------------
@@ -173,22 +189,24 @@ public class StatManager {
         // Bukkitの最大HPを20.0に固定
         AttributeInstance maxHealthAttr = player.getAttribute(Attribute.MAX_HEALTH);
         if (maxHealthAttr != null && maxHealthAttr.getValue() != 20.0) {
-            // 既存のMAX_HEALTH Modifierを削除
             AttributeModifier existing = maxHealthAttr.getModifier(MAX_HEALTH_MODIFIER_ID);
             if (existing != null) {
                 maxHealthAttr.removeModifier(existing);
             }
-            // ベース値も20.0に設定することで、クライアントに20.0を強制させる
             maxHealthAttr.setBaseValue(20.0);
         }
 
         // 実際のHP割合を計算
         double ratio = (actualMax > 0) ? actualCurrent / actualMax : 0.0;
-
-        // Bukkitの最大HP (20.0) に割合を適用し、表示用のHP値を決定
         double bukkitHealth = ratio * 20.0;
 
-        // プレイヤーのBukkit HPを更新 (死亡アニメーションのために0.1を最低値とする)
+        // ★修正点3: カスタムHPが0より大きいなら、バニラHPも最低値を保証する
+        // 計算誤差で 0.0 になると勝手に死んでしまうため
+        if (actualCurrent > 0 && bukkitHealth < 0.5) {
+            bukkitHealth = 0.5; // 半ハート（生存）
+        }
+
+        // 死亡アニメーションのために0.0は許容するが、負の値は防ぐ
         player.setHealth(Math.max(0.0, bukkitHealth));
     }
 
@@ -333,18 +351,20 @@ public class StatManager {
 
     public static void syncAttributes(Player player, StatMap stats) {
         // 防御力
-        syncAttribute(player, Attribute.ARMOR, DEFENSE_MODIFIER_ID, stats.getFinal(StatType.DEFENSE));
+        syncAttribute(player, Attribute.ARMOR, stats.getFinal(StatType.DEFENSE));
         //攻撃速度
         if (stats.getFinal(StatType.ATTACK_SPEED) > 0.1){
             double modifierValue = stats.getFinal(StatType.ATTACK_SPEED) - 4.0;
-            syncAttribute(player,Attribute.ATTACK_SPEED,ATTACK_SPEED_MODIFIER_ID,modifierValue);
+            syncAttribute(player,Attribute.ATTACK_SPEED,modifierValue);
         }
 
+        syncAttribute(player,Attribute.ENTITY_INTERACTION_RANGE,stats.getFinal(StatType.REACH));
+
         // 移動速度（注意：初期値が0.1くらいなので +0.01でも体感変わる）
-        syncAttribute(player, Attribute.MOVEMENT_SPEED, MOVE_SPEED_MODIFIER_ID, stats.getFinal(StatType.MOVE_SPEED));
+        syncAttribute(player, Attribute.MOVEMENT_SPEED, stats.getFinal(StatType.MOVE_SPEED));
     }
 
-    private static void syncAttribute(Player player, Attribute attrType, UUID uuid, double value) {
+    private static void syncAttribute(Player player, Attribute attrType,double value) {
         AttributeInstance attr = player.getAttribute(attrType);
         if (attr == null) return;
 

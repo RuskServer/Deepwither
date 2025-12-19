@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -39,6 +40,12 @@ public class LevelManager {
                 dataMap.put(uuid, new PlayerLevelData(level, exp));
             } else {
                 dataMap.put(uuid, new PlayerLevelData(1, 0));
+                Deepwither.getInstance().getAttributeManager().givePoints(uuid, 2);
+                SkilltreeManager.SkillData skilldata = Deepwither.getInstance().getSkilltreeManager().load(uuid);
+                if (skilldata != null) {
+                    skilldata.setSkillPoint(skilldata.getSkillPoint() + 2);
+                    Deepwither.getInstance().getSkilltreeManager().save(uuid, skilldata);
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -168,6 +175,9 @@ public class LevelManager {
         // 5. 属性ポイントとスキルポイントのリセット処理 (!!! 要実装 !!!)
         // 属性ポイントのリセット
         Deepwither.getInstance().getSkilltreeManager().resetSkillTree(player.getUniqueId());
+        SkilltreeManager.SkillData skilldata = Deepwither.getInstance().getSkilltreeManager().load(player.getUniqueId());
+        skilldata.setSkillPoint(0);
+        Deepwither.getInstance().getSkilltreeManager().save(player.getUniqueId(), skilldata);
         PlayerAttributeData data = Deepwither.getInstance().getAttributeManager().get(uuid);
         if (data != null) {
             for (StatType type : StatType.values()) {
@@ -175,7 +185,6 @@ public class LevelManager {
             }
             data.addPoints(0);
         }
-        player.sendMessage("§c警告: 属性ポイントとスキルポイントのリセット処理は別途実装が必要です。");
     }
 
     public PlayerLevelData get(Player player) {

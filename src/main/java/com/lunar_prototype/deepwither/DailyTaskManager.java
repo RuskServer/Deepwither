@@ -90,8 +90,14 @@ public class DailyTaskManager {
             targetMobId = mobList.get(plugin.getRandom().nextInt(mobList.size()));
         }
 
-        // 3. 目標数を設定 (banditの場合は多め、特定の強敵なら調整も可能だが一旦ランダム)
-        int targetCount = plugin.getRandom().nextInt(20) + 15;
+        // 3. 目標数を設定 (修正箇所)
+        // 5 <= X <= 15 の範囲で乱数を生成
+        int minCount = 5;
+        int maxCount = 15;
+        // nextInt(max - min + 1) は 0 から (max - min) までの乱数。
+        // ここでは nextInt(15 - 5 + 1) = nextInt(11) -> 0〜10
+        // これに minCount (5) を加算し、5〜15の乱数を生成。
+        int targetCount = plugin.getRandom().nextInt(maxCount - minCount + 1) + minCount;
 
         // 4. データにセット
         data.setProgress(traderId, 0, targetCount);

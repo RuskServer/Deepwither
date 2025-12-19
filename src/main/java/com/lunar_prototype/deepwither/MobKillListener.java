@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.booster.BoosterManager;
 import com.lunar_prototype.deepwither.outpost.OutpostEvent;
 import com.lunar_prototype.deepwither.outpost.OutpostManager;
 import com.lunar_prototype.deepwither.party.Party;          // ★追加
@@ -20,13 +21,15 @@ public class MobKillListener implements Listener {
     private final FileConfiguration mobExpConfig;
     private final OutpostManager outpostManager;
     private final PartyManager partyManager; // ★追加
+    private final BoosterManager boosterManager; // ★追加
 
-    // ★ コンストラクタにPartyManagerを追加
-    public MobKillListener(LevelManager levelManager, FileConfiguration config, OutpostManager outpostManager, PartyManager partyManager) {
+    // ★ コンストラクタにBoosterManagerを追加
+    public MobKillListener(LevelManager levelManager, FileConfiguration config, OutpostManager outpostManager, PartyManager partyManager, BoosterManager boosterManager) {
         this.levelManager = levelManager;
         this.mobExpConfig = config;
         this.outpostManager = outpostManager;
-        this.partyManager = partyManager; // ★初期化
+        this.partyManager = partyManager;
+        this.boosterManager = boosterManager; // ★初期化
     }
 
     @EventHandler
@@ -59,44 +62,54 @@ public class MobKillListener implements Listener {
     private void handleExpDistribution(Player killer, double baseExp) {
         Party party = partyManager.getParty(killer);
 
-        // パーティーに入っていない場合は通常通り
+        // --- 1. パーティー未所属の場合 ---
         if (party == null) {
-            levelManager.addExp(killer, baseExp);
+            // ★ ブースト適用
+            double multiplier = boosterManager.getMultiplier(killer);
+            double finalExp = baseExp * multiplier;
+
+            levelManager.addExp(killer, finalExp);
             levelManager.updatePlayerDisplay(killer);
+
+            if (multiplier > 1.0) {
+                killer.sendMessage("§6[Booster] §e+" + String.format("%.1f", finalExp) + " Exp (x" + multiplier + ")");
+            }
             return;
         }
 
-        // --- パーティー分配処理 ---
-        double shareRadius = 30.0; // 経験値を共有する範囲（config化推奨）
-
-        // 範囲内にいるメンバーを取得（キラー本人も含む）
+        // --- 2. パーティー分配処理 ---
+        double shareRadius = 30.0;
         List<Player> nearbyMembers = party.getOnlineMembers().stream()
-                .filter(p -> p.getWorld().equals(killer.getWorld())) // 同じワールド
-                .filter(p -> p.getLocation().distanceSquared(killer.getLocation()) <= shareRadius * shareRadius) // 距離チェック
+                .filter(p -> p.getWorld().equals(killer.getWorld()))
+                .filter(p -> p.getLocation().distanceSquared(killer.getLocation()) <= shareRadius * shareRadius)
                 .collect(Collectors.toList());
 
         if (nearbyMembers.isEmpty()) {
-            // 万が一誰もいない場合（ありえないが安全策）
-            levelManager.addExp(killer, baseExp);
+            double multiplier = boosterManager.getMultiplier(killer);
+            levelManager.addExp(killer, baseExp * multiplier);
             levelManager.updatePlayerDisplay(killer);
             return;
         }
 
-        // 分配計算
-        // 例: メンバー数に応じたボーナス (2人なら1.1倍, 3人なら1.2倍...)
         double partyBonusMultiplier = 1.0 + ((nearbyMembers.size() - 1) * 0.1);
         double totalExpWithBonus = baseExp * partyBonusMultiplier;
+        double expPerMemberBase = totalExpWithBonus / nearbyMembers.size();
 
-        // 一人当たりの経験値（均等割り）
-        double expPerMember = totalExpWithBonus / nearbyMembers.size();
-
-        // メンバー全員に付与
         for (Player member : nearbyMembers) {
-            levelManager.addExp(member, expPerMember);
+            // ★ 各メンバーの個人ブーストを適用
+            // これにより、ブーストを買った人だけが多く貰える仕組み、
+            // もしくは全員ブーストなら全員凄まじく増える仕組みになります。
+            double personalMultiplier = boosterManager.getMultiplier(member);
+            double finalMemberExp = expPerMemberBase * personalMultiplier;
+
+            levelManager.addExp(member, finalMemberExp);
             levelManager.updatePlayerDisplay(member);
 
-            // オプション: 経験値獲得のログを出すならここ
-            // member.sendMessage("§e[Party] +" + String.format("%.1f", expPerMember) + " Exp");
+            String msg = "§e[Party] +" + String.format("%.1f", finalMemberExp) + " Exp";
+            if (personalMultiplier > 1.0) {
+                msg += " §6(x" + personalMultiplier + " Booster)";
+            }
+            member.sendMessage(msg);
         }
     }
 

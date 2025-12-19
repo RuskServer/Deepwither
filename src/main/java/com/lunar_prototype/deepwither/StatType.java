@@ -27,6 +27,7 @@ public enum StatType {
     MOVE_SPEED("移動速度", "§d","■"),
     SKILL_POWER("スキル威力", "§b","■"),
     WEAR("損耗率", "§b","■"),
+    REACH("リーチ増加", "§b","■"),
     MASTERY("マスタリー", "§6","■"),
     MAX_MANA("最大マナ", "§b","☆"),
     COOLDOWN_REDUCTION("クールダウン短縮", "§8","⌛"),
@@ -61,73 +62,6 @@ public enum StatType {
 }
 
 /**
- * プレイヤーやアイテムのステータスを表す。
- */
-class StatMap {
-    private final Map<StatType, Double> flatValues = new EnumMap<>(StatType.class);
-    private final Map<StatType, Double> percentValues = new EnumMap<>(StatType.class);
-
-    public void setFlat(StatType type, double value) {
-        flatValues.put(type, round(value));
-    }
-
-    public void setPercent(StatType type, double value) {
-        percentValues.put(type, round(value));
-    }
-
-    private double round(double value) {
-        return Math.round(value * 100.0) / 100.0;
-    }
-
-    public double getFlat(StatType type) {
-        return flatValues.getOrDefault(type, 0.0);
-    }
-
-    public double getPercent(StatType type) {
-        return percentValues.getOrDefault(type, 0.0);
-    }
-
-    public double getFinal(StatType type) {
-        double flat = getFlat(type);
-        double percent = getPercent(type);
-        return Math.round((flat * (1 + percent / 100.0)) * 100.0) / 100.0;
-    }
-
-    public void add(StatMap other) {
-        for (StatType type : other.getAllTypes()) {
-            double flat = this.getFlat(type) + other.getFlat(type);
-            double percent = this.getPercent(type) + other.getPercent(type);
-            this.setFlat(type, flat);
-            this.setPercent(type, percent);
-        }
-    }
-
-    public Set<StatType> getAllTypes() {
-        Set<StatType> types = new HashSet<>();
-        types.addAll(flatValues.keySet());
-        types.addAll(percentValues.keySet());
-        return types;
-    }
-
-    /**
-     * このStatMapに含まれる全てのStatTypeのFlat値とPercent値を指定された乗数で更新します。
-     * * @param multiplier 乗数 (例: 1.10 for +10% boost)
-     */
-    public void multiplyAll(double multiplier) {
-        for (StatType type : getAllTypes()) {
-            double currentFlat = getFlat(type);
-            double currentPercent = getPercent(type);
-
-            // Flat値を更新
-            setFlat(type, currentFlat * multiplier);
-
-            // Percent値を更新
-            setPercent(type, currentPercent * multiplier);
-        }
-    }
-}
-
-/**
  * Lore表示を生成するビルダー。
  */
 class LoreBuilder {
@@ -146,55 +80,41 @@ class LoreBuilder {
      */
     public static List<String> updateExistingLore(ItemStack item, StatMap newStats, double wearRate, int masteryLevel) {
         ItemMeta meta = item.getItemMeta();
-        if (meta == null) {
+        // Metaがない、またはLoreがない場合は新規作成（build）へ
+        if (meta == null || !meta.hasLore()) {
             return build(newStats, false, null, null, null, null, null);
         }
 
-        List<String> existingLore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+        List<String> existingLore = meta.getLore();
         List<String> newLore = new ArrayList<>();
-
-        // 区切り線
         String separator = "§7§m----------------------------";
 
-        // --- 1. StatMapセクションの開始と終了、および特殊行のインデックスを探す ---
-        int statsStartIndex = -1;
-        int statsEndIndex = -1;
-
-        // ロア全体を解析し、セクションを特定
+        // --- 1. 区切り線の位置をすべて特定する ---
+        List<Integer> separatorIndices = new ArrayList<>();
         for (int i = 0; i < existingLore.size(); i++) {
-            String line = existingLore.get(i);
-
-            // 最初の区切り線（モディファイアセクションの終わり）をStatsセクション開始と仮定
-            if (statsStartIndex == -1 && line.equals(separator)) {
-                statsStartIndex = i; // 区切り線自体をセクション開始として含む
-                continue;
-            }
-
-            // 2番目の区切り線（Statsセクションの終わり）を見つける
-            if (statsStartIndex != -1 && statsEndIndex == -1 && line.equals(separator)) {
-                statsEndIndex = i; // 2番目の区切り線はセクション終了行
-                break;
+            if (existingLore.get(i).equals(separator)) {
+                separatorIndices.add(i);
             }
         }
 
-        // Statsセクションが存在しない場合、全体を上書きする
-        if (statsStartIndex == -1 || statsEndIndex == -1 || statsEndIndex <= statsStartIndex) {
-            // Statsセクションが存在しない場合は、新規ビルドに任せる
+        // 区切り線が2つ未満の場合は構造が特殊なため、安全策として既存buildを呼ぶか、
+        // あるいは構造を維持できないため新規作成する
+        if (separatorIndices.size() < 2) {
             return build(newStats, false, null, null, null, null, null);
         }
 
-        // --- 2. 既存のLoreの非Statsセクションをコピー（モディファイアセクションを保護）---
-        // statsStartIndex（最初の区切り線）までをコピー
-        for (int i = 0; i < statsStartIndex; i++) {
+        // --- 2. セクションの特定 ---
+        // 統計(Stats)セクションは「最後から2番目の区切り線」から「最後の区切り線」の間にあると定義
+        int lastSepIndex = separatorIndices.get(separatorIndices.size() - 1);
+        int secondLastSepIndex = separatorIndices.get(separatorIndices.size() - 2);
+
+        // --- 3. 前半部分（ヘッダー、フレーバー、モディファイア等）をそのままコピー ---
+        // secondLastSepIndex (Statsの前の区切り線) までをコピー
+        for (int i = 0; i <= secondLastSepIndex; i++) {
             newLore.add(existingLore.get(i));
         }
 
-        // --- 3. 新しいStatsセクションをゼロからビルドし、挿入 ---
-
-        // 最初の区切り線を新しいロアに追加
-        newLore.add(separator);
-
-        // StatMapの内容から新しいStats行を生成
+        // --- 4. 新しい Stats セクションを挿入 ---
         for (StatType type : newStats.getAllTypes()) {
             double flat = newStats.getFlat(type);
             double percent = newStats.getPercent(type);
@@ -203,33 +123,30 @@ class LoreBuilder {
             }
         }
 
-        // Statsセクションの終わりの区切り線を新しいロアに追加
+        // 最後の区切り線を追加
         newLore.add(separator);
 
-        // --- 4. 修理ステータス（損耗率とマスタリー）の行を追加/更新 ---
-
-        // 損耗率
+        // --- 5. 修理ステータス（損耗率とマスタリー）の追加 ---
         if (wearRate > 0) {
             String wearLine = WEAR_LORE_PREFIX + ChatColor.RESET + String.format("%.0f", wearRate) + "%";
             newLore.add(wearLine);
         }
-
-        // マスタリー
         if (masteryLevel > 0) {
-            // ★修正案: %ではなく単なる数値として出力する
             String masteryLine = MASTERY_LORE_PREFIX + ChatColor.AQUA + masteryLevel;
             newLore.add(masteryLine);
         }
 
-        // --- 5. Statsセクションの終了行以降（既存のロアの残り）をコピー ---
-        // statsEndIndex（2番目の区切り線）の次から最後までをコピー
-        for (int i = statsEndIndex + 1; i < existingLore.size(); i++) {
+        // --- 6. 既存ロアの「最後の方」にあるかもしれない独自行を保持 ---
+        // ただし、損耗率、マスタリー、および既に処理したStats行は除外する
+        for (int i = lastSepIndex + 1; i < existingLore.size(); i++) {
             String line = existingLore.get(i);
 
-            // ★注意: ロアの最後に損耗率/マスタリーの古い行が残っている可能性があるため、それらはスキップ
+            // 修理ステータス行は新しく追加済みなのでスキップ
             if (line.startsWith(WEAR_LORE_PREFIX) || line.startsWith(MASTERY_LORE_PREFIX)) {
                 continue;
             }
+
+            // その他、もし何か別のプラグインや機能が末尾に文字列を足していた場合はそれを保持
             newLore.add(line);
         }
 

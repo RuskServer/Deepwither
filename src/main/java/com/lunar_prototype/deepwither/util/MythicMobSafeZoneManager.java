@@ -42,12 +42,6 @@ public class MythicMobSafeZoneManager {
      * セーフゾーン滞在チェックの定期タスクを開始します。
      */
     public void startCheckTask() {
-        if (!Bukkit.getPluginManager().isPluginEnabled("MythicMobs") ||
-                !Bukkit.getPluginManager().isPluginEnabled("WorldGuard")) {
-            plugin.getLogger().warning("MythicMobs or WorldGuard is not enabled. SafeZone Mob Removal disabled.");
-            return;
-        }
-
         if (checkTask != null) {
             checkTask.cancel();
         }
