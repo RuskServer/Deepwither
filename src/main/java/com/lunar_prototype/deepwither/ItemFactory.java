@@ -183,6 +183,17 @@ public class ItemFactory implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (args[0].equalsIgnoreCase("setwarp")) {
+            if (args.length < 2) {
+                sender.sendMessage("§cUsage: /dw setwarp <warp_id>");
+                return true;
+            }
+            String id = args[1];
+            Deepwither.getInstance().getLayerMoveManager().setWarpLocation(id, player.getLocation());
+            sender.sendMessage("§aWarp地点(" + id + ")を現在位置に設定しました。");
+            return true;
+        }
+
         // ステータスリセット処理
         if (args.length == 1 && args[0].equalsIgnoreCase("genquest")) {
             // サーバーのメインスレッドをブロックしないように、LLM呼び出しを非同期タスクで実行

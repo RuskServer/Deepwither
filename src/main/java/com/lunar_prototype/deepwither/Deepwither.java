@@ -13,6 +13,9 @@ import com.lunar_prototype.deepwither.crafting.CraftingGUI;
 import com.lunar_prototype.deepwither.crafting.CraftingListener;
 import com.lunar_prototype.deepwither.crafting.CraftingManager;
 import com.lunar_prototype.deepwither.data.*;
+import com.lunar_prototype.deepwither.layer_move.BossKillListener;
+import com.lunar_prototype.deepwither.layer_move.LayerMoveManager;
+import com.lunar_prototype.deepwither.layer_move.LayerSignListener;
 import com.lunar_prototype.deepwither.listeners.PvPWorldListener;
 import com.lunar_prototype.deepwither.loot.LootChestListener;
 import com.lunar_prototype.deepwither.loot.LootChestManager;
@@ -115,6 +118,7 @@ public final class  Deepwither extends JavaPlugin {
     private SettingsGUI settingsGUI;
     private CompanionManager companionManager;
     private RaidBossManager raidBossManager;
+    private LayerMoveManager layerMoveManager;
     private static Economy econ = null;
     private final java.util.Random random = new java.util.Random();
     private OutpostManager outpostManager;
@@ -183,6 +187,7 @@ public final class  Deepwither extends JavaPlugin {
     public PlayerSettingsManager getSettingsManager() { return settingsManager; }
     public SettingsGUI getSettingsGUI() { return settingsGUI; }
     public CompanionManager getCompanionManager() { return companionManager; }
+    public LayerMoveManager getLayerMoveManager() {return layerMoveManager;}
 
 
 
@@ -231,6 +236,7 @@ public final class  Deepwither extends JavaPlugin {
         skillSlotManager = new SkillSlotManager(getDataFolder());
         skillCastManager = new SkillCastManager();
         cooldownManager = new CooldownManager();
+        layerMoveManager = new LayerMoveManager();
         // クエスト設定のロード
         loadGuildQuestConfig();
 
@@ -272,6 +278,8 @@ public final class  Deepwither extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new LootChestListener(this,lootChestManager),this);
         getServer().getPluginManager().registerEvents(new CompanionListener(companionManager),this);
         getServer().getPluginManager().registerEvents(new CompanionGuiListener(companionManager),this);
+        getServer().getPluginManager().registerEvents(new LayerSignListener(),this);
+        getServer().getPluginManager().registerEvents(new BossKillListener(),this);
 
         this.getCommand("artifact").setExecutor(new ArtifactGUICommand(artifactGUI));
         getCommand("trader").setExecutor(new TraderCommand(traderManager));
