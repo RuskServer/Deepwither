@@ -543,6 +543,9 @@ public class DamageManager implements Listener {
 
     public void applyCustomDamage(LivingEntity target, double damage, Player damager) {
         if (target instanceof Player p) {
+            if (this.isPvPPrevented(damager, target)) {
+                return;
+            }
             processPlayerDamageWithAbsorption(p, damage, damager.getName());
         } else {
             isProcessingDamage.add(damager.getUniqueId());
