@@ -29,6 +29,7 @@ public class MobSpawnManager {
 
     private final Deepwither plugin;
     private final PlayerQuestManager playerQuestManager;
+    private final MobLevelManager levelManager;
 
     // 設定値
     private final String targetWorldName = "Aether";
@@ -53,6 +54,8 @@ public class MobSpawnManager {
     public MobSpawnManager(Deepwither plugin, PlayerQuestManager playerQuestManager) {
         this.plugin = plugin;
         this.playerQuestManager = playerQuestManager;
+        this.levelManager = new MobLevelManager(plugin);
+        plugin.getServer().getPluginManager().registerEvents(levelManager, plugin); // イベント登録
 
         loadMobTierConfigs();
         startSpawnScheduler();
@@ -77,6 +80,8 @@ public class MobSpawnManager {
 
                 if (tierSection == null) continue;
 
+                int areaLevel = tierSection.getInt("area_level", 999);
+
                 List<String> regularMobs = tierSection.getStringList("regular_mobs");
                 List<String> banditMobs = tierSection.getStringList("bandit_mobs");
 
@@ -93,8 +98,7 @@ public class MobSpawnManager {
                     }
                 }
 
-                MobTierConfig config = new MobTierConfig(regularMobs, banditMobs,miniBosses);
-                mobTierConfigs.put(tierNumber, config);
+                mobTierConfigs.put(tierNumber, new MobTierConfig(areaLevel, regularMobs, banditMobs, miniBosses));
 
                 plugin.getLogger().info("Mob Tier " + tierNumber + " の設定をロードしました。");
 
@@ -219,13 +223,13 @@ public class MobSpawnManager {
                 String banditMobId = banditList.get(plugin.getRandom().nextInt(banditList.size()));
 
                 // MythicMobs APIでスポーンし、UUIDを追跡
-                UUID mobUuid = spawnMythicMob(banditMobId, spawnLoc);
+                UUID mobUuid = spawnMythicMob(banditMobId, spawnLoc,tier);
                 trackSpawnedMob(playerId, mobUuid); // ★追跡
             }
 
         } else {
             // 通常のMob処理
-            UUID mobUuid = spawnMythicMob(mobType, spawnLoc);
+            UUID mobUuid = spawnMythicMob(mobType, spawnLoc,tier);
             trackSpawnedMob(playerId, mobUuid); // ★追跡
         }
     }
@@ -370,7 +374,7 @@ public class MobSpawnManager {
 
             if (spawnLoc != null) {
                 // 2. Mythic Mobをスポーン
-                UUID mobUuid = spawnMythicMob(mobId, spawnLoc);
+                UUID mobUuid = spawnMythicMob(mobId, spawnLoc,getTierFromLocation(spawnLoc));
 
                 if (mobUuid != null) {
                     // 3. Outpost Mobとして追跡
@@ -437,9 +441,56 @@ public class MobSpawnManager {
      * MythicMobsのMobをスポーンさせる
      * @return スポーンしたMobのUUID
      */
-    private UUID spawnMythicMob(String mobId, Location loc) {
-        Entity entity = MythicBukkit.inst().getMobManager().spawnMob(mobId,loc).getEntity().getBukkitEntity();
-        return entity != null ? entity.getUniqueId() : null;
+    /**
+     * MythicMobをスポーンさせ、周囲のプレイヤー状況に応じたレベルを付与する
+     * @param mobId MythicMobsの内部ID
+     * @param loc スポーン場所
+     * @param tier 現在のエリアのTier
+     * @return スポーンしたエンティティのUUID、失敗時はnull
+     */
+    private UUID spawnMythicMob(String mobId, Location loc, int tier) {
+        // 1. MythicMobをスポーンさせる
+        // getEntity().getBukkitEntity() の前に null チェックを挟むのが安全です
+        var activeMob = MythicBukkit.inst().getMobManager().spawnMob(mobId, loc);
+        if (activeMob == null || activeMob.getEntity() == null) return null;
+
+        org.bukkit.entity.Entity entity = activeMob.getEntity().getBukkitEntity();
+        if (!(entity instanceof org.bukkit.entity.LivingEntity livingEntity)) return entity.getUniqueId();
+
+        // 2. 周囲20ブロック以内のサバイバルプレイヤーを検索
+        List<Player> nearbyPlayers = loc.getWorld().getPlayers().stream()
+                .filter(p -> p.getGameMode() == GameMode.SURVIVAL)
+                .filter(p -> p.getLocation().distance(loc) <= 20)
+                .toList();
+
+        // 3. レベルの決定
+        int spawnLevel;
+        MobTierConfig config = mobTierConfigs.get(tier);
+        int areaMaxLevel = (config != null) ? config.getAreaLevel() : 1;
+
+        if (!nearbyPlayers.isEmpty()) {
+            // 近くにプレイヤーがいる場合：ランダムなプレイヤーのレベルを基準にする
+            Player targetPlayer = nearbyPlayers.get(Deepwither.getInstance().getRandom().nextInt(nearbyPlayers.size()));
+            // TODO: 独自レベルシステムがある場合は player.getLevel() を書き換える
+            spawnLevel = targetPlayer.getLevel();
+        } else {
+            // 近くにプレイヤーがいない場合：エリアレベルの上限から5下までの範囲でランダム
+            int minLvl = Math.max(1, areaMaxLevel - 5);
+            spawnLevel = Deepwither.getInstance().getRandom().nextInt((areaMaxLevel - minLvl) + 1) + minLvl;
+        }
+
+        // エリア上限を適用 (これを超えないようにする)
+        spawnLevel = Math.min(spawnLevel, areaMaxLevel);
+        spawnLevel = Math.max(1, spawnLevel);
+
+        // 4. MobLevelManager を通じてステータスと名前を適用
+        // MythicMobの設定上の表示名を取得
+        String mobDisplayName = activeMob.getType().getDisplayName().get();
+        if (mobDisplayName == null) mobDisplayName = mobId;
+
+        levelManager.applyLevel(livingEntity, mobDisplayName, spawnLevel);
+
+        return livingEntity.getUniqueId();
     }
 
     // ... getRandomSpawnLocation, MobTierConfig は変更なし ...
@@ -512,7 +563,7 @@ public class MobSpawnManager {
                 Location spawnLoc = getRandomSpawnLocation(centerLoc, 15);
 
                 if (spawnLoc != null) {
-                    UUID mobUuid = spawnMythicMob(mobId, spawnLoc);
+                    UUID mobUuid = spawnMythicMob(mobId, spawnLoc,getTierFromLocation(spawnLoc));
                     trackSpawnedMob(playerId, mobUuid); // ★追跡
 
                     // プレイヤーに通知
@@ -558,7 +609,7 @@ public class MobSpawnManager {
             Location spawnLoc = getRandomSpawnLocation(playerLoc, 8);
 
             if (spawnLoc != null) {
-                UUID mobUuid = spawnMythicMob(questMobId, spawnLoc);
+                UUID mobUuid = spawnMythicMob(questMobId, spawnLoc,getTierFromLocation(spawnLoc));
                 trackSpawnedMob(player.getUniqueId(), mobUuid); // ★追跡
                 player.sendMessage("§a[クエストエリア] §e目標 Mob がスポーンしました！");
             }
@@ -626,17 +677,21 @@ public class MobSpawnManager {
 
     // MobSpawnManagerの内部クラスとして定義
     private static class MobTierConfig {
+        private final int areaLevel; // ★ 追加
         private final List<String> regularMobs;
         private final List<String> banditMobs;
         private final Map<String, Double> miniBosses;
 
-        public MobTierConfig(List<String> regularMobs, List<String> banditMobs, Map<String, Double> miniBosses) {
+        public MobTierConfig(int areaLevel, List<String> regularMobs, List<String> banditMobs, Map<String, Double> miniBosses) {
+            this.areaLevel = areaLevel; // ★ 追加
             this.regularMobs = regularMobs;
             this.banditMobs = banditMobs;
             this.miniBosses = miniBosses;
         }
 
+        public int getAreaLevel() { return areaLevel; } // ★ 追加
         public List<String> getRegularMobs() { return regularMobs; }
         public List<String> getBanditMobs() { return banditMobs; }
         public Map<String, Double> getMiniBosses() { return miniBosses; }
-    }}
+    }
+}

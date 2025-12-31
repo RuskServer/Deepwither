@@ -134,35 +134,51 @@ public class LootChestManager {
      * プレイヤーの周囲にルートチェストをスポーンさせます。
      */
     public void spawnLootChest(Player player) {
-        // ★追加: プレイヤーのゲームモードをチェック
+        // 1. 基本的なチェック（ゲームモード）
         GameMode mode = player.getGameMode();
         if (mode != GameMode.SURVIVAL && mode != GameMode.ADVENTURE) {
-            return; // サバイバルまたはアドベンチャー以外なら処理を中断
+            return;
         }
 
-        if (activeLootChests.size() >= 500) return; // スポーン数の制限
+        // 2. スポーン総数制限
+        if (activeLootChests.size() >= 500) return;
 
-        // 1. 階層の取得
+        // ★追加: 密集対策（プレイヤー密度チェック）
+        // 半径32ブロック以内に、自分より「名前順で先」のプレイヤーがいる場合はスキップ
+        // これにより、密集地帯ではその中の1人だけがスポーン判定を持つことになります
+        double checkRadius = 32.0;
+        for (Player nearby : player.getWorld().getPlayers()) {
+            if (nearby.equals(player)) continue;
+
+            // 判定対象のプレイヤーがサバイバル/アドベンチャーであることも考慮
+            if (nearby.getGameMode() != GameMode.SURVIVAL && nearby.getGameMode() != GameMode.ADVENTURE) continue;
+
+            if (nearby.getLocation().distanceSquared(player.getLocation()) < checkRadius * checkRadius) {
+                // 自分よりUUIDが小さい（または名前順が先）プレイヤーがいれば、自分は処理を譲る
+                // これで「密集地で1人だけ」が選ばれるようになります
+                if (nearby.getUniqueId().compareTo(player.getUniqueId()) < 0) {
+                    return;
+                }
+            }
+        }
+
+        // 3. 階層の取得
         int tier = getTierFromLocation(player.getLocation());
-        if (tier == 0) return; // SafeZoneまたはTier設定がない場合はスキップ
+        if (tier == 0) return;
 
-        // 2. テンプレートの選択
+        // ... 以下、既存のテンプレート選択・位置決定ロジック ...
         LootChestTemplate template = selectChestTemplate(tier);
         if (template == null) return;
 
-        // 3. スポーン位置の決定
         Location spawnLoc = findSafeSpawnLocation(player.getLocation());
         if (spawnLoc == null) return;
 
-        // 4. チェストの設置と中身の充填 (メインスレッドで実行)
+        // 設置処理
         Bukkit.getScheduler().runTask(plugin, () -> {
             Block block = spawnLoc.getBlock();
             block.setType(Material.CHEST);
-
             Chest chestState = (Chest) block.getState();
             fillChest(chestState, template);
-
-            // 5. チェストの追跡
             registerChest(chestState);
             player.sendMessage("§6ルートチェストが近くに出現しました！");
         });

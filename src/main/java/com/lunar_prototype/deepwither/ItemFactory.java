@@ -262,6 +262,120 @@ public class ItemFactory implements CommandExecutor, TabCompleter {
         return applyStatsToItem(item, stats, appliedModifiers, itemType, flavorText, tracker, rarity, null);
     }
 
+    /**
+     * アイテムのモディファイアー（ランダムオプション）のみを現在のレアリティに基づいて再抽選します。
+     * Baseステータスやグレードは維持されます。
+     *
+     * @param item 対象のItemStack
+     * @return モディファイアーが更新されたItemStack
+     */
+    public ItemStack rerollModifiers(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return item;
+
+        PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
+
+        // 1. 必要な情報の復元
+        String rarity = pdc.get(RARITY_KEY, PersistentDataType.STRING);
+        if (rarity == null) rarity = "コモン"; // デフォルト
+
+        // BaseStatsの復元 (これは維持する)
+        StatMap baseStats = restoreBaseStats(pdc);
+
+        // その他のメタデータ復元
+        String itemType = pdc.get(ITEM_TYPE_KEY, PersistentDataType.STRING);
+        FabricationGrade grade = FabricationGrade.fromId(pdc.getOrDefault(GRADE_KEY, PersistentDataType.INTEGER, 1));
+
+        List<String> flavorText = new ArrayList<>();
+        String joinedFlavor = pdc.get(FLAVOR_TEXT_KEY, PersistentDataType.STRING);
+        if (joinedFlavor != null) {
+            flavorText = Arrays.asList(joinedFlavor.split("\\|~\\|"));
+        }
+
+        // 2. モディファイアーの完全再生成
+        // ItemLoaderに追加したstaticメソッドを使用
+        Map<StatType, Double> newModifiers = ItemLoader.generateRandomModifiers(rarity);
+
+        // 3. 再適用
+        // トラッカーは新規作成 (Loreの品質表記はBaseStatsの良し悪しに依存するため、本来はBase生成時の状態が必要だが、ここではリセット)
+        ItemLoader.RandomStatTracker tracker = new ItemLoader.RandomStatTracker();
+
+        return applyStatsToItem(item, baseStats, newModifiers, itemType, flavorText, tracker, rarity, grade);
+    }
+
+    /**
+     * 指定したアイテムの特定のBaseステータス（等級倍率がかかる前の値）を更新します。
+     * 例: 強化呪文書で攻撃力を+5する場合など。
+     *
+     * @param item 対象のItemStack
+     * @param type 更新するStatType (例: ATTACK_DAMAGE)
+     * @param value 加算（または減算）する値
+     * @param isPercent trueならPercent値を、falseならFlat値を更新
+     * @return 更新されたItemStack
+     */
+    public ItemStack updateSpecificStat(ItemStack item, StatType type, double value, boolean isPercent) {
+        if (item == null || !item.hasItemMeta()) return item;
+
+        // 1. 現在のデータをPDCから復元
+        PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
+
+        // BaseStatsの復元
+        StatMap baseStats = restoreBaseStats(pdc); // ※下部にヘルパーメソッド記載
+
+        // Modifiersの復元
+        Map<StatType, Double> modifiers = restoreModifiers(pdc); // ※下部にヘルパーメソッド記載
+
+        // メタデータの復元
+        String itemType = pdc.get(ITEM_TYPE_KEY, PersistentDataType.STRING);
+        String rarity = pdc.get(RARITY_KEY, PersistentDataType.STRING);
+        FabricationGrade grade = FabricationGrade.fromId(pdc.getOrDefault(GRADE_KEY, PersistentDataType.INTEGER, 1));
+
+        // フレーバーテキスト復元
+        List<String> flavorText = new ArrayList<>();
+        String joinedFlavor = pdc.get(FLAVOR_TEXT_KEY, PersistentDataType.STRING);
+        if (joinedFlavor != null) {
+            flavorText = Arrays.asList(joinedFlavor.split("\\|~\\|"));
+        }
+
+        // 2. 指定ステータスの更新 (Base値に加算)
+        if (isPercent) {
+            double current = baseStats.getPercent(type);
+            baseStats.setPercent(type, current + value);
+        } else {
+            double current = baseStats.getFlat(type);
+            baseStats.setFlat(type, current + value);
+        }
+
+        // 3. ランダムトラッカー (更新の場合は空で渡すか、厳密にやるなら管理が必要)
+        ItemLoader.RandomStatTracker tracker = new ItemLoader.RandomStatTracker();
+
+        // 4. 再適用して保存
+        return applyStatsToItem(item, baseStats, modifiers, itemType, flavorText, tracker, rarity, grade);
+    }
+
+    // --- 内部ヘルパーメソッド (PDC読み込みの重複コード排除用) ---
+
+    private StatMap restoreBaseStats(PersistentDataContainer pdc) {
+        StatMap stats = new StatMap();
+        for (StatType type : StatType.values()) {
+            Double flat = pdc.get(new NamespacedKey(KEY_PREFIX, "base." + type.name().toLowerCase() + "_flat"), PersistentDataType.DOUBLE);
+            Double percent = pdc.get(new NamespacedKey(KEY_PREFIX, "base." + type.name().toLowerCase() + "_percent"), PersistentDataType.DOUBLE);
+            if (flat != null) stats.setFlat(type, flat);
+            if (percent != null) stats.setPercent(type, percent);
+        }
+        return stats;
+    }
+
+    private Map<StatType, Double> restoreModifiers(PersistentDataContainer pdc) {
+        Map<StatType, Double> modifiers = new HashMap<>();
+        for (StatType type : StatType.values()) {
+            Double modVal = pdc.get(new NamespacedKey(KEY_PREFIX, "mod." + type.name().toLowerCase()), PersistentDataType.DOUBLE);
+            if (modVal != null) {
+                modifiers.put(type, modVal);
+            }
+        }
+        return modifiers;
+    }
+
     public StatMap readStatsFromItem(ItemStack item) {
         StatMap stats = new StatMap();
         if (item == null || !item.hasItemMeta()) return stats;
@@ -604,6 +718,45 @@ class ItemLoader {
             if (ratio >= 0.3) return UNCOMMON;
             return COMMON;
         }
+    }
+
+    public static Map<StatType, Double> generateRandomModifiers(String rarity) {
+        Map<StatType, Double> modifiers = new HashMap<>();
+
+        // レアリティごとの最大数取得
+        int maxModifiers = MAX_MODIFIERS_BY_RARITY.getOrDefault(rarity, 1);
+        // 1～最大数の間でランダムな個数を決定
+        int modifiersToApply = random.nextInt(maxModifiers) + 1;
+
+        // 重み付きリストの作成
+        List<ModifierDefinition> weightedModifiers = new ArrayList<>();
+        for (ModifierDefinition def : MODIFIER_DEFINITIONS) {
+            for (int j = 0; j < (int) (def.weight * 10); j++) {
+                weightedModifiers.add(def);
+            }
+        }
+
+        Set<StatType> appliedTypes = new HashSet<>();
+
+        for (int m = 0; m < modifiersToApply; m++) {
+            if (weightedModifiers.isEmpty()) break;
+
+            ModifierDefinition selectedDef = weightedModifiers.get(random.nextInt(weightedModifiers.size()));
+
+            if (appliedTypes.contains(selectedDef.type)) {
+                weightedModifiers.removeIf(def -> def.type == selectedDef.type);
+                m--;
+                continue;
+            }
+
+            double modifierValue = selectedDef.minFlat + random.nextDouble() * (selectedDef.maxFlat - selectedDef.minFlat);
+            modifiers.put(selectedDef.type, modifierValue);
+
+            appliedTypes.add(selectedDef.type);
+            weightedModifiers.removeIf(def -> def.type == selectedDef.type);
+        }
+
+        return modifiers;
     }
 
     // ランダムステータスの理論値＆実際値を管理するクラス
