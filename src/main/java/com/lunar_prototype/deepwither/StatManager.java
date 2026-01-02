@@ -1,6 +1,5 @@
 package com.lunar_prototype.deepwither;
 
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import org.bukkit.Bukkit;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
