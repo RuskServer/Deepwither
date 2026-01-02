@@ -42,7 +42,7 @@ public class ManaShieldMechanic implements ITargetedEntitySkill {
         // 3. 衝撃吸収量の計算
         // 設定値
         double targetMaxMana = 1000.0;
-        double maxAbsorption = 40.0; // 20ハート
+        double maxAbsorption = 20.0; // 10ハート
         double minAbsorption = 2.0;  // 1ハート (最低値の追加)
 
         // 計算式: (maxMana / 1000.0) * 40.0
@@ -59,6 +59,9 @@ public class ManaShieldMechanic implements ITargetedEntitySkill {
         if (absorptionAmount < minAbsorption) {
             absorptionAmount = minAbsorption;
         }
+
+        // 元環境ではベース数値が0だったので20まで拡張する
+        player.getAttribute(Attribute.MAX_ABSORPTION).setBaseValue(20);
 
         // 適用
         player.setAbsorptionAmount(absorptionAmount);
