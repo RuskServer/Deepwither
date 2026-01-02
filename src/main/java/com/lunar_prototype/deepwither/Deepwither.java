@@ -275,6 +275,7 @@ public final class  Deepwither extends JavaPlugin {
         this.creditManager = new CreditManager(this);
         this.traderManager = new TraderManager(this, itemFactory);
         this.dailyTaskManager = new DailyTaskManager(this,fileDailyTaskDataStore);
+        playerQuestManager = new PlayerQuestManager(this,guildQuestManager,playerQuestDataStore);
         artifactManager = new ArtifactManager(this);
         lootChestManager = new LootChestManager(this);
         artifactGUI = new ArtifactGUI();
