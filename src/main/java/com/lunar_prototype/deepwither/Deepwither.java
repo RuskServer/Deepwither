@@ -435,10 +435,6 @@ public final class  Deepwither extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        List<IManager> managerList = new ArrayList<>(managers.values());
-        Collections.reverse(managerList);
-        managerList.forEach(IManager::shutdown);
-
         for (Player p : Bukkit.getOnlinePlayers()) {
             levelManager.unload(p.getUniqueId());
             attributeManager.unload(p.getUniqueId());
@@ -452,6 +448,10 @@ public final class  Deepwither extends JavaPlugin {
         artifactManager.saveData();
         guildQuestManager.shutdown();
         saveSafeZoneSpawns();
+        List<IManager> managerList = new ArrayList<>(managers.values());
+        Collections.reverse(managerList);
+        managerList.forEach(IManager::shutdown);
+        databaseManager.close();
         shutdownExecutor();
     }
 

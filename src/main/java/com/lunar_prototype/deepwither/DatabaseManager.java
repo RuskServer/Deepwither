@@ -83,4 +83,8 @@ public class DatabaseManager {
         } catch (SQLException e) { e.printStackTrace(); }
         return null;
     }
+
+    public void close() {
+        try { if (connection != null) connection.close(); } catch (SQLException e) { e.printStackTrace(); }
+    }
 }
