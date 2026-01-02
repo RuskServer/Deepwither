@@ -6,7 +6,9 @@
 ![Latest Version](https://img.shields.io/badge/Version-Latest-green.svg)
 ![Platform](https://img.shields.io/badge/Platform-Paper%20/%20Spigot-orange.svg)
 
-**RuskLaboが開発・運用している組織向けのマインクラフトサーバープラグイン**
+**RuskServerが開発・運用している組織(Echoes of Aether)向けのマインクラフトサーバープラグイン**
+
+[🌐 RuskServer Official Website](https://ruskserver.com/)
 
 </div>
 
@@ -26,6 +28,7 @@
 
 * **個別対応:** 導入支援、設定代行、およびDM等でのトラブルシューティングは行っておりません。
 * **自己責任:** 本プラグインの利用により生じた損害について、開発者は一切の責任を負いません。
+* **コミットメッセージ:** 本リポジトリのコミットメッセージはAIによって自動生成されているため、内容の正確性や詳細を保証するものではありません。
 
 ## 🐛 バグ・脆弱性の報告 (Reporting Issues)
 
