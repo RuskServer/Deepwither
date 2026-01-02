@@ -89,6 +89,10 @@ public class DatabaseManager {
         return null;
     }
 
+    public Gson getGson() {
+        return gson;
+    }
+
     public void close() {
         try { if (connection != null) connection.close(); } catch (SQLException e) { e.printStackTrace(); }
     }

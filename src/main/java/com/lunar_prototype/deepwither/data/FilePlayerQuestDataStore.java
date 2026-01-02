@@ -1,6 +1,5 @@
 package com.lunar_prototype.deepwither.data;
 
-import com.google.gson.Gson;
 import com.lunar_prototype.deepwither.DatabaseManager;
 import com.lunar_prototype.deepwither.quest.PlayerQuestData;
 import com.lunar_prototype.deepwither.util.IManager;
@@ -14,7 +13,6 @@ import java.util.concurrent.CompletableFuture;
 public class FilePlayerQuestDataStore implements PlayerQuestDataStore, IManager {
 
     private final DatabaseManager db;
-    private final Gson gson = new Gson();
 
     public FilePlayerQuestDataStore(DatabaseManager db) {
         this.db = db;
@@ -31,7 +29,7 @@ public class FilePlayerQuestDataStore implements PlayerQuestDataStore, IManager 
                 ps.setString(1, playerId.toString());
                 ResultSet rs = ps.executeQuery();
                 if (rs.next()) {
-                    return gson.fromJson(rs.getString("data_json"), PlayerQuestData.class);
+                    return db.getGson().fromJson(rs.getString("data_json"), PlayerQuestData.class);
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
@@ -43,7 +41,7 @@ public class FilePlayerQuestDataStore implements PlayerQuestDataStore, IManager 
     @Override
     public CompletableFuture<Void> saveQuestData(PlayerQuestData data) {
         return CompletableFuture.runAsync(() -> {
-            String json = gson.toJson(data);
+            String json = db.getGson().toJson(data);
             try (PreparedStatement ps = db.getConnection().prepareStatement(
                     "INSERT INTO player_quests (uuid, data_json) VALUES (?, ?) " +
                             "ON CONFLICT(uuid) DO UPDATE SET data_json = excluded.data_json")) {
