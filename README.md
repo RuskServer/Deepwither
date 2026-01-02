@@ -6,7 +6,7 @@ Deepwitherは、RuskLaboによって開発された組織向けプラグイン�
 
 最新のビルド（JARファイル）は、以下のビルドサーバーから取得できます。
 
-* **Latest Builds:** [[https://build.ruskserver.com/job/deepwither/](https://build.ruskserver.com/job/deepwither/)]
+* **Latest Builds:** [https://build.ruskserver.com/job/deepwither/](https://build.ruskserver.com/job/deepwither/)
 
 ## サポートについて (Support Policy)
 
