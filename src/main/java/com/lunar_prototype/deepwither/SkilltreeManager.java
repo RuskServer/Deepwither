@@ -269,7 +269,7 @@ public class SkilltreeManager {
                                 StatType statType = StatType.valueOf(statKey.toUpperCase());
 
                                 // passiveStats に値を加算
-                                passiveStats.setFlat(statType, totalValue); // addFlat を使用して加算
+                                passiveStats.addFlat(statType, totalValue); // addFlat を使用して加算
                             } catch (IllegalArgumentException e) {
                                 // StatType.valueOfに失敗した場合の処理（statKeyが不正）
                                 Deepwither.getInstance().getLogger().warning("Invalid StatType '" + statKey + "' in skill node: " + nodeId);

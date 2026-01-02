@@ -35,6 +35,16 @@ public class StatMap {
         return Math.round((flat * (1 + percent / 100.0)) * 100.0) / 100.0;
     }
 
+    public void addFlat(StatType type, double value) {
+        double newValue = getFlat(type) + value;
+        setFlat(type, newValue);
+    }
+
+    public void addPercent(StatType type, double value) {
+        double newValue = getPercent(type) + value;
+        setPercent(type, newValue);
+    }
+
     public void add(StatMap other) {
         for (StatType type : other.getAllTypes()) {
             double flat = this.getFlat(type) + other.getFlat(type);
