@@ -426,7 +426,7 @@ public final class  Deepwither extends JavaPlugin {
                 for (ActiveMob am : MythicBukkit.inst().getMobManager().getActiveMobs()) {
                     if (am.getMobType().contains("bandit")) {
                         // 個体ごとに異なるタイミング(40tick周期)で思考させる
-                        if ((am.getUniqueId().hashCode() + currentTick) % 40 == 0) {
+                        if ((am.getUniqueId().hashCode() + currentTick) % 20 == 0) {
                             aiEngine.tick(am);
                         }
                     }

@@ -36,6 +36,11 @@ public class Actuator {
             }
         }
 
+        if (move.strategy != null && move.strategy.equals("MAINTAIN_DISTANCE")) {
+            maintainDistance(entity);
+            return;
+        }
+
         if (move.destination == null) return;
 
         switch (move.destination) {
@@ -100,5 +105,32 @@ public class Actuator {
                 }
             });
         }
+    }
+
+    /**
+     * ターゲットから一定の距離(約6m)を保ちつつ、左右に揺れる
+     */
+    private void maintainDistance(Mob entity) {
+        if (entity.getTarget() == null) return;
+
+        Location targetLoc = entity.getTarget().getLocation();
+        Location selfLoc = entity.getLocation();
+        double dist = selfLoc.distance(targetLoc);
+
+        Vector direction;
+        if (dist < 6.0) {
+            // 近すぎるなら離れる（斜め後ろへ）
+            direction = selfLoc.toVector().subtract(targetLoc.toVector()).normalize();
+        } else {
+            // 遠いなら少し近づく（斜め前へ）
+            direction = targetLoc.toVector().subtract(selfLoc.toVector()).normalize();
+        }
+
+        // 左右への「揺れ」を加えて、ハメ（エイム）を困難にする
+        Vector sideStep = new Vector(-direction.getZ(), 0, direction.getX())
+                .multiply(Math.sin(entity.getTicksLived() * 0.1) * 2.0);
+
+        Location dest = selfLoc.clone().add(direction.multiply(3.0)).add(sideStep);
+        entity.getPathfinder().moveTo(dest, 1.2);
     }
 }
