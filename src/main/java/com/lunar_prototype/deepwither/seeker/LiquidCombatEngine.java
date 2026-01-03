@@ -79,6 +79,7 @@ public class LiquidCombatEngine {
         BanditDecision d = new BanditDecision();
         d.decision = new BanditDecision.DecisionCore();
         d.movement = new BanditDecision.MovementPlan();
+        d.communication = new BanditDecision.Communication();
 
         double agg = brain.aggression.get();
         double fear = brain.fear.get();
@@ -100,6 +101,7 @@ public class LiquidCombatEngine {
         if (ref > 0.8) {
             d.decision.action_type = "EVADE";
             d.movement.strategy = (fear > 0.5) ? "BACKSTEP" : "SIDESTEP";
+            d.communication.voice_line = "Watch out!";
             return d;
         }
 
@@ -112,6 +114,7 @@ public class LiquidCombatEngine {
         } else {
             d.decision.action_type = "RETREAT";
             d.movement.destination = "NEAREST_COVER";
+            d.communication.voice_line = "Taking position.";
         }
 
         return d;
