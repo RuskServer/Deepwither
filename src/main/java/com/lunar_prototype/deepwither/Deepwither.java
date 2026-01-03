@@ -31,6 +31,7 @@ import com.lunar_prototype.deepwither.profiler.CombatAnalyzer;
 import com.lunar_prototype.deepwither.quest.*;
 import com.lunar_prototype.deepwither.raidboss.RaidBossListener;
 import com.lunar_prototype.deepwither.raidboss.RaidBossManager;
+import com.lunar_prototype.deepwither.seeker.CombatExperienceListener;
 import com.lunar_prototype.deepwither.seeker.SeekerAIEngine;
 import com.lunar_prototype.deepwither.town.TownBurstManager;
 import com.lunar_prototype.deepwither.tutorial.TutorialController;
@@ -245,6 +246,7 @@ public final class  Deepwither extends JavaPlugin {
         }
 
         aiEngine = new SeekerAIEngine();
+        Bukkit.getPluginManager().registerEvents(new CombatExperienceListener(aiEngine),this);
 
         statManager = new StatManager();
         companionManager = new CompanionManager(this);
@@ -417,17 +419,21 @@ public final class  Deepwither extends JavaPlugin {
             e.printStackTrace();
         }
 
-        // 40Tごとに全ActiveMobをチェックして、特定条件のMobに思考させる
         new BukkitRunnable() {
             @Override
             public void run() {
+                long currentTick = Bukkit.getCurrentTick();
                 for (ActiveMob am : MythicBukkit.inst().getMobManager().getActiveMobs()) {
-                    if (am.getMobType().contains("bandit")) { // 名前にbanditを含む場合など
-                        aiEngine.tick(am);
+                    if (am.getMobType().contains("bandit")) {
+                        // 個体ごとに異なるタイミング(40tick周期)で思考させる
+                        if ((am.getUniqueId().hashCode() + currentTick) % 40 == 0) {
+                            aiEngine.tick(am);
+                        }
                     }
                 }
             }
-        }.runTaskTimer(this, 0, 40);
+        }.runTaskTimer(this, 0, 1);
+
         // リスナー登録
         getServer().getPluginManager().registerEvents(new ItemDurabilityFix(),this);
         getServer().getPluginManager().registerEvents(new AttributeGui(), this);

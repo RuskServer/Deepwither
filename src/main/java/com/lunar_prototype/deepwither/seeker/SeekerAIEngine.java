@@ -36,6 +36,8 @@ public class SeekerAIEngine {
         // 2. 脳の取得 (初対面のMobなら脳を新規作成)
         LiquidBrain brain = brainStorage.computeIfAbsent(uuid, k -> new LiquidBrain());
 
+        brain.digestExperience();
+
         // 3. リキッド演算 (適応的思考)
         // 過去の状態(brain) + 現在の状況(context) => 新しい行動(decision) & 脳の更新
         BanditDecision decision = liquidEngine.think(context, brain);
@@ -55,6 +57,12 @@ public class SeekerAIEngine {
             // 死んだら脳をメモリから消去
             brainStorage.remove(uuid);
         }
+    }
+
+    // SeekerAIEngine.java に追加
+    public LiquidBrain getBrain(UUID uuid) {
+        // 脳がまだない場合は作成して返す（これによってリスナー経由でも脳が初期化される）
+        return brainStorage.computeIfAbsent(uuid, k -> new LiquidBrain());
     }
 
     public void shutdown() {
