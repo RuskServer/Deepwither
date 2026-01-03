@@ -10,7 +10,10 @@ import org.bukkit.entity.Mob;
 public class Actuator {
 
     public void execute(ActiveMob activeMob, BanditDecision decision, Location coverLoc) {
-        Mob entity = (Mob) activeMob.getEntity();
+        if (activeMob.getEntity() == null || !(activeMob.getEntity().getBukkitEntity() instanceof Mob)) {
+            return;
+        }
+        Mob entity = (Mob) activeMob.getEntity().getBukkitEntity();
 
         // 1. Stance（状態）の反映
         if (decision.decision.new_stance != null) {

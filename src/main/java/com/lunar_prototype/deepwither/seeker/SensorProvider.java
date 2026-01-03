@@ -22,7 +22,10 @@ public class SensorProvider {
 
     public BanditContext scan(ActiveMob activeMob) {
         BanditContext context = new BanditContext();
-        Mob entity = (Mob) activeMob.getEntity();
+        if (activeMob.getEntity() == null || !(activeMob.getEntity().getBukkitEntity() instanceof Mob)) {
+            return null;
+        }
+        Mob entity = (Mob) activeMob.getEntity().getBukkitEntity();
 
         // 1. 自身のステータス
         context.entity = new BanditContext.EntityState();
