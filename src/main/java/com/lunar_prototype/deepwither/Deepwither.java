@@ -25,6 +25,7 @@ import com.lunar_prototype.deepwither.outpost.OutpostDamageListener;
 import com.lunar_prototype.deepwither.outpost.OutpostManager;
 import com.lunar_prototype.deepwither.outpost.OutpostRegionListener;
 import com.lunar_prototype.deepwither.party.PartyManager;
+import com.lunar_prototype.deepwither.profession.ProfessionDatabase;
 import com.lunar_prototype.deepwither.profession.ProfessionManager;
 import com.lunar_prototype.deepwither.profiler.CombatAnalyzer;
 import com.lunar_prototype.deepwither.quest.*;
@@ -118,6 +119,7 @@ public final class  Deepwither extends JavaPlugin {
     private BackpackManager backpackManager;
     private DamageManager damageManager;
     private PlayerSettingsManager settingsManager;
+    private ProfessionDatabase professionDatabase;
     private SettingsGUI settingsGUI;
     private CompanionManager companionManager;
     private PlayerQuestDataStore playerQuestDataStore;
@@ -286,7 +288,7 @@ public final class  Deepwither extends JavaPlugin {
         lootChestManager = new LootChestManager(this);
         artifactGUI = new ArtifactGUI();
         mythicMobSafeZoneManager = new MythicMobSafeZoneManager(this);
-        professionManager = new ProfessionManager(this);
+        professionManager = new ProfessionManager(this,professionDatabase);
         partyManager = new PartyManager();
         boosterManager = new BoosterManager();
         this.partyAPI = new DeepwitherPartyAPI(partyManager); // ★ 初期化
@@ -466,6 +468,7 @@ public final class  Deepwither extends JavaPlugin {
         this.attributeManager = register(AttributeManager.class, new AttributeManager(databaseManager));
         this.levelManager = register(LevelManager.class, new LevelManager(databaseManager));
         this.skilltreeManager = register(SkilltreeManager.class, new SkilltreeManager(databaseManager, this));
+        this.professionDatabase = register(ProfessionDatabase.class,new ProfessionDatabase(this,databaseManager));
         // 新しくSQLite対応させたデータストア (引数にdatabaseManagerを渡す)
         this.fileDailyTaskDataStore = register(FileDailyTaskDataStore.class,
                 new FileDailyTaskDataStore(this, databaseManager));

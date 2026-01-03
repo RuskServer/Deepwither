@@ -18,10 +18,10 @@ public class ProfessionManager {
     // レベル計算定数
     private static final int BASE_EXP = 100;
 
-    public ProfessionManager(Deepwither plugin) {
+    public ProfessionManager(Deepwither plugin,ProfessionDatabase db) {
         this.plugin = plugin;
         // データベース初期化
-        this.database = new ProfessionDatabase(plugin);
+        this.database = db;
     }
 
     // --- サーバー停止時の処理 ---
@@ -30,7 +30,6 @@ public class ProfessionManager {
         for (UUID uuid : cache.keySet()) {
             savePlayerSync(uuid); // 同期保存
         }
-        database.closeConnection();
     }
 
     // --- データ管理 ---

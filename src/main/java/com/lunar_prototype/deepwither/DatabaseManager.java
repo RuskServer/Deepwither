@@ -64,6 +64,15 @@ public class DatabaseManager {
                     uuid TEXT PRIMARY KEY,
                     data_json TEXT
                 )""");
+
+            // DatabaseManager.java の setupTables 内に追加
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS player_professions (
+                    player_id VARCHAR(36) NOT NULL,
+                    profession_type VARCHAR(32) NOT NULL,
+                    experience BIGINT DEFAULT 0,
+                    PRIMARY KEY (player_id, profession_type)
+                )""");
         }
     }
 
