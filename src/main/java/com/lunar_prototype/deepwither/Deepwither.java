@@ -244,11 +244,7 @@ public final class  Deepwither extends JavaPlugin {
             getServer().getPluginManager().disablePlugin(this);
         }
 
-        try {
-            aiEngine = new SeekerAIEngine(this);
-        } catch (Exception e) {
-            getLogger().severe("AI Engine起動失敗: " + e.getMessage());
-        }
+        aiEngine = new SeekerAIEngine();
 
         statManager = new StatManager();
         companionManager = new CompanionManager(this);
