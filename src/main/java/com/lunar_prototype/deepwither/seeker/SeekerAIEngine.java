@@ -2,6 +2,7 @@ package com.lunar_prototype.deepwither.seeker;
 
 import io.lumine.mythic.core.mobs.ActiveMob;
 import org.bukkit.Location;
+import org.bukkit.entity.Mob;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.HashMap;
@@ -29,6 +30,13 @@ public class SeekerAIEngine {
     public void tick(ActiveMob activeMob) {
         UUID uuid = activeMob.getUniqueId();
 
+        // --- 0. BukkitのMobエンティティを取得・チェック ---
+        // これを最初に行うことで、キャストエラーを防ぎつつ、後続の処理に渡せるようにします
+        if (activeMob.getEntity() == null || !(activeMob.getEntity().getBukkitEntity() instanceof Mob)) {
+            return;
+        }
+        Mob bukkitMob = (Mob) activeMob.getEntity().getBukkitEntity();
+
         // 1. 感知
         Location nearestCover = sensorProvider.findNearestCoverLocation(activeMob);
         BanditContext context = sensorProvider.scan(activeMob);
@@ -39,19 +47,19 @@ public class SeekerAIEngine {
         brain.digestExperience();
 
         // 3. リキッド演算 (適応的思考)
-        // 過去の状態(brain) + 現在の状況(context) => 新しい行動(decision) & 脳の更新
-        BanditDecision decision = liquidEngine.think(context, brain);
+        // 修正ポイント: 第3引数にさきほど取得した bukkitMob を渡します
+        BanditDecision decision = liquidEngine.think(context, brain, bukkitMob);
 
         // --- ログ出力セクション ---
         String mobName = activeMob.getType().getInternalName();
-        String uuidShort = activeMob.getUniqueId().toString().substring(0, 4);
+        String uuidShort = uuid.toString().substring(0, 4);
 
-        // コンソールへの詳細ログ (開発時のみ推奨)
         System.out.println(String.format("[%s-%s] Action: %s | %s",
                 mobName, uuidShort, decision.decision.action_type, decision.reasoning));
 
         // 4. 行動実行
-        if (activeMob.getEntity() != null && !activeMob.getEntity().isDead()) {
+        // すでに上で生存・型チェック済みなので、ここでは単純に実行します
+        if (!bukkitMob.isDead()) {
             actuator.execute(activeMob, decision, nearestCover);
         } else {
             // 死んだら脳をメモリから消去

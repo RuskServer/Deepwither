@@ -12,6 +12,8 @@ public class LiquidBrain {
     public double accumulatedReward = 0.0;
     public double accumulatedPenalty = 0.0;
 
+    public final LiquidNeuron reflex = new LiquidNeuron(0.3);
+
     public LiquidBrain() {
         // aggressionは冷めにくい (baseDecay低め)
         this.aggression = new LiquidNeuron(0.05);

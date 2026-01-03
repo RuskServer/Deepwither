@@ -188,4 +188,18 @@ public class SensorProvider {
         // ヒットした＝間に何かのブロックがある＝安全
         return result != null && result.getHitBlock() != null;
     }
+
+    public double getPlayerAttackImminence(Mob self, Player target) {
+        double imminence = 0.0;
+
+        // 1. 距離が急激に詰まっているか（加速度）
+        double dist = self.getLocation().distance(target.getLocation());
+        if (dist < 4.0 && target.isSprinting()) imminence += 0.4;
+
+        // 2. プレイヤーが武器を振った直後か（再攻撃までの警戒）
+        // プレイヤーのクールダウンを利用
+        if (target.getAttackCooldown() < 0.2) imminence += 0.5;
+
+        return Math.min(1.0, imminence);
+    }
 }

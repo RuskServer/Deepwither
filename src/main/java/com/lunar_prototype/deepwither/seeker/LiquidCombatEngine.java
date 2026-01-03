@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither.seeker;
 
+import org.bukkit.entity.Mob;
+import org.bukkit.entity.Player;
 import java.util.Comparator;
 
 public class LiquidCombatEngine {
@@ -7,66 +9,93 @@ public class LiquidCombatEngine {
     /**
      * コンテキストと脳の状態を受け取り、意思決定を行う
      */
-    public BanditDecision think(BanditContext context, LiquidBrain brain) {
-        // --- 1. 環境情報の正規化 (入力シグナルの作成) ---
-
-        // HP状況 (低いほど1.0に近い)
+    public BanditDecision think(BanditContext context, LiquidBrain brain, Mob bukkitEntity) {
+        // --- 1. 環境情報の正規化 (既存) ---
         double hpStress = 1.0 - (context.entity.hp_pct / 100.0);
-
-        // 敵との距離情報の解析
-        double enemyDist = 20.0; // デフォルト遠方
+        double enemyDist = 20.0;
         boolean hasSight = false;
+        Player targetPlayer = null;
 
         if (!context.environment.nearby_enemies.isEmpty()) {
-            BanditContext.EnemyInfo nearest = context.environment.nearby_enemies.stream()
+            // 最寄りの敵を取得
+            BanditContext.EnemyInfo nearestInfo = context.environment.nearby_enemies.stream()
                     .min(Comparator.comparingDouble(e -> e.dist)).orElse(null);
-            if (nearest != null) {
-                enemyDist = nearest.dist;
-                hasSight = nearest.in_sight;
+
+            if (nearestInfo != null) {
+                enemyDist = nearestInfo.dist;
+                hasSight = nearestInfo.in_sight;
+
+                // 物理的な回避計算のためにBukkitのPlayerオブジェクトを特定
+                if (bukkitEntity.getTarget() instanceof Player) {
+                    targetPlayer = (Player) bukkitEntity.getTarget();
+                }
             }
         }
 
-        // 敵が接近しているか？ (距離の微分的要素)
-        boolean enemyClosingIn = false;
-        if (brain.lastEnemyDist >= 0 && enemyDist < brain.lastEnemyDist) {
-            enemyClosingIn = true;
-        }
-        brain.lastEnemyDist = enemyDist;
+        // --- 2. 攻撃予兆 (Attack Imminence) の計算 ---
+        // プレイヤーの「溜め」や「武器の振り」から、攻撃のタイミングを予測する
+        double attackImminence = calculateAttackImminence(targetPlayer, enemyDist);
 
-        // --- 2. 緊迫度 (Urgency) の計算 ---
-        // これが「液体の粘性」を決定する。
-        // HPが低い、または敵が至近距離(5m以内)にいる場合、思考は流動的(即応的)になる。
+        // --- 3. 緊迫度 (Urgency) の計算 (拡張) ---
+        // 攻撃が飛んできそうな瞬間、AIの「時間の流れ(粘性)」を極限まで速める
         double urgency = 0.0;
-        if (hpStress > 0.7) urgency += 0.5;
-        if (enemyDist < 5.0) urgency += 0.4;
-        if (enemyClosingIn) urgency += 0.2;
+        if (hpStress > 0.7) urgency += 0.4;
+        if (enemyDist < 5.0) urgency += 0.3;
+        if (attackImminence > 0.5) urgency += 0.6; // 攻撃予兆は最優先の緊急事態
         urgency = Math.min(1.0, urgency);
 
-        // --- 3. ニューロンの動的更新 (Liquid Update) ---
+        // --- 4. ニューロンの動적更新 ---
 
-        // [攻撃性] 敵が見えていて、かつHPに余裕があれば上がる。敵が近づくと急上昇。
+        // 反射ニューロン(reflex)の更新: 予兆があれば即座に1.0を目指す
+        // baseDecayが非常に高い(0.3など)設定を想定し、瞬時に反応させる
+        brain.reflex.update(attackImminence, urgency);
+
+        // 攻撃・恐怖・戦術の更新 (既存ロジックを維持)
         double aggressionInput = (hasSight ? 0.6 : 0.0) + (1.0 - hpStress) * 0.4;
         if (enemyDist < 8.0) aggressionInput += 0.3;
         brain.aggression.update(aggressionInput, urgency);
 
-        // [恐怖] HPが減る、または敵が強そう(High HP)だと上がる。
-        double fearInput = hpStress;
-        // 敵のHPが高い(high)と認識している場合、恐怖入力増
-        if (!context.environment.nearby_enemies.isEmpty() &&
-                "high".equals(context.environment.nearby_enemies.get(0).health)) {
-            fearInput += 0.3;
-        }
+        double fearInput = hpStress + (attackImminence * 0.4); // 攻撃予兆は恐怖も煽る
         brain.fear.update(fearInput, urgency);
 
-        // [戦術] 恐怖と攻撃のバランス、または遮蔽物が近くにある場合に刺激される
         double coverAvail = (context.environment.nearest_cover != null) ? 0.8 : 0.0;
-        // 撃ち合い(中距離)でこそ戦術が必要
         double tacticalInput = (enemyDist > 5.0 && enemyDist < 15.0) ? 0.8 : 0.0;
         tacticalInput += coverAvail * 0.5;
-        brain.tactical.update(tacticalInput, urgency * 0.5); // 戦術思考は少し冷静に
+        brain.tactical.update(tacticalInput, urgency * 0.5);
 
-        // --- 4. 意思決定 (Actuator) ---
+        brain.lastEnemyDist = enemyDist;
+
+        // --- 5. 意思決定 ---
         return resolveDecision(brain, context);
+    }
+
+    /**
+     * プレイヤーの行動から攻撃の「予兆」を数値化する
+     */
+    private double calculateAttackImminence(Player player, double dist) {
+        if (player == null) return 0.0;
+
+        double score = 0.0;
+
+        // 1. 武器の間合いチェック (槍:ヴァリアント・スピア等を想定)
+        // リーチが長い武器の場合、4~6mでの接近は非常に危険
+        if (dist < 6.0 && player.isSprinting()) {
+            score += 0.4;
+        }
+
+        // 2. 攻撃のクールダウンチェック
+        // クールダウンが完了している(1.0)＝いつでも振れる状態
+        if (player.getAttackCooldown() > 0.9) {
+            score += 0.3;
+        }
+
+        // 3. 視線チェック
+        // プレイヤーがこちらを真っ直ぐ見ているか
+        if (score > 0) {
+            score += 0.2; // 狙われている感覚
+        }
+
+        return Math.min(1.0, score);
     }
 
     private BanditDecision resolveDecision(LiquidBrain brain, BanditContext context) {
@@ -78,46 +107,46 @@ public class LiquidCombatEngine {
         double agg = brain.aggression.get();
         double fear = brain.fear.get();
         double tac = brain.tactical.get();
+        double ref = brain.reflex.get();
 
-        // 意思決定の理由をデバッグ用に記録
-        d.reasoning = String.format("A:%.2f F:%.2f T:%.2f", agg, fear, tac);
+        // 意思決定の理由に反射値を追加
+        d.reasoning = String.format("A:%.2f F:%.2f T:%.2f R:%.2f", agg, fear, tac, ref);
 
+        // --- 回避行動の優先判定 ---
+        if (ref > 0.8) {
+            // 反射値が高い＝攻撃が来る！
+            d.decision.action_type = "EVADE";
+            d.decision.new_stance = "EVASIVE";
+
+            // 恐怖が高いならバックステップ、戦術が高いならサイドステップを好む
+            if (fear > tac) {
+                d.movement.strategy = "BACKSTEP";
+                d.movement.destination = "NONE"; // Velocityで制御するため
+            } else {
+                d.movement.strategy = "SIDESTEP";
+                d.movement.destination = "NONE";
+            }
+            d.communication.voice_line = "Watch out!";
+            return d;
+        }
+
+        // --- 以下、既存の攻撃/戦術/逃走ロジック ---
         if (fear > agg && fear > 0.6) {
-            // [逃走/防御モード]
             d.decision.action_type = "RETREAT";
             d.decision.new_stance = "DEFENSIVE";
             d.movement.destination = "NEAREST_COVER";
-
-            // 恐怖が極限かつHPが低い場合、助けを呼ぶ
-            if (fear > 0.8 && context.entity.hp_pct < 20) {
-                d.communication.voice_line = "I'm gonna die! Help!";
-                d.communication.shout_to_allies = "COVER_ME";
-            } else {
-                d.communication.voice_line = "Falling back!";
-            }
-
+            d.communication.voice_line = "Falling back!";
         } else if (tac > agg && tac > 0.4) {
-            // [戦術モード] 遮蔽を使って戦う
             d.decision.action_type = "TACTICAL";
             d.decision.new_stance = "DEFAULT";
-
-            // すでに遮蔽に近ければ攻撃、そうでなければ遮蔽へ
-            if (context.environment.nearest_cover != null && context.environment.nearest_cover.dist < 2.0) {
-                d.movement.destination = "ENEMY"; // 遮蔽から撃つイメージ
-            } else {
-                d.movement.destination = "NEAREST_COVER";
-            }
+            d.movement.destination = context.environment.nearest_cover != null && context.environment.nearest_cover.dist < 2.0 ? "ENEMY" : "NEAREST_COVER";
             d.communication.voice_line = "Taking position.";
-
         } else {
-            // [攻撃モード] デフォルトあるいは攻撃性が高い
             d.decision.action_type = "ATTACK";
             d.decision.new_stance = "AGGRESSIVE";
             d.movement.destination = "ENEMY";
-
-            // 攻撃性が非常に高い場合、スキル使用
             if (agg > 0.75) {
-                d.decision.use_skill = "HeavySmash"; // 例
+                d.decision.use_skill = "HeavySmash";
                 d.communication.voice_line = "Die!";
             }
         }
