@@ -169,5 +169,10 @@
             <version>1.15.0</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>com.microsoft.onnxruntime</groupId>
+            <artifactId>onnxruntime</artifactId>
+            <version>1.23.2</version>
+        </dependency>
     </dependencies>
 </project>

@@ -1,0 +1,167 @@
+package com.lunar_prototype.deepwither.seeker;
+
+import io.lumine.mythic.core.mobs.ActiveMob;
+import org.bukkit.FluidCollisionMode;
+import org.bukkit.Location;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.block.Block;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Mob;
+import org.bukkit.entity.Player;
+import org.bukkit.util.RayTraceResult;
+import org.bukkit.util.Vector;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class SensorProvider {
+
+    // 周囲何ブロックまでをスキャン対象にするか
+    private static final int SCAN_RADIUS = 15;
+
+    public BanditContext scan(ActiveMob activeMob) {
+        BanditContext context = new BanditContext();
+        Mob entity = (Mob) activeMob.getEntity();
+
+        // 1. 自身のステータス
+        context.entity = new BanditContext.EntityState();
+        context.entity.id = activeMob.getUniqueId().toString();
+        context.entity.hp_pct = (int) ((entity.getHealth() / entity.getAttribute(Attribute.MAX_HEALTH).getValue()) * 100);
+        context.entity.max_hp = (int) entity.getAttribute(Attribute.MAX_HEALTH).getValue();
+        context.entity.stance = activeMob.getStance();
+
+        // 2. 環境情報の収集
+        context.environment = new BanditContext.EnvironmentState();
+
+        // 敵の情報を取得
+        List<Entity> nearby = entity.getNearbyEntities(SCAN_RADIUS, SCAN_RADIUS, SCAN_RADIUS);
+        context.environment.nearby_enemies = scanEnemies(entity, nearby);
+
+        // 味方の情報を取得
+        context.environment.nearby_allies = scanAllies(entity, nearby);
+
+        // 最寄りの遮蔽物を計算
+        context.environment.nearest_cover = findNearestCover(entity, context.environment.nearby_enemies);
+
+        // 3. 性格パラメータ (固定値、あるいはMobの設定から取得)
+        context.personality = new BanditContext.Personality();
+        context.personality.bravery = 0.3;
+        context.personality.aggressiveness = 0.6;
+
+        return context;
+    }
+
+    private List<BanditContext.AllyInfo> scanAllies(Mob self, List<Entity> nearby) {
+        return nearby.stream()
+                .filter(e -> e instanceof LivingEntity && e != self) // 自分以外の生きたエンティティ
+                .filter(e -> {
+                    // MythicMobsの名前（あるいはDisplayName）に "bandit" が含まれるかチェック
+                    String name = e.getCustomName();
+                    return name != null && name.toLowerCase().contains("bandit");
+                })
+                .map(e -> {
+                    LivingEntity ally = (LivingEntity) e;
+                    BanditContext.AllyInfo info = new BanditContext.AllyInfo();
+
+                    // 距離の計算
+                    info.dist = self.getLocation().distance(ally.getLocation());
+
+                    // ステータス判定
+                    double healthRatio = ally.getHealth() / ally.getAttribute(Attribute.MAX_HEALTH).getValue();
+
+                    if (ally.isDead() || ally.getHealth() <= 0) {
+                        info.status = "DEAD";
+                    } else if (healthRatio < 0.4) { // 残りHP40%未満を負傷とみなす
+                        info.status = "WOUNDED";
+                    } else {
+                        info.status = "HEALTHY";
+                    }
+
+                    return info;
+                })
+                .collect(Collectors.toList());
+    }
+
+    private List<BanditContext.EnemyInfo> scanEnemies(Mob self, List<Entity> nearby) {
+        return nearby.stream()
+                .filter(e -> e instanceof Player) // ひとまずプレイヤーを敵とする
+                .map(e -> {
+                    BanditContext.EnemyInfo info = new BanditContext.EnemyInfo();
+                    info.dist = self.getLocation().distance(e.getLocation());
+                    info.in_sight = self.hasLineOfSight(e);
+                    info.holding = ((Player) e).getInventory().getItemInMainHand().getType().name();
+                    // HPは大まかにラベル化
+                    double p = ((Player) e).getHealth() / 20.0;
+                    info.health = p > 0.7 ? "high" : (p > 0.3 ? "mid" : "low");
+                    return info;
+                }).collect(Collectors.toList());
+    }
+
+    private BanditContext.CoverInfo findNearestCover(Mob self, List<BanditContext.EnemyInfo> enemies) {
+        // 敵がいない場合は遮蔽物不要
+        if (enemies.isEmpty()) return null;
+
+        // 最も近い敵を基準にする（簡易化のため）
+        Location selfLoc = self.getLocation();
+        Location enemyLoc = self.getTarget() != null ? self.getTarget().getLocation() : null;
+
+        // ターゲットがいない場合は付近の敵の平均位置、またはnullチェック
+        if (enemyLoc == null) return null;
+
+        Block closestCover = null;
+        double minDistance = Double.MAX_VALUE;
+
+        int radius = 8; // 探索範囲
+        for (int x = -radius; x <= radius; x++) {
+            for (int y = -1; y <= 2; y++) { // 足元から頭上少しまで
+                for (int z = -radius; z <= radius; z++) {
+                    Block block = selfLoc.clone().add(x, y, z).getBlock();
+
+                    // 1. そのブロックが「隠れられる硬さ」か確認
+                    if (!block.getType().isOccluding()) continue;
+
+                    // 2. そのブロックが「敵からの射線を遮っているか」を判定
+                    // 敵から見て、このブロックの「裏側」に自分が立てるスペースがあるか
+                    Vector directionToEnemy = enemyLoc.toVector().subtract(block.getLocation().toVector()).normalize();
+                    Location hidingSpot = block.getLocation().add(directionToEnemy.multiply(-1.1)); // ブロックの反対側
+
+                    if (isSafeSpot(hidingSpot, enemyLoc)) {
+                        double dist = selfLoc.distance(hidingSpot);
+                        if (dist < minDistance) {
+                            minDistance = dist;
+                            closestCover = block;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (closestCover != null) {
+            BanditContext.CoverInfo info = new BanditContext.CoverInfo();
+            info.dist = minDistance;
+            info.safety_score = 1.0; // 見つかった場合は一旦1.0
+            return info;
+        }
+
+        return null;
+    }
+
+    // 実際に射線が通らないかを確認する補助メソッド
+    private boolean isSafeSpot(Location spot, Location enemyEye) {
+        // 1. スポットが空気（立てる場所）か確認
+        if (!spot.getBlock().isEmpty()) return false;
+
+        // 2. 敵の目線からスポットへの視線がブロックで遮られているか
+        RayTraceResult result = spot.getWorld().rayTraceBlocks(
+                enemyEye,
+                spot.toVector().subtract(enemyEye.toVector()).normalize(),
+                enemyEye.distance(spot),
+                FluidCollisionMode.NEVER,
+                true
+        );
+
+        // ヒットした＝間に何かのブロックがある＝安全
+        return result != null && result.getHitBlock() != null;
+    }
+}
