@@ -42,7 +42,7 @@ public class SeekerAIEngine {
         BanditContext context = sensorProvider.scan(activeMob);
 
         // 2. 脳の取得 (初対面のMobなら脳を新規作成)
-        LiquidBrain brain = brainStorage.computeIfAbsent(uuid, k -> new LiquidBrain());
+        LiquidBrain brain = brainStorage.computeIfAbsent(uuid, k -> new LiquidBrain(bukkitMob.getUniqueId()));
 
         brain.digestExperience();
 
@@ -70,7 +70,7 @@ public class SeekerAIEngine {
     // SeekerAIEngine.java に追加
     public LiquidBrain getBrain(UUID uuid) {
         // 脳がまだない場合は作成して返す（これによってリスナー経由でも脳が初期化される）
-        return brainStorage.computeIfAbsent(uuid, k -> new LiquidBrain());
+        return brainStorage.computeIfAbsent(uuid, k -> new LiquidBrain(uuid));
     }
 
     public void shutdown() {

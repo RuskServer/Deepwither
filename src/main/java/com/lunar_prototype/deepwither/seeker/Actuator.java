@@ -56,7 +56,7 @@ public class Actuator {
     }
 
     /**
-     * 速度ベクトル(Velocity)を直接操作して、瞬間的な回避運動を行う
+     * Pathfinderを利用して、地形を考慮した回避運動を行う
      */
     private void performEvasiveStep(Mob entity, String strategy) {
         if (entity.getTarget() == null) return;
@@ -64,26 +64,24 @@ public class Actuator {
         Location selfLoc = entity.getLocation();
         Location targetLoc = entity.getTarget().getLocation();
 
-        // ターゲットから自分へのベクトル（逃げる方向）
+        // ターゲットから自分への方向ベクトル
         Vector awayVec = selfLoc.toVector().subtract(targetLoc.toVector()).normalize();
-        Vector finalVel;
+        Location destination;
 
         if (strategy.equals("BACKSTEP")) {
-            // 真後ろに大きく跳ねる
-            finalVel = awayVec.multiply(0.8).setY(0.3);
+            // 現在地からターゲットの反対方向へ3m地点を計算
+            destination = selfLoc.clone().add(awayVec.multiply(3.0));
         } else {
-            // サイドステップ（ターゲットに対して垂直な方向）
-            // ベクトルの外積を利用して横方向を算出
+            // サイドステップ（垂直方向）へ3m地点を計算
             Vector sideVec = new Vector(-awayVec.getZ(), 0, awayVec.getX());
-
-            // 左右どちらに避けるかはランダム、または周囲の状況で決める
             if (Math.random() > 0.5) sideVec.multiply(-1);
-
-            finalVel = sideVec.multiply(0.7).setY(0.25);
+            destination = selfLoc.clone().add(sideVec.multiply(3.0));
         }
 
-        // 瞬間的な速度変化を適用
-        entity.setVelocity(finalVel);
+        // --- 地形対応のポイント ---
+        // 計算した地点が「空中」や「壁の中」である可能性を考慮し、
+        // Pathfinderにその地点、あるいはその周辺の安全な場所を探させる
+        entity.getPathfinder().moveTo(destination, 2.0); // 通常の2倍の速度(Sprint)で回避
     }
 
     private void handleActions(ActiveMob activeMob, BanditDecision decision) {

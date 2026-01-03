@@ -1,5 +1,8 @@
 package com.lunar_prototype.deepwither.seeker;
 
+import java.util.Random;
+import java.util.UUID;
+
 public class LiquidBrain {
     // 思考状態を表すニューロン群
     public final LiquidNeuron aggression; // 攻撃性
@@ -14,13 +17,18 @@ public class LiquidBrain {
 
     public final LiquidNeuron reflex = new LiquidNeuron(0.3);
 
-    public LiquidBrain() {
-        // aggressionは冷めにくい (baseDecay低め)
-        this.aggression = new LiquidNeuron(0.05);
-        // fearは反応しやすい (baseDecay高め)
-        this.fear = new LiquidNeuron(0.1);
-        // tacticalは中庸
-        this.tactical = new LiquidNeuron(0.08);
+    public LiquidBrain(UUID uuid) {
+        // UUIDから乱数生成器を作る（その個体だけの固有の性格が決まる）
+        Random random = new Random(uuid.getMostSignificantBits());
+
+        // 個体によって初期の「粘性（反応の速さ）」や「初期値」をバラつかせる
+        // 例: 0.05 ~ 0.15 の間で反応速度に差をつける
+        this.aggression = new LiquidNeuron(0.08 + (random.nextDouble() * 0.04));
+        this.fear = new LiquidNeuron(0.08 + (random.nextDouble() * 0.04));
+        this.tactical = new LiquidNeuron(0.05 + (random.nextDouble() * 0.02));
+
+        // 初期値も少しランダムに（0.0 ~ 0.2）
+        this.aggression.update(random.nextDouble() * 0.2, 1.0);
     }
 
     /**
