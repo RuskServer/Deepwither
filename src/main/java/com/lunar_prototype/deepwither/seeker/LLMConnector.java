@@ -1,6 +1,7 @@
 package com.lunar_prototype.deepwither.seeker;
 
 import ai.onnxruntime.*;
+import com.google.gson.Gson;
 import com.lunar_prototype.deepwither.Deepwither;
 import org.bukkit.Bukkit;
 
