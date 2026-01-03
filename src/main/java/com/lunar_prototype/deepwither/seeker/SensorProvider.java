@@ -98,33 +98,49 @@ public class SensorProvider {
                 }).collect(Collectors.toList());
     }
 
-    private BanditContext.CoverInfo findNearestCover(Mob self, List<BanditContext.EnemyInfo> enemies) {
-        // 敵がいない場合は遮蔽物不要
-        if (enemies.isEmpty()) return null;
+    // SeekerAIEngineから座標取得のために呼ばれる
+    public Location findNearestCoverLocation(ActiveMob activeMob) {
+        Mob self = (Mob) activeMob.getEntity();
+        Block coverBlock = findBestCoverBlock(self);
 
-        // 最も近い敵を基準にする（簡易化のため）
+        if (coverBlock == null) return null;
+
+        // 敵の逆側に回り込む座標を計算して返す
+        Location enemyLoc = getEnemyLocation(self);
+        Vector directionToEnemy = enemyLoc.toVector().subtract(coverBlock.getLocation().toVector()).normalize();
+        return coverBlock.getLocation().add(directionToEnemy.multiply(-1.1));
+    }
+
+    // scanメソッド内でLLM用のデータを作るために呼ばれる
+    public BanditContext.CoverInfo findNearestCover(Mob self, Location coverLoc) {
+        if (coverLoc == null) return null;
+
+        BanditContext.CoverInfo info = new BanditContext.CoverInfo();
+        info.dist = self.getLocation().distance(coverLoc);
+        info.safety_score = 1.0;
+        return info;
+    }
+
+    /**
+     * 最適な遮蔽物（ブロック）を探索するコアロジック
+     */
+    private Block findBestCoverBlock(Mob self) {
         Location selfLoc = self.getLocation();
-        Location enemyLoc = self.getTarget() != null ? self.getTarget().getLocation() : null;
-
-        // ターゲットがいない場合は付近の敵の平均位置、またはnullチェック
+        Location enemyLoc = getEnemyLocation(self);
         if (enemyLoc == null) return null;
 
         Block closestCover = null;
         double minDistance = Double.MAX_VALUE;
+        int radius = 8;
 
-        int radius = 8; // 探索範囲
         for (int x = -radius; x <= radius; x++) {
-            for (int y = -1; y <= 2; y++) { // 足元から頭上少しまで
+            for (int y = -1; y <= 2; y++) {
                 for (int z = -radius; z <= radius; z++) {
                     Block block = selfLoc.clone().add(x, y, z).getBlock();
-
-                    // 1. そのブロックが「隠れられる硬さ」か確認
                     if (!block.getType().isOccluding()) continue;
 
-                    // 2. そのブロックが「敵からの射線を遮っているか」を判定
-                    // 敵から見て、このブロックの「裏側」に自分が立てるスペースがあるか
                     Vector directionToEnemy = enemyLoc.toVector().subtract(block.getLocation().toVector()).normalize();
-                    Location hidingSpot = block.getLocation().add(directionToEnemy.multiply(-1.1)); // ブロックの反対側
+                    Location hidingSpot = block.getLocation().add(directionToEnemy.multiply(-1.1));
 
                     if (isSafeSpot(hidingSpot, enemyLoc)) {
                         double dist = selfLoc.distance(hidingSpot);
@@ -136,15 +152,16 @@ public class SensorProvider {
                 }
             }
         }
+        return closestCover;
+    }
 
-        if (closestCover != null) {
-            BanditContext.CoverInfo info = new BanditContext.CoverInfo();
-            info.dist = minDistance;
-            info.safety_score = 1.0; // 見つかった場合は一旦1.0
-            return info;
-        }
-
-        return null;
+    private Location getEnemyLocation(Mob self) {
+        if (self.getTarget() != null) return self.getTarget().getLocation();
+        // ターゲットがいない場合、近くのプレイヤーを探すなどのフォールバック
+        return self.getNearbyEntities(15, 15, 15).stream()
+                .filter(e -> e instanceof org.bukkit.entity.Player)
+                .map(org.bukkit.entity.Entity::getLocation)
+                .findFirst().orElse(null);
     }
 
     // 実際に射線が通らないかを確認する補助メソッド

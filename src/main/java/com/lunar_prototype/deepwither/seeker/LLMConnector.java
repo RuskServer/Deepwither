@@ -4,6 +4,7 @@ import ai.onnxruntime.*;
 import com.google.gson.Gson;
 import com.lunar_prototype.deepwither.Deepwither;
 import org.bukkit.Bukkit;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
@@ -15,8 +16,10 @@ public class LLMConnector {
     private final OrtSession session;
     private final DeepwitherTokenizer tokenizer;
     private final Gson gson = new Gson();
+    private final JavaPlugin plugin;
 
-    public LLMConnector(String modelPath) throws OrtException {
+    public LLMConnector(JavaPlugin plugin, String modelPath) throws OrtException {
+        this.plugin = plugin;
         this.env = OrtEnvironment.getEnvironment();
         this.session = env.createSession(modelPath, new OrtSession.SessionOptions());
         this.tokenizer = new DeepwitherTokenizer();
@@ -53,5 +56,22 @@ public class LLMConnector {
                 Bukkit.getScheduler().runTask(Deepwither.getInstance(), () -> callback.accept(decision));
             }
         });
+    }
+
+    /**
+     * リソースの解放
+     * プラグインの onDisable() 等で呼び出す
+     */
+    public void close() {
+        try {
+            if (session != null) {
+                session.close();
+            }
+            if (env != null) {
+                env.close();
+            }
+        } catch (Exception e) {
+            plugin.getLogger().severe("Failed to close ONNX Runtime: " + e.getMessage());
+        }
     }
 }
