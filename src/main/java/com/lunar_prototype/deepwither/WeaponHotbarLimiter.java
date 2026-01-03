@@ -7,14 +7,19 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.entity.EntityPickupItemEvent;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
 public class WeaponHotbarLimiter implements Listener {
+    private static final int MAININV_START = 9;
+    private static final int MAININV_END = 36;
 
     // 拾得時の制限
     @EventHandler(priority = EventPriority.LOWEST)
@@ -80,6 +85,37 @@ public class WeaponHotbarLimiter implements Listener {
         }
     }
 
+    @EventHandler
+    public void onCloseInventory(@NotNull InventoryCloseEvent inventoryCloseEvent) {
+        if (!(inventoryCloseEvent.getPlayer() instanceof Player player)) return;
+
+        var view = inventoryCloseEvent.getView();
+        var itemStack = view.getCursor();
+        if (itemStack.isEmpty() || !isWeapon(itemStack)) return;
+        view.setCursor(ItemStack.empty());
+
+        var inventory = player.getInventory();
+        var firstEmpty = inventory.firstEmpty();
+        var bl = hasWeaponInHotbar(player);
+
+        if (isSlotInHotbar(firstEmpty) && !bl) {
+            inventory.setItem(firstEmpty, itemStack);
+            return;
+        }
+
+        var emptySlot = getSpaceInMainInventory(inventory);
+
+        if (isSlotInMainInventory(emptySlot)) {
+            inventory.setItem(emptySlot, itemStack);
+        } else {
+            var dropLocation = player.getLocation().add(0, .5, 0);
+            player.getWorld().dropItem(dropLocation, itemStack).setPickupDelay(40);
+        }
+
+        if (bl) player.sendMessage("§cホットバーに武器は1つしか置けません。");
+
+    }
+
     // --- 判定用ヘルパー ---
 
     /**
@@ -138,5 +174,18 @@ public class WeaponHotbarLimiter implements Listener {
             if (slot == null || slot.getType() == Material.AIR) return true;
         }
         return false;
+    }
+
+    private static boolean isSlotInMainInventory(int slotId) {
+        return slotId >= MAININV_START && slotId < MAININV_END;
+    }
+
+    private static int getSpaceInMainInventory(Inventory inventory) {
+        for (var slotId = MAININV_START; slotId < MAININV_END; slotId++) {
+            var itemstack = inventory.getItem(slotId);
+            if (itemstack == null || itemstack.isEmpty()) return slotId;
+        }
+
+        return -1;
     }
 }
