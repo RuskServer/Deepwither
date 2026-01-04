@@ -17,6 +17,7 @@ public class TraderManager {
     private final Map<String, Map<Integer, List<TraderOffer>>> traderOffers = new HashMap<>();
     private final Map<String, Integer> sellPrices = new HashMap<>(); // [Item ID/Material] -> [Price]
     private final Map<String, Integer> dailyTaskLimits = new HashMap<>();
+    private final Map<String, String> traderNames = new HashMap<>();
 
     private final File tradersFolder;
     private final File sellFile;
@@ -43,6 +44,9 @@ public class TraderManager {
         for (File file : traderFiles) {
             String traderId = file.getName().replace(".yml", "");
             YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+
+            String displayName = config.getString("trader_name", traderId);
+            traderNames.put(traderId, displayName);
 
             // ★ 1. デイリータスク制限を読み込む
             int limit = config.getInt("task_limit", 1); // デフォルトは 1 回
@@ -227,5 +231,14 @@ public class TraderManager {
     public int getDailyTaskLimit(String traderId) {
         // loadAllTraders() で設定されたマップから取得
         return dailyTaskLimits.getOrDefault(traderId, 1);
+    }
+
+    /**
+     * ★ 追加: トレーダーの表示名を取得する
+     * @param traderId トレーダーのID
+     * @return 設定された名前、なければID
+     */
+    public String getTraderName(String traderId) {
+        return traderNames.getOrDefault(traderId, traderId);
     }
 }

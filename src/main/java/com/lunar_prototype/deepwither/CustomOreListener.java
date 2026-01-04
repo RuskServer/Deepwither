@@ -49,6 +49,8 @@ public class CustomOreListener implements Listener {
         // configに exp 設定があればそれを使い、なければ固定値(例:10)
         int xpAmount = oreSection.getInt("exp", 10);
 
+        Deepwither.getInstance().getLevelManager().addExp(player,xpAmount);
+
         // DeepwitherクラスにgetProfessionManager()を追加している前提
         if (Deepwither.getInstance().getProfessionManager() != null) {
             Deepwither.getInstance().getProfessionManager().addExp(player, ProfessionType.MINING, xpAmount);

@@ -11,6 +11,8 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 public class StatusCommand implements CommandExecutor {
@@ -122,10 +124,26 @@ public class StatusCommand implements CommandExecutor {
         if (allTraderIds.isEmpty()) {
             player.sendMessage("  §7(データなし)");
         } else {
-            for (String traderId : allTraderIds) {
-                int credit = creditManager.getCredit(player.getUniqueId(), traderId);
-                // 0信用度は表示しないなどの調整も可能
-                player.sendMessage("  §7" + formatTraderId(traderId) + ": §b" + credit);
+            // IDリストを変換・保持
+            List<String> ids = new ArrayList<>(allTraderIds);
+
+            // 2個ずつループして表示
+            for (int i = 0; i < ids.size(); i += 2) {
+                String id1 = ids.get(i);
+                String name1 = traderManager.getTraderName(id1); // 日本語名を取得
+                int credit1 = creditManager.getCredit(player.getUniqueId(), id1);
+                String entry1 = String.format("  §7%s: §b%d", name1, credit1);
+
+                // 2つ目の要素があるか確認
+                if (i + 1 < ids.size()) {
+                    String id2 = ids.get(i + 1);
+                    String name2 = traderManager.getTraderName(id2); // 日本語名を取得
+                    int credit2 = creditManager.getCredit(player.getUniqueId(), id2);
+                    // 1つ目の表示幅を揃える（例: 全角8文字分程度を想定した空白調整）
+                    player.sendMessage(String.format("%-20s  §7%s: §b%d", entry1, name2, credit2));
+                } else {
+                    player.sendMessage(entry1);
+                }
             }
         }
 
@@ -153,6 +171,7 @@ public class StatusCommand implements CommandExecutor {
     private String formatProfessionName(ProfessionType type) {
         switch (type) {
             case MINING: return "採掘";
+            case FISHING: return "釣り";
             // case FISHING: return "釣り"; // 将来用
             default: return type.name();
         }

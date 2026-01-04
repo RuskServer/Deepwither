@@ -45,5 +45,6 @@ public class FishingListener implements Listener {
         // 基礎EXP + ランダム性などはお好みで調整
         int expToGive = 15 + (int)(Math.random() * 10);
         plugin.getProfessionManager().addExp(player, ProfessionType.FISHING, expToGive);
+        Deepwither.getInstance().getLevelManager().addExp(player,expToGive);
     }
 }

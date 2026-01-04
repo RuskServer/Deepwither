@@ -41,7 +41,11 @@ public class TraderGUI implements Listener {
         size = Math.min(size, 54);
 
         // 3. インベントリを作成
-        Inventory gui = Bukkit.createInventory(player, size, String.format(BUY_GUI_TITLE, traderId));
+        // ★ 修正箇所: IDではなく、設定から読み込んだ表示名を取得する
+        String traderDisplayName = manager.getTraderName(traderId);
+
+        // 3. インベントリを作成 (BUY_GUI_TITLE の %s に表示名を流し込む)
+        Inventory gui = Bukkit.createInventory(player, size, String.format(BUY_GUI_TITLE, traderDisplayName));
 
         // ★ オファーを配置できる最大スロット数を計算
         // 最後の2スロット(size-1とsize-2)はボタン用に予約

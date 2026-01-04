@@ -108,6 +108,7 @@ public final class  Deepwither extends JavaPlugin {
     private DailyTaskManager dailyTaskManager;
     private MobSpawnManager mobSpawnManager;
     private ItemNameResolver itemNameResolver;
+    private MobKillListener mobKillListener;
     private QuestDataStore questDataStore;
     private GuildQuestManager guildQuestManager;
     private PlayerQuestManager playerQuestManager;
@@ -205,6 +206,9 @@ public final class  Deepwither extends JavaPlugin {
     public LayerMoveManager getLayerMoveManager() {return layerMoveManager;}
     public FishingManager getFishingManager() {
         return fishingManager;
+    }
+    public MobKillListener getMobKillListener(){
+        return mobKillListener;
     }
 
 
@@ -340,7 +344,8 @@ public final class  Deepwither extends JavaPlugin {
 
         OutpostManager.initialize(this, outpostConfig);
 
-        Bukkit.getPluginManager().registerEvents(new MobKillListener(levelManager, getConfig(),OutpostManager.getInstance(),partyManager,boosterManager), this);
+        mobKillListener = new MobKillListener(levelManager, getConfig(),OutpostManager.getInstance(),partyManager,boosterManager);
+        Bukkit.getPluginManager().registerEvents(mobKillListener, this);
         getServer().getPluginManager().registerEvents(new SafeZoneListener(this),this);
         getServer().getPluginManager().registerEvents(new AnimationListener(),this);
         getServer().getPluginManager().registerEvents(new BackpackListener(this, backpackManager), this);
@@ -630,6 +635,4 @@ public final class  Deepwither extends JavaPlugin {
             questConfig = null;
         }
     }
-
-
 }
