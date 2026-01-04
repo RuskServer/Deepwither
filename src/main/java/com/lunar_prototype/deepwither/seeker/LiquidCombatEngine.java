@@ -14,6 +14,8 @@ public class LiquidCombatEngine {
     public BanditDecision think(BanditContext context, LiquidBrain brain, Mob bukkitEntity) {
         double hpStress = 1.0 - (context.entity.hp_pct / 100.0);
         double enemyDist = 20.0;
+        double currentDist = 20.0;
+        double predictedDist = 20.0;
         Player targetPlayer = null;
 
         if (!context.environment.nearby_enemies.isEmpty()) {
@@ -36,7 +38,25 @@ public class LiquidCombatEngine {
         urgency = Math.min(1.0, urgency);
 
         // --- 2. 各パラメーターの更新 ---
-        brain.reflex.update(attackImminence, urgency);
+        if (targetPlayer != null) {
+            currentDist = bukkitEntity.getLocation().distance(targetPlayer.getLocation());
+
+            // --- 予測モデルの適用 (0.5秒後を予測) ---
+            Vector myFuture = bukkitEntity.getLocation().toVector().add(bukkitEntity.getVelocity().multiply(10));
+            Vector targetFuture = predictFutureLocation(targetPlayer, 0.5);
+            predictedDist = myFuture.distance(targetFuture);
+        }
+
+        // 現在の殺気と、0.5秒後の殺気の両方を計算
+        double currentImminence = calculateAttackImminence(targetPlayer, currentDist, bukkitEntity);
+        double futureImminence = calculateAttackImminence(targetPlayer, predictedDist, bukkitEntity);
+
+        // 未来の危険度が今の危険度より急激に上がっている場合、それは「踏み込み」と判断
+        double imminenceDelta = Math.max(0, futureImminence - currentImminence);
+
+        // 反射(Reflex)ニューロンに「未来の予兆」を強く入力する
+        // これにより、実際に殴られる数チック前に回避行動の閾値を超えるようになる
+        brain.reflex.update(futureImminence + (imminenceDelta * 2.0), 1.0);
 
         // --- 集合知による補正の安全な取得 ---
         double globalFear = 0.0;
@@ -124,6 +144,20 @@ public class LiquidCombatEngine {
         return Math.max(0.0, Math.min(1.0, score));
     }
 
+    /**
+     * 相手の現在速度と方向から、指定秒数後の予測位置を算出する
+     */
+    private Vector predictFutureLocation(Player player, double seconds) {
+        // 現在の位置ベクトル
+        Vector currentLoc = player.getLocation().toVector();
+        // 速度ベクトル（1秒あたりの移動量）に時間をかける
+        Vector velocity = player.getVelocity();
+
+        // プレイヤーの速度が 0 の場合、Velocity が正確に取れないことがあるため
+        // 必要に応じて前回の座標との差分をとるロジックを挟むとより正確になります
+        return currentLoc.add(velocity.multiply(seconds * 20)); // 20 ticks = 1s
+    }
+
     private BanditDecision resolveDecision(LiquidBrain brain, BanditContext context, double enemyDist) {
         BanditDecision d = new BanditDecision();
         d.decision = new BanditDecision.DecisionCore();
@@ -135,14 +169,45 @@ public class LiquidCombatEngine {
         double ref = brain.reflex.get();
         double morale = brain.morale;
 
-        d.reasoning = String.format("M:%.2f A:%.2f R:%.2f Ad:%.2f", morale, agg, ref, brain.adrenaline);
+        // デバッグログ用にFrustrationも追加
+        d.reasoning = String.format("M:%.2f A:%.2f R:%.2f Ad:%.2f Fr:%.2f",
+                morale, agg, ref, brain.adrenaline, brain.frustration);
+
+        // --- 【新設】不満度（Frustration）の蓄積ロジック ---
+        // 「後退しているのに敵がまだ近い」＝ハメられている可能性が高い
+        if (d.decision.action_type != null && d.decision.action_type.equals("RETREAT") && enemyDist < 6.0) {
+            brain.frustration += 0.05; // 毎チック蓄積
+        }
+
+        // --- 【超重要】バースト・カウンター（キレる挙動） ---
+        // 不満が冷静さを超えた時、恐怖を無視して「死なば諸共」の突撃を開始する
+        if (brain.frustration > brain.composure) {
+            d.decision.action_type = "AMBUSH";
+            d.movement.strategy = "SPRINT_ZIGZAG"; // ジグザグ突撃で槍を避けやすく
+            d.decision.use_skill = "Four_consecutive_attacks";    // スキルを強制使用
+            d.communication.voice_line = "ENOUGH OF THIS!";
+
+            // 一度発動したら不満をリセットし、アドレナリンを最大にする
+            brain.frustration = 0;
+            brain.adrenaline = 1.0;
+            return d;
+        }
+
+        // --- 予測回避（Pre-emptive Evasion） ---
+        // 実際に殴られる（Ref > 0.8）前でも、未来の危険度が高いなら「予備動作」に入る
+        if (brain.reflex.get() > 0.6 && brain.reflex.get() < 0.8) {
+            d.decision.action_type = "OBSERVE";
+            d.movement.strategy = "MAINTAIN_DISTANCE";
+            d.communication.voice_line = "I see what you're doing...";
+            return d;
+        }
 
         // --- 戦略：ハメ殺し対策の「様子見（OBSERVE）」 ---
-        // 士気が低く、かつ敵が近い（槍の間合い）場合、あえて突っ込まず距離を維持する
         if (morale < 0.2 && enemyDist < 5.0) {
             d.decision.action_type = "OBSERVE";
             d.movement.strategy = "MAINTAIN_DISTANCE";
-            d.communication.voice_line = "I'm not falling for that...";
+            // 様子見中は不満が少しずつ溜まる（イライラしてくる）
+            brain.frustration += 0.02;
             return d;
         }
 
@@ -150,7 +215,6 @@ public class LiquidCombatEngine {
         if (ref > 0.8) {
             d.decision.action_type = "EVADE";
             d.movement.strategy = (fear > 0.5) ? "BACKSTEP" : "SIDESTEP";
-            d.communication.voice_line = "Watch out!";
             return d;
         }
 
@@ -158,12 +222,9 @@ public class LiquidCombatEngine {
         if (morale > 0.5) {
             d.decision.action_type = "ATTACK";
             d.movement.destination = "ENEMY";
-            // アドレナリン全開ならバースト攻撃
-            if (brain.adrenaline > 0.8) d.decision.use_skill = "BurstDash";
         } else {
             d.decision.action_type = "RETREAT";
             d.movement.destination = "NEAREST_COVER";
-            d.communication.voice_line = "Taking position.";
         }
 
         return d;

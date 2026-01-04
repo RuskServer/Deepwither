@@ -14,8 +14,8 @@ public class LiquidBrain {
     public double composure;         // 冷静さ（性格係数）：高いほど恐怖(fear)の蓄積を抑える
     public double morale = 1.0;      // 士気：Aggression - Fear の結果に影響し、戦略を決定する
     public double patience = 1.0;    // 忍耐：ハメられている時に「様子見」を選択する確率に影響
+    public double frustration = 0.0; // 【追加】ハメられた時のストレス蓄積
 
-    public double lastEnemyDist = -1.0;
     public double accumulatedReward = 0.0;
     public double accumulatedPenalty = 0.0;
 
@@ -38,6 +38,7 @@ public class LiquidBrain {
             aggression.update(1.0, accumulatedReward * 0.5);
             fear.update(0.0, accumulatedReward * 0.2);
             adrenaline = Math.max(0, adrenaline - 0.1); // 成功すると冷静になる
+            frustration = Math.max(0, frustration - 0.2);
         }
         if (accumulatedPenalty > 0) {
             // 冷静さ(composure)が高いほど、ダメージによる恐怖蓄積を軽減する
