@@ -519,7 +519,36 @@ public class DamageManager implements Listener {
         if (rollChance(20)) {
             damage *= 1.5;
             sendLog(target,PlayerSettingsManager.SettingType.SHOW_TAKEN_DAMAGE,"§4§l敵のクリティカル！");
-            target.getWorld().playSound(target.getLocation(), Sound.ENTITY_PLAYER_ATTACK_CRIT, 1f, 0.8f);
+
+            Location hitLoc = target.getLocation().add(0, 1.2, 0); // ターゲットの胸の高さ
+            World world = hitLoc.getWorld();
+
+            // --- 視覚エフェクト: 重層的なパーティクル ---
+
+            // 1. 強烈な閃光 (中心)
+            world.spawnParticle(Particle.FLASH, hitLoc, 1, 0, 0, 0, 0);
+
+            // 2. 衝撃波 (周囲に広がる空気の歪み)
+            world.spawnParticle(Particle.SONIC_BOOM, hitLoc, 1, 0, 0, 0, 0);
+
+            // 3. 飛び散る火花と血しぶきのような演出 (LAVAとCRIT)
+            world.spawnParticle(Particle.LAVA, hitLoc, 8, 0.4, 0.4, 0.4, 0.1);
+            world.spawnParticle(Particle.CRIT, hitLoc, 30, 0.5, 0.5, 0.5, 0.5);
+
+            // 4. 大きな煙の広がり
+            world.spawnParticle(Particle.LARGE_SMOKE, hitLoc, 15, 0.2, 0.2, 0.2, 0.05);
+
+            // --- 音響エフェクト: 複数の音を重ねて重厚感を出す ---
+
+            // 通常のクリティカル音（高ピッチ）
+            world.playSound(hitLoc, Sound.ENTITY_PLAYER_ATTACK_CRIT, 1.2f, 0.8f);
+
+            // 鈍い衝撃音（低ピッチの金床や爆発）
+            world.playSound(hitLoc, Sound.BLOCK_ANVIL_LAND, 0.6f, 0.5f);
+            world.playSound(hitLoc, Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, 0.8f, 0.6f);
+
+            // 斬撃の重み（鋭い音）
+            world.playSound(hitLoc, Sound.ITEM_TRIDENT_HIT, 1.0f, 0.7f);
         }
         return damage;
     }
