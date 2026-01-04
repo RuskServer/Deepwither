@@ -2,6 +2,8 @@ package com.lunar_prototype.deepwither.seeker;
 
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
+import org.bukkit.util.Vector;
+
 import java.util.Comparator;
 
 public class LiquidCombatEngine {
@@ -25,7 +27,7 @@ public class LiquidCombatEngine {
             }
         }
 
-        double attackImminence = calculateAttackImminence(targetPlayer, enemyDist);
+        double attackImminence = calculateAttackImminence(targetPlayer,enemyDist,bukkitEntity);
 
         // --- 1. アドレナリンによるUrgencyのブースト ---
         // アドレナリンが高いほど、環境変化への反応速度（粘性）が極限まで上がる
@@ -36,15 +38,22 @@ public class LiquidCombatEngine {
         // --- 2. 各パラメーターの更新 ---
         brain.reflex.update(attackImminence, urgency);
 
-        // 【追加】集合知による補正
-        // 仲間が多く死んでいるプレイヤーに対しては、最初から Fear(恐怖) が高い状態でスタートする
-        double globalFear = CollectiveKnowledge.playerDangerLevel.getOrDefault(targetPlayer.getUniqueId(), 0.0);
+        // --- 集合知による補正の安全な取得 ---
+        double globalFear = 0.0;
+        if (targetPlayer != null) {
+            // ターゲットがいる場合のみ、そのプレイヤーに対する危険度を取得
+            globalFear = CollectiveKnowledge.playerDangerLevel.getOrDefault(targetPlayer.getUniqueId(), 0.0);
+        }
 
-        // 「見ていた」ことによる学習：直接戦っていなくても Fear が底上げされる
-        brain.fear.update(1.0, globalFear * 0.5);
+        // 仲間の死による全体的なバイアス（こちらはターゲットがいなくても適用される）
+        double collectiveShock = CollectiveKnowledge.globalFearBias;
 
-        // 士気の計算に「集団の勢い」を混ぜる
-        brain.morale += CollectiveKnowledge.globalAggressionBias - CollectiveKnowledge.globalFearBias;
+        // 恐怖(Fear)を集合知と個体知の合算で更新
+        // ターゲットがいない場合でも、集団がパニックなら少し Fear が上がる設計
+        brain.fear.update(1.0, (globalFear * 0.5) + (collectiveShock * 0.3));
+
+        // 士気の計算にバイアスを反映
+        brain.morale += CollectiveKnowledge.globalAggressionBias - collectiveShock;
 
         // 士気(Morale)の計算：攻撃性と恐怖の差分
         brain.morale = brain.aggression.get() - (brain.fear.get() * (1.0 - brain.composure * 0.3));
@@ -59,30 +68,60 @@ public class LiquidCombatEngine {
     /**
      * プレイヤーの行動から攻撃の「予兆」を数値化する
      */
-    private double calculateAttackImminence(Player player, double dist) {
+    private double calculateAttackImminence(Player player, double dist, Mob entity) {
         if (player == null) return 0.0;
 
         double score = 0.0;
 
-        // 1. 武器の間合いチェック (槍:ヴァリアント・スピア等を想定)
-        // リーチが長い武器の場合、4~6mでの接近は非常に危険
-        if (dist < 6.0 && player.isSprinting()) {
-            score += 0.4;
+        // --- 1. 武器の脅威リーチ判定 ---
+        double weaponReach = 3.5; // デフォルトのリーチ
+        String mainHand = player.getInventory().getItemInMainHand().getType().name().toLowerCase();
+        if (mainHand.contains("spear") || mainHand.contains("needle") || mainHand.contains("trident")) {
+            weaponReach = 6.0; // 槍系の武器は警戒距離を伸ばす
         }
 
-        // 2. 攻撃のクールダウンチェック
-        // クールダウンが完了している(1.0)＝いつでも振れる状態
-        if (player.getAttackCooldown() > 0.9) {
+        // 間合いに入っている度合い (0.0 ~ 1.0)
+        double reachFactor = Math.max(0, 1.0 - (dist / weaponReach));
+        score += reachFactor * 0.4;
+
+        // --- 2. 物理的な「踏み込み」速度の検知 ---
+        // プレイヤーがこちらに向かって移動しているベクトル強度
+        Vector relativeVelocity = player.getVelocity().subtract(entity.getVelocity());
+        Vector toEntity = entity.getLocation().toVector().subtract(player.getLocation().toVector()).normalize();
+        double approachSpeed = relativeVelocity.dot(toEntity); // 内積で接近速度を算出
+
+        if (approachSpeed > 0.2) {
+            score += 0.3; // 突っ込んできている時は危険
+        }
+
+        // --- 3. 精密な視線（エイム）チェック ---
+        // プレイヤーの視線ベクトルと自分への方向ベクトルの合致度
+        Vector lookVec = player.getLocation().getDirection();
+        double aimConcentration = lookVec.dot(toEntity); // 1.0に近いほど正確に自分を向いている
+
+        if (aimConcentration > 0.98) { // ほぼ正面
             score += 0.3;
+        } else if (aimConcentration < 0.8) {
+            score -= 0.2; // 横を向いているなら隙がある
         }
 
-        // 3. 視線チェック
-        // プレイヤーがこちらを真っ直ぐ見ているか
-        if (score > 0) {
-            score += 0.2; // 狙われている感覚
+        // --- 4. 操作入力による「殺気」の検知 ---
+        if (player.getAttackCooldown() > 0.9) {
+            score += 0.2;
+        }
+        if (player.isSneaking()) {
+            score += 0.1; // 溜め動作の警戒
         }
 
-        return Math.min(1.0, score);
+        // --- 5. Sキー引き撃ち（Kiting）の検知 ---
+        // プレイヤーが後ろに下がりながら攻撃準備をしている場合
+        double backpedalSpeed = relativeVelocity.dot(lookVec);
+        if (backpedalSpeed < -0.1 && player.getAttackCooldown() > 0.8) {
+            // これは「ハメ」の典型的な動き。あえてImminenceを高くして「様子見(OBSERVE)」を誘発させる
+            score += 0.2;
+        }
+
+        return Math.max(0.0, Math.min(1.0, score));
     }
 
     private BanditDecision resolveDecision(LiquidBrain brain, BanditContext context, double enemyDist) {
