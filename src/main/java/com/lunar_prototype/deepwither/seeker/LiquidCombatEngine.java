@@ -36,6 +36,16 @@ public class LiquidCombatEngine {
         // --- 2. 各パラメーターの更新 ---
         brain.reflex.update(attackImminence, urgency);
 
+        // 【追加】集合知による補正
+        // 仲間が多く死んでいるプレイヤーに対しては、最初から Fear(恐怖) が高い状態でスタートする
+        double globalFear = CollectiveKnowledge.playerDangerLevel.getOrDefault(targetPlayer.getUniqueId(), 0.0);
+
+        // 「見ていた」ことによる学習：直接戦っていなくても Fear が底上げされる
+        brain.fear.update(1.0, globalFear * 0.5);
+
+        // 士気の計算に「集団の勢い」を混ぜる
+        brain.morale += CollectiveKnowledge.globalAggressionBias - CollectiveKnowledge.globalFearBias;
+
         // 士気(Morale)の計算：攻撃性と恐怖の差分
         brain.morale = brain.aggression.get() - (brain.fear.get() * (1.0 - brain.composure * 0.3));
 

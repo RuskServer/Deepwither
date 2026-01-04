@@ -9,7 +9,7 @@ public class LiquidNeuron {
     private double state; // 現在の活性値 (0.0 ~ 1.0)
 
     // 基本的な減衰率 (記憶の保持力)
-    private final double baseDecay;
+    private double baseDecay;
 
     public LiquidNeuron(double initialDecay) {
         this.baseDecay = initialDecay;
@@ -32,6 +32,15 @@ public class LiquidNeuron {
 
         // 値のクリッピング (0.0 - 1.0)
         this.state = Math.max(0.0, Math.min(1.0, this.state));
+    }
+
+    /**
+     * 他のニューロンの特性（感度）を模倣して、自分のパラメータを微調整する
+     */
+    public void mimic(LiquidNeuron leader, double learningRate) {
+        // 内部的な「粘性（反応の速さ）」を優秀な個体に近づける
+        // これにより、集団の中で「避けるのが上手い個体の反応速度」が皆に広まる
+        this.baseDecay += (leader.baseDecay - this.baseDecay) * learningRate;
     }
 
     public double get() {

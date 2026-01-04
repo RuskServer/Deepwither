@@ -44,6 +44,10 @@ public class SeekerAIEngine {
         // 2. 脳の取得 (初対面のMobなら脳を新規作成)
         LiquidBrain brain = brainStorage.computeIfAbsent(uuid, k -> new LiquidBrain(bukkitMob.getUniqueId()));
 
+        // 【新規】模倣学習ステップ
+        // 周囲10m以内の「自分より上手くやっている仲間」を探す
+        observeAndLearn(activeMob, brain);
+
         brain.digestExperience();
 
         // 3. リキッド演算 (適応的思考)
@@ -67,10 +71,41 @@ public class SeekerAIEngine {
         }
     }
 
-    // SeekerAIEngine.java に追加
+    /**
+     * 周囲の優秀な個体のパラメータを模倣する（社会的学習）
+     */
+    private void observeAndLearn(ActiveMob self, LiquidBrain myBrain) {
+        double mySuccess = myBrain.aggression.get(); // 自分の現在の攻撃的成功度などを指標にする
+
+        // 周囲のActiveMobを検索
+        self.getEntity().getBukkitEntity().getNearbyEntities(10, 10, 10).stream()
+                .filter(e -> brainStorage.containsKey(e.getUniqueId()))
+                .forEach(e -> {
+                    LiquidBrain peerBrain = brainStorage.get(e.getUniqueId());
+
+                    // 相手の方が「成功（Rewardの蓄積）」している場合、その特徴を少し盗む
+                    // ここでは簡易的に「相手のAggressionが高い＝攻め時を知っている」と仮定
+                    if (peerBrain.aggression.get() > myBrain.aggression.get() + 0.2) {
+                        // ニューロンの「感度（時間定数）」を5%だけ相手に近づける
+                        // これにより、集団全体が「今このプレイヤーに有効な反応速度」に収束していく
+                        myBrain.aggression.mimic(peerBrain.aggression, 0.05);
+                        myBrain.fear.mimic(peerBrain.fear, 0.05);
+
+                        // 相手が冷静なら、自分の冷静さも少し伝播する
+                        if (peerBrain.composure > myBrain.composure) {
+                            myBrain.composure += (peerBrain.composure - myBrain.composure) * 0.05;
+                        }
+                    }
+                });
+    }
+
     public LiquidBrain getBrain(UUID uuid) {
         // 脳がまだない場合は作成して返す（これによってリスナー経由でも脳が初期化される）
         return brainStorage.computeIfAbsent(uuid, k -> new LiquidBrain(uuid));
+    }
+
+    public boolean hasBrain(UUID uuid) {
+        return brainStorage.containsKey(uuid);
     }
 
     public void shutdown() {
