@@ -46,7 +46,7 @@ public class BossKillListener implements Listener {
 
                 player.sendMessage("");
                 player.sendMessage(ChatColor.GOLD + "★ ボス「" + killedMobId + "」の撃破を記録しました！");
-                player.sendMessage(ChatColor.YELLOW + "これで新しい階層への道が開かれました。");
+                player.sendMessage(ChatColor.YELLOW + "これで新しい階層への道が開かれました。 /dungeon leaveを用いて帰還してください");
                 player.sendMessage("");
             }
         }

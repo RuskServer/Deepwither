@@ -123,10 +123,6 @@ public class DailyTaskManager {
         for (ProtectedRegion region : set) {
             String id = region.getId().toLowerCase();
 
-            if (id.contains("safezone")) {
-                return 0; // Safezoneなら0を返す
-            }
-
             int tierIndex = id.indexOf("t");
             if (tierIndex != -1 && tierIndex + 1 < id.length()) {
                 char nextChar = id.charAt(tierIndex + 1);

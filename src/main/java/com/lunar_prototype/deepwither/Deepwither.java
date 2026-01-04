@@ -13,6 +13,8 @@ import com.lunar_prototype.deepwither.crafting.CraftingGUI;
 import com.lunar_prototype.deepwither.crafting.CraftingListener;
 import com.lunar_prototype.deepwither.crafting.CraftingManager;
 import com.lunar_prototype.deepwither.data.*;
+import com.lunar_prototype.deepwither.fishing.FishingListener;
+import com.lunar_prototype.deepwither.fishing.FishingManager;
 import com.lunar_prototype.deepwither.layer_move.BossKillListener;
 import com.lunar_prototype.deepwither.layer_move.LayerMoveManager;
 import com.lunar_prototype.deepwither.layer_move.LayerSignListener;
@@ -128,6 +130,7 @@ public final class  Deepwither extends JavaPlugin {
     private SettingsGUI settingsGUI;
     private CompanionManager companionManager;
     private PlayerQuestDataStore playerQuestDataStore;
+    private FishingManager fishingManager;
     private RaidBossManager raidBossManager;
     private LayerMoveManager layerMoveManager;
     private SeekerAIEngine aiEngine;
@@ -200,6 +203,9 @@ public final class  Deepwither extends JavaPlugin {
     public SettingsGUI getSettingsGUI() { return settingsGUI; }
     public CompanionManager getCompanionManager() { return companionManager; }
     public LayerMoveManager getLayerMoveManager() {return layerMoveManager;}
+    public FishingManager getFishingManager() {
+        return fishingManager;
+    }
 
 
 
@@ -445,6 +451,12 @@ public final class  Deepwither extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new GUIListener(playerQuestManager), this);
         getServer().getPluginManager().registerEvents(new CustomOreListener(this), this);
         getServer().getPluginManager().registerEvents(new WandManager(),this);
+
+        // マネージャーの初期化
+        this.fishingManager = new FishingManager(this);
+
+        // リスナーの登録
+        getServer().getPluginManager().registerEvents(new FishingListener(this), this);
 
         MenuGUI menuGUI = new MenuGUI(this);
         getCommand("menu").setExecutor(new MenuCommand(menuGUI));
