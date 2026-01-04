@@ -34,6 +34,12 @@ public class Actuator {
                 performEvasiveStep(entity, move.strategy);
                 return; // 物理移動をした場合はPathfinderを上書きするためリターン
             }
+
+            // --- 【追加】ジグザグ突撃ロジック ---
+            if (move.strategy.equals("SPRINT_ZIGZAG")) {
+                performSprintZigzag(entity);
+                return;
+            }
         }
 
         if (move.strategy != null && move.strategy.equals("MAINTAIN_DISTANCE")) {
@@ -132,5 +138,33 @@ public class Actuator {
 
         Location dest = selfLoc.clone().add(direction.multiply(3.0)).add(sideStep);
         entity.getPathfinder().moveTo(dest, 1.2);
+    }
+
+    /**
+     * 敵に向かって高速でジグザグに接近し、直線的な攻撃（槍など）を回避する
+     */
+    private void performSprintZigzag(Mob entity) {
+        if (entity.getTarget() == null) return;
+
+        Location selfLoc = entity.getLocation();
+        Location targetLoc = entity.getTarget().getLocation();
+
+        // 敵への方向ベクトル
+        Vector toTarget = targetLoc.toVector().subtract(selfLoc.toVector()).normalize();
+
+        // 敵への方向に対して垂直なベクトル（横移動用）
+        Vector sideVec = new Vector(-toTarget.getZ(), 0, toTarget.getX()).normalize();
+
+        // 時間（Ticks）経過によるサイン波で左右の揺れ幅を計算
+        // 周期を早めに設定し（* 0.4）、振幅を 2.5ブロック程度に設定
+        double wave = Math.sin(entity.getTicksLived() * 0.4) * 2.5;
+
+        // 「前方へのベクトル」+「左右の揺れベクトル」を合成
+        Vector finalMove = toTarget.multiply(4.0).add(sideVec.multiply(wave));
+        Location destination = selfLoc.clone().add(finalMove);
+
+        // スプリント速度（2.0以上）でターゲットに向かわせる
+        // Pathfinderを使うことで、ジグザグ移動の途中に障害物があってもスタックしにくくなる
+        entity.getPathfinder().moveTo(destination, 2.2);
     }
 }

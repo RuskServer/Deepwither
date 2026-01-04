@@ -88,13 +88,24 @@ public class SensorProvider {
 
     private List<BanditContext.EnemyInfo> scanEnemies(Mob self, List<Entity> nearby) {
         return nearby.stream()
-                .filter(e -> e instanceof Player) // ひとまずプレイヤーを敵とする
+                .filter(e -> e instanceof Player)
                 .map(e -> {
                     BanditContext.EnemyInfo info = new BanditContext.EnemyInfo();
-                    info.dist = self.getLocation().distance(e.getLocation());
-                    info.in_sight = self.hasLineOfSight(e);
+                    double dist = self.getLocation().distance(e.getLocation());
+                    info.dist = dist;
+
+                    // --- LoS判定の改良 ---
+                    // 15ブロック以内：足音や気配でLoSを無視して「見える（検知）」とする
+                    // 15ブロック以上：実際に視線が通っている場合のみ「見える」とする
+                    if (dist <= 15.0) {
+                        info.in_sight = true;
+                    } else {
+                        info.in_sight = self.hasLineOfSight(e);
+                    }
+
                     info.holding = ((Player) e).getInventory().getItemInMainHand().getType().name();
-                    // HPは大まかにラベル化
+
+                    // HPのラベル化
                     double p = ((Player) e).getHealth() / 20.0;
                     info.health = p > 0.7 ? "high" : (p > 0.3 ? "mid" : "low");
                     return info;
