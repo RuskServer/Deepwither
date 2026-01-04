@@ -41,6 +41,7 @@ public class SettingsGUI implements Listener {
         inv.setItem(12, createToggleItem(player, PlayerSettingsManager.SettingType.SHOW_TAKEN_DAMAGE, Material.LEATHER_CHESTPLATE));
         inv.setItem(14, createToggleItem(player, PlayerSettingsManager.SettingType.SHOW_MITIGATION, Material.SHIELD));
         inv.setItem(16, createToggleItem(player, PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, Material.ENCHANTED_BOOK));
+        inv.setItem(18, createToggleItem(player, PlayerSettingsManager.SettingType.SHOW_PICKUP_LOG, Material.HOPPER));
 
         // 戻るボタン
         ItemStack back = createItem(Material.ARROW, "§c戻る", "§7メインメニューへ");
@@ -101,6 +102,7 @@ public class SettingsGUI implements Listener {
         else if (slot == 12) type = PlayerSettingsManager.SettingType.SHOW_TAKEN_DAMAGE;
         else if (slot == 14) type = PlayerSettingsManager.SettingType.SHOW_MITIGATION;
         else if (slot == 16) type = PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG;
+        else if (slot == 18) type = PlayerSettingsManager.SettingType.SHOW_PICKUP_LOG; // 追加
 
         if (type != null) {
             settingsManager.toggle(player, type);

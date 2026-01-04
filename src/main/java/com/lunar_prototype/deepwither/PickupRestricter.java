@@ -14,15 +14,28 @@ import java.util.HashMap;
 
 public class PickupRestricter implements Listener {
 
+    private final PlayerSettingsManager settingsManager;
+
+    public PickupRestricter(PlayerSettingsManager settingsManager) {
+        this.settingsManager = settingsManager;
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPickup(EntityPickupItemEvent e) {
         if (!(e.getEntity() instanceof Player player)) return;
 
         ItemStack pickedUp = e.getItem().getItemStack();
+        int originalAmount = pickedUp.getAmount();
         PlayerInventory inv = player.getInventory();
 
         // 1. まずメインインベントリ (9-35) への収納を試みる
         int remaining = addToMainInventoryCustom(inv, pickedUp);
+        int pickedAmount = originalAmount - remaining;
+
+        // アイテムを拾えた場合、かつ設定がONの場合にメッセージを表示
+        if (pickedAmount > 0) {
+            sendPickupMessage(player, pickedUp, pickedAmount);
+        }
 
         if (remaining <= 0) {
             // 全てメインインベントリに入った場合
@@ -53,6 +66,23 @@ public class PickupRestricter implements Listener {
             e.setCancelled(true);
             e.getItem().setItemStack(pickedUp);
         }
+    }
+
+    private void sendPickupMessage(Player player, ItemStack item, int amount) {
+        // 設定がOFFなら何もしない
+        if (!settingsManager.isEnabled(player, PlayerSettingsManager.SettingType.SHOW_PICKUP_LOG)) {
+            return;
+        }
+
+        String itemName;
+        if (item.hasItemMeta() && item.getItemMeta().hasDisplayName()) {
+            itemName = item.getItemMeta().getDisplayName();
+        } else {
+            // 日本語化が必要な場合は別途翻訳マップが必要ですが、簡易的にはMaterial名
+            itemName = "§f" + item.getType().name();
+        }
+
+        player.sendMessage("§7[+] " + itemName + " §fx" + amount);
     }
 
     /**

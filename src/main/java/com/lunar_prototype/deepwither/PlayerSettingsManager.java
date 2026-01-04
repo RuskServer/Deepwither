@@ -22,7 +22,8 @@ public class PlayerSettingsManager {
         SHOW_GIVEN_DAMAGE("与ダメージログ", true),     // 自分が与えたダメージ
         SHOW_TAKEN_DAMAGE("被ダメージログ", true),     // 自分が受けたダメージ
         SHOW_MITIGATION("防御・軽減ログ", true),       // 盾防御やシールド等のログ
-        SHOW_SPECIAL_LOG("特殊・スキルログ", true);    // クリティカル、スキル発動、回復など
+        SHOW_SPECIAL_LOG("特殊・スキルログ", true),    // クリティカル、スキル発動、回復など
+        SHOW_PICKUP_LOG("アイテム拾得ログ", true);     // 追加
 
         private final String displayName;
         private final boolean defValue;

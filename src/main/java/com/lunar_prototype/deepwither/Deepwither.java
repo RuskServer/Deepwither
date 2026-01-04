@@ -16,6 +16,7 @@ import com.lunar_prototype.deepwither.data.*;
 import com.lunar_prototype.deepwither.layer_move.BossKillListener;
 import com.lunar_prototype.deepwither.layer_move.LayerMoveManager;
 import com.lunar_prototype.deepwither.layer_move.LayerSignListener;
+import com.lunar_prototype.deepwither.listeners.ItemGlowHandler;
 import com.lunar_prototype.deepwither.listeners.PvPWorldListener;
 import com.lunar_prototype.deepwither.loot.LootChestListener;
 import com.lunar_prototype.deepwither.loot.LootChestManager;
@@ -448,7 +449,7 @@ public final class  Deepwither extends JavaPlugin {
         MenuGUI menuGUI = new MenuGUI(this);
         getCommand("menu").setExecutor(new MenuCommand(menuGUI));
         getServer().getPluginManager().registerEvents(new MenuItemListener(this,menuGUI),this);
-        getServer().getPluginManager().registerEvents(new PickupRestricter(),this);
+        getServer().getPluginManager().registerEvents(new PickupRestricter(settingsManager),this);
         getServer().getPluginManager().registerEvents(new WeaponHotbarLimiter(),this);
 
         getCommand("skills").setExecutor(new SkillAssignmentCommand());
@@ -463,6 +464,7 @@ public final class  Deepwither extends JavaPlugin {
         getCommand("resetstatusgui").setExecutor(new ResetGUICommand(resetGUI));
         getCommand("pvp").setExecutor(new PvPCommand());
         getServer().getPluginManager().registerEvents(new PvPWorldListener(), this);
+        getServer().getPluginManager().registerEvents(new ItemGlowHandler(this),this);
     }
 
     @Override
