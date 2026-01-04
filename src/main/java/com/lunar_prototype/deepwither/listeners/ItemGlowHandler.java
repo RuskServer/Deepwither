@@ -13,13 +13,16 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class ItemGlowHandler implements Listener {
 
-    // 1. レアリティ名と ChatColor を直接紐付けるマップに変更
+    private final JavaPlugin plugin;
+    private final Scoreboard scoreboard;
+    private static final String TEAM_PREFIX = "dw_glow_";
+
+    // 判定用マップ
     private static final Map<String, ChatColor> RARITY_CONFIG = Map.of(
             "コモン", ChatColor.WHITE,
             "アンコモン", ChatColor.GREEN,
@@ -28,16 +31,13 @@ public class ItemGlowHandler implements Listener {
             "レジェンダリー", ChatColor.GOLD
     );
 
-    private static final String TEAM_PREFIX = "dw_glow_";
-    private final Scoreboard scoreboard;
-
     public ItemGlowHandler(JavaPlugin plugin) {
+        this.plugin = plugin;
         this.scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
-        initializeTeams(plugin);
+        initializeTeams();
     }
 
-    private void initializeTeams(JavaPlugin plugin) {
-        // RARITY_CONFIG に定義された色ごとにチームを作成
+    private void initializeTeams() {
         for (ChatColor color : RARITY_CONFIG.values()) {
             String teamName = TEAM_PREFIX + color.name();
             Team team = scoreboard.getTeam(teamName);
@@ -53,22 +53,30 @@ public class ItemGlowHandler implements Listener {
         Item itemEntity = event.getEntity();
         ItemStack itemStack = itemEntity.getItemStack();
 
+        // 【デバッグ1】アイテムがスポーンしたことを確認
+        plugin.getLogger().info("[GlowDebug] アイテムスポーン検知: " + itemStack.getType());
+
         if (!itemStack.hasItemMeta()) return;
         ItemMeta meta = itemStack.getItemMeta();
-        if (!meta.hasLore()) return;
+        if (!meta.hasLore()) {
+            plugin.getLogger().info("[GlowDebug] Loreがありません。");
+            return;
+        }
 
         List<String> lore = meta.getLore();
         ChatColor targetColor = null;
 
         for (String line : lore) {
-            // 色コードを剥がして比較（§7レアリティ:§f§6... を レアリティ:... に変換）
             String cleanLine = ChatColor.stripColor(line);
+            // 【デバッグ2】読み取ったLoreの行を表示
+            plugin.getLogger().info("[GlowDebug] Lore行確認: " + cleanLine);
 
             if (cleanLine.contains("レアリティ")) {
-                // RARITY_CONFIG のキー（コモン、レア等）が含まれているかループで確認
                 for (Map.Entry<String, ChatColor> entry : RARITY_CONFIG.entrySet()) {
                     if (cleanLine.contains(entry.getKey())) {
                         targetColor = entry.getValue();
+                        // 【デバッグ3】一致したレアリティを表示
+                        plugin.getLogger().info("[GlowDebug] 一致! レアリティ: " + entry.getKey() + " -> 色: " + targetColor.name());
                         break;
                     }
                 }
@@ -83,7 +91,13 @@ public class ItemGlowHandler implements Listener {
 
             if (team != null) {
                 team.addEntry(itemEntity.getUniqueId().toString());
+                // 【デバッグ4】最終的なチーム参加を確認
+                plugin.getLogger().info("[GlowDebug] チーム " + teamName + " に追加完了。");
+            } else {
+                plugin.getLogger().warning("[GlowDebug] チーム " + teamName + " が存在しません。");
             }
+        } else {
+            plugin.getLogger().info("[GlowDebug] レアリティ判定に失敗しました。");
         }
     }
 }
