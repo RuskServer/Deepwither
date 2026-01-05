@@ -1,6 +1,6 @@
 package com.lunar_prototype.deepwither.data;
 
-import com.lunar_prototype.deepwither.quest.PlayerQuestData;
+import com.lunar_prototype.deepwither.aethelgard.PlayerQuestData;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;

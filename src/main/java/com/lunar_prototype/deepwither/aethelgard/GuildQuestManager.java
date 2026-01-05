@@ -1,10 +1,8 @@
-package com.lunar_prototype.deepwither.quest;
+package com.lunar_prototype.deepwither.aethelgard;
 
 import com.lunar_prototype.deepwither.Deepwither;
-import com.lunar_prototype.deepwither.ItemNameResolver;
 import com.lunar_prototype.deepwither.data.QuestDataStore;
 import org.bukkit.Bukkit;
-import org.bukkit.Location;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;

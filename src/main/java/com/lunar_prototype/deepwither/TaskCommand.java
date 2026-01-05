@@ -1,8 +1,8 @@
 package com.lunar_prototype.deepwither;
 
-import com.lunar_prototype.deepwither.quest.PlayerQuestData;
-import com.lunar_prototype.deepwither.quest.PlayerQuestManager;
-import com.lunar_prototype.deepwither.quest.QuestProgress;
+import com.lunar_prototype.deepwither.aethelgard.PlayerQuestData;
+import com.lunar_prototype.deepwither.aethelgard.PlayerQuestManager;
+import com.lunar_prototype.deepwither.aethelgard.QuestProgress;
 import com.lunar_prototype.deepwither.data.DailyTaskData;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;

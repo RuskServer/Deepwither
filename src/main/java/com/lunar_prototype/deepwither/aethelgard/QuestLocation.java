@@ -1,4 +1,4 @@
-package com.lunar_prototype.deepwither.quest;
+package com.lunar_prototype.deepwither.aethelgard;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;

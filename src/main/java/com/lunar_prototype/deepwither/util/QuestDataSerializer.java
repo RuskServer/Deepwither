@@ -1,6 +1,6 @@
 package com.lunar_prototype.deepwither.util;
 
-import com.lunar_prototype.deepwither.quest.*;
+import com.lunar_prototype.deepwither.aethelgard.*;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 

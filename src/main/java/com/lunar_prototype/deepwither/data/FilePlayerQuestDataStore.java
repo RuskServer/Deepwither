@@ -1,9 +1,9 @@
 package com.lunar_prototype.deepwither.data;
 
 import com.lunar_prototype.deepwither.DatabaseManager;
-import com.lunar_prototype.deepwither.quest.PlayerQuestData;
+import com.lunar_prototype.deepwither.aethelgard.PlayerQuestData;
 import com.lunar_prototype.deepwither.util.IManager;
-import org.bukkit.plugin.java.JavaPlugin;
+
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;

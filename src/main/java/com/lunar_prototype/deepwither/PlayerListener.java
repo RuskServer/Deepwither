@@ -1,9 +1,9 @@
 package com.lunar_prototype.deepwither;
 
-import com.lunar_prototype.deepwither.quest.LocationDetails;
-import com.lunar_prototype.deepwither.quest.PlayerQuestManager;
-import com.lunar_prototype.deepwither.quest.PlayerQuestData;
-import com.lunar_prototype.deepwither.quest.QuestProgress;
+import com.lunar_prototype.deepwither.aethelgard.LocationDetails;
+import com.lunar_prototype.deepwither.aethelgard.PlayerQuestManager;
+import com.lunar_prototype.deepwither.aethelgard.PlayerQuestData;
+import com.lunar_prototype.deepwither.aethelgard.QuestProgress;
 import io.lumine.mythic.bukkit.events.MythicMobDeathEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;

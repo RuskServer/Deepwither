@@ -1,7 +1,7 @@
 package com.lunar_prototype.deepwither.llm;
 
 import com.google.gson.Gson;
-import com.lunar_prototype.deepwither.quest.LocationDetails;
+import com.lunar_prototype.deepwither.aethelgard.LocationDetails;
 
 import java.io.IOException;
 import java.net.URI;

@@ -1,10 +1,10 @@
 package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.outpost.OutpostEvent;
-import com.lunar_prototype.deepwither.quest.LocationDetails;
-import com.lunar_prototype.deepwither.quest.PlayerQuestData;
-import com.lunar_prototype.deepwither.quest.PlayerQuestManager;
-import com.lunar_prototype.deepwither.quest.QuestProgress;
+import com.lunar_prototype.deepwither.aethelgard.LocationDetails;
+import com.lunar_prototype.deepwither.aethelgard.PlayerQuestData;
+import com.lunar_prototype.deepwither.aethelgard.PlayerQuestManager;
+import com.lunar_prototype.deepwither.aethelgard.QuestProgress;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.protection.ApplicableRegionSet;

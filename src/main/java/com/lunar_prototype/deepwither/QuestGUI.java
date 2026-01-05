@@ -1,8 +1,8 @@
 package com.lunar_prototype.deepwither;
 
-import com.lunar_prototype.deepwither.quest.GeneratedQuest;
-import com.lunar_prototype.deepwither.quest.GuildQuestManager;
-import com.lunar_prototype.deepwither.quest.QuestLocation;
+import com.lunar_prototype.deepwither.aethelgard.GeneratedQuest;
+import com.lunar_prototype.deepwither.aethelgard.GuildQuestManager;
+import com.lunar_prototype.deepwither.aethelgard.QuestLocation;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.inventory.Inventory;
@@ -13,7 +13,6 @@ import org.bukkit.Material;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * ギルドクエスト一覧を表示するためのインベントリホルダー兼GUI作成クラス。

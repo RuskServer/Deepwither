@@ -1,6 +1,6 @@
 package com.lunar_prototype.deepwither;
 
-import com.lunar_prototype.deepwither.quest.GuildQuestManager;
+import com.lunar_prototype.deepwither.aethelgard.GuildQuestManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;

@@ -1,4 +1,4 @@
-package com.lunar_prototype.deepwither.quest;
+package com.lunar_prototype.deepwither.aethelgard;
 
 // org.bukkit.entity.EntityTypeの使用をやめ、カスタムMob ID（文字列）を使用するように変更
 

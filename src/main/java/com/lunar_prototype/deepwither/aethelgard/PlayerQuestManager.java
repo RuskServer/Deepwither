@@ -1,4 +1,4 @@
-package com.lunar_prototype.deepwither.quest;
+package com.lunar_prototype.deepwither.aethelgard;
 
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.data.PlayerQuestDataStore;

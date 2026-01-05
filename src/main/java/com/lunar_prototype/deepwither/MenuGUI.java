@@ -5,12 +5,11 @@ import com.lunar_prototype.deepwither.data.DailyTaskData;
 import com.lunar_prototype.deepwither.profession.PlayerProfessionData;
 import com.lunar_prototype.deepwither.profession.ProfessionManager;
 import com.lunar_prototype.deepwither.profession.ProfessionType;
-import com.lunar_prototype.deepwither.quest.PlayerQuestData;
-import com.lunar_prototype.deepwither.quest.PlayerQuestManager;
-import com.lunar_prototype.deepwither.quest.QuestProgress;
+import com.lunar_prototype.deepwither.aethelgard.PlayerQuestData;
+import com.lunar_prototype.deepwither.aethelgard.PlayerQuestManager;
+import com.lunar_prototype.deepwither.aethelgard.QuestProgress;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -22,7 +21,6 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
-import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
 

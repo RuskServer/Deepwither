@@ -1,6 +1,6 @@
 package com.lunar_prototype.deepwither;
 
-import com.lunar_prototype.deepwither.quest.PlayerQuestManager;
+import com.lunar_prototype.deepwither.aethelgard.PlayerQuestManager;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;

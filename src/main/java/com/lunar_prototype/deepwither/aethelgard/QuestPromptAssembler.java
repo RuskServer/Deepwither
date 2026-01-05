@@ -1,6 +1,4 @@
-package com.lunar_prototype.deepwither.quest;
-
-import java.util.Random;
+package com.lunar_prototype.deepwither.aethelgard;
 
 public class QuestPromptAssembler {
 
