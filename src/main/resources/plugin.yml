@@ -1,7 +1,7 @@
 name: deepwither
 version: '1.0-SNAPSHOT'
 main: com.lunar_prototype.deepwither.Deepwither
-author: RS Team(Lunar_prototype)
+author: ["Lunar_prototype","RS Team"]
 api-version: '1.21'
 depend : ["Votifier","BetterModel"]
 
