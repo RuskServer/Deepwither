@@ -450,27 +450,37 @@ public class StatManager {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return true;
 
-        // 2. 耐久値コンポーネントを持っているか確認 (Damageable)
+        // 2. Damageable インターフェースを持っているか確認
         if (meta instanceof Damageable damageable) {
 
-            // 3. コンポーネントに基づいた最大耐久値を取得
-            // マテリアル固有の値ではなく、アイテム個別の最大値を取得します
-            int maxDurability = damageable.getMaxDamage();
+            // ★重要: getMaxDamage() を呼ぶ前に hasMaxDamage() をチェックする
+            // これを怠ると IllegalStateException が発生します
+            if (damageable.hasMaxDamage()) {
+                int maxDurability = damageable.getMaxDamage();
 
-            // 最大耐久値が設定されているアイテム（剣、ツール、防具など）のみ判定
-            if (maxDurability > 0) {
-                int currentDamage = damageable.getDamage();
-                int remainingDurability = maxDurability - currentDamage;
+                if (maxDurability > 0) {
+                    int currentDamage = damageable.getDamage();
+                    int remainingDurability = maxDurability - currentDamage;
 
-                // 4. 残り耐久値が 1 以下の場合は読み込み（ステータス反映）をスキップ
-                // ItemDurabilityFix で「壊れる寸前」として保持されているアイテムを対象外にします
-                if (remainingDurability <= 1) {
-                    return false;
+                    // 残り耐久値が 1 以下の場合は読み込みをスキップ
+                    if (remainingDurability <= 1) {
+                        return false;
+                    }
+                }
+            } else {
+                // hasMaxDamage() が false の場合でも、バニラのデフォルト耐久値を持つか確認
+                // (1.21.x ではコンポーネントがない＝壊れないアイテム、またはブロック等の場合が多い)
+                int vanillaMax = item.getType().getMaxDurability();
+                if (vanillaMax > 0) {
+                    int currentDamage = damageable.getDamage();
+                    if (vanillaMax - currentDamage <= 1) {
+                        return false;
+                    }
                 }
             }
         }
 
-        // 耐久値が存在しないアイテム、または耐久値が十分にあるアイテムは許可
+        // 耐久値に問題がない（または耐久値という概念がない）アイテムはステータスを読み込む
         return true;
     }
 }
