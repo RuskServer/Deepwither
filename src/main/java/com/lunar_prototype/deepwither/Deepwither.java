@@ -342,6 +342,7 @@ public final class  Deepwither extends JavaPlugin {
         marketGui = new MarketGui(globalMarketManager);
         getServer().getPluginManager().registerEvents(marketGui,this);
         marketSearchHandler = new MarketSearchHandler(this,marketGui);
+        getServer().getPluginManager().registerEvents(marketSearchHandler,this);
 
         new RegenTask(statManager).start(this);
         guildQuestManager.startup();
