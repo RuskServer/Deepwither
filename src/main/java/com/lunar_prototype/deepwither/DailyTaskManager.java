@@ -8,10 +8,16 @@ import com.sk89q.worldguard.protection.ApplicableRegionSet;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
 import com.sk89q.worldguard.protection.regions.RegionQuery;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 
+import java.io.File;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -21,10 +27,30 @@ public class DailyTaskManager {
     private final DailyTaskDataStore dataStore;
     private final Map<UUID, DailyTaskData> playerTaskData;
 
+    // フィールドに追加
+    private final Map<UUID, BukkitTask> activeCountdowns = new ConcurrentHashMap<>();
+
+    private FileConfiguration taskConfig;
+
+
     public DailyTaskManager(Deepwither plugin, DailyTaskDataStore dataStore) {
         this.plugin = plugin;
         this.dataStore = dataStore;
         this.playerTaskData = new ConcurrentHashMap<>();
+    }
+
+    // コンストラクタ等でタスク設定をロードするメソッド
+    public void loadTaskConfig() {
+        File configFile = new File(plugin.getDataFolder(), "task_config.yml");
+        if (!configFile.exists()) {
+            plugin.saveResource("task_config.yml", false);
+        }
+        this.taskConfig = YamlConfiguration.loadConfiguration(configFile);
+    }
+
+    public FileConfiguration getTaskConfig() {
+        if (taskConfig == null) loadTaskConfig();
+        return taskConfig;
     }
 
     // --- 既存の永続化メソッド (省略なしでそのまま使用してください) ---
@@ -73,43 +99,62 @@ public class DailyTaskManager {
 
         // 1. プレイヤーの場所からTierを取得
         int currentTier = getTierFromLocation(player.getLocation());
-        if (currentTier == 0) currentTier = 1; // Safezoneや未設定の場合はTier 1とする
+        if (currentTier == 0) currentTier = 1;
 
-        // 2. Configから mob_spawns のリストを取得
-        FileConfiguration config = plugin.getConfig();
-        List<String> mobList = config.getStringList("mob_spawns." + currentTier + ".regular_mobs");
-
-        String targetMobId;
-
-        if (mobList == null || mobList.isEmpty()) {
-            // 設定がない場合はフォールバックとして "bandit"
-            targetMobId = "bandit";
-            plugin.getLogger().warning("No regular_mobs found for Tier " + currentTier + ". Fallback to bandit.");
-        } else {
-            // ランダムに選出
-            targetMobId = mobList.get(plugin.getRandom().nextInt(mobList.size()));
+        // --- AREAタスクの候補を探す ---
+        List<String> areaTaskKeys = new ArrayList<>();
+        ConfigurationSection traderTasks = getTaskConfig().getConfigurationSection("tasks." + traderId);
+        if (traderTasks != null) {
+            for (String key : traderTasks.getKeys(false)) {
+                ConfigurationSection taskNode = traderTasks.getConfigurationSection(key);
+                if (taskNode != null && taskNode.getInt("tier") == currentTier) {
+                    if ("AREA".equalsIgnoreCase(taskNode.getString("type"))) {
+                        areaTaskKeys.add(key);
+                    }
+                }
+            }
         }
 
-        // 3. 目標数を設定 (修正箇所)
-        // 5 <= X <= 15 の範囲で乱数を生成
-        int minCount = 5;
-        int maxCount = 15;
-        // nextInt(max - min + 1) は 0 から (max - min) までの乱数。
-        // ここでは nextInt(15 - 5 + 1) = nextInt(11) -> 0〜10
-        // これに minCount (5) を加算し、5〜15の乱数を生成。
-        int targetCount = plugin.getRandom().nextInt(maxCount - minCount + 1) + minCount;
+        // 2. 抽選 (AREAタスクが候補にある場合、50%の確率でAREAタスクにする)
+        // 確率や条件は自由に変更可能です
+        if (!areaTaskKeys.isEmpty() && plugin.getRandom().nextBoolean()) {
+            // --- AREAタスクを割り当てる ---
+            String selectedTaskKey = areaTaskKeys.get(plugin.getRandom().nextInt(areaTaskKeys.size()));
+            ConfigurationSection taskConfig = traderTasks.getConfigurationSection(selectedTaskKey);
 
-        // 4. データにセット
-        data.setProgress(traderId, 0, targetCount);
-        data.setTargetMob(traderId, targetMobId); // ★ターゲット保存
+            int targetSeconds = taskConfig.getInt("seconds", 10);
+            String taskName = taskConfig.getString("display_name", "重要地点の調査");
+
+            // データにセット (AREA型は [0]/[targetSeconds] で管理)
+            data.setProgress(traderId, 0, targetSeconds);
+            data.setTargetMob(traderId, "AREA_TASK:" + selectedTaskKey); // IDにプレフィックスを付けて保存
+
+            player.sendMessage("§e[タスク] §a" + traderId + "§fからの設置・調査任務を受注しました。");
+            player.sendMessage("§7目標: §b" + taskName + " §7を完了させろ！");
+
+        } else {
+            // --- 従来のキルタスクを割り当てる ---
+            FileConfiguration config = plugin.getConfig();
+            List<String> mobList = config.getStringList("mob_spawns." + currentTier + ".regular_mobs");
+
+            String targetMobId;
+            if (mobList == null || mobList.isEmpty()) {
+                targetMobId = "bandit";
+            } else {
+                targetMobId = mobList.get(plugin.getRandom().nextInt(mobList.size()));
+            }
+
+            int targetCount = plugin.getRandom().nextInt(11) + 5; // 5-15
+
+            data.setProgress(traderId, 0, targetCount);
+            data.setTargetMob(traderId, targetMobId);
+
+            String displayName = targetMobId.equals("bandit") ? "バンディット" : targetMobId;
+            player.sendMessage("§e[タスク] §a" + traderId + "§fからの討伐任務を受注しました。");
+            player.sendMessage("§7目標: " + displayName + " を §c" + targetCount + "体 §7倒せ！");
+        }
 
         dataStore.saveTaskData(data);
-
-        // 表示名を分かりやすくする処理（Config等の表示名マップがあればそれを使うが、ここでは簡易的に）
-        String displayName = targetMobId.equals("bandit") ? "バンディット" : targetMobId;
-
-        player.sendMessage("§e[タスク] §a" + traderId + "§fからの新しいタスクを開始しました！");
-        player.sendMessage("§7目標: " + displayName + " を §c" + targetCount + "体 §7倒せ！");
     }
 
     // --- ★追加: WorldGuard連携によるTier取得 ---
@@ -169,6 +214,46 @@ public class DailyTaskManager {
         }
     }
 
+    /**
+     * AREA待機タスクの進行を開始・更新する
+     */
+    public void startAreaProgress(Player player, String traderId, int targetSeconds) {
+        UUID uuid = player.getUniqueId();
+        if (activeCountdowns.containsKey(uuid)) return;
+
+        DailyTaskData data = getTaskData(player);
+
+        BukkitTask task = new BukkitRunnable() {
+            int elapsed = data.getProgress(traderId)[0]; // 現在の進捗秒数を取得
+
+            @Override
+            public void run() {
+                // 離脱判定
+                if (!player.isOnline() || !isInTaskArea(player, traderId)) {
+                    player.sendTitle("§c§l× 中断", "§7エリアから離脱しました", 5, 20, 5);
+                    activeCountdowns.remove(uuid);
+                    this.cancel();
+                    return;
+                }
+
+                elapsed++;
+                data.setProgress(traderId, elapsed, targetSeconds);
+
+                // アクションバーでタルコフ風のプログレスを表示
+                player.sendActionBar("§e§l設置中... " + elapsed + " / " + targetSeconds + "s");
+
+                if (elapsed >= targetSeconds) {
+                    completeTask(player, traderId);
+                    player.sendTitle("§a§l完了", "§f指定地点への設置が完了しました", 10, 40, 10);
+                    activeCountdowns.remove(uuid);
+                    this.cancel();
+                }
+            }
+        }.runTaskTimer(plugin, 0L, 20L); // 1秒周期
+
+        activeCountdowns.put(uuid, task);
+    }
+
     // --- タスク完了 ---
     public void completeTask(Player player, String traderId) {
         DailyTaskData data = getTaskData(player);
@@ -198,5 +283,32 @@ public class DailyTaskManager {
             }
         }
         return activeTraders;
+    }
+
+    /**
+     * プレイヤーが指定されたトレーダーのAREAタスク範囲内にいるか判定する
+     */
+    public boolean isInTaskArea(Player player, String traderId) {
+        DailyTaskData data = getTaskData(player);
+        String targetMob = data.getTargetMob(traderId);
+
+        // AREAタスクとして保存されているかチェック
+        if (targetMob == null || !targetMob.startsWith("AREA_TASK:")) return false;
+
+        String taskKey = targetMob.replace("AREA_TASK:", "");
+        ConfigurationSection config = getTaskConfig().getConfigurationSection("tasks." + traderId + "." + taskKey);
+
+        if (config == null) return false;
+
+        Location targetLoc = new Location(
+                Bukkit.getWorld(config.getString("world", "world")),
+                config.getDouble("x"),
+                config.getDouble("y"),
+                config.getDouble("z")
+        );
+        double radius = config.getDouble("radius", 3.0);
+
+        return player.getWorld().equals(targetLoc.getWorld()) &&
+                player.getLocation().distanceSquared(targetLoc) <= (radius * radius);
     }
 }

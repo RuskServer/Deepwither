@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither;
 
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -120,36 +121,42 @@ public class WeaponHotbarLimiter implements Listener {
 
     /**
      * 武器かどうかを判定します。
-     * STICKの場合はLoreに「カテゴリ: スクロール」が含まれていれば武器とみなさず false を返します。
+     * STICKの場合はLoreに「カテゴリ:スクロール」が含まれていれば武器とみなさず false を返します。
      */
     private boolean isWeapon(ItemStack item) {
         if (item == null || item.getType() == Material.AIR) return false;
 
         Material mat = item.getType();
 
-        // STICK（棒）の特例判定
+        // 1. STICK（棒）の特例判定を最優先で行う
         if (mat == Material.STICK) {
             if (item.hasItemMeta() && item.getItemMeta().hasLore()) {
                 List<String> lore = item.getItemMeta().getLore();
                 for (String line : lore) {
-                    // 色コードが含まれていてもヒットするように contains を使用
-                    if (line.contains("カテゴリ:スクロール")) {
-                        return false; // スクロールなので武器ではない
+                    // ★重要: 色コードを剥がしてから判定する
+                    String plainLine = ChatColor.stripColor(line);
+
+                    // 空白なども考慮して「カテゴリ:スクロール」が含まれているかチェック
+                    if (plainLine.replace(" ", "").contains("カテゴリ:スクロール")) {
+                        return false; // スクロールなので武器判定から除外
                     }
                 }
             }
         }
 
-        // 通常の武器判定
+        // 2. 通常の武器判定
         String name = mat.name();
+
+        // 1.21+ のメイス対応
+        if (mat.name().equals("MACE")) return true;
+
         return name.endsWith("_SWORD") ||
                 name.endsWith("_AXE") ||
                 name.endsWith("_BOW") ||
                 name.endsWith("_CROSSBOW") ||
                 name.endsWith("_TRIDENT") ||
-                name.endsWith("STICK") ||   // 上記の特例チェックを抜けた通常の棒は武器扱い
-                name.endsWith("FEATHER") ||
-                mat == Material.MACE; // 1.21+
+                mat == Material.STICK ||    // 特例を抜けた棒は武器（杖など）扱い
+                mat == Material.FEATHER;    // 羽を武器（扇など）として扱う場合
     }
 
     private boolean hasWeaponInHotbar(Player player) {

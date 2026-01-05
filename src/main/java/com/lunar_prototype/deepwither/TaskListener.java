@@ -2,12 +2,16 @@ package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.data.DailyTaskData;
 import io.lumine.mythic.bukkit.events.MythicMobDeathEvent;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
 
 public class TaskListener implements Listener {
 
@@ -57,6 +61,53 @@ public class TaskListener implements Listener {
 
             if (matched) {
                 taskManager.updateKillProgress(killer, traderId);
+            }
+        }
+    }
+
+    @EventHandler
+    public void onPlayerMove(PlayerMoveEvent e) {
+        // ブロックを跨いでいない移動は無視（負荷対策）
+        if (e.getFrom().getBlockX() == e.getTo().getBlockX() &&
+                e.getFrom().getBlockZ() == e.getTo().getBlockZ()) return;
+
+        Player player = e.getPlayer();
+
+        // プレイヤーが受けているアクティブなタスクを取得
+        for (String traderId : taskManager.getActiveTaskTraders(player)) {
+            // task_config からタスクタイプを確認 (実装に合わせて取得)
+            // もし type == AREA なら
+            checkAreaTask(player, traderId);
+        }
+    }
+
+    private void checkAreaTask(Player player, String traderId) {
+        // 専用の task_config.yml を参照
+        ConfigurationSection section = taskManager.getTaskConfig().getConfigurationSection("tasks." + traderId);
+        if (section == null) return;
+
+        for (String taskKey : section.getKeys(false)) {
+            ConfigurationSection config = section.getConfigurationSection(taskKey);
+            if (config == null || !config.getString("type", "").equalsIgnoreCase("AREA")) continue;
+
+            // すでに完了しているタスクなら無視（進捗[0] >= 必要[1] かどうか）
+            int[] progress = taskManager.getTaskData(player).getProgress(traderId);
+            if (progress[1] > 0 && progress[0] >= progress[1]) continue;
+
+            Location targetLoc = new Location(
+                    Bukkit.getWorld(config.getString("world", "world")),
+                    config.getDouble("x"),
+                    config.getDouble("y"),
+                    config.getDouble("z")
+            );
+            double radius = config.getDouble("radius", 3.0);
+            int seconds = config.getInt("seconds", 10);
+
+            // 範囲内に入ったらカウント開始
+            if (player.getWorld().equals(targetLoc.getWorld())) {
+                if (player.getLocation().distanceSquared(targetLoc) <= (radius * radius)) {
+                    taskManager.startAreaProgress(player, traderId, seconds);
+                }
             }
         }
     }
