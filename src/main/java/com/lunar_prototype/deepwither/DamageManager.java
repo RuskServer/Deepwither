@@ -393,22 +393,15 @@ public class DamageManager implements Listener {
         }
     }
 
-    // ... (C. 被ダメージ処理以降のコードは変更なしのため省略。元のファイルと同じものを保持してください)
-    // ----------------------------------------------------
-    // --- C. 被ダメージ処理 (環境・Mob・その他) ---
-    // ----------------------------------------------------
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerReceivingDamage(EntityDamageEvent e) {
         if (!(e.getEntity() instanceof Player player)) return;
         if (e.isCancelled()) return;
 
-        if (statManager.getActualCurrentHealth(player) <= 0) {
-            return;
-        }
+        if (statManager.getActualCurrentHealth(player) <= 0) return;
 
         long currentTime = System.currentTimeMillis();
         long iFrameEndTime = iFrameEndTimes.getOrDefault(player.getUniqueId(), 0L);
-
         if (currentTime < iFrameEndTime) {
             e.setCancelled(true);
             return;
@@ -425,13 +418,20 @@ public class DamageManager implements Listener {
             if (attacker instanceof Player) return;
         }
 
-        double incomingDamage = e.getFinalDamage();
+        // ★重要: 100%カットを阻止するためにまずBLOCKINGモディファイアをリセット
+        if (e.isApplicable(EntityDamageEvent.DamageModifier.BLOCKING)) {
+            e.setDamage(EntityDamageEvent.DamageModifier.BLOCKING, 0);
+        }
+
+        // ★修正: getFinalDamageではなく、バニラの計算が入る前の getDamage() をベースにする
+        double rawDamage = e.getDamage();
         StatMap defenderStats = StatManager.getTotalStatsFromEquipment(player);
 
+        // 1. 爆発（魔法）処理
         if (e.getCause() == EntityDamageEvent.DamageCause.ENTITY_EXPLOSION ||
                 e.getCause() == EntityDamageEvent.DamageCause.BLOCK_EXPLOSION) {
 
-            double reduced = applyDefense(incomingDamage, defenderStats.getFinal(StatType.MAGIC_RESIST), MAGIC_DEFENSE_DIVISOR);
+            double reduced = applyDefense(rawDamage, defenderStats.getFinal(StatType.MAGIC_RESIST), MAGIC_DEFENSE_DIVISOR);
             sendLog(player, PlayerSettingsManager.SettingType.SHOW_TAKEN_DAMAGE, "§5§l魔法被弾！ §c" + String.format("%.1f", reduced));
 
             e.setDamage(0.0);
@@ -439,25 +439,26 @@ public class DamageManager implements Listener {
             return;
         }
 
-        if (attacker instanceof Mob) {
-            incomingDamage = handleMobDamageLogic(attacker, incomingDamage, player);
-        }
+        // 2. モブ攻撃の基礎ロジック適用
+        double currentDamage = (attacker instanceof Mob) ? handleMobDamageLogic(attacker, rawDamage, player) : rawDamage;
 
-        double finalDamage = applyDefense(incomingDamage, defenderStats.getFinal(StatType.DEFENSE), HEAVY_DEFENSE_DIVISOR);
+        // 3. 防御力による軽減
+        double finalDamage = applyDefense(currentDamage, defenderStats.getFinal(StatType.DEFENSE), HEAVY_DEFENSE_DIVISOR);
 
-        if (player.isBlocking()) {
+        // 4. ★盾防御の独自計算 (attackerがnullでない場合のみ)
+        if (player.isBlocking() && attacker != null) {
+            // ベクトル計算
             Vector toAttackerVec = attacker.getLocation().toVector().subtract(player.getLocation().toVector()).normalize();
             Vector defenderLookVec = player.getLocation().getDirection().normalize();
 
             if (toAttackerVec.dot(defenderLookVec) > 0.5) {
-                if (e.isApplicable(EntityDamageEvent.DamageModifier.BLOCKING)) {
-                    e.setDamage(EntityDamageEvent.DamageModifier.BLOCKING, 0);
-                }
-
+                // ステータスに基づいた軽減率
                 double blockRate = defenderStats.getFinal(StatType.SHIELD_BLOCK_RATE);
                 blockRate = Math.max(0.0, Math.min(blockRate, 1.0));
+
                 double blockedDamage = finalDamage * blockRate;
-                finalDamage -= blockedDamage;
+                finalDamage -= blockedDamage; // ここで初めてダメージを削る
+
                 player.getWorld().playSound(player.getLocation(), Sound.ITEM_SHIELD_BLOCK, 1f, 1f);
                 sendLog(player, PlayerSettingsManager.SettingType.SHOW_MITIGATION, "§b盾防御！ §7軽減: §a" + Math.round(blockedDamage) + " §c(" + Math.round(finalDamage) + "被弾)");
             }
@@ -467,6 +468,7 @@ public class DamageManager implements Listener {
             Bukkit.getPluginManager().callEvent(new onPlayerRecevingDamageEvent(player, attacker, finalDamage));
         }
 
+        // バニラのダメージ処理を完全に無効化し、独自のHP処理へ渡す
         e.setDamage(0.0);
         processPlayerDamageWithAbsorption(player, finalDamage, attacker != null ? attacker.getName() : "環境");
     }
