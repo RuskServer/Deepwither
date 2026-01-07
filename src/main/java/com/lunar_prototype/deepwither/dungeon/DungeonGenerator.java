@@ -22,16 +22,27 @@ public class DungeonGenerator {
         File configFile = new File(Deepwither.getInstance().getDataFolder(), "dungeons/" + dungeonName + ".yml");
         YamlConfiguration config = YamlConfiguration.loadConfiguration(configFile);
 
-        for (Map<?, ?> map : config.getMapList("parts")) {
-            int lenght = 10;
-            if (map.get("length") != null){
-                lenght = (int) map.get("lenght");
+        // List<? extends Map> を受け取れるようにする
+        List<Map<?, ?>> maps = config.getMapList("parts");
+
+        for (Map<?, ?> rawMap : maps) {
+            // ここで一旦 String, Object のマップとして扱う
+            @SuppressWarnings("unchecked")
+            Map<String, Object> map = (Map<String, Object>) rawMap;
+
+            // getOrDefault が使えるようになります
+            int length = ((Number) map.getOrDefault("length", 10)).intValue();
+
+            String fileName = (String) map.get("file");
+            String type = (String) map.get("type");
+
+            if (fileName != null && type != null) {
+                partList.add(new DungeonPart(
+                        fileName,
+                        type.toUpperCase(),
+                        length
+                ));
             }
-            partList.add(new DungeonPart(
-                    (String) map.get("file"),
-                    ((String) map.get("type")).toUpperCase(),
-                    lenght
-            ));
         }
     }
 
