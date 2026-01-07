@@ -69,3 +69,7 @@ commands:
     description: グローバルマーケットを開きます
     usage: /market [sell|collect|help]
     aliases: [ ah, auction ]
+  deepwither:
+    description: Deepwither main admin command
+    aliases: [ dw ]
+    permission: deepwither.admin

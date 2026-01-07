@@ -2,10 +2,7 @@ package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.api.DeepwitherPartyAPI;
 import com.lunar_prototype.deepwither.booster.BoosterManager;
-import com.lunar_prototype.deepwither.command.BoosterCommand;
-import com.lunar_prototype.deepwither.command.MarketCommand;
-import com.lunar_prototype.deepwither.command.PvPCommand;
-import com.lunar_prototype.deepwither.command.ResetGUICommand;
+import com.lunar_prototype.deepwither.command.*;
 import com.lunar_prototype.deepwither.companion.CompanionCommand;
 import com.lunar_prototype.deepwither.companion.CompanionGuiListener;
 import com.lunar_prototype.deepwither.companion.CompanionListener;
@@ -491,6 +488,7 @@ public final class  Deepwither extends JavaPlugin {
         MarketCommand marketCmd = new MarketCommand(this, globalMarketManager, marketGui);
         getCommand("market").setExecutor(marketCmd);
         getCommand("market").setTabCompleter(marketCmd);
+        getCommand("deepwither").setExecutor(new DeepwitherCommand(this));
         getServer().getPluginManager().registerEvents(new PvPWorldListener(), this);
         getServer().getPluginManager().registerEvents(new ItemGlowHandler(this),this);
     }
