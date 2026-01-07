@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither.dungeon;
 
+import com.lunar_prototype.deepwither.Deepwither;
 import com.sk89q.worldedit.extent.clipboard.Clipboard;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.math.transform.AffineTransform;
@@ -23,17 +24,23 @@ public class DungeonPart {
     /**
      * Schematic内のマーカー(金・鉄)をスキャンして記録する
      */
+
     public void scanMarkers(Clipboard clipboard) {
-        BlockVector3 origin = clipboard.getOrigin(); // コピーした時の立ち位置
+        BlockVector3 origin = clipboard.getOrigin();
+        // デバッグログ: 原点確認
+        Deepwither.getInstance().getLogger().info("[" + fileName + "] Clipboard Origin: " + origin);
 
         for (BlockVector3 pos : clipboard.getRegion()) {
             var block = clipboard.getFullBlock(pos);
 
-            // コピー基準点(Origin)からの相対座標を記録する
             if (block.getBlockType().equals(BlockTypes.GOLD_BLOCK)) {
                 this.entryOffset = pos.subtract(origin);
+                // デバッグログ: 入口発見
+                Deepwither.getInstance().getLogger().info("[" + fileName + "] Found ENTRY (Gold) at: " + pos + " -> Offset: " + entryOffset);
             } else if (block.getBlockType().equals(BlockTypes.IRON_BLOCK)) {
                 this.exitOffset = pos.subtract(origin);
+                // デバッグログ: 出口発見
+                Deepwither.getInstance().getLogger().info("[" + fileName + "] Found EXIT (Iron) at: " + pos + " -> Offset: " + exitOffset);
             }
         }
     }

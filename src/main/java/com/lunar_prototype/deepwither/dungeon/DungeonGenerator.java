@@ -122,11 +122,19 @@ public class DungeonGenerator {
             // 2. 貼り付け位置(Originを置く場所)を決定
             //    「現在のアンカー」から「回転後の入口分」を引き算することで、
             //    アンカーの位置にちょうど入口が重なるようにします。
+            // ★ 計算過程を全部吐き出す
+            Deepwither.getInstance().getLogger().info("========================================");
+            Deepwither.getInstance().getLogger().info("Pasting Part: " + part.getFileName() + " | Rotation: " + rotation);
+            Deepwither.getInstance().getLogger().info("Current Anchor (目標の入口位置): " + anchor.getBlockX() + ", " + anchor.getBlockY() + ", " + anchor.getBlockZ());
+            Deepwither.getInstance().getLogger().info("Rotated Entry Offset (ズレ補正): " + rotatedEntry);
+
+            // 計算上の貼り付け位置
             Location pasteLoc = anchor.clone().subtract(
                     rotatedEntry.getX(),
                     rotatedEntry.getY(),
                     rotatedEntry.getZ()
             );
+            Deepwither.getInstance().getLogger().info("Calculated Paste Origin (貼り付け原点): " + pasteLoc.getBlockX() + ", " + pasteLoc.getBlockY() + ", " + pasteLoc.getBlockZ());
 
             // 3. 実際の貼り付け処理
             try (EditSession editSession = WorldEdit.getInstance().newEditSession(BukkitAdapter.adapt(world))) {
@@ -145,11 +153,14 @@ public class DungeonGenerator {
 
             // 4. 次のアンカー(出口)を計算
             //    「貼り付け基準点」に「回転後の出口分」を足す
-            return pasteLoc.clone().add(
+            // 次のアンカー位置
+            Location nextAnchor = pasteLoc.clone().add(
                     rotatedExit.getX(),
                     rotatedExit.getY(),
                     rotatedExit.getZ()
             );
+            Deepwither.getInstance().getLogger().info("Next Anchor (次の入口予定地): " + nextAnchor.getBlockX() + ", " + nextAnchor.getBlockY() + ", " + nextAnchor.getBlockZ());
+            Deepwither.getInstance().getLogger().info("========================================");
 
         } catch (IOException e) {
             e.printStackTrace();
