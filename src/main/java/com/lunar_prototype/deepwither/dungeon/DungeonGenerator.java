@@ -115,7 +115,8 @@ public class DungeonGenerator {
         if (entrancePart != null) {
             Deepwither.getInstance().getLogger().info("> Placing End (ENTRANCE)");
             // 最後の戻り値(Anchor)は使わないので無視してOK
-            pastePart(world, currentAnchor, entrancePart, rotation);
+            // End Entrance should be rotated 180 degrees relative to the path
+            pastePart(world, currentAnchor, entrancePart, rotation + 180);
         }
 
         Deepwither.getInstance().getLogger().info("=== 生成完了 ===");
@@ -175,6 +176,14 @@ public class DungeonGenerator {
                 Operations.complete(operation);
             }
 
+            // Remove marker blocks (Gold/Iron)
+            // Calculate world Key positions
+            BlockVector3 worldEntryPos = pasteVector.add(rotatedEntry);
+            BlockVector3 worldExitPos = pasteVector.add(rotatedExit);
+
+            removeMarker(world, worldEntryPos, org.bukkit.Material.GOLD_BLOCK);
+            removeMarker(world, worldExitPos, org.bukkit.Material.IRON_BLOCK);
+
             // 4. 次の接続点 (Next Anchor) の計算
             // 貼り付け基準点(Origin) + 出口オフセット(Iron)
             Location nextAnchor = new Location(world,
@@ -191,6 +200,14 @@ public class DungeonGenerator {
         } catch (Exception e) {
             e.printStackTrace();
             return anchor; // エラー時は動かさない
+        }
+    }
+
+    private void removeMarker(World world, BlockVector3 pos, org.bukkit.Material expectedType) {
+        Location loc = new Location(world, pos.getX(), pos.getY(), pos.getZ());
+        if (loc.getBlock().getType() == expectedType) {
+            loc.getBlock().setType(org.bukkit.Material.AIR);
+            // Deepwither.getInstance().getLogger().info("Removed marker at " + pos);
         }
     }
 
