@@ -114,12 +114,81 @@ public class DungeonGenerator {
         // 終端としてもう一度 ENTRANCE を置く (あるいは EXIT タイプがあればそれを使う)
         if (entrancePart != null) {
             Deepwither.getInstance().getLogger().info("> Placing End (ENTRANCE)");
-            // 最後の戻り値(Anchor)は使わないので無視してOK
-            // End Entrance should be rotated 180 degrees relative to the path
-            pastePart(world, currentAnchor, entrancePart, rotation + 180);
+            // 終端は「出口(Iron)」を接続点として、ダンジョンの外側へ向けて配置する
+            // Entranceパーツは通常 Entry(Door)->Exit(Connector) の向き
+            // ダンジョン終端では Connector(Exit) -> Door(Entry) と逆向きに使いたい
+            // したがって、ExitをAnchorに合わせ、回転はStartと同じ(90度=North向き)にすると
+            // Roomは South(Anchor) -> North(Anchor+6) ではなく...
+            // Wait.
+            // Hallway Flow is South (+Z).
+            // We want Connector -> Door flow to also be South (+Z).
+            // Schematic: Door(0) -> Connector(6) is +X.
+            // We want Connector(6) -> Door(0) to be South (+Z).
+            // So 6->0 is +Z. <=> 0->6 is -Z (North).
+            // North is 90 degrees.
+            // So Rotation should be 90 (Same as Hallway).
+
+            pastePartByExit(world, currentAnchor, entrancePart, rotation);
         }
 
         Deepwither.getInstance().getLogger().info("=== 生成完了 ===");
+    }
+
+    /**
+     * パーツの「出口(Iron)」を基準(Anchor)に合わせて貼り付ける
+     * 主に終端パーツ用
+     */
+    private void pastePartByExit(World world, Location anchor, DungeonPart part, int rotation) {
+        File schemFile = new File(dungeonFolder, part.getFileName());
+        ClipboardFormat format = ClipboardFormats.findByFile(schemFile);
+
+        if (format == null) {
+            Deepwither.getInstance().getLogger().severe("Format invalid: " + part.getFileName());
+            return;
+        }
+
+        try (ClipboardReader reader = format.getReader(new FileInputStream(schemFile))) {
+            Clipboard clipboard = reader.read();
+
+            BlockVector3 rotatedEntry = part.getRotatedEntryOffset(rotation);
+            BlockVector3 rotatedExit = part.getRotatedExitOffset(rotation);
+
+            Deepwither.getInstance().getLogger()
+                    .info(String.format("[EndPlacement] Rot:%d | ExitOffset:%s -> Rotated:%s",
+                            rotation, part.getExitOffset(), rotatedExit));
+
+            // 出口(Exit)を基準点(Anchor)に合わせる
+            // PasteOrigin = Anchor - RotatedExit
+            double pasteX = anchor.getX() - rotatedExit.getX();
+            double pasteY = anchor.getY() - rotatedExit.getY();
+            double pasteZ = anchor.getZ() - rotatedExit.getZ();
+
+            BlockVector3 pasteVector = BlockVector3.at(pasteX, pasteY, pasteZ);
+
+            Deepwither.getInstance().getLogger().info(String.format("  -> Anchor:%s | PasteOrigin:%s (Aligned by EXIT)",
+                    anchor.toVector(), pasteVector));
+
+            try (EditSession editSession = WorldEdit.getInstance().newEditSession(BukkitAdapter.adapt(world))) {
+                ClipboardHolder holder = new ClipboardHolder(clipboard);
+                holder.setTransform(new AffineTransform().rotateY(rotation));
+
+                Operation operation = holder
+                        .createPaste(editSession)
+                        .to(pasteVector)
+                        .ignoreAirBlocks(true)
+                        .build();
+                Operations.complete(operation);
+            }
+
+            // Remove marker blocks logic copy
+            BlockVector3 worldEntryPos = pasteVector.add(rotatedEntry);
+            BlockVector3 worldExitPos = pasteVector.add(rotatedExit);
+            removeMarker(world, worldEntryPos, org.bukkit.Material.GOLD_BLOCK);
+            removeMarker(world, worldExitPos, org.bukkit.Material.IRON_BLOCK);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**
