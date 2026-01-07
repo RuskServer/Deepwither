@@ -113,7 +113,9 @@ public class PlayerInventoryRestrictor implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onSwap(@NotNull PlayerSwapHandItemsEvent event) {
-        if (isWeapon(event.getMainHandItem()) && hasWeaponInHotbar(event.getPlayer().getInventory()) && !isWeapon(event.getOffHandItem())) {
+        var player = event.getPlayer();
+        if (isWeapon(event.getMainHandItem()) && hasWeaponInHotbar(player.getInventory()) && !isWeapon(event.getOffHandItem())) {
+            player.sendMessage(MULTIPLE_WEAPONS);
             event.setCancelled(true);
         }
     }
