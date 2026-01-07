@@ -1,17 +1,25 @@
 package com.lunar_prototype.deepwither.dungeon;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.sk89q.worldedit.EditSession;
+import com.sk89q.worldedit.WorldEdit;
+import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.extent.clipboard.Clipboard;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardReader;
+import com.sk89q.worldedit.function.operation.Operation;
+import com.sk89q.worldedit.function.operation.Operations;
 import com.sk89q.worldedit.math.BlockVector3;
+import com.sk89q.worldedit.math.transform.AffineTransform;
+import com.sk89q.worldedit.session.ClipboardHolder;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -80,44 +88,76 @@ public class DungeonGenerator {
         // 1. Entrance
         DungeonPart entrance = findPartByType("ENTRANCE");
         if (entrance != null) {
-            currentAnchor = pasteAndGetNextAnchor(currentAnchor, entrance, rotation);
+            currentAnchor = pasteAndGetNextAnchor(world,currentAnchor, entrance, rotation);
         }
 
         // 2. Hallways
         DungeonPart hallway = findPartByType("HALLWAY");
         if (hallway != null) {
             for (int i = 0; i < hallwayCount; i++) {
-                currentAnchor = pasteAndGetNextAnchor(currentAnchor, hallway, rotation);
+                currentAnchor = pasteAndGetNextAnchor(world,currentAnchor, hallway, rotation);
             }
         }
 
         Deepwither.getInstance().getLogger().info("生成完了");
     }
 
-    private Location pasteAndGetNextAnchor(Location anchor, DungeonPart part, int rotation) {
-        // 1. その回転角での入口と出口の「見かけ上の位置」を計算
-        BlockVector3 rotatedEntry = part.getRotatedEntryOffset(rotation);
-        BlockVector3 rotatedExit = part.getRotatedExitOffset(rotation);
+    /**
+     * パーツを貼り付けて、次の接続点(Anchor)を返す
+     */
+    private Location pasteAndGetNextAnchor(World world, Location anchor, DungeonPart part, int rotation) {
+        File schemFile = new File(dungeonFolder, part.getFileName());
+        ClipboardFormat format = ClipboardFormats.findByFile(schemFile);
 
-        // 2. 貼り付け位置を決定
-        // アンカー(出口)に対して、新しいパーツの入口(rotatedEntry)が重なるように引き算
-        Location pasteLoc = anchor.clone().subtract(
-                rotatedEntry.getX(),
-                rotatedEntry.getY(),
-                rotatedEntry.getZ()
-        );
+        if (format == null) return anchor;
 
-        // 3. 貼り付け
-        // ※ ここで回転を適用。FAWEは「pasteLoc」を中心に回転させる
-        SchematicUtil.paste(pasteLoc, new File(dungeonFolder, part.getFileName()), rotation);
+        try (ClipboardReader reader = format.getReader(new FileInputStream(schemFile))) {
+            Clipboard clipboard = reader.read();
 
-        // 4. 次のアンカー(出口)を計算
-        // 貼り付けた場所から、回転後の出口(rotatedExit)を足し算
-        return pasteLoc.clone().add(
-                rotatedExit.getX(),
-                rotatedExit.getY(),
-                rotatedExit.getZ()
-        );
+            // 1. パーツ側で計算された「回転後の入口オフセット」を取得
+            //    (DungeonPart内でAffineTransformを使って計算されるので正確です)
+            BlockVector3 rotatedEntry = part.getRotatedEntryOffset(rotation);
+            BlockVector3 rotatedExit = part.getRotatedExitOffset(rotation);
+
+            // 2. 貼り付け位置(Originを置く場所)を決定
+            //    「現在のアンカー」から「回転後の入口分」を引き算することで、
+            //    アンカーの位置にちょうど入口が重なるようにします。
+            Location pasteLoc = anchor.clone().subtract(
+                    rotatedEntry.getX(),
+                    rotatedEntry.getY(),
+                    rotatedEntry.getZ()
+            );
+
+            // 3. 実際の貼り付け処理
+            try (EditSession editSession = WorldEdit.getInstance().newEditSession(BukkitAdapter.adapt(world))) {
+                ClipboardHolder holder = new ClipboardHolder(clipboard);
+
+                // ★重要: ここでも同じ角度で回転変換をセットする
+                holder.setTransform(new AffineTransform().rotateY(rotation));
+
+                Operation operation = holder
+                        .createPaste(editSession)
+                        .to(BlockVector3.at(pasteLoc.getX(), pasteLoc.getY(), pasteLoc.getZ()))
+                        .ignoreAirBlocks(true)
+                        .build();
+                Operations.complete(operation);
+            }
+
+            // 4. 次のアンカー(出口)を計算
+            //    「貼り付け基準点」に「回転後の出口分」を足す
+            return pasteLoc.clone().add(
+                    rotatedExit.getX(),
+                    rotatedExit.getY(),
+                    rotatedExit.getZ()
+            );
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (Exception e) { // FAWE/WorldEdit exception
+            e.printStackTrace();
+        }
+
+        return anchor;
     }
 
     private DungeonPart findPartByType(String type) {
