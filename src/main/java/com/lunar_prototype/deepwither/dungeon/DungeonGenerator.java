@@ -109,62 +109,48 @@ public class DungeonGenerator {
         File schemFile = new File(dungeonFolder, part.getFileName());
         ClipboardFormat format = ClipboardFormats.findByFile(schemFile);
 
-        if (format == null) {
-            Deepwither.getInstance().getLogger().warning("Schematic file not found: " + part.getFileName());
-            return anchor;
-        }
+        if (format == null) return anchor;
 
         try (ClipboardReader reader = format.getReader(new FileInputStream(schemFile))) {
             Clipboard clipboard = reader.read();
 
-            // --- デバッグ: 開始 ---
-            Deepwither.getInstance().getLogger().info("========================================");
-            Deepwither.getInstance().getLogger().info("Pasting Part: " + part.getFileName() + " | Rotation: " + rotation);
-            Deepwither.getInstance().getLogger().info("Current Anchor (Paste Target): " + anchor.getBlockX() + ", " + anchor.getBlockY() + ", " + anchor.getBlockZ());
+            // 1. パーツの「回転後の相対座標」を取得
+            BlockVector3 rotatedEntry = part.getRotatedEntryOffset(rotation);
+            BlockVector3 rotatedExit = part.getRotatedExitOffset(rotation);
 
-            // ★ここが最大の修正ポイント★
-            // Schematicの持っているOriginを無視し、「入口ブロックの位置」を新しいOriginに設定する
-            BlockVector3 entryPos = part.getEntryPos();
-            Deepwither.getInstance().getLogger().info("Setting Clipboard Origin to EntryPos: " + entryPos); // これが(0,0,0)以外ならOK
+            // デバッグログ
+            Deepwither.getInstance().getLogger().info("Part: " + part.getFileName() + " | Rot: " + rotation);
+            Deepwither.getInstance().getLogger().info("  EntryOffset: " + rotatedEntry + " | ExitOffset: " + rotatedExit);
 
-            clipboard.setOrigin(entryPos);
+            // 2. 貼り付け位置(Paste Origin)を計算
+            // 「アンカー位置」から「回転後の入口オフセット」を引くことで、
+            // アンカーの位置に入口ブロックが来るように位置合わせする
+            Location pasteLoc = anchor.clone().subtract(
+                    rotatedEntry.getX(),
+                    rotatedEntry.getY(),
+                    rotatedEntry.getZ()
+            );
 
-            // 1. 貼り付け設定
-            ClipboardHolder holder = new ClipboardHolder(clipboard);
-            holder.setTransform(new AffineTransform().rotateY(rotation));
-
-            // 2. 貼り付け位置
-            // Origin = 入口 になっているので、anchor (結合したい点) にそのまま貼り付け
-            Location pasteLoc = anchor;
-
-            // 3. 貼り付け実行
+            // 3. 貼り付け
             try (EditSession editSession = WorldEdit.getInstance().newEditSession(BukkitAdapter.adapt(world))) {
+                ClipboardHolder holder = new ClipboardHolder(clipboard);
+                holder.setTransform(new AffineTransform().rotateY(rotation));
+
                 Operation operation = holder
                         .createPaste(editSession)
                         .to(BlockVector3.at(pasteLoc.getX(), pasteLoc.getY(), pasteLoc.getZ()))
                         .ignoreAirBlocks(true)
                         .build();
                 Operations.complete(operation);
-                // Deepwither.getInstance().getLogger().info("Paste operation completed.");
             }
 
             // 4. 次のアンカー計算
-            // 「入口から出口へのベクトル」だけを回転させて足せばOK
-            BlockVector3 rotatedExitVec = part.getRotatedExitVector(rotation);
-            Deepwither.getInstance().getLogger().info("Rotated Exit Vector (Relative): " + rotatedExitVec);
-
-            Location nextAnchor = pasteLoc.clone().add(
-                    rotatedExitVec.getX(),
-                    rotatedExitVec.getY(),
-                    rotatedExitVec.getZ()
+            // 「貼り付け位置(Paste Origin)」に「回転後の出口オフセット」を足す
+            return pasteLoc.clone().add(
+                    rotatedExit.getX(),
+                    rotatedExit.getY(),
+                    rotatedExit.getZ()
             );
-
-            Deepwither.getInstance().getLogger().info("Next Anchor Calculated: " + nextAnchor.getBlockX() + ", " + nextAnchor.getBlockY() + ", " + nextAnchor.getBlockZ());
-
-            // ★視覚デバッグ用 (必要なければ削除)
-            // world.getBlockAt(nextAnchor).setType(org.bukkit.Material.EMERALD_BLOCK);
-
-            return nextAnchor;
 
         } catch (Exception e) {
             e.printStackTrace();
