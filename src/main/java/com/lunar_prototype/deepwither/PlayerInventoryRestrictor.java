@@ -46,7 +46,8 @@ public class PlayerInventoryRestrictor implements Listener {
             case PLACE_ALL, PLACE_ONE -> {
                 var clickedSlot = event.getSlot();
 
-                if (HOTBAR_HEAD <= clickedSlot && clickedSlot <= HOTBAR_TAIL
+                if (event.getClickedInventory() instanceof PlayerInventory
+                    && HOTBAR_HEAD <= clickedSlot && clickedSlot <= HOTBAR_TAIL
                     && isWeapon(event.getCursor())
                     && !isWeapon(event.getCurrentItem())
                     && hasWeaponInHotbar(player.getInventory())
