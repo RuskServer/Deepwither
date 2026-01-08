@@ -189,7 +189,9 @@ public class DungeonGenerator {
         List<BlockVector3> rotatedExits = currentPart.getRotatedExitOffsets(currentRot);
 
         // Process each exit (random shuffle for variety?)
-        for (BlockVector3 exitOffset : rotatedExits) {
+        for (int i = 0; i < rotatedExits.size(); i++) {
+            BlockVector3 exitOffset = rotatedExits.get(i);
+
             // Calculate world position of this exit (Connection Point)
             BlockVector3 connectionPoint = currentOrigin.add(exitOffset);
 
@@ -197,14 +199,8 @@ public class DungeonGenerator {
             // Using Bounding Box Face detection (Rotated)
             // First get the local direction (0=South, 90=West, etc.)
             // We need the Original Exit Vector (unrotated) to check against local bounds
-            // But we only have rotatedExits list here...
-            // Need to retrieve original exit or reverse rotate.
-            // Simpler: Maintain original index or just map vector?
-            // Since we iterate rotatedExits, we can't easily map back without index or
-            // lookup.
-            // Let's use the list index since we scan loops.
 
-            BlockVector3 originalExit = currentPart.getExitOffsets().get(originalExitIndex);
+            BlockVector3 originalExit = currentPart.getExitOffsets().get(i);
             int localExitYaw = currentPart.getExitDirection(originalExit);
 
             // Apply current rotation to the local yaw
