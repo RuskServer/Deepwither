@@ -186,49 +186,26 @@ public class DungeonGenerator {
             return;
 
         List<BlockVector3> rotatedExits = currentPart.getRotatedExitOffsets(currentRot);
+        int exitIndex = 0;
 
         // Process each exit (random shuffle for variety?)
         for (BlockVector3 exitOffset : rotatedExits) {
+            int originalExitIndex = exitIndex++; // To track which original exit this corresponds to if needed
 
             // Calculate world position of this exit (Connection Point)
             BlockVector3 connectionPoint = currentOrigin.add(exitOffset);
 
-            // Determine Exit Direction (Local Yaw)
-            // Heuristic: Check relative position of Exit vs Center of Part
-            // But since we already have the rotated offset, we can check relative to
-            // (0,0,0) (pivot)?
-            // No, the pivot is "Entry".
-            // We need to know which way the exit points to rotate the NEXT part correctly.
-
-            // Heuristic: Check dominant axis of the rotated exit offset relative to ENTRY
-            // (0,0,0)
-            // Wait, this assumes linear flow from Entry->Exit.
-            // Better: Check the unrotated exit offset vs unrotated center.
-            // Then rotate that direction.
-
-            int exitDirBase = getExitDirection(currentPart, exitOffset, currentRot);
-
-            // Next Part Rotation:
-            // If Exit points North (180), Next Part (which flows South 0) must trigger?
-            // Connection Logic: Exit(Face) meets Entry(Face).
-            // Standard Part Entry faces "Backwards" (South/Z+ is flow, so Entry is on North
-            // face).
-            // So if Exit faces North, Next Part Rot = 0? (Faces North? No, Flows South).
-            // Let's simplify:
-            // If Exit is +Z relative to origin -> Next part continues +Z -> Rot 0 (relative
-            // to current).
-            // If Exit is +X -> Next part goes +X -> Rot -90 (relative).
-
-            // Target Rotation for next part
-            int nextRotation = (currentRot + exitDirBase) % 360;
+            // 1. Determine World Direction of this Exit
+            // We use the ROTATED offset to see where it points in the world.
+            // +Z=South, -X=West, etc.
+            // Map Vector to Yaw(0=South, 90=West, 180=North, 270=East)
+            int exitWorldYaw = getVectorYaw(exitOffset.getX(), exitOffset.getZ());
 
             // Try to place a part
-            // 70% chance to branch, decrease with depth?
             if (random.nextDouble() < 0.8) {
                 // Select random Hallway or Room
                 String type = (random.nextDouble() > 0.7) ? "ROOM" : "HALLWAY";
 
-                // If deep, maybe force a small room or cap?
                 List<DungeonPart> candidates = partList.stream()
                         .filter(p -> p.getType().equals(type))
                         .collect(Collectors.toList());
@@ -238,9 +215,20 @@ public class DungeonGenerator {
 
                 DungeonPart nextPart = candidates.get(random.nextInt(candidates.size()));
 
+                // 2. Calculate Required Rotation
+                // We want NextPart.IntrinsicYaw to align with exitWorldYaw.
+                // WE Rotation is additive?
+                // RotatedVec = Rot(IntrinsicVec).
+                // We want Rot(Intrinsic) = Target(ExitWorld).
+                // So Rot = Target - Intrinsic.
+
+                int nextRotation = (exitWorldYaw - nextPart.getIntrinsicYaw() + 360) % 360;
+
+                Deepwither.getInstance().getLogger()
+                        .info(String.format("Branch[%d]: ExitYaw=%d, NextPart(%s) Intrinsic=%d -> Rot=%d",
+                                depth, exitWorldYaw, nextPart.getFileName(), nextPart.getIntrinsicYaw(), nextRotation));
+
                 // Calculate Origin for Next Part
-                // NextPart.Entry matches ConnectionPoint
-                // NextPart Origin = ConnectionPoint - NextPart.RotatedEntry
                 BlockVector3 nextEntryRotated = nextPart.getRotatedEntryOffset(nextRotation);
                 BlockVector3 nextOrigin = connectionPoint.subtract(nextEntryRotated);
 
@@ -249,62 +237,18 @@ public class DungeonGenerator {
                     // Success, recurse
                     generateRecursive(world, nextPart, nextOrigin, nextRotation, depth + 1, maxDepth);
                 } else {
-                    // Handle collision (maybe place a wall?)
-                    // placeCap(world, connectionPoint, nextRotation);
+                    Deepwither.getInstance().getLogger().info("Skipped part due to collision.");
                 }
             }
         }
     }
 
-    // Determine the direction (yaw) an exit implies relative to the part flow
-    private int getExitDirection(DungeonPart part, BlockVector3 rotatedExitOffsetPos, int currentPartRotation) {
-        // We know the exit's position relative to the anchor (entry).
-        // Since we don't have metadata, assume standard rectilinear exits.
-
-        // Un-rotate to get local offset
-        // Actually, easier to check dominant axis of the *rotated* offset?
-        // But the entry might be anywhere.
-
-        // Let's look at the part's original setup.
-        // We need the index of this exit to find its original position?
-        // DungeonPart only gives us list of ExitOffsets (original).
-        // We can match them?
-
-        // Let's rely on the Rotated Vector directly.
-        // If (Offset) has dominant +Z -> Direction is 0 (Forward loop).
-        // If +X -> Direction -90 (Right).
-        // If -X -> Direction 90 (Left).
-        // If -Z -> Direction 180 (Back? unlikely unless complex).
-
-        // Issue: This assumes Entry is "behind" Exit.
-        // For a U-turn room, Exit might be at same Z but different X.
-
-        // Let's stick to the "Dominate Axis" of the offset vector.
-        int x = rotatedExitOffsetPos.getX();
-        int z = rotatedExitOffsetPos.getZ();
-
+    private int getVectorYaw(int x, int z) {
         if (Math.abs(x) > Math.abs(z)) {
-            return (x > 0) ? 270 : 90; // worldedit: 90 is West (-X)?
-            // WE Rot 90: +Z -> -X (West).
-            // So +X (East) needs Rot 270.
-            // -X (West) needs Rot 90.
+            return (x > 0) ? 270 : 90; // +X=East=270, -X=West=90
         } else {
-            return (z > 0) ? 0 : 180;
+            return (z > 0) ? 0 : 180; // +Z=South=0, -Z=North=180
         }
-
-        // NOTE: This angle is "Relative to World", which is what we need for the next
-        // rotation?
-        // Wait, if I say "nextRotation = currentRot + exitDir", then exitDir must be
-        // relative.
-        // This function calculates absolute deviation from Entry?
-        // No, this calculates the Absolute Direction of the vector Entry->Exit.
-        // So this return value IS the `nextRotation` directly (assuming Entry is
-        // 0,0,0).
-
-        // So: return (z > 0) ? 0 : 180; is effectively returning the Absolute Rotation.
-        // We don't need to add `currentRot` again if we calculated this from the
-        // Rotated Offset.
-        // Correct.
     }
 
     private boolean pastePart(World world, BlockVector3 origin, DungeonPart part, int rotation) {
