@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Collections;
 import java.util.stream.Collectors;
 
 public class DungeonGenerator {
@@ -209,40 +210,62 @@ public class DungeonGenerator {
             // int exitWorldYaw = getVectorYaw(exitOffset.getX(), exitOffset.getZ()); // OLD
             // BUGGY WAY
 
-            // Try to place a part
             if (random.nextDouble() < 0.8) {
-                // Select random Hallway or Room
-                // String type = (random.nextDouble() > 0.7) ? "ROOM" : "HALLWAY";
-                // Only try to place Hallways first to keep it simple? No, mixed.
-                String type = (random.nextDouble() > 0.5) ? "ROOM" : "HALLWAY";
-
-                List<DungeonPart> candidates = partList.stream()
-                        .filter(p -> p.getType().equals(type))
-                        .collect(Collectors.toList());
-
-                if (candidates.isEmpty()) {
-                    continue;
+                // Try multiple types (shuffle order)
+                List<String> typesToTry = new ArrayList<>();
+                // 60% chance to prioritize ROOM if depth allows
+                if (random.nextDouble() > 0.4) {
+                    typesToTry.add("ROOM");
+                    typesToTry.add("HALLWAY");
+                } else {
+                    typesToTry.add("HALLWAY");
+                    typesToTry.add("ROOM");
                 }
 
-                DungeonPart nextPart = candidates.get(random.nextInt(candidates.size()));
+                boolean placed = false;
 
-                // 2. Calculate Required Rotation
-                // We want NextPart.IntrinsicYaw to align with exitWorldYaw.
-                // WE Rotation is additive?
-                // RotatedVec = Rot(IntrinsicVec).
-                // We want Rot(Intrinsic) = Target(ExitWorld).
-                // So Rot = Target - Intrinsic.
+                for (String type : typesToTry) {
+                    List<DungeonPart> candidates = partList.stream()
+                            .filter(p -> p.getType().equals(type))
+                            .collect(Collectors.toList());
 
-                int nextRotation = (exitWorldYaw - nextPart.getIntrinsicYaw() + 360) % 360;
+                    if (candidates.isEmpty())
+                        continue;
 
-                // Calculate Origin for Next Part
-                BlockVector3 nextEntryRotated = nextPart.getRotatedEntryOffset(nextRotation);
-                BlockVector3 nextOrigin = connectionPoint.subtract(nextEntryRotated);
+                    Collections.shuffle(candidates); // Try random parts of this type
 
-                // Try paste
-                if (pastePart(world, nextOrigin, nextPart, nextRotation)) {
-                    // Success, recurse
-                    generateRecursive(world, nextPart, nextOrigin, nextRotation, depth + 1, maxDepth);
+                    for (DungeonPart nextPart : candidates) {
+                        try {
+                            // 2. Calculate Required Rotation
+                            int nextRotation = (exitWorldYaw - nextPart.getIntrinsicYaw() + 360) % 360;
+
+                            // Calculate Origin for Next Part
+                            BlockVector3 nextEntryRotated = nextPart.getRotatedEntryOffset(nextRotation);
+                            BlockVector3 nextOrigin = connectionPoint.subtract(nextEntryRotated);
+
+                            // Debug Log
+                            Deepwither.getInstance().getLogger().info(String.format(
+                                    "Trying to place [%s] (%s) at %s (Rot:%d) connecting to %s",
+                                    nextPart.getFileName(), type, nextOrigin, nextRotation, connectionPoint));
+
+                            // Try paste
+                            if (pastePart(world, nextOrigin, nextPart, nextRotation)) {
+                                // Success, recurse
+                                generateRecursive(world, nextPart, nextOrigin, nextRotation, depth + 1, maxDepth);
+                                placed = true;
+                                break; // Break candidate loop
+                            } else {
+                                Deepwither.getInstance().getLogger()
+                                        .info("-> Failed to place (Collision or other error)");
+                            }
+                        } catch (Exception e) {
+                            Deepwither.getInstance().getLogger()
+                                    .warning("Error trying to place part " + nextPart.getFileName());
+                            e.printStackTrace();
+                        }
+                    }
+                    if (placed)
+                        break; // Break type loop if placed
                 }
             }
         }
