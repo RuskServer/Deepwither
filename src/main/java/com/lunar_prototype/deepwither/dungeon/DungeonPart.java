@@ -64,12 +64,18 @@ public class DungeonPart {
             }
             // 鉄ブロック (出口) -> 次のパーツへ接続する場所
             else if (block.getBlockType().equals(BlockTypes.IRON_BLOCK)) {
-                BlockVector3 exitVec = pos.subtract(origin);
+                // Force Flat: Use Entry Y for Exit Y to prevent climbing
+                // Assuming flat dungeon design as per user request
+                BlockVector3 exitVec = BlockVector3.at(
+                        pos.getX() - origin.getX(),
+                        this.entryY, // Force Y to match Entry
+                        pos.getZ() - origin.getZ());
+
                 this.exitOffsets.add(exitVec);
 
                 Deepwither.getInstance().getLogger().info(String.format(
-                        "[%s] Found EXIT(Iron). Pos:%s - Origin:%s = %s",
-                        fileName, pos, origin, exitVec));
+                        "[%s] Found EXIT(Iron). Pos:%s - Origin:%s = %s (Forced Flat Y=%d)",
+                        fileName, pos, origin, exitVec, entryY));
             }
         }
 
@@ -95,10 +101,6 @@ public class DungeonPart {
         BlockVector3 primExit = exitOffsets.get(0);
         int dx = primExit.getX() - entryX;
         int dz = primExit.getZ() - entryZ;
-
-        Deepwither.getInstance().getLogger().info(String.format(
-                "[%s] CalcYaw: Entry(%d,%d,%d) Exit(%s) -> d(%d, %d). |dx|=%d, |dz|=%d",
-                fileName, entryX, entryY, entryZ, primExit, dx, dz, Math.abs(dx), Math.abs(dz)));
 
         if (Math.abs(dx) > Math.abs(dz)) {
             this.intrinsicYaw = (dx > 0) ? 270 : 90;
