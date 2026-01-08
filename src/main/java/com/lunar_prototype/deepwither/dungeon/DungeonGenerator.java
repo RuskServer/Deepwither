@@ -205,7 +205,10 @@ public class DungeonGenerator {
             int localExitYaw = currentPart.getExitDirection(originalExit);
 
             // Apply current rotation to the local yaw
-            int exitWorldYaw = (localExitYaw + currentRot) % 360;
+            // Minecraft Yaw is Clockwise (S=0, W=90, N=180, E=270)
+            // WorldEdit rotateY is Counter-Clockwise (Standard Math)
+            // So Rotation subtracts from Yaw within the MC frame
+            int exitWorldYaw = (localExitYaw - currentRot + 360) % 360;
 
             // int exitWorldYaw = getVectorYaw(exitOffset.getX(), exitOffset.getZ()); // OLD
             // BUGGY WAY
@@ -241,7 +244,9 @@ public class DungeonGenerator {
                     for (DungeonPart nextPart : candidates) {
                         try {
                             // 2. Calculate Required Rotation
-                            int nextRotation = (exitWorldYaw - nextPart.getIntrinsicYaw() + 360) % 360;
+                            // We want: Intrinsic - Rot = Target
+                            // So: Rot = Intrinsic - Target
+                            int nextRotation = (nextPart.getIntrinsicYaw() - exitWorldYaw + 360) % 360;
 
                             // Calculate Origin for Next Part
                             BlockVector3 nextEntryRotated = nextPart.getRotatedEntryOffset(nextRotation);
@@ -249,8 +254,9 @@ public class DungeonGenerator {
 
                             // Debug Log
                             Deepwither.getInstance().getLogger().info(String.format(
-                                    "Trying to place [%s] (%s) at %s (Rot:%d) connecting to %s",
-                                    nextPart.getFileName(), type, nextOrigin, nextRotation, connectionPoint));
+                                    "Trying [%s](%s) at %s Rot:%d | ExYaw:%d -> TgtYaw:%d",
+                                    nextPart.getFileName(), type, nextOrigin, nextRotation, localExitYaw,
+                                    exitWorldYaw));
 
                             // Try paste
                             if (pastePart(world, nextOrigin, nextPart, nextRotation)) {
