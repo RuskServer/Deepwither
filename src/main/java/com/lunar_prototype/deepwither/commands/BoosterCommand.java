@@ -20,8 +20,6 @@ import static io.papermc.paper.command.brigadier.Commands.*;
 
 public class BoosterCommand implements DeepWitherCommand {
     private static final String COMMAND_NAME = "expbooster";
-
-    private static final String LITERAL_GIVE = "give";
     private static final String ARG_PLAYER = "player";
     private static final String ARG_MULTIPLIER = "multiplier";
     private static final String ARG_MINUTES = "minutes";
@@ -35,14 +33,14 @@ public class BoosterCommand implements DeepWitherCommand {
     private int executes(@NotNull CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         var sender = context.getSource().getSender();
         var target = context.getArgument(ARG_PLAYER, PlayerSelectorArgumentResolver.class).resolve(context.getSource()).getFirst();
-        var mult = DoubleArgumentType.getDouble(context, ARG_MULTIPLIER);
-        var mins = IntegerArgumentType.getInteger(context, ARG_MINUTES);
+        var multiplier = DoubleArgumentType.getDouble(context, ARG_MULTIPLIER);
+        var minutes = IntegerArgumentType.getInteger(context, ARG_MINUTES);
 
-        this.boosterManager.addBooster(target, mult, mins);
-        sender.sendMessage(Component.text("Applied %fx EXP Booster to %s for %dm.".formatted(mult, target.getName(), mins), NamedTextColor.GREEN));
+        this.boosterManager.addBooster(target, multiplier, minutes);
+        sender.sendMessage(Component.text("Applied %fx EXP Booster to %s for %dm.".formatted(multiplier, target.getName(), minutes), NamedTextColor.GREEN));
         target.sendMessage(Component.empty()
             .append(Component.text("EXP BOOSTER! ", NamedTextColor.GOLD, TextDecoration.BOLD))
-            .append(Component.text("You gained a %.3fx EXP multiplier for %d minutes!".formatted(mult, mins), NamedTextColor.YELLOW)));
+            .append(Component.text("You gained a %.3fx EXP multiplier for %d minutes!".formatted(multiplier, minutes), NamedTextColor.YELLOW)));
 
         return Command.SINGLE_SUCCESS;
     }
@@ -52,7 +50,7 @@ public class BoosterCommand implements DeepWitherCommand {
     public LiteralCommandNode<CommandSourceStack> getNode() {
         return literal(COMMAND_NAME)
             .requires(CommandUtil::hasAdminPermission)
-            .then(literal(LITERAL_GIVE)
+            .then(literal("give")
                 .then(argument(ARG_PLAYER, ArgumentTypes.player())
                     .then(argument(ARG_MULTIPLIER, DoubleArgumentType.doubleArg(0)) // 追加: 下限を追加
                         .then(argument(ARG_MINUTES, IntegerArgumentType.integer(0)) // 同一
@@ -63,6 +61,6 @@ public class BoosterCommand implements DeepWitherCommand {
     @NotNull
     @Override
     public String getDescription() {
-        return DeepWitherCommand.super.getDescription();
+        return "経験値ブースターを付与します";
     }
 }
