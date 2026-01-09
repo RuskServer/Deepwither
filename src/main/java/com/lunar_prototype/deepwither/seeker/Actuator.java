@@ -29,13 +29,25 @@ public class Actuator {
 
     private void handleMovement(Mob entity, BanditDecision.MovementPlan move, Location coverLoc) {
         if (move.strategy != null) {
-            // --- 追加: 物理的なステップ（回避）処理 ---
+            // --- 既存の回避ロジック ---
             if (move.strategy.equals("BACKSTEP") || move.strategy.equals("SIDESTEP")) {
                 performEvasiveStep(entity, move.strategy);
-                return; // 物理移動をした場合はPathfinderを上書きするためリターン
+                return;
             }
 
-            // --- 【追加】ジグザグ突撃ロジック ---
+            // --- V2: 自己同期・踏み込み (CHARGE) ---
+            if (move.strategy.equals("CHARGE")) {
+                performDirectCharge(entity); // 揺れのない最短距離での突進
+                return;
+            }
+
+            // --- V2: 攻撃後離脱 (POST_ATTACK_EVADE) ---
+            if (move.strategy.equals("POST_ATTACK_EVADE")) {
+                performPostAttackEvade(entity);
+                return;
+            }
+
+            // --- 既存のジグザグ ---
             if (move.strategy.equals("SPRINT_ZIGZAG")) {
                 performSprintZigzag(entity);
                 return;
@@ -64,6 +76,45 @@ public class Actuator {
                 entity.getPathfinder().stopPathfinding();
                 break;
         }
+    }
+
+    /**
+     * 最短距離で一気に間合いを詰める。
+     * スキルや近接攻撃のリーチに入れるための、遊びのない突撃。
+     */
+    private void performDirectCharge(Mob entity) {
+        if (entity.getTarget() == null) return;
+
+        // ターゲットの足元ではなく、少し先を目的地にすることで慣性を乗せる
+        Location targetLoc = entity.getTarget().getLocation();
+        Vector direction = targetLoc.toVector().subtract(entity.getLocation().toVector()).normalize();
+        Location destination = targetLoc.clone().add(direction.multiply(1.5));
+
+        entity.getPathfinder().moveTo(destination, 2.5); // 最高速度
+    }
+
+    /**
+     * 攻撃直後のヒットアンドアウェイ挙動。
+     * 斜め後ろに下がりながら、敵の反撃ラインから外れる。
+     */
+    private void performPostAttackEvade(Mob entity) {
+        if (entity.getTarget() == null) return;
+
+        Location selfLoc = entity.getLocation();
+        Location targetLoc = entity.getTarget().getLocation();
+
+        // 敵から離れるベクトル
+        Vector awayVec = selfLoc.toVector().subtract(targetLoc.toVector()).normalize();
+
+        // 単純に下がるのではなく、左右どちらかにランダムに逸れる
+        // entityのUUID等をシードにして、個体ごとに避ける方向を固定するとより自然
+        Vector sideVec = new Vector(-awayVec.getZ(), 0, awayVec.getX()).normalize();
+        if (entity.getUniqueId().getMostSignificantBits() % 2 == 0) sideVec.multiply(-1);
+
+        // 斜め後ろ 4m 地点
+        Location destination = selfLoc.clone().add(awayVec.multiply(3.0)).add(sideVec.multiply(2.0));
+
+        entity.getPathfinder().moveTo(destination, 1.8);
     }
 
     /**
