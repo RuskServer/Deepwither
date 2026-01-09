@@ -236,7 +236,6 @@ public class MobSpawnManager {
             UUID mobUuid = spawnMythicMob(mobType, spawnLoc, tier);
             trackSpawnedMob(playerId, mobUuid); // ★追跡
         }
-        trackSpawnedMob(playerId, mobUuid); // ★追跡
     }
 
     /**

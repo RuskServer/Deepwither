@@ -36,23 +36,23 @@ public class DungeonInstance {
     }
 
     public Set<UUID> getPlayers() {
-        return currentPlayers;
+        return players;
     }
 
     public void addPlayer(UUID uuid) {
-        currentPlayers.add(uuid);
+        players.add(uuid);
         lastEmptyTime = -1; // プレイヤーがいる状態
     }
 
     public void removePlayer(UUID uuid) {
-        currentPlayers.remove(uuid);
-        if (currentPlayers.isEmpty()) {
+        players.remove(uuid);
+        if (players.isEmpty()) {
             lastEmptyTime = System.currentTimeMillis();
         }
     }
 
     public boolean isEmpty() {
-        return currentPlayers.isEmpty();
+        return players.isEmpty();
     }
 
     public long getLastEmptyTime() {
