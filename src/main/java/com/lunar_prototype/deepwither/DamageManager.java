@@ -357,7 +357,7 @@ public class DamageManager implements Listener {
             // --- 視覚エフェクト: 重層的なパーティクル ---
 
             // 1. 強烈な閃光 (中心)
-            world.spawnParticle(Particle.FLASH, hitLoc, 1, 0, 0, 0, 0);
+            //world.spawnParticle(Particle.FLASH, hitLoc, 1, 0, 0, 0, 0);
 
             // 2. 衝撃波 (周囲に広がる空気の歪み)
             world.spawnParticle(Particle.SONIC_BOOM, hitLoc, 1, 0, 0, 0, 0);
