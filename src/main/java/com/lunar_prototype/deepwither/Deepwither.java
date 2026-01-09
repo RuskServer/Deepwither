@@ -423,6 +423,7 @@ public final class Deepwither extends JavaPlugin {
         getCommand("trader").setExecutor(new TraderCommand(traderManager));
         getCommand("credit").setExecutor(new CreditCommand(creditManager));
         getCommand("companion").setExecutor(new CompanionCommand(companionManager));
+//        CommandRegistrar.registerCommands(this.getLifecycleManager()); // まだ使わないよ
         getServer().getPluginManager().registerEvents(new TraderGUI(), this);
         getServer().getPluginManager().registerEvents(new SellGUI(), this);
         getServer().getPluginManager().registerEvents(new TutorialController(this), this);
