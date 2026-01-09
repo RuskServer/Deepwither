@@ -9,11 +9,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.List;
 
 public final class CommandRegistrar {
-    private static final List<DeepWitherCommand> commands = List.of(
-//        new TestCommand()
-    );
-
-    public static void registerCommands(@SuppressWarnings("NullableProblems") @NotNull LifecycleEventManager<Plugin> manager) {
+    public static void registerCommands(@SuppressWarnings("NullableProblems") @NotNull LifecycleEventManager<Plugin> manager, List<DeepWitherCommand> commands) {
         manager.registerEventHandler(LifecycleEvents.COMMANDS, event -> {
             commands.forEach(command -> {
                 event.registrar().register(command.getNode(), command.getDescription());
