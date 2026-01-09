@@ -324,12 +324,20 @@ public class DungeonGenerator {
 
             for (DungeonPart capPart : candidates) {
                 // Align Cap Intrinsic Yaw to Exit World Yaw
-                int nextRotation = (capPart.getIntrinsicYaw() - exitWorldYaw + 360) % 360;
+                // Default: Match flow direction (Parent Exit -> Child Entry -> Child Exit)
+                int baseRotation = (capPart.getIntrinsicYaw() - exitWorldYaw + 360) % 360;
+
+                // Fix for Cap: Rotate 180 degrees to face 'inwards' or block correctly?
+                // Based on user feedback that rotation is wrong, attempting 180 flip.
+                int nextRotation = (baseRotation + 180) % 360;
+
                 BlockVector3 nextEntryRotated = capPart.getRotatedEntryOffset(nextRotation);
                 BlockVector3 nextOrigin = connectionPoint.subtract(nextEntryRotated);
 
                 Deepwither.getInstance().getLogger()
-                        .info("Attempting CAP with " + capPart.getFileName() + " at " + connectionPoint);
+                        .info(String.format("Attempting CAP [%s] at %s | ExYaw:%d IntYaw:%d -> BaseRot:%d FinalRot:%d",
+                                capPart.getFileName(), connectionPoint, exitWorldYaw, capPart.getIntrinsicYaw(),
+                                baseRotation, nextRotation));
 
                 if (pastePart(world, nextOrigin, capPart, nextRotation, parentOrigin)) {
                     Deepwither.getInstance().getLogger().info("Placed CAP at " + connectionPoint);
