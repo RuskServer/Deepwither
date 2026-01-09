@@ -42,6 +42,11 @@ public class DungeonPart {
     public void scanMarkers(Clipboard clipboard) {
         BlockVector3 origin = clipboard.getOrigin();
 
+        // Clear existing data to prevent accumulation
+        this.exitOffsets.clear();
+        this.mobMarkers.clear();
+        this.lootMarkers.clear();
+
         // Calculate Bounding Box relative to Origin
         this.minPoint = clipboard.getRegion().getMinimumPoint().subtract(origin);
         this.maxPoint = clipboard.getRegion().getMaximumPoint().subtract(origin);
@@ -51,15 +56,17 @@ public class DungeonPart {
                         fileName, System.identityHashCode(this), origin, minPoint, maxPoint));
 
         boolean foundEntry = false;
+        BlockVector3 entryPosLocal = BlockVector3.ZERO;
 
         for (BlockVector3 pos : clipboard.getRegion()) {
             var block = clipboard.getFullBlock(pos);
 
             // 金ブロック (入口) -> 接続元を受け入れる場所
             if (block.getBlockType().equals(BlockTypes.GOLD_BLOCK)) {
-                this.entryX = pos.getX() - origin.getX();
-                this.entryY = pos.getY() - origin.getY();
-                this.entryZ = pos.getZ() - origin.getZ();
+                entryPosLocal = pos.subtract(origin);
+                this.entryX = entryPosLocal.getX();
+                this.entryY = entryPosLocal.getY();
+                this.entryZ = entryPosLocal.getZ();
 
                 Deepwither.getInstance().getLogger().info(String.format(
                         "[%s] Found ENTRY(Gold). Pos:%s - Origin:%s = %d,%d,%d",
@@ -89,6 +96,28 @@ public class DungeonPart {
             else if (block.getBlockType().equals(BlockTypes.EMERALD_BLOCK)) {
                 this.lootMarkers.add(pos.subtract(origin));
             }
+        }
+
+        // Normalize markers to be relative to the Entry position
+        if (foundEntry) {
+            final BlockVector3 finalEntry = entryPosLocal;
+
+            // Re-map markers to be relative to entry
+            List<BlockVector3> normalizedMob = mobMarkers.stream()
+                    .map(v -> v.subtract(finalEntry))
+                    .collect(Collectors.toList());
+            this.mobMarkers.clear();
+            this.mobMarkers.addAll(normalizedMob);
+
+            List<BlockVector3> normalizedLoot = lootMarkers.stream()
+                    .map(v -> v.subtract(finalEntry))
+                    .collect(Collectors.toList());
+            this.lootMarkers.clear();
+            this.lootMarkers.addAll(normalizedLoot);
+
+            Deepwither.getInstance().getLogger().info(String.format(
+                    "[%s] Normalized %d mob markers and %d loot markers relative to Entry.",
+                    fileName, mobMarkers.size(), lootMarkers.size()));
         }
 
         if (!foundEntry) {

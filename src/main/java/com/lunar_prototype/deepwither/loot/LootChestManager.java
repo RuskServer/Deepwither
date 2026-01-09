@@ -1,7 +1,6 @@
 package com.lunar_prototype.deepwither.loot;
 
 import com.lunar_prototype.deepwither.Deepwither;
-import com.lunar_prototype.deepwither.ItemFactory; // Custom ItemFactory が必要
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.protection.ApplicableRegionSet;

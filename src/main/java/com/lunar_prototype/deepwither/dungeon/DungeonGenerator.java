@@ -419,25 +419,30 @@ public class DungeonGenerator {
 
             // Remove Markers logic...
             BlockVector3 rotatedEntry = part.getRotatedEntryOffset(rotation);
-            removeMarker(world, origin.add(rotatedEntry), Material.GOLD_BLOCK);
+            BlockVector3 worldEntryPos = origin.add(rotatedEntry);
+            removeMarker(world, worldEntryPos, Material.GOLD_BLOCK);
 
             for (BlockVector3 exit : part.getRotatedExitOffsets(rotation)) {
                 removeMarker(world, origin.add(exit), Material.IRON_BLOCK);
             }
 
             // Process Mob Markers
-            for (BlockVector3 mobMarker : part.getMobMarkers()) {
-                BlockVector3 worldPos = origin.add(rotateVector(mobMarker, rotation));
+            // Markers are now relative to Entry in DungeonPart
+            for (BlockVector3 mobMarkerRelToEntry : part.getMobMarkers()) {
+                BlockVector3 worldPos = worldEntryPos.add(rotateVector(mobMarkerRelToEntry, rotation));
                 removeMarker(world, worldPos, Material.REDSTONE_BLOCK);
                 pendingMobSpawns
                         .add(new Location(world, worldPos.getX() + 0.5, worldPos.getY(), worldPos.getZ() + 0.5));
+                Deepwither.getInstance().getLogger().info("Added Mob Spawn at " + worldPos);
             }
 
             // Process Loot Markers
-            for (BlockVector3 lootMarker : part.getLootMarkers()) {
-                BlockVector3 worldPos = origin.add(rotateVector(lootMarker, rotation));
+            // Markers are now relative to Entry in DungeonPart
+            for (BlockVector3 lootMarkerRelToEntry : part.getLootMarkers()) {
+                BlockVector3 worldPos = worldEntryPos.add(rotateVector(lootMarkerRelToEntry, rotation));
                 removeMarker(world, worldPos, Material.EMERALD_BLOCK);
                 pendingLootSpawns.add(new Location(world, worldPos.getX(), worldPos.getY(), worldPos.getZ()));
+                Deepwither.getInstance().getLogger().info("Added Loot Spawn at " + worldPos);
             }
 
             placedParts.add(candidate);
