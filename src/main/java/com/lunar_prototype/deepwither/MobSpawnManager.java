@@ -239,8 +239,6 @@ public class MobSpawnManager {
         trackSpawnedMob(playerId, mobUuid); // ★追跡
     }
 
-    }
-
     /**
      * ダンジョン用に特定のモブを強制スポーンさせます。
      * リージョン等のチェックを無視し、指定されたレベルを適用します。
