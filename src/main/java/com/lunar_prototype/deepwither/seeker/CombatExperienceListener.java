@@ -32,7 +32,7 @@ public class CombatExperienceListener implements Listener {
             handleReward(attacker, 0.3);
 
             // Q-Learning: ダメージを与えたのでプラスの報酬
-            applyLearning(attacker, damage, 0.0);
+            applyLearning(attacker, damage, 0.0,false);
 
             // 戦術メモリーの更新
             getBrain(attacker).ifPresent(brain -> brain.tacticalMemory.myHits++);
@@ -46,7 +46,7 @@ public class CombatExperienceListener implements Listener {
             handlePenaltyAndPattern(victim, event.getDamager(), 0.5);
 
             // Q-Learning: ダメージを受けたのでマイナスの報酬
-            applyLearning(victim, 0.0, damage);
+            applyLearning(victim, 0.0, damage,false);
 
             // 被弾による戦術メモリーの更新
             getBrain(victim).ifPresent(brain -> brain.tacticalMemory.takenHits++);
@@ -98,35 +98,29 @@ public class CombatExperienceListener implements Listener {
     public void onSwing(PlayerArmSwingEvent event) {
         Player player = event.getPlayer();
 
-        // 8m以内のエンティティを走査
         player.getNearbyEntities(8, 8, 8).stream()
-                .filter(e -> e instanceof Mob) // 【修正】まずMobであることを確認
-                .filter(e -> MythicBukkit.inst().getMobManager().isActiveMob(e.getUniqueId())) // MythicMobか確認
+                .filter(e -> e instanceof Mob)
+                .filter(e -> MythicBukkit.inst().getMobManager().isActiveMob(e.getUniqueId()))
                 .forEach(e -> {
-                    Mob mob = (Mob) e; // ここで安全にキャスト可能
-
-                    // 脳を取得して記録
+                    Mob mob = (Mob) e;
                     Optional.ofNullable(aiEngine.getBrain(mob.getUniqueId())).ifPresent(brain -> {
                         Vector playerLoc = player.getLocation().toVector();
                         Vector mobLoc = mob.getLocation().toVector();
-
-                        // プレイヤーからMobへの方向ベクトル
                         Vector toMob = mobLoc.clone().subtract(playerLoc).normalize();
-                        // プレイヤーの視線方向
                         Vector lookDir = player.getLocation().getDirection();
-
                         double dist = player.getLocation().distance(mob.getLocation());
 
-                        // 空振り学習を実行 (recordAttack)
-                        // isMiss = true として記録
-                        brain.recordAttack(
-                                player.getUniqueId(),
-                                mob.getTicksLived(),
-                                dist,
-                                true,
-                                lookDir,
-                                toMob
-                        );
+                        // --- [追加] 回避成功の学習 ---
+                        // プレイヤーがMobをしっかり狙っている（dot > 0.9）のに当たっていない場合
+                        if (lookDir.dot(toMob) > 0.9) {
+                            // 回避成功報酬（0.8程度）を与える
+                            // これにより「EVADE」や「BURST_DASH」のQ値が跳ね上がる
+                            applyLearning(mob, 0.0, 0.0, true);
+                            brain.tacticalMemory.avoidedHits++; // 回避カウンター増
+                        }
+
+                        // 既存の空振りリズム学習
+                        brain.recordAttack(player.getUniqueId(), mob.getTicksLived(), dist, true, lookDir, toMob);
                     });
                 });
     }
@@ -136,7 +130,7 @@ public class CombatExperienceListener implements Listener {
                 .map(am -> aiEngine.getBrain(am.getUniqueId()));
     }
 
-    public void applyLearning(Mob mob, double damageDealt, double damageTaken) {
+    public void applyLearning(Mob mob, double damageDealt, double damageTaken, boolean evaded) {
         // OptionalをifPresentで展開して処理する
         getBrain(mob).ifPresent(brain -> {
             double reward = 0.0;
@@ -145,6 +139,10 @@ public class CombatExperienceListener implements Listener {
             // 与えたダメージは正義、受けたダメージは反省
             reward += (damageDealt * 2.0);
             reward -= (damageTaken * 1.5);
+
+            if (evaded) {
+                reward += 1.5; // 被弾を抑えたことへの大きな報酬
+            }
 
             // 2. 状況ベースの報酬（ハメ対策）
             if (mob.getTarget() instanceof Player) {
