@@ -14,10 +14,7 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
-import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
-
-import java.util.Optional;
 
 import static io.papermc.paper.command.brigadier.Commands.*;
 
@@ -37,7 +34,7 @@ public class MarketCommand implements DeepWitherCommand {
     @Override
     public LiteralCommandNode<CommandSourceStack> getNode() {
         return literal(COMMAND_NAME)
-            .requires(MarketCommand::isPlayerSender)
+            .requires(CommandUtil::isPlayerSender)
             .executes(this::handleOpen)
             .then(literal("collect")
                 .executes(this::handleCollect))
@@ -54,17 +51,17 @@ public class MarketCommand implements DeepWitherCommand {
     }
 
     private int handleCollect(@NotNull CommandContext<CommandSourceStack> context) {
-        getSenderAsPlayer(context).ifPresent(marketManager::claimEarnings);
+        CommandUtil.getSenderAsPlayer(context).ifPresent(marketManager::claimEarnings);
         return Command.SINGLE_SUCCESS;
     }
 
     private int handleOpen(@NotNull CommandContext<CommandSourceStack> context) {
-        getSenderAsPlayer(context).ifPresent(marketGui::openMainMenu);
+        CommandUtil.getSenderAsPlayer(context).ifPresent(marketGui::openMainMenu);
         return Command.SINGLE_SUCCESS;
     }
 
     private int handleSell(@NotNull CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        final var player = getSenderAsPlayer(context).orElseThrow(() -> new SimpleCommandExceptionType(new LiteralMessage("") /* 到達不可なはず */ ).create());
+        final var player = CommandUtil.getSenderAsPlayer(context).orElseThrow(() -> new SimpleCommandExceptionType(new LiteralMessage("") /* 到達不可なはず */ ).create());
         final var price = DoubleArgumentType.getDouble(context, ARG_PRICE);
         final var inventory = player.getInventory();
         final var itemStack = inventory.getItemInMainHand();
@@ -80,14 +77,5 @@ public class MarketCommand implements DeepWitherCommand {
         player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f);
 
         return Command.SINGLE_SUCCESS;
-    }
-
-    private static boolean isPlayerSender(@NotNull CommandSourceStack source) {
-        return source.getSender() instanceof Player;
-    }
-
-    @NotNull
-    private static Optional<Player> getSenderAsPlayer(@NotNull CommandContext<CommandSourceStack> context) {
-        return Optional.ofNullable(context.getSource().getSender() instanceof Player player ? player : null);
     }
 }
