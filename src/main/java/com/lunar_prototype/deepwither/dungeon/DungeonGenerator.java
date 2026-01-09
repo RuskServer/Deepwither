@@ -286,8 +286,8 @@ public class DungeonGenerator {
 
                     for (DungeonPart nextPart : candidates) {
                         try {
-                            // Calculate Rotation: Intrinsic - Target = Rot
-                            int nextRotation = (nextPart.getIntrinsicYaw() - exitWorldYaw + 360) % 360;
+                            // Calculate Rotation: Target - Intrinsic = Rot
+                            int nextRotation = (exitWorldYaw - nextPart.getIntrinsicYaw() + 360) % 360;
 
                             BlockVector3 nextEntryRotated = nextPart.getRotatedEntryOffset(nextRotation);
                             BlockVector3 nextOrigin = connectionPoint.subtract(nextEntryRotated);

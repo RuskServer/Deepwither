@@ -86,16 +86,26 @@ public class DungeonPart {
                 // Force Flat Y relative to Entry
                 BlockVector3 exitVec = BlockVector3.at(posRelToEntry.getX(), 0, posRelToEntry.getZ());
                 this.exitOffsets.add(exitVec);
+                Deepwither.getInstance().getLogger()
+                        .info(String.format("[%s] Found EXIT at %s (Rel to Entry)", fileName, exitVec));
             }
             // Mob Marker (Redstone)
             else if (block.getBlockType().equals(BlockTypes.REDSTONE_BLOCK)) {
                 this.mobMarkers.add(posRelToEntry);
+                Deepwither.getInstance().getLogger()
+                        .info(String.format("[%s] Found MOB at %s (Rel to Entry)", fileName, posRelToEntry));
             }
             // Loot Marker (Emerald)
             else if (block.getBlockType().equals(BlockTypes.EMERALD_BLOCK)) {
                 this.lootMarkers.add(posRelToEntry);
+                Deepwither.getInstance().getLogger()
+                        .info(String.format("[%s] Found LOOT at %s (Rel to Entry)", fileName, posRelToEntry));
             }
         }
+
+        // 3. Normalize Bounding Box relative to Entry
+        this.minPoint = clipboard.getRegion().getMinimumPoint().subtract(origin).subtract(entryPosRelToOrigin);
+        this.maxPoint = clipboard.getRegion().getMaximumPoint().subtract(origin).subtract(entryPosRelToOrigin);
 
         Deepwither.getInstance().getLogger().info(String.format(
                 "[%s] Scan Complete: %d exits, %d mob, %d loot. Entry Offset from Origin: %s",
@@ -110,16 +120,18 @@ public class DungeonPart {
             return;
         }
 
+        // primExit is already relative to Entry (0,0,0)
         BlockVector3 primExit = exitOffsets.get(0);
-        int dx = primExit.getX() - entryX;
-        int dz = primExit.getZ() - entryZ;
+        int dx = primExit.getX();
+        int dz = primExit.getZ();
 
         if (Math.abs(dx) > Math.abs(dz)) {
             this.intrinsicYaw = (dx > 0) ? 270 : 90;
         } else {
             this.intrinsicYaw = (dz > 0) ? 0 : 180;
         }
-        Deepwither.getInstance().getLogger().info("[" + fileName + "] Intrinsic Yaw: " + intrinsicYaw);
+        Deepwither.getInstance().getLogger()
+                .info("[" + fileName + "] Intrinsic Yaw: " + intrinsicYaw + " (Primary Exit: " + primExit + ")");
     }
 
     public int getIntrinsicYaw() {
@@ -188,26 +200,10 @@ public class DungeonPart {
     }
 
     public int getExitDirection(BlockVector3 exit) {
-        // Determine direction based on which face the exit is on
-        int tolerance = 1;
+        // 'exit' is already relative to Entry (0,0,0).
+        int dx = exit.getX();
+        int dz = exit.getZ();
 
-        // Check Z faces
-        if (Math.abs(exit.getZ() - maxPoint.getZ()) <= tolerance)
-            return 0; // South (+Z)
-        if (Math.abs(exit.getZ() - minPoint.getZ()) <= tolerance)
-            return 180; // North (-Z)
-
-        // Check X faces
-        if (Math.abs(exit.getX() - maxPoint.getX()) <= tolerance)
-            return 270; // East (+X)
-        if (Math.abs(exit.getX() - minPoint.getX()) <= tolerance)
-            return 90; // West (-X)
-
-        // Fallback to vector heuristic if not on face (should rarely happen for valid
-        // dungeons)
-        Deepwither.getInstance().getLogger().warning("Exit not on bounding box face! Using vector heuristic: " + exit);
-        int dx = exit.getX() - entryX;
-        int dz = exit.getZ() - entryZ;
         if (Math.abs(dx) > Math.abs(dz)) {
             return (dx > 0) ? 270 : 90;
         } else {
