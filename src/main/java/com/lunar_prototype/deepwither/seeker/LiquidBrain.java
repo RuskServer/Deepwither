@@ -49,6 +49,33 @@ public class LiquidBrain {
 
     public final TacticalMemory tacticalMemory = new TacticalMemory();
 
+    public static class SelfPattern {
+        public long lastAttackTick = 0;
+        public double averageInterval = 0; // 自分の攻撃の平均間隔（スキルのクールタイム含む）
+        public int sampleCount = 0;
+    }
+
+    public final SelfPattern selfPattern = new SelfPattern();
+
+    /**
+     * 自分が攻撃を繰り出した（バニラ近接 or MMスキル）瞬間に呼び出す
+     */
+    public void recordSelfAttack(long currentTick) {
+        if (selfPattern.lastAttackTick > 0) {
+            long interval = currentTick - selfPattern.lastAttackTick;
+            if (interval > 5 && interval < 100) { // 短すぎる連打や長すぎる間隔を除外
+                if (selfPattern.sampleCount == 0) {
+                    selfPattern.averageInterval = interval;
+                } else {
+                    // 自分のリズムは正確なので、少し強めに学習(0.5)
+                    selfPattern.averageInterval = (selfPattern.averageInterval * 0.5) + (interval * 0.5);
+                }
+                selfPattern.sampleCount++;
+            }
+        }
+        selfPattern.lastAttackTick = currentTick;
+    }
+
     /**
      * 戦術的優位性の更新
      */

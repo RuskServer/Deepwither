@@ -33,6 +33,7 @@ public class CombatExperienceListener implements Listener {
     private void handleReward(Entity entity, double amount) {
         getBrain(entity).ifPresent(brain -> {
             brain.accumulatedReward += amount;
+            brain.recordSelfAttack(entity.getTicksLived());
         });
     }
 

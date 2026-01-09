@@ -173,7 +173,7 @@ public class LiquidCombatEngine {
     private BanditDecision thinkV2(BanditContext context, LiquidBrain brain, Mob bukkitEntity) {
         // V1の物理層・リキッド演算をベースとして実行
         BanditDecision d = thinkV1(context, brain, bukkitEntity);
-        d.engine_version = "v2.0-Tactical";
+        d.engine_version = "v2.0-Tactical-Sync";
 
         // 戦術的優位性の更新（ヒット率や被弾率から計算）
         brain.updateTacticalAdvantage();
@@ -183,49 +183,70 @@ public class LiquidCombatEngine {
             Player target = (Player) bukkitEntity.getTarget();
             LiquidBrain.AttackPattern pattern = brain.enemyPatterns.get(target.getUniqueId());
 
-            // --- 1. 時空間パターンマッチング (V2核心) ---
+            // --- 1. 敵の時空間パターンマッチング (V2核心) ---
             double patternMatchScore = 0.0;
             if (pattern != null && pattern.sampleCount > 2) {
                 long ticksSinceLast = bukkitEntity.getTicksLived() - pattern.lastAttackTick;
-
-                // 時間軸の合致度
                 double timingScore = Math.max(0, 1.0 - Math.abs(ticksSinceLast - pattern.averageInterval) / 20.0);
-                // 空間軸（間合い）の合致度
                 double distScore = Math.max(0, 1.0 - Math.abs(context.environment.nearby_enemies.get(0).dist - pattern.preferredDist) / 2.0);
-
                 patternMatchScore = (timingScore * 0.5) + (distScore * 0.5);
             }
 
-            // --- 2. 戦術的分岐 (Tactical Branching) ---
+            // --- 2. 自己同期ロジック (Self-Sync) ---
+            // 自分の攻撃リズムを解析し、行動を補正する
+            long ticksSinceSelfLast = bukkitEntity.getTicksLived() - brain.selfPattern.lastAttackTick;
+            double selfAvgInterval = brain.selfPattern.averageInterval;
 
-            // A. 【圧倒的劣勢】(Advantage < 0.3): 徹底防御 & 分析モード
+            boolean isRecovering = false; // 攻撃後の硬直中フラグ
+
+            if (selfAvgInterval > 0) {
+                // A. 【攻撃準備・踏み込み】: 次の自律攻撃/スキルが発動する直前 (5~10tick前)
+                if (ticksSinceSelfLast > (selfAvgInterval - 10) && ticksSinceSelfLast < selfAvgInterval) {
+                    // 有利または均衡時なら、攻撃を当てるために一気に詰める
+                    if (advantage > 0.4) {
+                        d.movement.strategy = "CHARGE";
+                        d.reasoning += " | SELF_SYNC: PRE-ATTACK_CHARGE";
+                    }
+                }
+                // B. 【攻撃後・離脱】: 攻撃直後 (15tick以内)
+                else if (ticksSinceSelfLast >= 0 && ticksSinceSelfLast < 15) {
+                    isRecovering = true;
+                    // 攻撃した直後はバニラやスキルの硬直があるため、
+                    // 棒立ちせず、ヒットアンドアウェイのために距離を取る
+                    if (advantage < 0.8) { // 圧倒的優勢でなければ離脱を優先
+                        d.movement.strategy = "POST_ATTACK_EVADE";
+                        d.reasoning += " | SELF_SYNC: RECOVERY_MOVE";
+                    }
+                }
+            }
+
+            // --- 3. 戦術的分岐 (Tactical Branching) ---
+            // 自己同期による移動補正を維持しつつ、戦術方針を決定
+
+            // A. 【圧倒的劣勢】: 徹底防御 & 分析モード
             if (advantage < 0.3) {
                 d.decision.action_type = "DESPERATE_DEFENSE";
-                d.movement.strategy = "MAINTAIN_DISTANCE"; // 距離をとり、相手を観察する
-                // 劣勢時は反射(Reflex)を無理やり引き上げ、回避に専念させる
+                d.movement.strategy = "MAINTAIN_DISTANCE";
                 brain.reflex.update(1.0, 0.9);
                 d.reasoning += " | TACTICAL: DEFENSIVE";
             }
-
-            // B. 【カウンター狙い】: パターンが一致し、かつ冷静な時
-            else if (patternMatchScore > 0.7 && brain.composure > 0.4) {
+            // B. 【カウンター狙い】: 敵のパターンが読み切れている時（硬直中でない場合のみ）
+            else if (patternMatchScore > 0.7 && brain.composure > 0.4 && !isRecovering) {
                 d.decision.action_type = "COUNTER";
-                d.movement.strategy = "SIDESTEP_COUNTER"; // 相手の攻撃リズムに合わせて横に避けつつ殴る
+                d.movement.strategy = "SIDESTEP_COUNTER";
                 d.decision.use_skill = "Counter_Stance";
                 d.reasoning += " | TACTICAL: PATTERN_READ";
             }
-
-            // C. 【圧倒的優勢】(Advantage > 0.7): 殲滅モード
+            // C. 【圧倒的優勢】: 殲滅モード
             else if (advantage > 0.7) {
                 d.decision.action_type = "OVERWHELM";
-                d.movement.strategy = "SPRINT_ZIGZAG"; // 逃がさず、ジグザグに追い詰める
+                // 殲滅モードなら硬直中もジグザグに追い回す
+                d.movement.strategy = "SPRINT_ZIGZAG";
                 d.decision.use_skill = "Execution_Strike";
                 d.reasoning += " | TACTICAL: AGGRESSIVE";
             }
-
-            // D. 【誘い受け (Baiting)】: 膠着状態かつ余裕がある時
-            else if (advantage >= 0.4 && advantage <= 0.6 && brain.frustration < 0.3) {
-                // 20%の確率で、あえて無防備なフリをして踏み込みを誘う
+            // D. 【誘い受け】
+            else if (advantage >= 0.4 && advantage <= 0.6 && brain.frustration < 0.3 && !isRecovering) {
                 if (Math.random() < 0.2) {
                     d.decision.action_type = "BAITING";
                     d.movement.strategy = "NONE";
