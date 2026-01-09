@@ -98,17 +98,28 @@ public class DungeonPart {
             }
         }
 
-        // Normalize markers to be relative to the Entry position
-        if (foundEntry) {
+        if (!foundEntry) {
+            Deepwither.getInstance().getLogger()
+                    .warning("[" + fileName + "] Warning: No Gold Block (Entry) found. Assuming (0,0,0).");
+        } else {
+            // Normalize ALL offsets to be relative to Entry position
             final BlockVector3 finalEntry = entryPosLocal;
 
-            // Re-map markers to be relative to entry
+            // Normalize Exit offsets
+            List<BlockVector3> normalizedExits = exitOffsets.stream()
+                    .map(v -> v.subtract(finalEntry))
+                    .collect(Collectors.toList());
+            this.exitOffsets.clear();
+            this.exitOffsets.addAll(normalizedExits);
+
+            // Normalize Mob markers
             List<BlockVector3> normalizedMob = mobMarkers.stream()
                     .map(v -> v.subtract(finalEntry))
                     .collect(Collectors.toList());
             this.mobMarkers.clear();
             this.mobMarkers.addAll(normalizedMob);
 
+            // Normalize Loot markers
             List<BlockVector3> normalizedLoot = lootMarkers.stream()
                     .map(v -> v.subtract(finalEntry))
                     .collect(Collectors.toList());
@@ -116,13 +127,8 @@ public class DungeonPart {
             this.lootMarkers.addAll(normalizedLoot);
 
             Deepwither.getInstance().getLogger().info(String.format(
-                    "[%s] Normalized %d mob markers and %d loot markers relative to Entry.",
-                    fileName, mobMarkers.size(), lootMarkers.size()));
-        }
-
-        if (!foundEntry) {
-            Deepwither.getInstance().getLogger()
-                    .warning("[" + fileName + "] Warning: No Gold Block (Entry) found. Assuming (0,0,0).");
+                    "[%s] Normalized %d exits, %d mob markers, %d loot markers relative to Entry at %s.",
+                    fileName, exitOffsets.size(), mobMarkers.size(), lootMarkers.size(), entryPosLocal));
         }
 
         if (exitOffsets.isEmpty() && !type.equals("ROOM")) {

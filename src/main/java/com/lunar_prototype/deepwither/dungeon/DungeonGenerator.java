@@ -225,10 +225,15 @@ public class DungeonGenerator {
         // Process each exit (random shuffle for variety?)
         // Process each exit
         for (int i = 0; i < rotatedExits.size(); i++) {
-            BlockVector3 exitOffset = rotatedExits.get(i);
+            BlockVector3 exitOffsetFromEntry = rotatedExits.get(i);
+
+            // Calculate Entry position in world
+            BlockVector3 rotatedEntry = currentPart.getRotatedEntryOffset(currentRot);
+            BlockVector3 worldEntryPos = currentOrigin.add(rotatedEntry);
 
             // Calculate world position of this exit (Connection Point)
-            BlockVector3 connectionPoint = currentOrigin.add(exitOffset);
+            // Exit offset is relative to Entry, so add it to world Entry position
+            BlockVector3 connectionPoint = worldEntryPos.add(exitOffsetFromEntry);
 
             BlockVector3 originalExit = currentPart.getExitOffsets().get(i);
             int localExitYaw = currentPart.getExitDirection(originalExit);
