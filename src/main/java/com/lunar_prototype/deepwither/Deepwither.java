@@ -72,12 +72,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public final class  Deepwither extends JavaPlugin {
+public final class Deepwither extends JavaPlugin {
 
     private Logger log;
 
     private static Deepwither instance;
-    public static Deepwither getInstance() { return instance; }
+
+    public static Deepwither getInstance() {
+        return instance;
+    }
+
     private Map<UUID, Location> safeZoneSpawns = new HashMap<>();
     private final Map<Class<? extends IManager>, IManager> managers = new LinkedHashMap<>();
     private File safeZoneSpawnsFile;
@@ -144,74 +148,130 @@ public final class  Deepwither extends JavaPlugin {
     public LevelManager getLevelManager() {
         return levelManager;
     }
+
     public SkilltreeManager getSkilltreeManager() {
         return skilltreeManager;
     }
+
     public ManaManager getManaManager() {
         return manaManager;
     }
-    public SkillLoader getSkillLoader(){
+
+    public SkillLoader getSkillLoader() {
         return skillLoader;
     }
-    public SkillSlotManager getSkillSlotManager(){
+
+    public SkillSlotManager getSkillSlotManager() {
         return skillSlotManager;
     }
-    public SkillCastManager getSkillCastManager(){
+
+    public SkillCastManager getSkillCastManager() {
         return skillCastManager;
     }
+
     public SkillAssignmentGUI getSkillAssignmentGUI() {
         return skillAssignmentGUI;
     }
+
     public CooldownManager getCooldownManager() {
         return cooldownManager;
     }
-    public ArtifactManager getArtifactManager(){
+
+    public ArtifactManager getArtifactManager() {
         return artifactManager;
     }
-    public ArtifactGUIListener getArtifactGUIListener(){
+
+    public ArtifactGUIListener getArtifactGUIListener() {
         return artifactGUIListener;
     }
-    public  ArtifactGUI getArtifactGUI(){
+
+    public ArtifactGUI getArtifactGUI() {
         return artifactGUI;
     }
-    public ItemFactory getItemFactory() {return itemFactory;}
-    public StatManager getStatManager() {return statManager;}
+
+    public ItemFactory getItemFactory() {
+        return itemFactory;
+    }
+
+    public StatManager getStatManager() {
+        return statManager;
+    }
+
     public TraderManager getTraderManager() {
         return traderManager;
     }
+
     public CreditManager getCreditManager() {
         return creditManager;
     }
+
     public DailyTaskManager getDailyTaskManager() { // ★ 新規追加
         return dailyTaskManager;
     }
+
     public MobSpawnManager getMobSpawnManager() {
         return mobSpawnManager;
     }
+
     public ItemNameResolver getItemNameResolver() {
         return itemNameResolver;
     }
-    public PlayerQuestManager getPlayerQuestManager() {return playerQuestManager;}
-    public CraftingManager getCraftingManager() { return craftingManager; }
-    public CraftingGUI getCraftingGUI() { return craftingGUI; }
-    public ProfessionManager getProfessionManager(){return professionManager;}
-    public ChargeManager getChargeManager() {return chargeManager;}
-    public BackpackManager getBackpackManager() {return backpackManager;};
-    public DamageManager getDamageManager() {return damageManager;}
-    public PlayerSettingsManager getSettingsManager() { return settingsManager; }
-    public SettingsGUI getSettingsGUI() { return settingsGUI; }
-    public CompanionManager getCompanionManager() { return companionManager; }
-    public LayerMoveManager getLayerMoveManager() {return layerMoveManager;}
+
+    public PlayerQuestManager getPlayerQuestManager() {
+        return playerQuestManager;
+    }
+
+    public CraftingManager getCraftingManager() {
+        return craftingManager;
+    }
+
+    public CraftingGUI getCraftingGUI() {
+        return craftingGUI;
+    }
+
+    public ProfessionManager getProfessionManager() {
+        return professionManager;
+    }
+
+    public ChargeManager getChargeManager() {
+        return chargeManager;
+    }
+
+    public BackpackManager getBackpackManager() {
+        return backpackManager;
+    };
+
+    public DamageManager getDamageManager() {
+        return damageManager;
+    }
+
+    public PlayerSettingsManager getSettingsManager() {
+        return settingsManager;
+    }
+
+    public SettingsGUI getSettingsGUI() {
+        return settingsGUI;
+    }
+
+    public CompanionManager getCompanionManager() {
+        return companionManager;
+    }
+
+    public LayerMoveManager getLayerMoveManager() {
+        return layerMoveManager;
+    }
+
     public FishingManager getFishingManager() {
         return fishingManager;
     }
-    public MobKillListener getMobKillListener(){
+
+    public MobKillListener getMobKillListener() {
         return mobKillListener;
     }
-    public MarketSearchHandler getMarketSearchHandler() {return marketSearchHandler;}
 
-
-
+    public MarketSearchHandler getMarketSearchHandler() {
+        return marketSearchHandler;
+    }
 
     @Override
     public void onEnable() {
@@ -225,14 +285,14 @@ public final class  Deepwither extends JavaPlugin {
         loadSafeZoneSpawns();
 
         if (!setupEconomy()) {
-            getLogger().severe(String.format("[%s] - Disabled due to no Vault dependency found!", getDescription().getName()));
+            getLogger().severe(
+                    String.format("[%s] - Disabled due to no Vault dependency found!", getDescription().getName()));
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
 
         this.asyncExecutor = Executors.newFixedThreadPool(
-                Runtime.getRuntime().availableProcessors()
-        );
+                Runtime.getRuntime().availableProcessors());
 
         try {
             // 1. 基盤（Database）の初期化
@@ -257,7 +317,7 @@ public final class  Deepwither extends JavaPlugin {
         }
 
         aiEngine = new SeekerAIEngine();
-        Bukkit.getPluginManager().registerEvents(new CombatExperienceListener(aiEngine),this);
+        Bukkit.getPluginManager().registerEvents(new CombatExperienceListener(aiEngine), this);
 
         statManager = new StatManager();
         companionManager = new CompanionManager(this);
@@ -268,12 +328,12 @@ public final class  Deepwither extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PlayerStatListener(statManager), this);
         this.settingsManager = new PlayerSettingsManager(this);
         this.settingsGUI = new SettingsGUI(this, settingsManager);
-        damageManager = new DamageManager(statManager,settingsManager);
+        damageManager = new DamageManager(statManager, settingsManager);
         Bukkit.getPluginManager().registerEvents(damageManager, this);
-        Bukkit.getPluginManager().registerEvents(new SkillCastSessionManager(),this);
-        Bukkit.getPluginManager().registerEvents(new SkillAssignmentGUI(),this);
+        Bukkit.getPluginManager().registerEvents(new SkillCastSessionManager(), this);
+        Bukkit.getPluginManager().registerEvents(new SkillAssignmentGUI(), this);
         raidBossManager = new RaidBossManager(this);
-        getServer().getPluginManager().registerEvents(new RaidBossListener(this,raidBossManager),this);
+        getServer().getPluginManager().registerEvents(new RaidBossListener(this, raidBossManager), this);
         manaManager = new ManaManager();
         skillLoader = new SkillLoader();
         File skillsFolder = new File(getDataFolder(), "skills");
@@ -296,35 +356,35 @@ public final class  Deepwither extends JavaPlugin {
             }
         }
         questDataStore = new QuestDataStore(this);
-        guildQuestManager = new GuildQuestManager(this,questDataStore);
+        guildQuestManager = new GuildQuestManager(this, questDataStore);
         itemNameResolver = new ItemNameResolver(this);
         townBurstManager = new TownBurstManager(this);
         this.creditManager = new CreditManager(this);
         this.traderManager = new TraderManager(this, itemFactory);
-        this.dailyTaskManager = new DailyTaskManager(this,fileDailyTaskDataStore);
-        playerQuestManager = new PlayerQuestManager(this,guildQuestManager,playerQuestDataStore);
+        this.dailyTaskManager = new DailyTaskManager(this, fileDailyTaskDataStore);
+        playerQuestManager = new PlayerQuestManager(this, guildQuestManager, playerQuestDataStore);
         artifactManager = new ArtifactManager(this);
         lootChestManager = new LootChestManager(this);
         artifactGUI = new ArtifactGUI();
         mythicMobSafeZoneManager = new MythicMobSafeZoneManager(this);
-        professionManager = new ProfessionManager(this,professionDatabase);
+        professionManager = new ProfessionManager(this, professionDatabase);
         partyManager = new PartyManager();
         this.partyAPI = new DeepwitherPartyAPI(partyManager); // ★ 初期化
         this.craftingManager = new CraftingManager(this);
         this.craftingGUI = new CraftingGUI(this);
         getServer().getPluginManager().registerEvents(new CraftingListener(this), this);
-        artifactGUIListener = new ArtifactGUIListener(artifactGUI,statManager);
+        artifactGUIListener = new ArtifactGUIListener(artifactGUI, statManager);
         this.skillAssignmentGUI = new SkillAssignmentGUI(); // 必ず enable 時に初期化
         getServer().getPluginManager().registerEvents(skillAssignmentGUI, this);
         getServer().getPluginManager().registerEvents(artifactGUIListener, this);
         getServer().getPluginManager().registerEvents(artifactGUI, this);
-        getServer().getPluginManager().registerEvents(new CustomDropListener(this),this);
+        getServer().getPluginManager().registerEvents(new CustomDropListener(this), this);
         getServer().getPluginManager().registerEvents(new TaskListener(dailyTaskManager), this);
-        getServer().getPluginManager().registerEvents(new LootChestListener(this,lootChestManager),this);
-        getServer().getPluginManager().registerEvents(new CompanionListener(companionManager),this);
-        getServer().getPluginManager().registerEvents(new CompanionGuiListener(companionManager),this);
-        getServer().getPluginManager().registerEvents(new LayerSignListener(),this);
-        getServer().getPluginManager().registerEvents(new BossKillListener(),this);
+        getServer().getPluginManager().registerEvents(new LootChestListener(this, lootChestManager), this);
+        getServer().getPluginManager().registerEvents(new CompanionListener(companionManager), this);
+        getServer().getPluginManager().registerEvents(new CompanionGuiListener(companionManager), this);
+        getServer().getPluginManager().registerEvents(new LayerSignListener(), this);
+        getServer().getPluginManager().registerEvents(new BossKillListener(), this);
         this.getServer().getPluginManager().registerEvents(new CombatAnalyzer(this.companionManager, this), this);
 
         this.getCommand("artifact").setExecutor(new ArtifactGUICommand(artifactGUI));
@@ -335,41 +395,42 @@ public final class  Deepwither extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new SellGUI(), this);
         getServer().getPluginManager().registerEvents(new TutorialController(this), this);
 
-
         marketGui = new MarketGui(globalMarketManager);
-        getServer().getPluginManager().registerEvents(marketGui,this);
-        marketSearchHandler = new MarketSearchHandler(this,marketGui);
-        getServer().getPluginManager().registerEvents(marketSearchHandler,this);
+        getServer().getPluginManager().registerEvents(marketGui, this);
+        marketSearchHandler = new MarketSearchHandler(this, marketGui);
+        getServer().getPluginManager().registerEvents(marketSearchHandler, this);
 
         new RegenTask(statManager).start(this);
         guildQuestManager.startup();
 
         saveDefaultConfig(); // MobExpConfig.yml
 
-        OutpostConfig outpostConfig = new OutpostConfig(this,"outpost.yml");
+        OutpostConfig outpostConfig = new OutpostConfig(this, "outpost.yml");
 
         OutpostManager.initialize(this, outpostConfig);
 
-        mobKillListener = new MobKillListener(levelManager, getConfig(),OutpostManager.getInstance(),partyManager,boosterManager);
+        mobKillListener = new MobKillListener(levelManager, getConfig(), OutpostManager.getInstance(), partyManager,
+                boosterManager);
         Bukkit.getPluginManager().registerEvents(mobKillListener, this);
-        getServer().getPluginManager().registerEvents(new SafeZoneListener(this),this);
-        getServer().getPluginManager().registerEvents(new AnimationListener(),this);
+        getServer().getPluginManager().registerEvents(new SafeZoneListener(this), this);
+        getServer().getPluginManager().registerEvents(new AnimationListener(), this);
         getServer().getPluginManager().registerEvents(new BackpackListener(this, backpackManager), this);
-        this.getCommand("status").setExecutor(new StatusCommand(levelManager, statManager,creditManager,professionManager));
-        getServer().getPluginManager().registerEvents(new OutpostRegionListener(OutpostManager.getInstance()),this);
-        getServer().getPluginManager().registerEvents(new OutpostDamageListener(OutpostManager.getInstance()),this);
+        this.getCommand("status")
+                .setExecutor(new StatusCommand(levelManager, statManager, creditManager, professionManager));
+        getServer().getPluginManager().registerEvents(new OutpostRegionListener(OutpostManager.getInstance()), this);
+        getServer().getPluginManager().registerEvents(new OutpostDamageListener(OutpostManager.getInstance()), this);
 
         Bukkit.getPluginManager().registerEvents(new Listener() {
             @EventHandler
-            public void onMythicMechanicLoad(MythicMechanicLoadEvent event){
+            public void onMythicMechanicLoad(MythicMechanicLoadEvent event) {
                 getLogger().info("MythicMechanicLoadEvent called for mechanic " + event.getMechanicName());
 
-                if(event.getMechanicName().equalsIgnoreCase("CustomDamage"))	{
+                if (event.getMechanicName().equalsIgnoreCase("CustomDamage")) {
                     event.register(new CustomDamageMechanics(event.getConfig()));
                     getLogger().info("-- Registered CustomDamage mechanic!");
                 }
 
-                if(event.getMechanicName().equalsIgnoreCase("CustomHPDamage"))	{
+                if (event.getMechanicName().equalsIgnoreCase("CustomHPDamage")) {
                     event.register(new CustomHPDamageMechanic(event.getConfig()));
                     getLogger().info("-- Registered CustomHPDamage mechanic!");
                 }
@@ -379,7 +440,7 @@ public final class  Deepwither extends JavaPlugin {
                     getLogger().info("-- Registered manaShield mechanic!");
                 }
             }
-        },this);
+        }, this);
 
         // ログイン・ログアウト同期
         Bukkit.getPluginManager().registerEvents(new Listener() {
@@ -392,6 +453,7 @@ public final class  Deepwither extends JavaPlugin {
                 craftingManager.loadPlayer(e.getPlayer());
                 professionManager.loadPlayer(e.getPlayer());
             }
+
             @EventHandler
             public void onQuit(PlayerQuitEvent e) {
                 levelManager.unload(e.getPlayer().getUniqueId());
@@ -413,24 +475,25 @@ public final class  Deepwither extends JavaPlugin {
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             for (Player p : Bukkit.getOnlinePlayers()) {
                 AttributeInstance attr = p.getAttribute(Attribute.ATTACK_SPEED);
-                if (attr == null) return;
+                if (attr == null)
+                    return;
                 NamespacedKey baseAttackSpeed = NamespacedKey.minecraft("base_attack_speed");
                 attr.removeModifier(baseAttackSpeed);
             }
         }, 1L, 1L); // 毎秒実行
 
-        this.mobSpawnManager = new MobSpawnManager(this,playerQuestManager);
+        this.mobSpawnManager = new MobSpawnManager(this, playerQuestManager);
         townBurstManager.startBurstTask();
         mythicMobSafeZoneManager.startCheckTask();
 
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            new LevelPlaceholderExpansion(levelManager,manaManager,statManager).register();
+            new LevelPlaceholderExpansion(levelManager, manaManager, statManager).register();
             getLogger().info("PlaceholderAPI拡張を登録しました。");
         }
         // コマンド登録
         getCommand("attributes").setExecutor(new AttributeCommand());
         try {
-            SkilltreeGUI gui = new SkilltreeGUI(this, getDataFolder(),skilltreeManager,skillLoader);
+            SkilltreeGUI gui = new SkilltreeGUI(this, getDataFolder(), skilltreeManager, skillLoader);
             getCommand("skilltree").setExecutor(gui);
         } catch (IOException e) {
             e.printStackTrace();
@@ -452,15 +515,15 @@ public final class  Deepwither extends JavaPlugin {
         }.runTaskTimer(this, 0, 1);
 
         // リスナー登録
-        getServer().getPluginManager().registerEvents(new ItemDurabilityFix(),this);
+        getServer().getPluginManager().registerEvents(new ItemDurabilityFix(), this);
         getServer().getPluginManager().registerEvents(new AttributeGui(), this);
         getServer().getPluginManager().registerEvents(new BlacksmithListener(), this);
         getServer().getPluginManager().registerEvents(new DropPreventionListener(), this);
-        getServer().getPluginManager().registerEvents(new PlayerInteractListener(),this);
-        getServer().getPluginManager().registerEvents(new PlayerListener(this,playerQuestManager),this);
+        getServer().getPluginManager().registerEvents(new PlayerInteractListener(), this);
+        getServer().getPluginManager().registerEvents(new PlayerListener(this, playerQuestManager), this);
         Bukkit.getPluginManager().registerEvents(new GUIListener(playerQuestManager), this);
         getServer().getPluginManager().registerEvents(new CustomOreListener(this), this);
-        getServer().getPluginManager().registerEvents(new WandManager(),this);
+        getServer().getPluginManager().registerEvents(new WandManager(), this);
 
         // マネージャーの初期化
         this.fishingManager = new FishingManager(this);
@@ -470,8 +533,8 @@ public final class  Deepwither extends JavaPlugin {
 
         MenuGUI menuGUI = new MenuGUI(this);
         getCommand("menu").setExecutor(new MenuCommand(menuGUI));
-        getServer().getPluginManager().registerEvents(new MenuItemListener(this,menuGUI),this);
-        getServer().getPluginManager().registerEvents(new PlayerInventoryRestrictor(settingsManager),this);
+        getServer().getPluginManager().registerEvents(new MenuItemListener(this, menuGUI), this);
+        getServer().getPluginManager().registerEvents(new PlayerInventoryRestrictor(settingsManager), this);
 
         getCommand("skills").setExecutor(new SkillAssignmentCommand());
         getCommand("blacksmith").setExecutor(new BlacksmithCommand());
@@ -489,7 +552,7 @@ public final class  Deepwither extends JavaPlugin {
         getCommand("market").setTabCompleter(marketCmd);
         getCommand("deepwither").setExecutor(new DeepwitherCommand(this));
         getServer().getPluginManager().registerEvents(new PvPWorldListener(), this);
-        getServer().getPluginManager().registerEvents(new ItemGlowHandler(this),this);
+        getServer().getPluginManager().registerEvents(new ItemGlowHandler(this), this);
     }
 
     @Override
@@ -519,15 +582,18 @@ public final class  Deepwither extends JavaPlugin {
         this.attributeManager = register(AttributeManager.class, new AttributeManager(databaseManager));
         this.levelManager = register(LevelManager.class, new LevelManager(databaseManager));
         this.skilltreeManager = register(SkilltreeManager.class, new SkilltreeManager(databaseManager, this));
-        this.professionDatabase = register(ProfessionDatabase.class,new ProfessionDatabase(this,databaseManager));
-        this.boosterManager = register(BoosterManager.class,new BoosterManager(databaseManager));
-        this.globalMarketManager = register(GlobalMarketManager.class,new GlobalMarketManager(this,databaseManager));
+        this.professionDatabase = register(ProfessionDatabase.class, new ProfessionDatabase(this, databaseManager));
+        this.boosterManager = register(BoosterManager.class, new BoosterManager(databaseManager));
+        this.globalMarketManager = register(GlobalMarketManager.class, new GlobalMarketManager(this, databaseManager));
         // 新しくSQLite対応させたデータストア (引数にdatabaseManagerを渡す)
         this.fileDailyTaskDataStore = register(FileDailyTaskDataStore.class,
                 new FileDailyTaskDataStore(this, databaseManager));
 
         this.playerQuestDataStore = (PlayerQuestDataStore) register(FilePlayerQuestDataStore.class,
                 new FilePlayerQuestDataStore(databaseManager));
+
+        register(com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager.class,
+                new com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager(this));
     }
 
     private <T extends IManager> T register(Class<T> clazz, T manager) {

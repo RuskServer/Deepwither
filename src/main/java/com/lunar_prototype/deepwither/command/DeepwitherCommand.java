@@ -22,7 +22,8 @@ public class DeepwitherCommand implements CommandExecutor, TabCompleter {
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label,
+            @NotNull String[] args) {
         if (!sender.hasPermission("deepwither.admin")) {
             sender.sendMessage("§c権限がありません。");
             return true;
@@ -48,46 +49,67 @@ public class DeepwitherCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleDungeon(CommandSender sender, String[] args) {
-        if (!(sender instanceof Player player)) return;
+        if (!(sender instanceof Player player))
+            return;
 
-        // /dw dungeon generate <name> <count>
-        if (args.length < 4 || !args[1].equalsIgnoreCase("generate")) {
-            player.sendMessage("§c使用法: /dw dungeon generate <ダンジョン名> <通路数>");
+        if (args.length < 2) {
+            sendDungeonHelp(player);
             return;
         }
 
-        String dungeonName = args[2];
-        int count;
-        try {
-            count = Integer.parseInt(args[3]);
-        } catch (NumberFormatException e) {
-            player.sendMessage("§c通路数は数値で指定してください。");
-            return;
+        String action = args[1].toLowerCase();
+
+        switch (action) {
+            case "generate" -> {
+                // /dw dungeon generate <name> (maxLengthはconfig参照とするか固定にする)
+                if (args.length < 3) {
+                    player.sendMessage("§c使用法: /dw dungeon generate <ダンジョンタイプ>");
+                    return;
+                }
+                String dungeonType = args[2];
+                com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager.getInstance()
+                        .createInstance(player, dungeonType);
+            }
+            case "join" -> {
+                // /dw dungeon join <instanceId> (デバッグ用: 本来はGUIや看板から)
+                if (args.length < 3) {
+                    player.sendMessage("§c使用法: /dw dungeon join <インスタンスID>");
+                    return;
+                }
+                String instanceId = args[2];
+                com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager.getInstance()
+                        .joinDungeon(player, instanceId);
+            }
+            case "leave" -> {
+                com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager.getInstance()
+                        .leaveDungeon(player);
+            }
+            default -> sendDungeonHelp(player);
         }
+    }
 
-        player.sendMessage("§e[Dungeon] §f" + dungeonName + " を生成中...");
-
-        // 生成実行
-        // ※実際にはここで「個別ワールド生成」と紐付けますが、まずは現在のワールドでテスト
-        DungeonGenerator gen = new DungeonGenerator(dungeonName);
-        gen.generateStraight(player.getWorld(), count,90);
-
-        player.sendMessage("§a[Dungeon] 生成が完了しました！");
+    private void sendDungeonHelp(Player player) {
+        player.sendMessage("§e[Dungeon Help]");
+        player.sendMessage("§f/dw dungeon generate <type> §7- 新規インスタンス生成");
+        player.sendMessage("§f/dw dungeon leave §7- ダンジョンから退出");
     }
 
     private void sendHelp(CommandSender sender) {
         sender.sendMessage("§d§l[Deepwither Admin Help]");
-        sender.sendMessage("§f/dw dungeon generate <name> <count> §7- ダンジョン生成");
+        sender.sendMessage("§f/dw dungeon ... §7- ダンジョン管理コマンド");
         sender.sendMessage("§f/dw reload §7- 設定リロード");
     }
 
     @Override
-    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-        if (args.length == 1) return Arrays.asList("dungeon", "reload");
-        if (args.length == 2 && args[0].equalsIgnoreCase("dungeon")) return Arrays.asList("generate");
+    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias,
+            @NotNull String[] args) {
+        if (args.length == 1)
+            return Arrays.asList("dungeon", "reload");
+        if (args.length == 2 && args[0].equalsIgnoreCase("dungeon"))
+            return Arrays.asList("generate", "join", "leave");
         if (args.length == 3 && args[1].equalsIgnoreCase("generate")) {
             // dungeonsフォルダ内のymlファイル名を取得してリスト化するのが理想
-            return Arrays.asList("straight_path", "slime_cave");
+            return Arrays.asList("silent_terrarium_ruins", "ancient_city");
         }
         return new ArrayList<>();
     }

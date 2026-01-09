@@ -18,7 +18,6 @@ import java.util.UUID;
 
 public class SafeZoneListener implements Listener {
 
-
     private final Deepwither plugin; // メインクラスの参照を追加
 
     // コンストラクタを追加
@@ -58,7 +57,7 @@ public class SafeZoneListener implements Listener {
                     ChatColor.GRAY + "リスポーン地点を更新しました", // メッセージを更新
                     10, // フェードイン (0.5秒)
                     70, // 滞在時間 (3.5秒)
-                    20  // フェードアウト (1.0秒)
+                    20 // フェードアウト (1.0秒)
             );
             player.sendMessage(ChatColor.AQUA + ">> セーフゾーンに侵入しました。**リスポーン地点が現在地に設定されました。**");
 
@@ -76,8 +75,7 @@ public class SafeZoneListener implements Listener {
             player.sendTitle(
                     ChatColor.RED + "危険区域",
                     ChatColor.GRAY + "",
-                    10, 70, 20
-            );
+                    10, 70, 20);
             player.sendMessage(ChatColor.RED + ">> 危険区域へ移動しました。");
         }
     }
@@ -110,6 +108,22 @@ public class SafeZoneListener implements Listener {
 
         // 永続化データから保存されたリスポーン地点を取得
         Location safeZoneSpawn = plugin.getSafeZoneSpawn(playerUUID);
+
+        // ★ Dungeon Instance Respawn Check
+        com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager dim = com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager
+                .getInstance();
+        if (dim != null) {
+            com.lunar_prototype.deepwither.dungeon.instance.DungeonInstance dInstance = dim
+                    .getPlayerInstance(playerUUID);
+            // プレイヤーがダンジョン管理下にあり、かつ現在地もダンジョンワールドである場合
+            // (ワールド名チェックは念のため)
+            if (dInstance != null && player.getWorld().equals(dInstance.getWorld())) {
+                // ダンジョンスタート地点 (0, 64, 0) へリスポーン
+                // 将来的にはチェックポイントがあればそこを使う
+                event.setRespawnLocation(new Location(dInstance.getWorld(), 0.5, 64, 0.5));
+                return; // セーフゾーン処理をスキップ
+            }
+        }
 
         if (safeZoneSpawn != null) {
             // イベントのリスポーン地点を保存された地点に設定
