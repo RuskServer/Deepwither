@@ -41,6 +41,16 @@ public class Actuator {
                 return;
             }
 
+            if  (move.strategy.equals("BURST_DASH")) {
+                performBurstDash(entity,1.4); // 揺れのない最短距離での突進
+                return;
+            }
+
+            if  (move.strategy.equals("ORBITAL_SLIDE")) {
+                performOrbitalSlide(entity); // 揺れのない最短距離での突進
+                return;
+            }
+
             // --- V2: 攻撃後離脱 (POST_ATTACK_EVADE) ---
             if (move.strategy.equals("POST_ATTACK_EVADE")) {
                 performPostAttackEvade(entity);
@@ -79,6 +89,22 @@ public class Actuator {
     }
 
     /**
+     * 瞬間的なベクトル加速 (Arc Raiders風)
+     */
+    private void performBurstDash(Mob entity, double power) {
+        if (entity.getTarget() == null) return;
+
+        Vector dir = entity.getTarget().getLocation().toVector()
+                .subtract(entity.getLocation().toVector()).normalize();
+
+        // Y軸を少し浮かせることで摩擦を減らし、爆発的な推進力を得る
+        entity.setVelocity(dir.multiply(power).setY(0.15));
+
+        // 安全なパーティクル演出（Colorデータ不要なもの）
+        entity.getWorld().spawnParticle(org.bukkit.Particle.CLOUD, entity.getLocation(), 10, 0.2, 0.1, 0.2, 0.05);
+    }
+
+    /**
      * 最短距離で一気に間合いを詰める。
      * スキルや近接攻撃のリーチに入れるための、遊びのない突撃。
      */
@@ -91,6 +117,24 @@ public class Actuator {
         Location destination = targetLoc.clone().add(direction.multiply(1.5));
 
         entity.getPathfinder().moveTo(destination, 2.5); // 最高速度
+    }
+
+    /**
+     * 敵の視線を外しつつ回り込むスライディング
+     */
+    private void performOrbitalSlide(Mob entity) {
+        if (entity.getTarget() == null) return;
+
+        Location self = entity.getLocation();
+        Vector toTarget = entity.getTarget().getLocation().toVector().subtract(self.toVector()).normalize();
+
+        // 垂直ベクトルを作成（右か左か）
+        Vector side = new Vector(-toTarget.getZ(), 0, toTarget.getX()).normalize();
+        if (entity.getTicksLived() % 40 < 20) side.multiply(-1); // 20tickごとに方向転換
+
+        // 前進と横移動をミックスした高速ベクトル
+        Vector finalVel = toTarget.multiply(0.6).add(side.multiply(1.2)).setY(0.1);
+        entity.setVelocity(finalVel);
     }
 
     /**

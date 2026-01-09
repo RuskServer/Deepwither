@@ -174,7 +174,7 @@ public class LiquidCombatEngine {
     private BanditDecision thinkV2(BanditContext context, LiquidBrain brain, Mob bukkitEntity) {
         // V1の物理層・リキッド演算をベースとして実行
         BanditDecision d = thinkV1(context, brain, bukkitEntity);
-        d.engine_version = "v2.0-Tactical-Q";
+        d.engine_version = "v2.1-Dynamic-Epsilon"; // バージョンアップ
 
         // 戦術的優位性の更新（ヒット率や被弾率から計算）
         brain.updateTacticalAdvantage();
@@ -203,35 +203,39 @@ public class LiquidCombatEngine {
                 if (ticksSinceSelfLast > (selfAvgInterval - 10) && ticksSinceSelfLast < selfAvgInterval) {
                     if (advantage > 0.4) {
                         d.movement.strategy = "CHARGE";
-                        d.reasoning += " | SELF_SYNC: PRE-ATTACK_CHARGE";
                     }
                 } else if (ticksSinceSelfLast >= 0 && ticksSinceSelfLast < 15) {
                     isRecovering = true;
                     if (advantage < 0.8) {
                         d.movement.strategy = "POST_ATTACK_EVADE";
-                        d.reasoning += " | SELF_SYNC: RECOVERY_MOVE";
                     }
                 }
             }
 
-            // --- 3. Q-Learning による行動選択の補正 ---
+            // --- 3. 動的 Epsilon-Greedy による行動選択 ---
             // 現在の状況をキーに変換
             String currentStateKey = brain.qTable.getStateKey(advantage, enemyDist, isRecovering);
-            String[] options = {"ATTACK", "EVADE", "BAITING", "COUNTER", "OBSERVE", "RETREAT"};
+            // 行動の選択肢（今後 Actuator に追加する新移動スキルもここに入れる想定）
+            String[] options = {"ATTACK", "EVADE", "BAITING", "COUNTER", "OBSERVE", "RETREAT", "BURST_DASH", "ORBITAL_SLIDE"};
 
-            // 10%の確率で探索（新しい動きを試す）、90%で学習済み最適解を選択
+            // 【核心】動的探索率の計算
+            // 基本 10% だが、フラストレーション（0.0~1.0）に応じて最大 50% まで引き上げる
+            double epsilon = 0.1 + (brain.frustration * 0.4);
+
             String recommendedAction;
-            if (Math.random() < 0.1) {
+            if (Math.random() < epsilon) {
+                // 探索モード：ヤケクソ、あるいは新しい可能性の模索
                 recommendedAction = options[new Random().nextInt(options.length)];
-                d.reasoning += " | Q:EXPLORING";
+                d.reasoning += " | Q:EXPLORING(e:" + String.format("%.2f", epsilon) + ")";
             } else {
+                // 活用モード：過去の成功体験に基づく最適解
                 recommendedAction = brain.qTable.getBestAction(currentStateKey, options);
                 d.reasoning += " | Q:BEST_" + recommendedAction;
             }
 
             // --- 4. 戦術的分岐 (Tactical Branching) + Q学習の統合 ---
 
-            // A. 【圧倒的劣勢】: 基本は防御だが、Q値が「撤退(RETREAT)」を強く推奨するなら上書き
+            // A. 【圧倒的劣勢】
             if (advantage < 0.3) {
                 d.decision.action_type = recommendedAction.equals("RETREAT") ? "RETREAT" : "DESPERATE_DEFENSE";
                 d.movement.strategy = d.decision.action_type.equals("RETREAT") ? "RETREAT" : "MAINTAIN_DISTANCE";
@@ -252,12 +256,19 @@ public class LiquidCombatEngine {
                 d.decision.use_skill = "Execution_Strike";
                 d.reasoning += " | TACTICAL: AGGRESSIVE";
             }
-            // D. 【均衡状態】: ここではQ学習の判断を 100% 優先させる
+            // D. 【均衡状態】: Q学習（または探索行動）を優先
             else {
                 d.decision.action_type = recommendedAction;
-                // アクションに応じて移動戦略も軽く補正
-                if (recommendedAction.equals("EVADE")) d.movement.strategy = "SIDESTEP";
-                if (recommendedAction.equals("BAITING")) d.movement.strategy = "NONE";
+
+                // 行動に応じた移動戦略の紐付け（Actuator側での実装と同期させる）
+                switch (recommendedAction) {
+                    case "EVADE": d.movement.strategy = "SIDESTEP"; break;
+                    case "BAITING": d.movement.strategy = "NONE"; break;
+                    case "BURST_DASH": d.movement.strategy = "BURST_DASH"; break;
+                    case "ORBITAL_SLIDE": d.movement.strategy = "ORBITAL_SLIDE"; break;
+                    case "RETREAT": d.movement.strategy = "RETREAT"; break;
+                    default: d.movement.strategy = "MAINTAIN_DISTANCE"; break;
+                }
 
                 if (recommendedAction.equals("BAITING") && brain.frustration < 0.3) {
                     d.communication.voice_line = "Is that all you've got?";
