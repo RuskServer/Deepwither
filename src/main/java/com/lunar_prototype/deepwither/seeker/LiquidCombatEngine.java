@@ -11,15 +11,29 @@ public class LiquidCombatEngine {
     private Vector lastPlayerVelocity = new Vector(0, 0, 0);
 
     /**
-     * コンテキストと脳の状態を受け取り、意思決定を行う
+     * バージョン指定付きの思考メソッド
      */
-    public BanditDecision think(BanditContext context, LiquidBrain brain, Mob bukkitEntity) {
+    public BanditDecision think(String version, BanditContext context, LiquidBrain brain, Mob bukkitEntity) {
+        switch (version) {
+            case "v2":
+                return thinkV2(context, brain, bukkitEntity);
+            case "v1":
+            default:
+                return thinkV1(context, brain, bukkitEntity);
+        }
+    }
+
+    /**
+     * 現行の全機能を搭載したV1思考ロジック
+     */
+    private BanditDecision thinkV1(BanditContext context, LiquidBrain brain, Mob bukkitEntity) {
         double hpStress = 1.0 - (context.entity.hp_pct / 100.0);
         double enemyDist = 20.0;
         double currentDist = 20.0;
         double predictedDist = 20.0;
         Player targetPlayer = null;
 
+        // 最寄りの敵の情報を取得
         if (!context.environment.nearby_enemies.isEmpty()) {
             BanditContext.EnemyInfo nearestInfo = context.environment.nearby_enemies.stream()
                     .min(Comparator.comparingDouble(e -> e.dist)).orElse(null);
@@ -31,217 +45,194 @@ public class LiquidCombatEngine {
             }
         }
 
-        double attackImminence = calculateAttackImminence(targetPlayer,enemyDist,bukkitEntity);
+        double attackImminence = calculateAttackImminence(targetPlayer, enemyDist, bukkitEntity);
 
-        // --- 1. アドレナリンによるUrgencyのブースト ---
-        // アドレナリンが高いほど、環境変化への反応速度（粘性）が極限まで上がる
+        // 1. アドレナリンと緊急度の計算
         double urgency = (hpStress * 0.3) + (brain.adrenaline * 0.7);
         if (attackImminence > 0.5) urgency = 1.0;
         urgency = Math.min(1.0, urgency);
 
-        // --- 2. 各パラメーターの更新 ---
+        // 2. 予測モデル (カルマンフィルタ風) の適用
         if (targetPlayer != null) {
             currentDist = bukkitEntity.getLocation().distance(targetPlayer.getLocation());
-
-            // --- 予測モデルの適用 (0.5秒後を予測) ---
-            Vector myFuture = bukkitEntity.getLocation().toVector().add(bukkitEntity.getVelocity().multiply(10));
+            // 0.5秒後を予測
             Vector targetFuture = predictFutureLocationImproved(targetPlayer, 0.5);
+            Vector myFuture = bukkitEntity.getLocation().toVector().add(bukkitEntity.getVelocity().multiply(10));
             predictedDist = myFuture.distance(targetFuture);
         }
 
-        // 現在の殺気と、0.5秒後の殺気の両方を計算
-        double currentImminence = calculateAttackImminence(targetPlayer, currentDist, bukkitEntity);
+        // 未来の予兆を計算して反射(Reflex)を更新
         double futureImminence = calculateAttackImminence(targetPlayer, predictedDist, bukkitEntity);
-
-        // 未来の危険度が今の危険度より急激に上がっている場合、それは「踏み込み」と判断
-        double imminenceDelta = Math.max(0, futureImminence - currentImminence);
-
-        // 反射(Reflex)ニューロンに「未来の予兆」を強く入力する
-        // これにより、実際に殴られる数チック前に回避行動の閾値を超えるようになる
+        double imminenceDelta = Math.max(0, futureImminence - attackImminence);
         brain.reflex.update(futureImminence + (imminenceDelta * 2.0), 1.0);
 
-        // --- 集合知による補正の安全な取得 ---
-        double globalFear = 0.0;
-        if (targetPlayer != null) {
-            // ターゲットがいる場合のみ、そのプレイヤーに対する危険度を取得
-            globalFear = CollectiveKnowledge.playerDangerLevel.getOrDefault(targetPlayer.getUniqueId(), 0.0);
-        }
-
-        // 仲間の死による全体的なバイアス（こちらはターゲットがいなくても適用される）
+        // 3. 脳内状態の更新
+        double globalFear = targetPlayer != null ? CollectiveKnowledge.playerDangerLevel.getOrDefault(targetPlayer.getUniqueId(), 0.0) : 0.0;
         double collectiveShock = CollectiveKnowledge.globalFearBias;
 
-        // 恐怖(Fear)を集合知と個体知の合算で更新
-        // ターゲットがいない場合でも、集団がパニックなら少し Fear が上がる設計
-        brain.fear.update(1.0, (globalFear * 0.5) + (collectiveShock * 0.3));
-
-        // 士気の計算にバイアスを反映
-        brain.morale += CollectiveKnowledge.globalAggressionBias - collectiveShock;
-
-        // 士気(Morale)の計算：攻撃性と恐怖の差分
-        brain.morale = brain.aggression.get() - (brain.fear.get() * (1.0 - brain.composure * 0.3));
-
+        brain.fear.update(1.0, (globalFear * 0.5) + (collectiveShock * 0.3) + (hpStress > 0.5 || attackImminence > 0.6 ? 0.2 : 0.0));
         brain.aggression.update((enemyDist < 10 ? 0.8 : 0.2), urgency);
-        brain.fear.update((hpStress > 0.5 || attackImminence > 0.6 ? 1.0 : 0.0), urgency);
         brain.tactical.update((enemyDist < 6 ? 1.0 : 0.3), urgency * 0.5);
 
-        return resolveDecision(brain, context, enemyDist);
+        // 士気の計算
+        brain.morale = brain.aggression.get() - (brain.fear.get() * (1.0 - brain.composure * 0.3)) + CollectiveKnowledge.globalAggressionBias - collectiveShock;
+
+        return resolveDecisionV1(brain, context, enemyDist);
     }
 
-    /**
-     * プレイヤーの行動から攻撃の「予兆」を数値化する
-     */
-    private double calculateAttackImminence(Player player, double dist, Mob entity) {
-        if (player == null) return 0.0;
-
-        double score = 0.0;
-
-        // --- 1. 武器の脅威リーチ判定 ---
-        double weaponReach = 3.5; // デフォルトのリーチ
-        String mainHand = player.getInventory().getItemInMainHand().getType().name().toLowerCase();
-        if (mainHand.contains("spear") || mainHand.contains("needle") || mainHand.contains("trident")) {
-            weaponReach = 6.0; // 槍系の武器は警戒距離を伸ばす
-        }
-
-        // 間合いに入っている度合い (0.0 ~ 1.0)
-        double reachFactor = Math.max(0, 1.0 - (dist / weaponReach));
-        score += reachFactor * 0.4;
-
-        // --- 2. 物理的な「踏み込み」速度の検知 ---
-        // プレイヤーがこちらに向かって移動しているベクトル強度
-        Vector relativeVelocity = player.getVelocity().subtract(entity.getVelocity());
-        Vector toEntity = entity.getLocation().toVector().subtract(player.getLocation().toVector()).normalize();
-        double approachSpeed = relativeVelocity.dot(toEntity); // 内積で接近速度を算出
-
-        if (approachSpeed > 0.2) {
-            score += 0.3; // 突っ込んできている時は危険
-        }
-
-        // --- 3. 精密な視線（エイム）チェック ---
-        // プレイヤーの視線ベクトルと自分への方向ベクトルの合致度
-        Vector lookVec = player.getLocation().getDirection();
-        double aimConcentration = lookVec.dot(toEntity); // 1.0に近いほど正確に自分を向いている
-
-        if (aimConcentration > 0.98) { // ほぼ正面
-            score += 0.3;
-        } else if (aimConcentration < 0.8) {
-            score -= 0.2; // 横を向いているなら隙がある
-        }
-
-        // --- 4. 操作入力による「殺気」の検知 ---
-        if (player.getAttackCooldown() > 0.9) {
-            score += 0.2;
-        }
-        if (player.isSneaking()) {
-            score += 0.1; // 溜め動作の警戒
-        }
-
-        // --- 5. Sキー引き撃ち（Kiting）の検知 ---
-        // プレイヤーが後ろに下がりながら攻撃準備をしている場合
-        double backpedalSpeed = relativeVelocity.dot(lookVec);
-        if (backpedalSpeed < -0.1 && player.getAttackCooldown() > 0.8) {
-            // これは「ハメ」の典型的な動き。あえてImminenceを高くして「様子見(OBSERVE)」を誘発させる
-            score += 0.2;
-        }
-
-        return Math.max(0.0, Math.min(1.0, score));
-    }
-
-    /**
-     * カルマンフィルタの概念を応用した予測モデル
-     */
-    private Vector predictFutureLocationImproved(Player player, double seconds) {
-        Vector currentLoc = player.getLocation().toVector();
-        Vector currentVelocity = player.getVelocity();
-
-        // 1. 加速度（変化量）の算出
-        Vector acceleration = currentVelocity.clone().subtract(lastPlayerVelocity);
-        lastPlayerVelocity = currentVelocity.clone();
-
-        // 2. 「動きの安定性」をスコア化 (カルマンゲインの代用)
-        // 急激な方向転換をしている時は 0 に近づき、安定している時は 1 に近づく
-        double stability = 1.0 / (1.0 + acceleration.lengthSquared() * 5.0);
-        stability = Math.max(0.2, stability); // 最低限の予測は残す
-
-        // 3. 予測計算
-        // 未来位置 = 現在地 + (速度 * 時間) + (0.5 * 加速度 * 時間^2)
-        double ticks = seconds * 20;
-        Vector velocityComponent = currentVelocity.clone().multiply(ticks);
-        Vector accelerationComponent = acceleration.clone().multiply(0.5 * Math.pow(ticks, 2));
-
-        // 安定度(stability)に応じて、加速度成分をどれだけ信じるか調整
-        // 不規則な動き（stability低）の時は、現在地に比重を置く
-        Vector predictedMovement = velocityComponent.add(accelerationComponent).multiply(stability);
-
-        return currentLoc.add(predictedMovement);
-    }
-
-    private BanditDecision resolveDecision(LiquidBrain brain, BanditContext context, double enemyDist) {
+    private BanditDecision resolveDecisionV1(LiquidBrain brain, BanditContext context, double enemyDist) {
         BanditDecision d = new BanditDecision();
+        d.engine_version = "v1.0";
         d.decision = new BanditDecision.DecisionCore();
         d.movement = new BanditDecision.MovementPlan();
         d.communication = new BanditDecision.Communication();
 
-        double agg = brain.aggression.get();
-        double fear = brain.fear.get();
-        double ref = brain.reflex.get();
-        double morale = brain.morale;
-
-        // デバッグログ用にFrustrationも追加
-        d.reasoning = String.format("M:%.2f A:%.2f R:%.2f Ad:%.2f Fr:%.2f",
-                morale, agg, ref, brain.adrenaline, brain.frustration);
-
-        // --- 【新設】不満度（Frustration）の蓄積ロジック ---
-        // 「後退しているのに敵がまだ近い」＝ハメられている可能性が高い
-        if (d.decision.action_type != null && d.decision.action_type.equals("RETREAT") && enemyDist < 6.0) {
-            brain.frustration += 0.05; // 毎チック蓄積
+        // 不満度(Frustration)の蓄積: 下がっているのに敵が近い＝ハメられている
+        if (enemyDist < 6.0 && brain.morale < 0.3) {
+            brain.frustration += 0.05;
         }
 
-        // --- 【超重要】バースト・カウンター（キレる挙動） ---
-        // 不満が冷静さを超えた時、恐怖を無視して「死なば諸共」の突撃を開始する
+        d.reasoning = String.format("M:%.2f A:%.2f R:%.2f Ad:%.2f Fr:%.2f",
+                brain.morale, brain.aggression.get(), brain.reflex.get(), brain.adrenaline, brain.frustration);
+
+        // A. 逆上（AMBUSH）: 不満が冷静さを超えた時
         if (brain.frustration > brain.composure) {
             d.decision.action_type = "AMBUSH";
-            d.movement.strategy = "SPRINT_ZIGZAG"; // ジグザグ突撃で槍を避けやすく
-            d.decision.use_skill = "Four_consecutive_attacks";    // スキルを強制使用
+            d.movement.strategy = "SPRINT_ZIGZAG";
+            d.decision.use_skill = "Four_consecutive_attacks";
             d.communication.voice_line = "ENOUGH OF THIS!";
-
-            // 一度発動したら不満をリセットし、アドレナリンを最大にする
             brain.frustration = 0;
             brain.adrenaline = 1.0;
             return d;
         }
 
-        // --- 予測回避（Pre-emptive Evasion） ---
-        // 実際に殴られる（Ref > 0.8）前でも、未来の危険度が高いなら「予備動作」に入る
-        if (brain.reflex.get() > 0.6 && brain.reflex.get() < 0.8) {
-            d.decision.action_type = "OBSERVE";
-            d.movement.strategy = "MAINTAIN_DISTANCE";
-            d.communication.voice_line = "I see what you're doing...";
-            return d;
-        }
-
-        // --- 戦略：ハメ殺し対策の「様子見（OBSERVE）」 ---
-        if (morale < 0.2 && enemyDist < 5.0) {
-            d.decision.action_type = "OBSERVE";
-            d.movement.strategy = "MAINTAIN_DISTANCE";
-            // 様子見中は不満が少しずつ溜まる（イライラしてくる）
-            brain.frustration += 0.02;
-            return d;
-        }
-
-        // --- 反射回避 ---
-        if (ref > 0.8) {
+        // B. 反射回避
+        if (brain.reflex.get() > 0.8) {
             d.decision.action_type = "EVADE";
-            d.movement.strategy = (fear > 0.5) ? "BACKSTEP" : "SIDESTEP";
+            d.movement.strategy = (brain.fear.get() > 0.5) ? "BACKSTEP" : "SIDESTEP";
             return d;
         }
 
-        // --- 通常行動 ---
-        if (morale > 0.5) {
+        // C. 様子見（ハメ対策）
+        if (brain.morale < 0.2 && enemyDist < 5.0) {
+            d.decision.action_type = "OBSERVE";
+            d.movement.strategy = "MAINTAIN_DISTANCE";
+            return d;
+        }
+
+        // D. 通常行動
+        if (brain.morale > 0.5) {
             d.decision.action_type = "ATTACK";
             d.movement.destination = "ENEMY";
         } else {
             d.decision.action_type = "RETREAT";
             d.movement.destination = "NEAREST_COVER";
+        }
+
+        return d;
+    }
+
+    private double calculateAttackImminence(Player player, double dist, Mob entity) {
+        if (player == null) return 0.0;
+        double score = 0.0;
+
+        // 武器リーチ判定 (槍などは6m)
+        double weaponReach = 3.5;
+        String mainHand = player.getInventory().getItemInMainHand().getType().name().toLowerCase();
+        if (mainHand.contains("spear") || mainHand.contains("needle") || mainHand.contains("trident")) weaponReach = 6.0;
+        score += Math.max(0, 1.0 - (dist / weaponReach)) * 0.4;
+
+        // 接近速度
+        Vector relativeVelocity = player.getVelocity().subtract(entity.getVelocity());
+        Vector toEntity = entity.getLocation().toVector().subtract(player.getLocation().toVector()).normalize();
+        if (relativeVelocity.dot(toEntity) > 0.2) score += 0.3;
+
+        // エイムチェック
+        if (player.getLocation().getDirection().dot(toEntity) > 0.98) score += 0.3;
+
+        return Math.max(0.0, Math.min(1.0, score));
+    }
+
+    private Vector predictFutureLocationImproved(Player player, double seconds) {
+        Vector currentLoc = player.getLocation().toVector();
+        Vector currentVelocity = player.getVelocity();
+        Vector acceleration = currentVelocity.clone().subtract(lastPlayerVelocity);
+        lastPlayerVelocity = currentVelocity.clone();
+
+        double stability = 1.0 / (1.0 + acceleration.lengthSquared() * 5.0);
+        stability = Math.max(0.2, stability);
+
+        double ticks = seconds * 20;
+        Vector predictedMovement = currentVelocity.clone().multiply(ticks)
+                .add(acceleration.clone().multiply(0.5 * Math.pow(ticks, 2)))
+                .multiply(stability);
+
+        return currentLoc.add(predictedMovement);
+    }
+
+    private BanditDecision thinkV2(BanditContext context, LiquidBrain brain, Mob bukkitEntity) {
+        // V1の物理層・リキッド演算をベースとして実行
+        BanditDecision d = thinkV1(context, brain, bukkitEntity);
+        d.engine_version = "v2.0-Tactical";
+
+        // 戦術的優位性の更新（ヒット率や被弾率から計算）
+        brain.updateTacticalAdvantage();
+        double advantage = brain.tacticalMemory.combatAdvantage;
+
+        if (bukkitEntity.getTarget() instanceof Player) {
+            Player target = (Player) bukkitEntity.getTarget();
+            LiquidBrain.AttackPattern pattern = brain.enemyPatterns.get(target.getUniqueId());
+
+            // --- 1. 時空間パターンマッチング (V2核心) ---
+            double patternMatchScore = 0.0;
+            if (pattern != null && pattern.sampleCount > 2) {
+                long ticksSinceLast = bukkitEntity.getTicksLived() - pattern.lastAttackTick;
+
+                // 時間軸の合致度
+                double timingScore = Math.max(0, 1.0 - Math.abs(ticksSinceLast - pattern.averageInterval) / 20.0);
+                // 空間軸（間合い）の合致度
+                double distScore = Math.max(0, 1.0 - Math.abs(context.environment.nearby_enemies.get(0).dist - pattern.preferredDist) / 2.0);
+
+                patternMatchScore = (timingScore * 0.5) + (distScore * 0.5);
+            }
+
+            // --- 2. 戦術的分岐 (Tactical Branching) ---
+
+            // A. 【圧倒的劣勢】(Advantage < 0.3): 徹底防御 & 分析モード
+            if (advantage < 0.3) {
+                d.decision.action_type = "DESPERATE_DEFENSE";
+                d.movement.strategy = "MAINTAIN_DISTANCE"; // 距離をとり、相手を観察する
+                // 劣勢時は反射(Reflex)を無理やり引き上げ、回避に専念させる
+                brain.reflex.update(1.0, 0.9);
+                d.reasoning += " | TACTICAL: DEFENSIVE";
+            }
+
+            // B. 【カウンター狙い】: パターンが一致し、かつ冷静な時
+            else if (patternMatchScore > 0.7 && brain.composure > 0.4) {
+                d.decision.action_type = "COUNTER";
+                d.movement.strategy = "SIDESTEP_COUNTER"; // 相手の攻撃リズムに合わせて横に避けつつ殴る
+                d.decision.use_skill = "Counter_Stance";
+                d.reasoning += " | TACTICAL: PATTERN_READ";
+            }
+
+            // C. 【圧倒的優勢】(Advantage > 0.7): 殲滅モード
+            else if (advantage > 0.7) {
+                d.decision.action_type = "OVERWHELM";
+                d.movement.strategy = "SPRINT_ZIGZAG"; // 逃がさず、ジグザグに追い詰める
+                d.decision.use_skill = "Execution_Strike";
+                d.reasoning += " | TACTICAL: AGGRESSIVE";
+            }
+
+            // D. 【誘い受け (Baiting)】: 膠着状態かつ余裕がある時
+            else if (advantage >= 0.4 && advantage <= 0.6 && brain.frustration < 0.3) {
+                // 20%の確率で、あえて無防備なフリをして踏み込みを誘う
+                if (Math.random() < 0.2) {
+                    d.decision.action_type = "BAITING";
+                    d.movement.strategy = "NONE";
+                    d.communication.voice_line = "Is that all you've got?";
+                    d.reasoning += " | TACTICAL: BAITING";
+                }
+            }
         }
 
         return d;

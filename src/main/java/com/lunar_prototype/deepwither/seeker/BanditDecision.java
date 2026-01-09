@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither.seeker;
 
 public class BanditDecision {
+    public String engine_version = "v1.0";
+
     public DecisionCore decision;
     public MovementPlan movement;
     public Communication communication;

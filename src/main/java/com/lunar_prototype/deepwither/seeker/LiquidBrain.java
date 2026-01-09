@@ -1,5 +1,10 @@
 package com.lunar_prototype.deepwither.seeker;
 
+import com.lunar_prototype.deepwither.seeker.v2.BehaviorProfile;
+import org.bukkit.util.Vector;
+
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
@@ -18,6 +23,44 @@ public class LiquidBrain {
 
     public double accumulatedReward = 0.0;
     public double accumulatedPenalty = 0.0;
+
+    public class AttackPattern {
+        public long lastAttackTick;
+        public double lastAttackDist;
+        public double averageInterval; // 平均攻撃間隔 (Ticks)
+        public double preferredDist;   // 好みの攻撃距離
+        public int sampleCount;
+    }
+
+    // LiquidBrain 内にプレイヤーUUID紐付けで保持
+    public Map<UUID, AttackPattern> enemyPatterns = new HashMap<>();
+
+    public class TacticalMemory {
+        public double hitRate = 0.5;       // 自分の攻撃が当たっている率
+        public double dodgeRate = 0.5;     // 敵の攻撃を避けている率
+        public double combatAdvantage = 0.5; // 総合的な優位性 (0.0: 絶望 ~ 1.0: 圧倒)
+
+        // 過去10回分の攻防記録（簡略化のためカウンターで管理）
+        public int myHits = 0;
+        public int myMisses = 0;
+        public int takenHits = 0;
+        public int avoidedHits = 0;
+    }
+
+    public final TacticalMemory tacticalMemory = new TacticalMemory();
+
+    /**
+     * 戦術的優位性の更新
+     */
+    public void updateTacticalAdvantage() {
+        // 自分の攻撃成功率と回避成功率から計算
+        double offense = (double) tacticalMemory.myHits / Math.max(1, tacticalMemory.myHits + tacticalMemory.myMisses);
+        double defense = (double) tacticalMemory.avoidedHits / Math.max(1, tacticalMemory.takenHits + tacticalMemory.avoidedHits);
+
+        // 指数移動平均で優位性をじわじわ更新
+        double currentSnapshot = (offense * 0.6) + (defense * 0.4);
+        tacticalMemory.combatAdvantage = (tacticalMemory.combatAdvantage * 0.8) + (currentSnapshot * 0.2);
+    }
 
     public LiquidBrain(UUID uuid) {
         Random random = new Random(uuid.getMostSignificantBits());
@@ -51,5 +94,58 @@ public class LiquidBrain {
 
         accumulatedReward = 0;
         accumulatedPenalty = 0;
+    }
+
+    /**
+     * @param isMiss 空振り（ダメージが発生していない）かどうか
+     */
+    public void recordAttack(UUID playerUUID, long currentTick, double distance, boolean isMiss, Vector playerDirection, Vector toMob) {
+        AttackPattern p = enemyPatterns.computeIfAbsent(playerUUID, k -> new AttackPattern());
+
+        // --- タクティカル・フィルタ ---
+
+        // 1. 距離フィルタ (8m以上の空振りは無視)
+        if (isMiss && distance > 8.0) return;
+
+        // 2. エイムフィルタ (Mobの方向を向いていない空振りは無視)
+        // ドット積が 0.7 程度（約45度以内）でなければ攻撃の意思なしと判定
+        if (isMiss && playerDirection.dot(toMob) < 0.7) return;
+
+        if (p.lastAttackTick > 0) {
+            long interval = currentTick - p.lastAttackTick;
+
+            // 3. インターバル・下限フィルタ (5tick未満の連打はノイズ)
+            if (interval < 5) return;
+
+            if (interval < 200) {
+                // 空振りの場合は少し控えめに学習させる（重み 0.1）
+                // 命中弾は 0.3 の重みで学習し、リズムの中心とする
+                double weight = isMiss ? 0.1 : 0.3;
+
+                p.averageInterval = (p.averageInterval * (1.0 - weight)) + (interval * weight);
+                p.preferredDist = (p.preferredDist * (1.0 - weight)) + (distance * weight);
+                p.sampleCount++;
+            }
+        }
+        p.lastAttackTick = currentTick;
+    }
+
+    // V2: 事前学習モデルの適用
+    public void applyProfile(BehaviorProfile profile) {
+        if (profile == null) return;
+
+        // 初期状態にバイアスをかける (例: 攻撃的な個体として事前学習されている場合)
+        if (profile.neuron_biases.containsKey("aggression")) {
+            this.aggression.update(profile.neuron_biases.get("aggression"), 1.0);
+        }
+
+        // 攻撃リズムの初期値を設定 (V2 頻度予測用)
+        if (profile.default_attack_interval > 0) {
+            AttackPattern p = new AttackPattern();
+            p.averageInterval = profile.default_attack_interval;
+            p.preferredDist = profile.default_attack_dist;
+            p.sampleCount = 5; // 既知の知識としてカウント
+            // enemyPatterns は全プレイヤー共有のベース知識として扱うか検討
+        }
     }
 }
