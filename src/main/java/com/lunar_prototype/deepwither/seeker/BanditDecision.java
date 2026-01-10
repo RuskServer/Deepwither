@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither.seeker;
 
+import org.bukkit.util.Vector;
+
 public class BanditDecision {
     public String engine_version = "v1.0";
 
@@ -18,6 +20,7 @@ public class BanditDecision {
     public static class MovementPlan {
         public String strategy;
         public String destination; // "NEAREST_COVER", "ENEMY", "NONE"
+        public Vector jitter_vector = new Vector(0, 0, 0); // これを追加
     }
 
     public static class Communication {

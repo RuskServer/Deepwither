@@ -36,7 +36,14 @@ public class SeekerAIEngine {
 
         // 3. バージョン選択と意思決定
         // 例: レベル10以上の個体は将来的にV2エンジンを使用する準備
-        String version = (activeMob.getLevel() >= 10) ? "v2" : "v1";
+        String version;
+        if (activeMob.getLevel() >= 20) {
+            version = "v3";
+        } else if (activeMob.getLevel() >= 10) {
+            version = "v2";
+        } else {
+            version = "v1";
+        }
         BanditDecision decision = liquidEngine.think(version, context, brain, bukkitMob);
 
         // 4. ログ出力
