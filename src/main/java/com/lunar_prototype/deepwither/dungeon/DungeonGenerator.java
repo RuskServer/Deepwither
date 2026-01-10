@@ -337,10 +337,6 @@ public class DungeonGenerator {
         }
     }
 
-    private boolean isCollision(BlockVector3 min, BlockVector3 max, Set<BlockVector3> ignoreOrigins) {
-
-    // Shrink slightly in X and Z to allow touching faces (2 block buffer for more
-    // tolerance)
     private boolean isCollision(BlockVector3 min, BlockVector3 max, List<PlacedPart> ignoreParts) {
         // Shrink slightly in X and Z
         int testMinX = min.getX() + 1;
