@@ -18,7 +18,7 @@ import org.jetbrains.annotations.NotNull;
 
 import static io.papermc.paper.command.brigadier.Commands.*;
 
-public class BoosterCommand implements DeepWitherCommand {
+public final class BoosterCommand implements DeepWitherCommand {
     private static final String COMMAND_NAME = "expbooster";
     private static final String ARG_PLAYER = "player";
     private static final String ARG_MULTIPLIER = "multiplier";

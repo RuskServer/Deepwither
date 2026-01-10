@@ -18,7 +18,7 @@ import org.jetbrains.annotations.NotNull;
 
 import static io.papermc.paper.command.brigadier.Commands.*;
 
-public class MarketCommand implements DeepWitherCommand {
+public final class MarketCommand implements DeepWitherCommand {
     private static final String COMMAND_NAME = "market";
     private static final String ARG_PRICE = "price";
 

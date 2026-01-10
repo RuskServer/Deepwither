@@ -9,7 +9,7 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import org.jetbrains.annotations.NotNull;
 
-public class PvpCommand implements DeepWitherCommand {
+public final class PvpCommand implements DeepWitherCommand {
     public static final String COMMAND_NAME = "pvp";
 
     private final PvpWorldHandler pvpWorldHandler;
