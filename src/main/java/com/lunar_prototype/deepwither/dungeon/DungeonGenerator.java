@@ -268,11 +268,16 @@ public class DungeonGenerator {
                 // Length >= 5: Priority ROOM (Branch)
                 // Middle: Mixed
 
-                if (chainLength < 3) {
+                if (currentPart.getType().equals("ROOM")) {
+                    // After a ROOM, ALWAYS try to extend with a HALLWAY first to avoid ROOM -> ROOM
+                    // clutter
+                    typesToTry.add("HALLWAY");
+                    // Optionally allow ROOM with very low chance, but for now let's be strict
+                } else if (chainLength < 3) {
                     typesToTry.add("HALLWAY");
                     if (random.nextDouble() > 0.8)
                         typesToTry.add("ROOM"); // Low chance for room early
-                } else if (chainLength >= 5) {
+                } else if (chainLength >= 4) {
                     typesToTry.add("ROOM");
                     typesToTry.add("HALLWAY"); // Fallback
                 } else {
