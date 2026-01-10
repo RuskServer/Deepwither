@@ -28,6 +28,11 @@ public class Actuator {
     }
 
     private void handleMovement(Mob entity, BanditDecision.MovementPlan move, Location coverLoc) {
+        if (entity.getVelocity().length() > 0.5 && entity.getVelocity().length() < 0.01) {
+            // 強制的にジャンプさせてスタック解除を試みる
+            entity.setVelocity(entity.getVelocity().setY(0.4));
+        }
+
         if (move.strategy != null) {
             // --- 既存の回避ロジック ---
             if (move.strategy.equals("BACKSTEP") || move.strategy.equals("SIDESTEP")) {
@@ -89,7 +94,25 @@ public class Actuator {
     }
 
     /**
-     * 瞬間的なベクトル加速 (Arc Raiders風)
+     * 進行方向に壁があるか、または足場がないかをチェックする
+     */
+    private boolean isPathBlocked(Mob entity, Vector direction) {
+        Location eyeLoc = entity.getEyeLocation();
+        // 進行方向 1.5m 先をチェック
+        Location targetCheck = eyeLoc.clone().add(direction.clone().multiply(1.5));
+
+        // 1. 壁判定（目の高さが空気でないならブロックがある）
+        if (!targetCheck.getBlock().getType().isAir()) return true;
+
+        // 2. 崖判定（足元が深すぎるなら止まる）
+        Location floorCheck = targetCheck.clone().subtract(0, 2, 0);
+        if (floorCheck.getBlock().getType().isAir()) return true;
+
+        return false;
+    }
+
+    /**
+     * 瞬間的なベクトル加速
      */
     private void performBurstDash(Mob entity, double power) {
         if (entity.getTarget() == null) return;
@@ -97,10 +120,17 @@ public class Actuator {
         Vector dir = entity.getTarget().getLocation().toVector()
                 .subtract(entity.getLocation().toVector()).normalize();
 
-        // Y軸を少し浮かせることで摩擦を減らし、爆発的な推進力を得る
-        entity.setVelocity(dir.multiply(power).setY(0.15));
+        // 障害物チェック
+        if (isPathBlocked(entity, dir)) {
+            // 壁があるなら、ダッシュではなくPathfinderによる「回り込み」に切り替え
+            entity.getPathfinder().moveTo(entity.getTarget().getLocation(), 2.0);
+            return;
+        }
 
-        // 安全なパーティクル演出（Colorデータ不要なもの）
+        // Y軸成分を動的に調整：少し上向きに飛ばすことで、ハーフブロックや階段で止まりにくくする
+        double upwardBias = entity.getLocation().add(dir).getBlock().getType().isSolid() ? 0.4 : 0.15;
+        entity.setVelocity(dir.multiply(power).setY(upwardBias));
+
         entity.getWorld().spawnParticle(org.bukkit.Particle.CLOUD, entity.getLocation(), 10, 0.2, 0.1, 0.2, 0.05);
     }
 
@@ -128,13 +158,17 @@ public class Actuator {
         Location self = entity.getLocation();
         Vector toTarget = entity.getTarget().getLocation().toVector().subtract(self.toVector()).normalize();
 
-        // 垂直ベクトルを作成（右か左か）
         Vector side = new Vector(-toTarget.getZ(), 0, toTarget.getX()).normalize();
-        if (entity.getTicksLived() % 40 < 20) side.multiply(-1); // 20tickごとに方向転換
+        if (entity.getTicksLived() % 40 < 20) side.multiply(-1);
 
-        // 前進と横移動をミックスした高速ベクトル
-        Vector finalVel = toTarget.multiply(0.6).add(side.multiply(1.2)).setY(0.1);
-        entity.setVelocity(finalVel);
+        Vector finalVel = toTarget.multiply(0.6).add(side.multiply(1.2));
+
+        // 進行方向がブロックなら、サイドベクトルの反転を試みる
+        if (isPathBlocked(entity, finalVel.clone().normalize())) {
+            finalVel = toTarget.multiply(0.6).add(side.multiply(-1.2)); // 逆方向にスライド
+        }
+
+        entity.setVelocity(finalVel.setY(0.1));
     }
 
     /**
