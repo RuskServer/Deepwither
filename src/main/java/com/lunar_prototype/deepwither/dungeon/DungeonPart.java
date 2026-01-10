@@ -162,19 +162,26 @@ public class DungeonPart {
         if (normalizedAngle == 0)
             return vec;
 
-        // WorldEdit AffineTransform.rotateY is Counter-Clockwise (CCW).
-        // Minecraft Yaw is Clockwise (CW).
-        // To rotate a vector CW by 'angle', we pass CCW '-angle' to rotateY.
-        AffineTransform transform = new AffineTransform().rotateY(-normalizedAngle);
+        // Minecraft Yaw: 0=+Z, 90=-X, 180=-Z, 270=+X (Clockwise)
+        // Standard Math Rotation (CCW): x' = x*cos + z*sin, z' = -x*sin + z*cos
+        // For Clockwise 'angle':
+        double rad = Math.toRadians(normalizedAngle);
+        double cos = Math.cos(rad);
+        double sin = Math.sin(rad);
 
-        // Use apply to get a NEW vector, and use precise floor/round
-        var v3 = transform.apply(vec.toVector3());
+        double x = vec.getX();
+        double z = vec.getZ();
 
-        // Using Math.round for block coordinates
+        // 2D Rotation matrix for Clockwise:
+        // x' = x*cos - z*sin
+        // z' = x*sin + z*cos
+        double newX = x * cos - z * sin;
+        double newZ = x * sin + z * cos;
+
         return BlockVector3.at(
-                Math.toIntExact(Math.round(v3.getX())),
-                Math.toIntExact(Math.round(v3.getY())),
-                Math.toIntExact(Math.round(v3.getZ())));
+                Math.toIntExact(Math.round(newX)),
+                vec.getY(),
+                Math.toIntExact(Math.round(newZ)));
     }
 
     public BlockVector3 getOriginRelToEntry() {

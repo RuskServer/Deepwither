@@ -189,15 +189,9 @@ public class DungeonGenerator {
         }
 
         // Place Start (Assume safe/no collision at origin)
-        // Adjust start rotation to face the desired direction?
-        // Typically ENTRANCE exits to +Z (South), so Rotation 0 -> Exits South.
-        // If we want it to face South, we use startRotation + 180 (similar to straight
-        // gen pivot)
-        // Let's stick to straight gen logic: first part is rotated 180 to align?
-        // Actually, let's just place it at Rotation 0 and assume standard flow.
-
-        // For 'straight' gen compat:
-        int finalStartRotation = startRotation + 180;
+        // Calculate rotation for Entrance (StartPart) to face targetYaw.
+        // targetYaw is player's yaw (0, 90, 180, 270).
+        int finalStartRotation = (startRotation - startPart.getIntrinsicYaw() + 360) % 360;
 
         List<PlacedPart> ignoreParts = new ArrayList<>();
         if (pastePart(world, startOrigin, startPart, finalStartRotation, ignoreParts)) {
@@ -388,17 +382,18 @@ public class DungeonGenerator {
                     clipboard.getOrigin(), part.getOriginRelToEntry()));
             try (EditSession editSession = WorldEdit.getInstance().newEditSession(BukkitAdapter.adapt(world))) {
                 ClipboardHolder holder = new ClipboardHolder(clipboard);
-                // WorldEdit rotateY is CCW. rotation is CW.
-                holder.setTransform(new AffineTransform().rotateY(-rotation));
+
+                // WorldEdit rotate2D is CCW. our rotation is CW.
+                // To rotate CW by 90, we rotate CCW by 270 (or -90).
+                if (rotation != 0) {
+                    holder.rotate2D(-rotation);
+                }
 
                 BlockVector3 rotatedOriginOffset = part.getRotatedOriginOffset(rotation);
-                // WorldEdit pastes the CLIPBOARD ORIGIN to the target location.
-                // Our rotatedOriginOffset is (Origin - Entry) rotated.
-                // So (EntryWorldPos + rotatedOriginOffset) correctly places the rotated Origin.
                 BlockVector3 pastePos = entryPos.add(rotatedOriginOffset);
 
                 Deepwither.getInstance().getLogger().info(String.format(
-                        "[Paste] Part:%s | Rot:%d | OriginRelEntry:%s | RotatedOffset:%s | FinalPastePos:%s",
+                        "[Paste] Part:%s | Rot(CW):%d | OriginRelEntry:%s | RotatedOffset:%s | FinalPastePos:%s",
                         part.getFileName(), rotation, part.getOriginRelToEntry(), rotatedOriginOffset, pastePos));
 
                 Operation operation = holder.createPaste(editSession).to(pastePos).ignoreAirBlocks(true).build();
