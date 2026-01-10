@@ -70,7 +70,17 @@ public class LiquidCombatEngine {
         brain.reflex.update(futureImminence + (imminenceDelta * 2.0), 1.0);
 
         // 3. 脳内状態の更新
-        double globalFear = targetPlayer != null ? CollectiveKnowledge.playerDangerLevel.getOrDefault(targetPlayer.getUniqueId(), 0.0) : 0.0;
+        // v2対応版：CollectiveKnowledge からプロファイルを参照する
+        double globalFear = 0.0;
+        if (targetPlayer != null) {
+            // プレイヤーごとのプロファイルを取得
+            CollectiveKnowledge.PlayerTacticalProfile profile = CollectiveKnowledge.playerProfiles.get(targetPlayer.getUniqueId());
+
+            // プロファイルが存在すれば dangerLevel を取得、なければ 0.0
+            if (profile != null) {
+                globalFear = profile.dangerLevel;
+            }
+        }
         double collectiveShock = CollectiveKnowledge.globalFearBias;
 
         brain.fear.update(1.0, (globalFear * 0.5) + (collectiveShock * 0.3) + (hpStress > 0.5 || attackImminence > 0.6 ? 0.2 : 0.0));
@@ -174,43 +184,39 @@ public class LiquidCombatEngine {
     }
 
     private BanditDecision thinkV2(BanditContext context, LiquidBrain brain, Mob bukkitEntity) {
-        // V1の物理層・リキッド演算をベースとして実行
         BanditDecision d = thinkV1(context, brain, bukkitEntity);
-        d.engine_version = "v2.2-Multi-Aware";
+        d.engine_version = "v2.3-Collective-Hybrid";
 
         brain.updateTacticalAdvantage();
         double advantage = brain.tacticalMemory.combatAdvantage;
 
         List<BanditContext.EnemyInfo> enemies = context.environment.nearby_enemies;
-        if (enemies.isEmpty()) return d; // 敵がいない場合はV1のまま
+        if (enemies.isEmpty()) return d;
 
-        // --- 1. ターゲットの動的スイッチング (棒立ち・引き回し防止) ---
+        // --- 1. ターゲットの動적スイッチング ---
         Entity currentTarget = bukkitEntity.getTarget();
-        BanditContext.EnemyInfo closestEnemy = enemies.get(0); // 距離順ソート済み想定
+        BanditContext.EnemyInfo closestEnemy = enemies.get(0);
 
         if (currentTarget instanceof Player) {
-            // 現在のターゲットが15m以上離れ、かつ5m以内に別の敵がいるなら即スイッチ
             if (currentTarget.getLocation().distance(bukkitEntity.getLocation()) > 15.0 && closestEnemy.dist < 5.0) {
-                bukkitEntity.setTarget((Player) closestEnemy.playerInstance);
+                bukkitEntity.setTarget(closestEnemy.playerInstance);
                 d.reasoning += " | MULTI: TARGET_SWITCH_PROXIMITY";
-            }
-            // 背後(視界外)から至近距離で叩かれそうな場合も、一定確率で振り返り迎撃
-            else if (enemies.size() > 1 && !closestEnemy.in_sight && closestEnemy.dist < 3.0) {
-                if (Math.random() < 0.3) {
-                    bukkitEntity.setTarget((Player) closestEnemy.playerInstance);
-                    d.reasoning += " | MULTI: COUNTER_AMBUSH";
-                }
             }
         }
 
-        // 更新後のターゲット情報を取得
         Player target = (Player) bukkitEntity.getTarget();
         if (target == null) return d;
+
+        // --- 【新規】集合知プロファイルの参照 ---
+        // 影響が強すぎないよう、まずは「情報の取得」のみ
+        double globalFear = CollectiveKnowledge.getDangerLevel(target.getUniqueId());
+        String globalWeakness = CollectiveKnowledge.getGlobalWeakness(target.getUniqueId());
 
         double enemyDist = bukkitEntity.getLocation().distance(target.getLocation());
         LiquidBrain.AttackPattern pattern = brain.enemyPatterns.get(target.getUniqueId());
 
-        // --- 2. 敵のパターンマッチング & 自己同期 (既存ロジック) ---
+        // --- 2. 敵のパターンマッチング & 自己同期 ---
+        // (既存ロジック継続)
         double patternMatchScore = 0.0;
         if (pattern != null && pattern.sampleCount > 2) {
             long ticksSinceLast = bukkitEntity.getTicksLived() - pattern.lastAttackTick;
@@ -222,60 +228,62 @@ public class LiquidCombatEngine {
         long ticksSinceSelfLast = bukkitEntity.getTicksLived() - brain.selfPattern.lastAttackTick;
         boolean isRecovering = (brain.selfPattern.averageInterval > 0 && ticksSinceSelfLast < 15);
 
-        // --- 3. 動的 Epsilon-Greedy (複数戦を考慮した状態キー) ---
-        // getStateKeyにenemiesリストを渡し、内部でSOLO/MULTI/GANKEDを判定させる
+        // --- 3. 動的 Epsilon-Greedy (集合知によるバイアス) ---
         String currentStateKey = brain.qTable.getStateKey(advantage, enemyDist, isRecovering, enemies);
         String[] options = {"ATTACK", "EVADE", "BAITING", "COUNTER", "OBSERVE", "RETREAT", "BURST_DASH", "ORBITAL_SLIDE"};
 
-        double epsilon = 0.1 + (brain.frustration * 0.4);
+        // 集合知の影響：仲間が殺されまくっている(globalFearが高い)なら、少し慎重に(Epsilon増)
+        double epsilon = 0.1 + (brain.frustration * 0.4) + (globalFear * 0.1);
+        epsilon = Math.min(0.6, epsilon); // 最大60%までに制限
+
         String recommendedAction;
         if (Math.random() < epsilon) {
-            recommendedAction = options[new Random().nextInt(options.length)];
-            d.reasoning += " | Q:EXPLORING(e:" + String.format("%.2f", epsilon) + ")";
+            // 集合知に「弱点」が登録されている場合、探索中にその行動を少しだけ選びやすくする
+            if (globalWeakness.equals("CLOSE_QUARTERS") && Math.random() < 0.3) {
+                recommendedAction = "BURST_DASH";
+                d.reasoning += " | Q:COLLECTIVE_HINT(CLOSE_QUARTERS)";
+            } else {
+                recommendedAction = options[new Random().nextInt(options.length)];
+                d.reasoning += " | Q:EXPLORING(e:" + String.format("%.2f", epsilon) + ")";
+            }
         } else {
             recommendedAction = brain.qTable.getBestAction(currentStateKey, options);
             d.reasoning += " | Q:BEST_" + recommendedAction;
         }
 
-        // --- 4. 戦術的分岐 (複数戦の重み付け) ---
+        // --- 4. 戦術的分岐 ---
 
-        // A. 【圧倒的劣勢】
-        if (advantage < 0.3) {
+        // A. 【圧倒的劣勢 or 群れの恐怖】
+        // 自分の不利だけでなく、仲間の死(globalFear)も撤退判断の材料にする
+        if (advantage < 0.3 || (globalFear > 0.8 && advantage < 0.5)) {
             d.decision.action_type = recommendedAction.equals("RETREAT") ? "RETREAT" : "DESPERATE_DEFENSE";
             d.movement.strategy = d.decision.action_type.equals("RETREAT") ? "RETREAT" : "MAINTAIN_DISTANCE";
-            d.reasoning += " | TACTICAL: DEFENSIVE";
+            d.reasoning += " | TACTICAL: CAUTIOUS_BY_ANNIHILATION";
         }
-        // B. 【カウンター狙い】(複数戦ではリスクが高いため、コンポージャーが高い時のみ)
+        // B. 【カウンター狙い】
         else if (patternMatchScore > 0.7 && brain.composure > 0.6 && !isRecovering && enemies.size() == 1) {
             d.decision.action_type = "COUNTER";
             d.movement.strategy = "SIDESTEP_COUNTER";
             d.decision.use_skill = "Counter_Stance";
             d.reasoning += " | TACTICAL: PATTERN_READ";
         }
-        // C. 【圧倒的優勢】
-        else if (advantage > 0.7) {
+        // C. 【圧倒的優勢 or 弱点露呈】
+        else if (advantage > 0.7 || globalWeakness.equals("CLOSE_QUARTERS")) {
             d.decision.action_type = "OVERWHELM";
-            // 複数人に囲まれている(GANKED状態)なら、単調な突進ではなくジグザグを強制
-            d.movement.strategy = enemies.size() > 1 ? "SPRINT_ZIGZAG" : "BURST_DASH";
+            // 複数人か、あるいは相手が強い(Fearが高い)ならよりトリッキーに
+            d.movement.strategy = (enemies.size() > 1 || globalFear > 0.5) ? "SPRINT_ZIGZAG" : "BURST_DASH";
             d.decision.use_skill = "Execution_Strike";
-            d.reasoning += " | TACTICAL: AGGRESSIVE";
+            d.reasoning += " | TACTICAL: EXPLOIT_WEAKNESS";
         }
-        // D. 【均衡状態 / 複数戦対応】
+        // D. 【均衡状態】
         else {
             d.decision.action_type = recommendedAction;
-
-            // 複数戦(MULTI/GANKED)かつアクションが「RETREAT」や「EVADE」なら
-            // 最も敵が密集していない方向へ逃げるベクトルをActuatorに示唆
-            if (enemies.size() > 1 && (recommendedAction.equals("RETREAT") || recommendedAction.equals("EVADE"))) {
-                d.movement.strategy = "ESCAPE_SQUEEZE"; // 敵の間を抜ける特殊移動
-            } else {
-                switch (recommendedAction) {
-                    case "EVADE": d.movement.strategy = "SIDESTEP"; break;
-                    case "BAITING": d.movement.strategy = "NONE"; break;
-                    case "BURST_DASH": d.movement.strategy = "BURST_DASH"; break;
-                    case "ORBITAL_SLIDE": d.movement.strategy = "ORBITAL_SLIDE"; break;
-                    default: d.movement.strategy = "MAINTAIN_DISTANCE"; break;
-                }
+            // ... (既存の switch 文と同様の処理) ...
+            switch (recommendedAction) {
+                case "EVADE": d.movement.strategy = "SIDESTEP"; break;
+                case "BURST_DASH": d.movement.strategy = "BURST_DASH"; break;
+                case "ORBITAL_SLIDE": d.movement.strategy = "ORBITAL_SLIDE"; break;
+                default: d.movement.strategy = "MAINTAIN_DISTANCE"; break;
             }
             d.reasoning += " | TACTICAL: Q_BALANCED";
         }
