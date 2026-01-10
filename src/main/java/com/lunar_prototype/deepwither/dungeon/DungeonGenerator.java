@@ -102,7 +102,10 @@ public class DungeonGenerator {
         }
 
         private BlockVector3 rotate(int x, int y, int z, int angle) {
-            AffineTransform transform = new AffineTransform().rotateY(angle);
+            // Convert Clockwise (Minecraft Yaw) to Counter-Clockwise (WorldEdit
+            // AffineTransform)
+            int weAngle = (360 - (angle % 360)) % 360;
+            AffineTransform transform = new AffineTransform().rotateY(weAngle);
             var v = transform.apply(BlockVector3.at(x, y, z).toVector3());
             return BlockVector3.at(Math.round(v.getX()), Math.round(v.getY()), Math.round(v.getZ()));
         }
@@ -348,7 +351,7 @@ public class DungeonGenerator {
 
             BlockVector3 originalExit = currentPart.getExitOffsets().get(i);
             int localExitYaw = currentPart.getExitDirection(originalExit);
-            int exitWorldYaw = (localExitYaw - currentRot + 360) % 360;
+            int exitWorldYaw = (localExitYaw + currentRot) % 360;
 
             placeCap(world, connectionPoint, exitWorldYaw, ancestors);
         }
@@ -466,7 +469,10 @@ public class DungeonGenerator {
 
             try (EditSession editSession = WorldEdit.getInstance().newEditSession(BukkitAdapter.adapt(world))) {
                 ClipboardHolder holder = new ClipboardHolder(clipboard);
-                holder.setTransform(new AffineTransform().rotateY(rotation));
+                // Convert Clockwise (Minecraft Yaw) to Counter-Clockwise (WorldEdit
+                // AffineTransform)
+                int weRotation = (360 - (rotation % 360)) % 360;
+                holder.setTransform(new AffineTransform().rotateY(weRotation));
 
                 Operation operation = holder
                         .createPaste(editSession)
@@ -551,7 +557,10 @@ public class DungeonGenerator {
 
     // Helpers
     private BlockVector3 rotateVector(BlockVector3 vec, int angle) {
-        AffineTransform transform = new AffineTransform().rotateY(angle);
+        // Convert Clockwise (Minecraft Yaw) to Counter-Clockwise (WorldEdit
+        // AffineTransform)
+        int weAngle = (360 - (angle % 360)) % 360;
+        AffineTransform transform = new AffineTransform().rotateY(weAngle);
         var v = transform.apply(vec.toVector3());
         return BlockVector3.at(Math.round(v.getX()), Math.round(v.getY()), Math.round(v.getZ()));
     }

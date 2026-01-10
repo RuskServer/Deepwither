@@ -167,7 +167,10 @@ public class DungeonPart {
         if (normalizedAngle < 0)
             normalizedAngle += 360;
 
-        AffineTransform transform = new AffineTransform().rotateY(normalizedAngle);
+        // Convert Clockwise (Minecraft Yaw) to Counter-Clockwise (WorldEdit
+        // AffineTransform)
+        int weAngle = (360 - normalizedAngle) % 360;
+        AffineTransform transform = new AffineTransform().rotateY(weAngle);
         var v3 = transform.apply(vec.toVector3());
         return BlockVector3.at(Math.round(v3.getX()), Math.round(v3.getY()), Math.round(v3.getZ()));
     }
