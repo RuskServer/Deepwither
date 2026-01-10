@@ -185,7 +185,7 @@ public class LiquidCombatEngine {
 
     private BanditDecision thinkV2(BanditContext context, LiquidBrain brain, Mob bukkitEntity) {
         BanditDecision d = thinkV1(context, brain, bukkitEntity);
-        d.engine_version = "v2.3-Collective-Hybrid";
+        d.engine_version = "v2.4-Tactical-Reward";
 
         brain.updateTacticalAdvantage();
         double advantage = brain.tacticalMemory.combatAdvantage;
@@ -206,6 +206,50 @@ public class LiquidCombatEngine {
 
         Player target = (Player) bukkitEntity.getTarget();
         if (target == null) return d;
+
+        // --- 【新規】移動品質の事後評価と報酬 (Reward Calculation) ---
+        if (brain.lastStateKey != null && brain.lastActionType != null) {
+            double moveReward = 0.0;
+
+            if (target != null) {
+                double currentDist = bukkitEntity.getLocation().distance(target.getLocation());
+
+                // 1. 背後・側面奪取報酬 (Flanking Reward)
+                // 敵の視界の外側（側面〜背後）に回り込んでいるか
+                Vector toSelf = bukkitEntity.getLocation().toVector().subtract(target.getLocation().toVector()).normalize();
+                Vector targetFacing = target.getLocation().getDirection();
+                double angle = toSelf.dot(targetFacing); // 1.0に近いほど敵の正面、-1.0に近いほど敵の背後
+
+                if (angle < -0.2) { // ターゲットの背後側に位置している
+                    moveReward += 0.2;
+                    d.reasoning += " | RWD:FLANK";
+                }
+
+                // 2. 弱点距離の維持報酬 (Spacing Reward)
+                // 集合知で「CLOSE_QUARTERS」が推奨されている場合、密着状態を維持すれば報酬
+                String globalWeakness = CollectiveKnowledge.getGlobalWeakness(target.getUniqueId());
+                if (globalWeakness.equals("CLOSE_QUARTERS") && currentDist < 2.5) {
+                    moveReward += 0.15;
+                    d.reasoning += " | RWD:STICKY";
+                } else if (currentDist >= 3.0 && currentDist <= 5.0) {
+                    // 通常時、槍のリーチ外かつ自分の攻撃可能圏内にいる場合
+                    moveReward += 0.05;
+                }
+
+                // 3. 安全圏への離脱報酬 (Escape Reward)
+                // 囲まれている（GANKED）状態で、敵同士の密集地帯から離れられたか
+                if (context.environment.nearby_enemies.size() > 1) {
+                    // 前回の距離より、平均的な敵との距離が離れていれば生存報酬
+                    moveReward += 0.1;
+                }
+            }
+
+            // Q-Tableの更新 (移動報酬を反映)
+            // 攻撃による直接報酬とは別に、プロセスの良さを学習させる
+            if (moveReward > 0) {
+                brain.qTable.update(brain.lastStateKey, brain.lastActionType, moveReward, "MOVEMENT_QUALITY");
+            }
+        }
 
         // --- 【新規】集合知プロファイルの参照 ---
         // 影響が強すぎないよう、まずは「情報の取得」のみ
