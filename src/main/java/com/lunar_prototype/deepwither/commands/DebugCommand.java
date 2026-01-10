@@ -51,10 +51,16 @@ public final class DebugCommand implements DeepWitherCommand {
                 .then(literal("reset")
                     .then(argument("player", ArgumentTypes.player())
                         .executes(this::resetPlayerLevel)))
-                .then(literal("add"))
+                .then(literal("add")
                     .then(argument("player", ArgumentTypes.player())
                         .then(argument("exp", DoubleArgumentType.doubleArg())
-                            .executes(this::addPlayerExp))))
+                            .executes(this::addPlayerExp)))))
             .build();
+    }
+
+    @NotNull
+    @Override
+    public String getDescription() {
+        return "これを使わないようにするのが理想";
     }
 }
