@@ -24,6 +24,8 @@ public class DungeonPart {
 
     private final List<BlockVector3> mobSpawnerOffsets = new ArrayList<>();
 
+    private final List<BlockVector3> lootChestOffsets = new ArrayList<>();
+
     // Bounding Box relative to Origin
     private BlockVector3 minPoint;
     private BlockVector3 maxPoint;
@@ -90,6 +92,16 @@ public class DungeonPart {
                 Deepwither.getInstance().getLogger().info(String.format(
                         "[%s] Found MOB_MARKER(Redstone). Pos:%s", fileName, spawnerVec));
             }
+            if (block.getBlockType().equals(BlockTypes.EMERALD_BLOCK)) {
+                BlockVector3 chestVec = BlockVector3.at(
+                        pos.getX() - origin.getX(),
+                        pos.getY() - origin.getY(),
+                        pos.getZ() - origin.getZ());
+                this.lootChestOffsets.add(chestVec);
+
+                Deepwither.getInstance().getLogger().info(String.format(
+                        "[%s] Found LOOT_MARKER(Emerald). Offset: %s", fileName, chestVec));
+            }
         }
 
         if (!foundEntry) {
@@ -107,6 +119,15 @@ public class DungeonPart {
 
     public List<BlockVector3> getRotatedMobSpawnerOffsets(int rotation) {
         return mobSpawnerOffsets.stream()
+                .map(vec -> transformVector(vec, rotation))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 回転後のルートチェスト（エメラルドブロック）の座標リストを取得
+     */
+    public List<BlockVector3> getRotatedLootChestOffsets(int rotation) {
+        return lootChestOffsets.stream()
                 .map(vec -> transformVector(vec, rotation))
                 .collect(Collectors.toList());
     }

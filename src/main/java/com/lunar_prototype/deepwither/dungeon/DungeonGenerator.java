@@ -1,7 +1,6 @@
 package com.lunar_prototype.deepwither.dungeon;
 
 import com.lunar_prototype.deepwither.Deepwither;
-import com.lunar_prototype.deepwither.MobSpawnManager;
 import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
@@ -42,6 +41,8 @@ public class DungeonGenerator {
     private boolean isMonitoring = false;
 
     private int maxDepth = 10;
+
+    private String lootChestId;
 
     private static class PendingSpawner {
         private final Location location;
@@ -135,6 +136,8 @@ public class DungeonGenerator {
         this.dungeonMobList.addAll(mobs);
 
         this.maxDepth = config.getInt("max_depth", 10);
+
+        this.lootChestId = config.getString("loot_chest", "common_loot_chest");
 
         List<Map<?, ?>> maps = config.getMapList("parts");
 
@@ -449,6 +452,22 @@ public class DungeonGenerator {
 
                 // 監視タスクが動いていなければ開始
                 startSpawnerMonitor();
+            }
+
+            // --- ルートチェスト設置処理 (エメラルドブロック) ---
+            for (BlockVector3 chestOffset : part.getRotatedLootChestOffsets(rotation)) {
+                BlockVector3 chestPos = origin.add(chestOffset);
+
+                // エメラルドブロック（マーカー）を空気にする
+                removeMarker(world, chestPos, Material.EMERALD_BLOCK);
+
+                // Chest設置場所を Location に変換
+                Location loc = new Location(world, chestPos.getX(), chestPos.getY(), chestPos.getZ());
+
+                // LootChestManager を使用して設置 (生成時に即設置)
+                Deepwither.getInstance().getLootChestManager().placeDungeonLootChest(loc, lootChestId);
+
+                Deepwither.getInstance().getLogger().info("Placed LootChest: " + lootChestId + " at " + chestPos);
             }
 
             // 成功としてリストに追加し、メソッドを終了
