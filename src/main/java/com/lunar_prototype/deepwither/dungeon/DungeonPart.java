@@ -177,10 +177,20 @@ public class DungeonPart {
         double newX = x * cos - z * sin;
         double newZ = x * sin + z * cos;
 
-        return BlockVector3.at(
+        BlockVector3 result = BlockVector3.at(
                 Math.toIntExact(Math.round(newX)),
                 vec.getY(),
                 Math.toIntExact(Math.round(newZ)));
+
+        // Detailed logging to trace exact transformation
+        // (Only log for non-zero vectors to avoid spamming)
+        if (x != 0 || z != 0) {
+            Deepwither.getInstance().getLogger().info(String.format(
+                    "[Transform] In:%s | Ang:%d | RawX:%.3f | RawZ:%.3f | Out:%s",
+                    vec, normalizedAngle, newX, newZ, result));
+        }
+
+        return result;
     }
 
     public BlockVector3 getOriginRelToEntry() {
