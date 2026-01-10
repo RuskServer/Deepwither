@@ -53,17 +53,51 @@ public class SeekerAIEngine {
     }
 
     private void observeAndLearn(ActiveMob self, LiquidBrain myBrain) {
-        self.getEntity().getBukkitEntity().getNearbyEntities(10, 10, 10).stream()
+        Mob bukkitSelf = (Mob) self.getEntity().getBukkitEntity();
+
+        bukkitSelf.getNearbyEntities(12, 12, 12).stream()
                 .filter(e -> brainStorage.containsKey(e.getUniqueId()))
                 .forEach(e -> {
                     LiquidBrain peerBrain = brainStorage.get(e.getUniqueId());
-                    if (peerBrain.aggression.get() > myBrain.aggression.get() + 0.2) {
-                        myBrain.aggression.mimic(peerBrain.aggression, 0.05);
-                        myBrain.fear.mimic(peerBrain.fear, 0.05);
-                        if (peerBrain.composure > myBrain.composure) {
-                            myBrain.composure += (peerBrain.composure - myBrain.composure) * 0.05;
+
+                    // 1. 成功体験の模倣 (Q-Table Transfer)
+                    // 仲間が大きな報酬を得ている（＝直近の行動が成功している）場合
+                    if (peerBrain.tacticalMemory.combatAdvantage > myBrain.tacticalMemory.combatAdvantage + 0.2) {
+
+                        if (peerBrain.lastStateKey != null && peerBrain.lastActionType != null) {
+                            // 仲間の「状態」と「行動」を、自分のQ-Tableにも「良いもの」として微調整
+                            // 自分で経験していないが、見て学ぶ（オフポリス学習の簡易版）
+                            myBrain.qTable.update(
+                                    peerBrain.lastStateKey,
+                                    peerBrain.lastActionType,
+                                    0.5, // 自分でやるよりは低い報酬値で「参考」にする
+                                    "IMITATED_STATE"
+                            );
+
+                            // 模倣したことを推論ログに残す
+                            // myBrain.lastReasoning += " | MIMIC: " + peerBrain.lastActionType;
                         }
                     }
+
+                    // 2. 集合知の「再確認」
+                    // 仲間が特定プレイヤーの弱点を見つけているなら、それを自分の脳にも強く刻む
+                    if (bukkitSelf.getTarget() != null) {
+                        UUID targetId = bukkitSelf.getTarget().getUniqueId();
+                        String peerWeakness = CollectiveKnowledge.getGlobalWeakness(targetId);
+                        if (!peerWeakness.equals("NONE")) {
+                            // 集合知を介して、より確信を持って「弱点」を突くようにマインドセットを調整
+                            myBrain.frustration *= 0.8; // 確信を得ることで迷いを減らす
+                        }
+                    }
+
+                    // 3. 感情・リキッドパラメータの同期（既存の強化）
+                    // 仲間の Composure（冷静さ）が高いなら学び、低い（パニック）なら伝染する
+                    double composureDiff = peerBrain.composure - myBrain.composure;
+                    myBrain.composure += composureDiff * 0.1; // 10%の速度で同期
+
+                    // Aggression / Fear の同期（Liquid値のmimicを使用）
+                    myBrain.aggression.mimic(peerBrain.aggression, 0.1);
+                    myBrain.fear.mimic(peerBrain.fear, 0.1);
                 });
     }
 
