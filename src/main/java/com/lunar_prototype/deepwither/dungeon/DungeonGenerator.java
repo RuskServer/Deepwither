@@ -59,12 +59,13 @@ public class DungeonGenerator {
             this.origin = origin;
             this.rotation = rotation;
             // Calculate world bounds based on rotation
+            // NOTE: DungeonPart.getMinPoint()/getMaxPoint() are already RELATIVE TO ENTRY
+            // (not origin)
             BlockVector3 min = part.getMinPoint();
             BlockVector3 max = part.getMaxPoint();
 
-            // Transform local bounds to world bounds
-            // This is a simplified bounding box calculation (AABB)
-            // For precise collision, we'd need to rotate all 8 corners and find min/max
+            // Transform local bounds (relative to Entry) to world bounds
+            // Rotate all 8 corners and find min/max for AABB
             List<BlockVector3> corners = new ArrayList<>();
             corners.add(rotate(min.getX(), min.getY(), min.getZ(), rotation));
             corners.add(rotate(min.getX(), min.getY(), max.getZ(), rotation));
@@ -87,8 +88,13 @@ public class DungeonGenerator {
                 maxZ = Math.max(maxZ, v.getZ());
             }
 
+            // Entry offset from schematic origin, rotated
             BlockVector3 rotatedEntry = part.getRotatedEntryOffset(rotation);
+            // World position of the Entry point
             BlockVector3 worldEntryPos = origin.add(rotatedEntry);
+
+            // min/max are already relative to Entry, so just add worldEntryPos
+            // (DO NOT add rotatedEntry again - it's already accounted for in worldEntryPos)
             this.minBound = BlockVector3.at(minX, minY, minZ).add(worldEntryPos);
             this.maxBound = BlockVector3.at(maxX, maxY, maxZ).add(worldEntryPos);
         }
@@ -385,11 +391,12 @@ public class DungeonGenerator {
     }
 
     private boolean isCollision(BlockVector3 min, BlockVector3 max, BlockVector3 ignoreOrigin) {
-        // Shrink slightly in X and Z to allow touching faces (1 block buffer)
-        int testMinX = min.getX() + 1;
-        int testMaxX = max.getX() - 1;
-        int testMinZ = min.getZ() + 1;
-        int testMaxZ = max.getZ() - 1;
+        // Shrink slightly in X and Z to allow touching faces (2 block buffer for more
+        // tolerance)
+        int testMinX = min.getX() + 2;
+        int testMaxX = max.getX() - 2;
+        int testMinZ = min.getZ() + 2;
+        int testMaxZ = max.getZ() - 2;
 
         if (testMinX > testMaxX || testMinZ > testMaxZ) {
             // Region too small, just check center point
@@ -399,6 +406,10 @@ public class DungeonGenerator {
             testMinZ = testMaxZ = midZ;
         }
 
+        Deepwither.getInstance().getLogger().info(String.format(
+                "  [Collision Check] TestBounds: X[%d,%d] Z[%d,%d] | OrigBounds: %s to %s",
+                testMinX, testMaxX, testMinZ, testMaxZ, min, max));
+
         for (PlacedPart existing : placedParts) {
             // Ignore the direct parent to allow seamless connection
             if (ignoreOrigin != null && existing.origin.equals(ignoreOrigin)) {
@@ -406,11 +417,14 @@ public class DungeonGenerator {
             }
 
             // AABB Collision Check
-            boolean overlap = testMinX <= existing.maxBound.getX() && testMaxX >= existing.minBound.getX() &&
-                    min.getY() <= existing.maxBound.getY() && max.getY() >= existing.minBound.getY() &&
-                    testMinZ <= existing.maxBound.getZ() && testMaxZ >= existing.minBound.getZ();
+            boolean overlapX = testMinX <= existing.maxBound.getX() && testMaxX >= existing.minBound.getX();
+            boolean overlapY = min.getY() <= existing.maxBound.getY() && max.getY() >= existing.minBound.getY();
+            boolean overlapZ = testMinZ <= existing.maxBound.getZ() && testMaxZ >= existing.minBound.getZ();
 
-            if (overlap) {
+            if (overlapX && overlapY && overlapZ) {
+                Deepwither.getInstance().getLogger().info(String.format(
+                        "  [Collision] HIT with [%s] at %s | Existing Bounds: %s to %s",
+                        existing.part.getFileName(), existing.origin, existing.minBound, existing.maxBound));
                 return true;
             }
         }
