@@ -24,10 +24,12 @@ import org.bukkit.Material;
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Collections;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class DungeonGenerator {
@@ -206,9 +208,11 @@ public class DungeonGenerator {
         // For 'straight' gen compat:
         int finalStartRotation = startRotation + 180;
 
-        if (pastePart(world, startOrigin, startPart, finalStartRotation, null)) {
+        if (pastePart(world, startOrigin, startPart, finalStartRotation, new HashSet<>())) {
             // Recurse
-            generateRecursive(world, startPart, startOrigin, finalStartRotation, 1, maxDepth, 0);
+            Set<BlockVector3> ancestors = new HashSet<>();
+            ancestors.add(startOrigin);
+            generateRecursive(world, startPart, startOrigin, finalStartRotation, 1, maxDepth, 0, ancestors);
         }
 
         Deepwither.getInstance().getLogger().info("=== 生成完了: Placed " + placedParts.size() + " parts ===");
@@ -217,11 +221,11 @@ public class DungeonGenerator {
     // Recursive Step
     // Recursive Step
     private void generateRecursive(World world, DungeonPart currentPart, BlockVector3 currentOrigin, int currentRot,
-            int depth, int maxDepth, int chainLength) {
+            int depth, int maxDepth, int chainLength, Set<BlockVector3> ancestors) {
         // Check depth limit
         if (depth >= maxDepth) {
             // Cap all exits since we reached max depth
-            capExits(world, currentPart, currentOrigin, currentRot);
+            capExits(world, currentPart, currentOrigin, currentRot, ancestors);
             return;
         }
 
@@ -302,10 +306,18 @@ public class DungeonGenerator {
                                     nextPart.getFileName(), type, nextOrigin, nextRotation, chainLength, localExitYaw,
                                     exitWorldYaw));
 
-                            if (pastePart(world, nextOrigin, nextPart, nextRotation, currentOrigin)) {
+                            if (pastePart(world, nextOrigin, nextPart, nextRotation, ancestors)) {
                                 int newChain = type.equals("HALLWAY") ? chainLength + 1 : 0;
+
+                                // Create new ancestor set for child (keep last 5 ancestors to allow large
+                                // rooms)
+                                Set<BlockVector3> nextAncestors = new HashSet<>(ancestors);
+                                nextAncestors.add(nextOrigin);
+                                // Optional: limit size if needed, but for dungeon branching, keeping direct
+                                // branch path ancestors is fine
+
                                 generateRecursive(world, nextPart, nextOrigin, nextRotation, depth + 1, maxDepth,
-                                        newChain);
+                                        newChain, nextAncestors);
                                 placedInfo = true;
                                 break; // Break candidate loop
                             }
@@ -322,12 +334,13 @@ public class DungeonGenerator {
 
             // If failed to place anything (Collision or Change skipped), Cap it.
             if (!placedInfo) {
-                placeCap(world, connectionPoint, exitWorldYaw, currentOrigin);
+                placeCap(world, connectionPoint, exitWorldYaw, ancestors);
             }
         }
     }
 
-    private void capExits(World world, DungeonPart currentPart, BlockVector3 currentOrigin, int currentRot) {
+    private void capExits(World world, DungeonPart currentPart, BlockVector3 currentOrigin, int currentRot,
+            Set<BlockVector3> ancestors) {
         List<BlockVector3> rotatedExits = currentPart.getRotatedExitOffsets(currentRot);
         for (int i = 0; i < rotatedExits.size(); i++) {
             BlockVector3 exitOffset = rotatedExits.get(i);
@@ -337,11 +350,11 @@ public class DungeonGenerator {
             int localExitYaw = currentPart.getExitDirection(originalExit);
             int exitWorldYaw = (localExitYaw - currentRot + 360) % 360;
 
-            placeCap(world, connectionPoint, exitWorldYaw, currentOrigin);
+            placeCap(world, connectionPoint, exitWorldYaw, ancestors);
         }
     }
 
-    private void placeCap(World world, BlockVector3 connectionPoint, int exitWorldYaw, BlockVector3 parentOrigin) {
+    private void placeCap(World world, BlockVector3 connectionPoint, int exitWorldYaw, Set<BlockVector3> ancestors) {
         // Try CAP then ENTRANCE (as fallback)
         List<String> capTypes = new ArrayList<>();
         capTypes.add("CAP");
@@ -373,7 +386,7 @@ public class DungeonGenerator {
                                 capPart.getFileName(), connectionPoint, exitWorldYaw, capPart.getIntrinsicYaw(),
                                 baseRotation, nextRotation));
 
-                if (pastePart(world, nextOrigin, capPart, nextRotation, parentOrigin)) {
+                if (pastePart(world, nextOrigin, capPart, nextRotation, ancestors)) {
                     Deepwither.getInstance().getLogger().info("Placed CAP at " + connectionPoint);
                     return; // Capped successfully
                 }
@@ -390,7 +403,7 @@ public class DungeonGenerator {
         }
     }
 
-    private boolean isCollision(BlockVector3 min, BlockVector3 max, BlockVector3 ignoreOrigin) {
+    private boolean isCollision(BlockVector3 min, BlockVector3 max, Set<BlockVector3> ignoreOrigins) {
         // Shrink slightly in X and Z to allow touching faces (2 block buffer for more
         // tolerance)
         int testMinX = min.getX() + 2;
@@ -411,8 +424,8 @@ public class DungeonGenerator {
                 testMinX, testMaxX, testMinZ, testMaxZ, min, max));
 
         for (PlacedPart existing : placedParts) {
-            // Ignore the direct parent to allow seamless connection
-            if (ignoreOrigin != null && existing.origin.equals(ignoreOrigin)) {
+            // Ignore the ancestors to allow seamless connection and large parts
+            if (ignoreOrigins != null && ignoreOrigins.contains(existing.origin)) {
                 continue;
             }
 
@@ -432,12 +445,12 @@ public class DungeonGenerator {
     }
 
     private boolean pastePart(World world, BlockVector3 origin, DungeonPart part, int rotation,
-            BlockVector3 ignoreOrigin) {
+            Set<BlockVector3> ignoreOrigins) {
         // 1. Calculate world bounds for this part
         PlacedPart candidate = new PlacedPart(part, origin, rotation);
 
         // 2. Check overlap using shrunken 'interior' bounds
-        if (isCollision(candidate.minBound, candidate.maxBound, ignoreOrigin)) {
+        if (isCollision(candidate.minBound, candidate.maxBound, ignoreOrigins)) {
             Deepwither.getInstance().getLogger().info("Collision detected at " + origin);
             return false;
         }
