@@ -3,6 +3,7 @@ package com.lunar_prototype.deepwither.dungeon;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.sk89q.worldedit.extent.clipboard.Clipboard;
 import com.sk89q.worldedit.math.BlockVector3;
+import com.sk89q.worldedit.math.transform.AffineTransform;
 import com.sk89q.worldedit.world.block.BlockTypes;
 
 import java.util.ArrayList;
@@ -14,12 +15,13 @@ public class DungeonPart {
     private final String type;
     private final int length;
 
-    // List of exits, mobs, and loot relative to the Entry (Gold Block)
+    // Origin(Schematic保存時の立ち位置)からの相対座標
+    private int entryX, entryY, entryZ;
 
     // Multiple exits support
     private final List<BlockVector3> exitOffsets = new ArrayList<>();
 
-    // Spawn Markers
+    // Spawn Markers (Preserved feature)
     private final List<BlockVector3> mobMarkers = new ArrayList<>();
     private final List<BlockVector3> lootMarkers = new ArrayList<>();
 
@@ -36,73 +38,55 @@ public class DungeonPart {
     // Flow direction (Yaw) from Entry to Exit
     private int intrinsicYaw = 0;
 
-    // Schematic Origin relative to Entry (rotated along with other vectors)
-    private BlockVector3 originRelToEntry = BlockVector3.at(0, 0, 0);
-
     public void scanMarkers(Clipboard clipboard) {
         BlockVector3 origin = clipboard.getOrigin();
 
-        // Clear existing data to prevent accumulation
+        // Calculate Bounding Box relative to Origin
+        this.minPoint = clipboard.getRegion().getMinimumPoint().subtract(origin);
+        this.maxPoint = clipboard.getRegion().getMaximumPoint().subtract(origin);
+
+        Deepwither.getInstance().getLogger()
+                .info(String.format("[%s] Scanning Part. Origin:%s | Bounds Rel:[%s, %s]",
+                        fileName, origin, minPoint, maxPoint));
+
+        boolean foundEntry = false;
         this.exitOffsets.clear();
         this.mobMarkers.clear();
         this.lootMarkers.clear();
 
-        // 1. First pass: Find Entry (Gold Block)
-        boolean foundEntry = false;
-        BlockVector3 entryPosLocal = BlockVector3.at(0, 0, 0);
-
         for (BlockVector3 pos : clipboard.getRegion()) {
-            if (clipboard.getFullBlock(pos).getBlockType().equals(BlockTypes.GOLD_BLOCK)) {
-                entryPosLocal = pos;
+            var block = clipboard.getFullBlock(pos);
+
+            // 金ブロック (入口)
+            if (foundEntry == false && block.getBlockType().equals(BlockTypes.GOLD_BLOCK)) {
+                this.entryX = pos.getX() - origin.getX();
+                this.entryY = pos.getY() - origin.getY();
+                this.entryZ = pos.getZ() - origin.getZ();
                 foundEntry = true;
-                break;
+            }
+            // 鉄ブロック (出口)
+            else if (block.getBlockType().equals(BlockTypes.IRON_BLOCK)) {
+                // Force Flat Y
+                BlockVector3 exitVec = BlockVector3.at(
+                        pos.getX() - origin.getX(),
+                        this.entryY,
+                        pos.getZ() - origin.getZ());
+                this.exitOffsets.add(exitVec);
+            }
+            // Mob Marker (Redstone)
+            else if (block.getBlockType().equals(BlockTypes.REDSTONE_BLOCK)) {
+                this.mobMarkers.add(pos.subtract(origin));
+            }
+            // Loot Marker (Emerald)
+            else if (block.getBlockType().equals(BlockTypes.EMERALD_BLOCK)) {
+                this.lootMarkers.add(pos.subtract(origin));
             }
         }
 
         if (!foundEntry) {
-            entryPosLocal = origin;
             Deepwither.getInstance().getLogger()
-                    .warning("[" + fileName + "] No Gold Block (Entry) found. Using Origin as Entry.");
+                    .warning("[" + fileName + "] No Gold Block found. Assuming (0,0,0).");
         }
-
-        // originRelToEntry = origin - entryPosLocal
-        this.originRelToEntry = origin.subtract(entryPosLocal);
-
-        // 2. Second pass: Collect everything else, making them relative to ENTRY
-        for (BlockVector3 pos : clipboard.getRegion()) {
-            var block = clipboard.getFullBlock(pos);
-            BlockVector3 currentPos = BlockVector3.at(pos.x(), pos.y(), pos.z());
-            BlockVector3 posRelToEntry = currentPos.subtract(entryPosLocal);
-
-            // Exit (Iron Block)
-            if (block.getBlockType().equals(BlockTypes.IRON_BLOCK)) {
-                // Force Flat Y relative to Entry
-                BlockVector3 exitVec = BlockVector3.at(posRelToEntry.x(), 0, posRelToEntry.z());
-                this.exitOffsets.add(exitVec);
-                Deepwither.getInstance().getLogger()
-                        .info(String.format("[%s] Found EXIT at %s (Rel to Entry)", fileName, exitVec));
-            }
-            // Mob Marker (Redstone)
-            else if (block.getBlockType().equals(BlockTypes.REDSTONE_BLOCK)) {
-                this.mobMarkers.add(posRelToEntry);
-                Deepwither.getInstance().getLogger()
-                        .info(String.format("[%s] Found MOB at %s (Rel to Entry)", fileName, posRelToEntry));
-            }
-            // Loot Marker (Emerald)
-            else if (block.getBlockType().equals(BlockTypes.EMERALD_BLOCK)) {
-                this.lootMarkers.add(posRelToEntry);
-                Deepwither.getInstance().getLogger()
-                        .info(String.format("[%s] Found LOOT at %s (Rel to Entry)", fileName, posRelToEntry));
-            }
-        }
-
-        // 3. Normalize Bounding Box relative to Entry
-        this.minPoint = clipboard.getRegion().getMinimumPoint().subtract(entryPosLocal);
-        this.maxPoint = clipboard.getRegion().getMaximumPoint().subtract(entryPosLocal);
-
-        Deepwither.getInstance().getLogger().info(String.format(
-                "[%s] Scan Complete: %d exits, %d mob, %d loot. Origin relative to Entry: %s",
-                fileName, exitOffsets.size(), mobMarkers.size(), lootMarkers.size(), originRelToEntry));
 
         calculateIntrinsicYaw();
     }
@@ -113,97 +97,45 @@ public class DungeonPart {
             return;
         }
 
-        // primExit is already relative to Entry (0,0,0)
         BlockVector3 primExit = exitOffsets.get(0);
-        int dx = primExit.x();
-        int dz = primExit.z();
+        int dx = primExit.getX() - entryX;
+        int dz = primExit.getZ() - entryZ;
 
-        if (Math.abs(dx) >= Math.abs(dz)) {
+        if (Math.abs(dx) > Math.abs(dz)) {
             this.intrinsicYaw = (dx > 0) ? 270 : 90;
         } else {
             this.intrinsicYaw = (dz > 0) ? 0 : 180;
         }
-        Deepwither.getInstance().getLogger()
-                .info("[" + fileName + "] Intrinsic Yaw: " + intrinsicYaw + " (Primary Exit: " + primExit + ")");
     }
 
     public int getIntrinsicYaw() {
         return intrinsicYaw;
     }
 
-    /**
-     * Get the rotated Schematic Origin relative to the Entry.
-     */
-    public BlockVector3 getRotatedOriginOffset(int rotation) {
-        return transformVector(originRelToEntry, rotation);
+    public BlockVector3 getRotatedEntryOffset(int rotation) {
+        return transformVector(getEntryOffset(), rotation);
     }
 
-    /**
-     * 回転後の「出口」オフセットリストを取得
-     */
     public List<BlockVector3> getRotatedExitOffsets(int rotation) {
         return exitOffsets.stream()
                 .map(vec -> transformVector(vec, rotation))
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Y-axis Rotation. Positive angle = Clockwise (Minecraft Yaw).
-     */
-    public BlockVector3 transformVector(BlockVector3 vec, int angle) {
+    private BlockVector3 transformVector(BlockVector3 vec, int angle) {
         if (vec == null)
             return BlockVector3.at(0, 0, 0);
-
-        int normalizedAngle = angle % 360;
-        if (normalizedAngle < 0)
-            normalizedAngle += 360;
-
+        int normalizedAngle = (angle % 360 + 360) % 360;
         if (normalizedAngle == 0)
             return vec;
 
-        // Minecraft Yaw: 0=+Z, 90=-X, 180=-Z, 270=+X (Clockwise)
-        // Standard Math Rotation (CCW): x' = x*cos + z*sin, z' = -x*sin + z*cos
-        // For Clockwise 'angle':
-        double rad = Math.toRadians(normalizedAngle);
-        double cos = Math.cos(rad);
-        double sin = Math.sin(rad);
-
-        double x = vec.x();
-        double z = vec.z();
-
-        // 2D Rotation matrix for Clockwise:
-        // x' = x*cos - z*sin
-        // z' = x*sin + z*cos
-        double newX = x * cos - z * sin;
-        double newZ = x * sin + z * cos;
-
-        BlockVector3 result = BlockVector3.at(
-                Math.toIntExact(Math.round(newX)),
-                vec.y(),
-                Math.toIntExact(Math.round(newZ)));
-
-        // Detailed logging to trace exact transformation
-        // (Only log for non-zero vectors to avoid spamming)
-        if (x != 0 || z != 0) {
-            Deepwither.getInstance().getLogger().info(String.format(
-                    "[Transform] In:%s | Ang:%d | RawX:%.3f | RawZ:%.3f | Out:%s",
-                    vec, normalizedAngle, newX, newZ, result));
-        }
-
-        return result;
+        AffineTransform transform = new AffineTransform().rotateY(normalizedAngle);
+        var v3 = transform.apply(vec.toVector3());
+        return BlockVector3.at(Math.round(v3.getX()), Math.round(v3.getY()), Math.round(v3.getZ()));
     }
 
-    public BlockVector3 getOriginRelToEntry() {
-        return originRelToEntry;
-    }
-
-    // Deprecated or used for primary exit if needed
-    public BlockVector3 getFirstExitOffset() {
-        return exitOffsets.isEmpty() ? BlockVector3.ZERO : exitOffsets.get(0);
-    }
-
-    public List<BlockVector3> getExitOffsets() {
-        return exitOffsets;
+    public BlockVector3 getEntryOffset() {
+        return BlockVector3.at(entryX, entryY, entryZ);
     }
 
     public List<BlockVector3> getMobMarkers() {
@@ -212,6 +144,10 @@ public class DungeonPart {
 
     public List<BlockVector3> getLootMarkers() {
         return lootMarkers;
+    }
+
+    public List<BlockVector3> getExitOffsets() {
+        return exitOffsets;
     }
 
     public BlockVector3 getMinPoint() {
@@ -223,11 +159,9 @@ public class DungeonPart {
     }
 
     public int getExitDirection(BlockVector3 exit) {
-        // 'exit' is already relative to Entry (0,0,0).
-        int dx = exit.x();
-        int dz = exit.z();
-
-        if (Math.abs(dx) >= Math.abs(dz)) {
+        int dx = exit.getX() - entryX;
+        int dz = exit.getZ() - entryZ;
+        if (Math.abs(dx) > Math.abs(dz)) {
             return (dx > 0) ? 270 : 90;
         } else {
             return (dz > 0) ? 0 : 180;
