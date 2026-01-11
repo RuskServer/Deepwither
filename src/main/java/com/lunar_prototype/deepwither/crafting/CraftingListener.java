@@ -38,6 +38,25 @@ public class CraftingListener implements Listener {
         ItemStack clicked = e.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.AIR) return;
 
+        // --- 詳細画面での「製作開始」処理 ---
+        if (title.startsWith(RecipeDetailGUI.DETAIL_PREFIX)) {
+            if (clicked.getType() == Material.ANVIL) {
+                String recipeId = clicked.getItemMeta().getPersistentDataContainer().get(CraftingGUI.RECIPE_KEY, PersistentDataType.STRING);
+                if (plugin.getCraftingManager().startCrafting(player, recipeId)) {
+                    player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
+                    player.closeInventory(); // 製作開始したら閉じる
+                } else {
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+                }
+                return;
+            }
+            // 戻るボタン
+            if (clicked.getItemMeta().getPersistentDataContainer().has(CraftingGUI.NAV_ACTION_KEY, PersistentDataType.STRING)) {
+                plugin.getCraftingGUI().openRecipeList(player);
+                return;
+            }
+        }
+
         // --- ナビゲーション & タブ処理 ---
         if (clicked.getItemMeta().getPersistentDataContainer().has(CraftingGUI.NAV_ACTION_KEY, PersistentDataType.STRING)) {
             String action = clicked.getItemMeta().getPersistentDataContainer().get(CraftingGUI.NAV_ACTION_KEY, PersistentDataType.STRING);
@@ -65,13 +84,37 @@ public class CraftingListener implements Listener {
         if (title.contains("Craft -")) { // レシピ一覧画面
             NamespacedKey key = CraftingGUI.RECIPE_KEY;
             if (clicked.getItemMeta().getPersistentDataContainer().has(key, PersistentDataType.STRING)) {
-                String recipeId = clicked.getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
 
-                // ロック確認はManager側でも行われるが、UIフィードバック用にここでも音を変える
-                if (plugin.getCraftingManager().startCrafting(player, recipeId)) {
-                    player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
-                } else {
+                String recipeId = clicked.getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
+                CraftingRecipe recipe = plugin.getCraftingManager().getRecipe(recipeId);
+
+                if (recipe == null) return;
+
+                // ロック確認
+                CraftingData data = plugin.getCraftingManager().getData(player);
+                boolean isLocked = (recipe.getGrade() != FabricationGrade.STANDARD) && !data.hasRecipe(recipe.getId());
+
+                if (isLocked) {
                     player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+                    player.sendMessage(ChatColor.RED + "この設計図はまだ習得していません。");
+                    return;
+                }
+
+                // --- クリック種類による分岐 ---
+                if (e.getClick().isLeftClick()) {
+                    // 左クリック: 詳細画面を開く
+                    new RecipeDetailGUI().openDetail(player, recipe);
+                    player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.2f);
+
+                } else if (e.getClick().isRightClick()) {
+                    // 右クリック: 即時製作開始 (元のロジック)
+                    if (plugin.getCraftingManager().startCrafting(player, recipeId)) {
+                        player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
+                        // 製作開始のフィードバックメッセージなど
+                        player.sendMessage(ChatColor.GREEN + "製作を開始しました: " + recipeId);
+                    } else {
+                        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+                    }
                 }
             }
         }
