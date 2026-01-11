@@ -29,7 +29,7 @@ public class CraftingListener implements Listener {
     @EventHandler
     public void onInventoryClick(InventoryClickEvent e) {
         String title = e.getView().getTitle();
-        if (!title.startsWith(CraftingGUI.TITLE_PREFIX)) {
+        if (!title.startsWith(CraftingGUI.TITLE_PREFIX) && !title.startsWith(RecipeDetailGUI.DETAIL_PREFIX)) {
             return;
         }
 
