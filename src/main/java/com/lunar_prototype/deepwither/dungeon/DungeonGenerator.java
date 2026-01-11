@@ -517,26 +517,36 @@ public class DungeonGenerator {
                     return;
                 }
 
-                // スポーン済みのものを除去するためのイテレータ
+                // --- 負荷対策パラメータ ---
+                int spawnedThisTick = 0;
+                final int MAX_SPAWNS_PER_CHECK = 3; // 1回のチェック(1秒)で最大3体まで
+                long delayBetweenMobs = 0; // 同時湧きの中での時間差(Tick)
+                // -----------------------
+
                 java.util.Iterator<PendingSpawner> iterator = pendingSpawners.iterator();
-                while (iterator.hasNext()) {
+                while (iterator.hasNext() && spawnedThisTick < MAX_SPAWNS_PER_CHECK) {
                     PendingSpawner spawner = iterator.next();
 
-                    // その地点にプレイヤーが近づいたかチェック (半径12ブロック程度)
                     boolean playerNearby = spawner.location.getWorld().getNearbyEntities(spawner.location, 12, 12, 12).stream()
                             .anyMatch(entity -> entity instanceof org.bukkit.entity.Player);
 
                     if (playerNearby) {
-                        // 実際にモブを召喚
-                        Deepwither.getInstance().getMobSpawnManager().spawnDungeonMob(spawner.location, spawner.mobId, spawner.level);
+                        spawnedThisTick++;
 
-                        // パーティクルを出すと「現れた感」が出てクオリティが上がります
-                        spawner.location.getWorld().spawnParticle(org.bukkit.Particle.CLOUD, spawner.location, 20, 0.5, 1, 0.5, 0.1);
+                        // 1体ごとに数Tickずつずらして召喚する (さらに負荷を分散)
+                        new org.bukkit.scheduler.BukkitRunnable() {
+                            @Override
+                            public void run() {
+                                Deepwither.getInstance().getMobSpawnManager().spawnDungeonMob(spawner.location, spawner.mobId, spawner.level);
+                                spawner.location.getWorld().spawnParticle(org.bukkit.Particle.CLOUD, spawner.location, 20, 0.5, 1, 0.5, 0.1);
+                            }
+                        }.runTaskLater(Deepwither.getInstance(), delayBetweenMobs);
 
-                        iterator.remove(); // リストから削除（二度と湧かない）
+                        delayBetweenMobs += 5L; // 次のモブは0.25秒後に召喚
+                        iterator.remove();
                     }
                 }
             }
-        }.runTaskTimer(Deepwither.getInstance(), 20L, 20L); // 1秒ごとにチェック
+        }.runTaskTimer(Deepwither.getInstance(), 20L, 20L);
     }
 }
