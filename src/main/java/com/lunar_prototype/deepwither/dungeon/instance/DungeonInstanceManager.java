@@ -81,7 +81,7 @@ public class DungeonInstanceManager implements IManager {
 
         // 2. ダンジョン生成実行
         DungeonGenerator generator = new DungeonGenerator(dungeonType);
-        generator.generateBranching(world, 10, 0); // depth10などで生成
+        generator.generateBranching(world,0); // depth10などで生成
 
         // 3. インスタンス管理に追加
         DungeonInstance dInstance = new DungeonInstance(worldName, world);
