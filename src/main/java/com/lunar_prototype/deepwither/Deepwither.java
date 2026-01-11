@@ -3,6 +3,8 @@ package com.lunar_prototype.deepwither;
 import com.lunar_prototype.deepwither.api.DeepwitherPartyAPI;
 import com.lunar_prototype.deepwither.booster.BoosterManager;
 import com.lunar_prototype.deepwither.command.*;
+import com.lunar_prototype.deepwither.commands.CommandRegistrar;
+import com.lunar_prototype.deepwither.commands.DebugCommand;
 import com.lunar_prototype.deepwither.companion.CompanionCommand;
 import com.lunar_prototype.deepwither.companion.CompanionGuiListener;
 import com.lunar_prototype.deepwither.companion.CompanionListener;
@@ -392,6 +394,7 @@ public final class Deepwither extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new BossKillListener(), this);
         this.getServer().getPluginManager().registerEvents(new CombatAnalyzer(this.companionManager, this), this);
 
+        CommandRegistrar.registerCommands(this.getLifecycleManager(), List.of(new DebugCommand(this)));
         this.getCommand("artifact").setExecutor(new ArtifactGUICommand(artifactGUI));
         getCommand("trader").setExecutor(new TraderCommand(traderManager));
         getCommand("credit").setExecutor(new CreditCommand(creditManager));
