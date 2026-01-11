@@ -68,6 +68,11 @@ public class AnimationListener implements Listener {
             return;
         }
 
+        if (isScytheWeapon(weapon)) {
+            spawnScytheSlashEffect(entity);
+            return;
+        }
+
         // --- 通常剣 ---
         if (isSwordWeapon(weapon)) {
             // MythicMobsのスキルキャスト
@@ -111,7 +116,58 @@ public class AnimationListener implements Listener {
                 || hasCategory(item, "ハンマー");
     }
 
+    private boolean isScytheWeapon(ItemStack item) {
+        return hasCategory(item, "鎌");
+    }
+
     /* ---------------- 演出系 (Player -> LivingEntity に変更) ---------------- */
+
+    private void spawnScytheSlashEffect(LivingEntity entity) {
+        Location start = entity.getEyeLocation().subtract(0, 0.3, 0); // 少し下げて腰～胸の高さに
+        Vector dir = start.getDirection().normalize();
+
+        // 右から左へなぎ払う（約120度の範囲）
+        // -60度(右)から+60度(左)へ展開
+        for (double angle = -60; angle <= 60; angle += 10) {
+            double radians = Math.toRadians(angle);
+
+            // 視線方向(dir)を軸に、水平方向に回転させる計算
+            double x = dir.getX() * Math.cos(radians) - dir.getZ() * Math.sin(radians);
+            double z = dir.getX() * Math.sin(radians) + dir.getZ() * Math.cos(radians);
+
+            // 鎌のリーチ（2.5ブロック程度）
+            Location particleLoc = start.clone().add(new Vector(x, dir.getY(), z).multiply(2.5));
+
+            // パーティクルの種類：SWEEP_ATTACK（なぎ払い）や雲、またはカスタム
+            entity.getWorld().spawnParticle(
+                    Particle.SWEEP_ATTACK,
+                    particleLoc,
+                    1,
+                    0, 0, 0,
+                    0
+            );
+
+            // 軌跡を強調するためのサブパーティクル
+            entity.getWorld().spawnParticle(
+                    Particle.SQUID_INK, // 黒いエフェクト（鎌らしい不気味さ）
+                    particleLoc,
+                    1,
+                    0.02, 0.02, 0.02,
+                    0.01
+            );
+        }
+
+        // 効果音：少し重みのある風切り音
+        entity.getWorld().playSound(
+                entity.getLocation(),
+                Sound.ENTITY_PLAYER_ATTACK_SWEEP,
+                1.0f,
+                0.7f // ピッチを下げて重厚感を出す
+        );
+
+        // MythicMobsのスキルがあれば連携（例: 闇属性の斬撃など）
+        // castMythicSkill(entity, "dark_scythe_slash");
+    }
 
     // 槍の突き
     private void spawnSpearThrustEffect(LivingEntity entity) {
