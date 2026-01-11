@@ -1,6 +1,7 @@
 package com.lunar_prototype.deepwither.dungeon.instance;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.api.DeepwitherPartyAPI;
 import com.lunar_prototype.deepwither.dungeon.DungeonGenerator;
 import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.*;
@@ -52,24 +53,18 @@ public class DungeonInstanceManager implements IManager {
     }
 
     /**
-     * 新しいダンジョンインスタンスを生成し、ホストプレイヤーを転送する
+     * 新しいダンジョンインスタンスを生成し、ホストプレイヤーとそのパーティーを転送する
      */
     public void createInstance(Player host, String dungeonType) {
         UUID hostId = host.getUniqueId();
-        // インスタンスID生成 (ワールド名)
         String worldName = "dw_inst_" + hostId.toString().substring(0, 8) + "_" + System.currentTimeMillis();
 
         plugin.getLogger().info("Generating dungeon instance: " + worldName + " type: " + dungeonType);
 
-        // 既存のジェネレーターロジックを使用してワールド生成
-        // 注意: DungeonGeneratorは既存のワールドに対して生成を行う設計になっているため、
-        // 先に空のワールドを作成する必要がある。
-
+        // 1. 空のワールド（Void）を作成
         WorldCreator creator = new WorldCreator(worldName);
         creator.type(WorldType.FLAT);
-        creator.generatorSettings(
-                "{\"layers\":[{\"block\":\"minecraft:air\",\"height\":1}],\"biome\":\"minecraft:the_void\"}"); // Void
-                                                                                                               // world
+        creator.generatorSettings("{\"layers\":[{\"block\":\"minecraft:air\",\"height\":1}],\"biome\":\"minecraft:the_void\"}");
         creator.generateStructures(false);
 
         World world = creator.createWorld();
@@ -78,23 +73,35 @@ public class DungeonInstanceManager implements IManager {
             return;
         }
 
-        // Gamerule設定
-        world.setGameRule(GameRule.DO_MOB_SPAWNING, false); // ダンジョン独自のスポーンを使うならFalse
+        // ゲームルールの設定
+        world.setGameRule(GameRule.DO_MOB_SPAWNING, false);
         world.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
-        world.setGameRule(GameRule.KEEP_INVENTORY, true); // ★ Keep Inventory Enabled
-        world.setTime(18000); // Midnight
+        world.setGameRule(GameRule.KEEP_INVENTORY, true); // Keep Inventory有効
+        world.setTime(18000); // 深夜
 
-        // ダンジョン生成実行
+        // 2. ダンジョン生成実行
         DungeonGenerator generator = new DungeonGenerator(dungeonType);
-        // 生成設定: depth 10, startRotation 0 (仮)
-        generator.generateBranching(world,0);
+        generator.generateBranching(world, 10, 0); // depth10などで生成
 
-        // インスタンス管理に追加
+        // 3. インスタンス管理に追加
         DungeonInstance dInstance = new DungeonInstance(worldName, world);
         activeInstances.put(worldName, dInstance);
 
-        // ホストを参加させる
-        joinDungeon(host, worldName);
+        // 4. パーティーメンバーの転送処理
+        DeepwitherPartyAPI partyApi = plugin.getPartyAPI(); // APIのインスタンスを取得
+
+        if (partyApi.isInParty(host)) {
+            // パーティーを組んでいる場合、オンラインメンバー全員を取得
+            Set<Player> members = partyApi.getOnlinePartyMembers(host);
+
+            for (Player member : members) {
+                member.sendMessage(ChatColor.LIGHT_PURPLE + "パーティーリーダーがダンジョンを生成しました！転送します...");
+                joinDungeon(member, worldName);
+            }
+        } else {
+            // ソロの場合、自分だけ転送
+            joinDungeon(host, worldName);
+        }
     }
 
     /**
