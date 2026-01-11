@@ -80,10 +80,11 @@ public class PlayerInventoryRestrictor implements Listener {
 
                     if (slot < HOTBAR_HEAD || HOTBAR_TAIL < slot) {
                         var isWeapon = isWeapon(source);
+                        var hasWeaponInHotbar = hasWeaponInHotbar(inventory);
 
-                        applyStrategy(isWeapon && hasWeaponInHotbar(inventory) ? CANCEL : QUICKMOVE, inventory, source);
+                        applyStrategy(isWeapon && hasWeaponInHotbar ? CANCEL : QUICKMOVE, inventory, source);
 
-                        if (isWeapon && !source.isEmpty()) {
+                        if (isWeapon && !source.isEmpty() && hasWeaponInHotbar) {
                             player.sendMessage(MULTIPLE_WEAPONS);
                         }
 
