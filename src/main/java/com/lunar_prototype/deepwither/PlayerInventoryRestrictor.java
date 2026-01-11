@@ -82,10 +82,12 @@ public class PlayerInventoryRestrictor implements Listener {
                         event.setCancelled(true);
                     }
                 } else if (clicked.getType() != InventoryType.PLAYER) {
-                    var isWeapon = isWeapon(source);
-                    applyStrategy(isWeapon ? hasWeaponInHotbar(inventory) ? WEAPON : VANILLA : REVERSE, inventory, source);
-                    if (isWeapon && !source.isEmpty()) player.sendMessage(MULTIPLE_WEAPONS);
-                    event.setCancelled(true);
+                    // fixme: guiからアイテムを取り出せるバグがある, この処理を一時的に無効化
+//                    var isWeapon = isWeapon(source);
+//                    applyStrategy(isWeapon ? hasWeaponInHotbar(inventory) ? WEAPON : VANILLA : REVERSE, inventory, source);
+//                    if (isWeapon && !source.isEmpty()) player.sendMessage(MULTIPLE_WEAPONS);
+//                    event.setCancelled(true);
+                    return;
                 }
             }
             case HOTBAR_SWAP ->  {
