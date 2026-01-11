@@ -128,13 +128,23 @@ public class TraderManager {
             List<ItemStack> requiredItems = new ArrayList<>();
 
             for (Map<?, ?> reqMap : reqItemsList) {
-                String reqType = (String) reqMap.getOrDefault("type", "VANILLA");
-                int reqAmount = ((Number) reqMap.getOrDefault("amount", 1)).intValue();
+                // 1. typeの取得 (デフォルトは "VANILLA")
+                String reqType = "VANILLA";
+                Object typeObj = reqMap.get("type");
+                if (typeObj instanceof String) {
+                    reqType = (String) typeObj;
+                }
+
+                // 2. amountの取得 (デフォルトは 1)
+                int reqAmount = 1;
+                Object amountObj2 = reqMap.get("amount");
+                if (amountObj2 instanceof Number) {
+                    reqAmount = ((Number) amountObj2).intValue();
+                }
 
                 if (reqType.equalsIgnoreCase("CUSTOM")) {
                     String customId = (String) reqMap.get("custom_id");
-                    File itemFolder = new File(plugin.getDataFolder(), "items");
-                    ItemStack is = ItemLoader.loadSingleItem(customId, this.itemFactory, itemFolder);
+                    ItemStack is = Deepwither.getInstance().getItemFactory().getCustomCountItemStack(customId,reqAmount);
                     if (is != null) {
                         is.setAmount(reqAmount);
                         requiredItems.add(is);
