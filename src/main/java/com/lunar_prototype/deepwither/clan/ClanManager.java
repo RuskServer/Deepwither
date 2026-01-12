@@ -25,27 +25,28 @@ public class ClanManager implements IManager {
     }
 
     private void loadClansFromDatabase() throws SQLException {
-        try (Connection conn = db.getConnection()) {
-            // クラン本体のロード
-            try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM clans")) {
-                ResultSet rs = ps.executeQuery();
-                while (rs.next()) {
-                    String id = rs.getString("id");
-                    String name = rs.getString("name");
-                    UUID owner = UUID.fromString(rs.getString("owner"));
-                    clans.put(id, new Clan(id, name, owner));
-                }
+        Connection conn = db.getConnection();
+
+        // クラン本体のロード
+        try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM clans")) {
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                String id = rs.getString("id");
+                String name = rs.getString("name");
+                UUID owner = UUID.fromString(rs.getString("owner"));
+                clans.put(id, new Clan(id, name, owner));
             }
-            // メンバーのロード
-            try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM clan_members")) {
-                ResultSet rs = ps.executeQuery();
-                while (rs.next()) {
-                    UUID uuid = UUID.fromString(rs.getString("player_uuid"));
-                    String clanId = rs.getString("clan_id");
-                    if (clans.containsKey(clanId)) {
-                        clans.get(clanId).addMember(uuid);
-                        playerClanMap.put(uuid, clanId);
-                    }
+        } // ここで ps は閉じられるが、conn は閉じられない
+
+        // メンバーのロード
+        try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM clan_members")) {
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                UUID uuid = UUID.fromString(rs.getString("player_uuid"));
+                String clanId = rs.getString("clan_id");
+                if (clans.containsKey(clanId)) {
+                    clans.get(clanId).addMember(uuid);
+                    playerClanMap.put(uuid, clanId);
                 }
             }
         }
