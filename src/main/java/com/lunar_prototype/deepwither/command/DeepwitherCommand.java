@@ -41,6 +41,7 @@ public class DeepwitherCommand implements CommandExecutor, TabCompleter {
             case "reload" -> {
                 // リロード処理など
                 sender.sendMessage("§aDeepwitherの設定をリロードしました。");
+                Deepwither.getInstance().getSkilltreeGUI().reload();
             }
             default -> sendHelp(sender);
         }

@@ -8,10 +8,12 @@ import java.util.*;
 
 public class SkillLoader {
     private final Map<String, SkillDefinition> skills = new HashMap<>();
+    private File skillfolder;
 
     public void loadAllSkills(File skillFolder) {
         skills.clear();
         if (!skillFolder.exists()) skillFolder.mkdirs();
+        skillfolder = skillFolder;
 
         for (File file : Objects.requireNonNull(skillFolder.listFiles())) {
             if (!file.getName().endsWith(".yml")) continue;
@@ -41,6 +43,20 @@ public class SkillLoader {
             def.castTime = castTime; // 追加
 
             skills.put(id, def);
+        }
+    }
+
+    /**
+     * スキル設定ファイルを再読み込みします。
+     * 既存のキャッシュをクリアし、フォルダ内のファイルを再度スキャンします。
+     */
+    public void reload() {
+        // コンストラクタ等で保持している skillFolder フィールド、
+        // あるいは特定のパスを引数として loadAllSkills を呼び出す
+        if (this.skillfolder != null) {
+            loadAllSkills(this.skillfolder);
+            // 必要に応じてログ出力
+            // Deepwither.getInstance().getLogger().info("Skills have been reloaded.");
         }
     }
 

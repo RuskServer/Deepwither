@@ -72,3 +72,5 @@ commands:
   deepwither:
     description: Deepwither main admin command
     aliases: [ dw ]
+  clan:
+    description: Clanに関するコマンドです

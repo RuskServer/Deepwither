@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 public class SkilltreeGUI implements CommandExecutor, Listener {
 
     private final File treeFile;
-    private final YamlConfiguration treeConfig;
+    private YamlConfiguration treeConfig;
     private final JavaPlugin plugin;
     private final SkilltreeManager skilltreeManager;
     private final SkillLoader skillLoader; // ← これを追加
@@ -48,6 +48,33 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
         this.treeConfig = YamlConfiguration.loadConfiguration(treeFile);
 
         Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    /**
+     * 設定ファイルを再読み込みし、スキルツリーの構成を更新します。
+     */
+    public void reload() {
+        // 1. ファイルの存在確認と再ロード
+        if (!treeFile.exists()) {
+            try {
+                treeFile.getParentFile().mkdirs();
+                treeFile.createNewFile();
+            } catch (IOException e) {
+                plugin.getLogger().severe("tree.yaml の作成に失敗しました: " + e.getMessage());
+                return;
+            }
+        }
+
+        // 2. YamlConfiguration を最新の状態にする
+        this.treeConfig = YamlConfiguration.loadConfiguration(treeFile);
+
+        // 3. スキル定義自体(SkillLoader)もリロードが必要な場合
+        // skillLoader 側に reload メソッドがある想定
+        if (this.skillLoader != null) {
+            this.skillLoader.reload();
+        }
+
+        plugin.getLogger().info("Skilltree configuration has been reloaded.");
     }
 
     // 簡易的な座標保持クラス

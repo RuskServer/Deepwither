@@ -95,6 +95,21 @@ public class DatabaseManager {
                     uuid TEXT PRIMARY KEY,
                     amount REAL
                 )""");
+
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS clans (
+                    id TEXT PRIMARY KEY,
+                    name TEXT,
+                    tag TEXT,
+                    owner TEXT
+                )""");
+
+                        stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS clan_members (
+                    player_uuid TEXT PRIMARY KEY,
+                    clan_id TEXT,
+                    FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE
+                )""");
         }
     }
 

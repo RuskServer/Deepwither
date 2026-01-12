@@ -2,6 +2,8 @@ package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.api.DeepwitherPartyAPI;
 import com.lunar_prototype.deepwither.booster.BoosterManager;
+import com.lunar_prototype.deepwither.clan.ClanChatManager;
+import com.lunar_prototype.deepwither.clan.ClanManager;
 import com.lunar_prototype.deepwither.command.*;
 import com.lunar_prototype.deepwither.companion.CompanionCommand;
 import com.lunar_prototype.deepwither.companion.CompanionGuiListener;
@@ -117,6 +119,7 @@ public final class Deepwither extends JavaPlugin {
     private LootChestManager lootChestManager;
     private TownBurstManager townBurstManager;
     private MythicMobSafeZoneManager mythicMobSafeZoneManager;
+    private SkilltreeGUI skilltreeGUI;
     private CraftingManager craftingManager;
     private CraftingGUI craftingGUI;
     private ProfessionManager professionManager;
@@ -138,6 +141,7 @@ public final class Deepwither extends JavaPlugin {
     private MarketSearchHandler marketSearchHandler;
     private MarketGui marketGui;
     private SeekerAIEngine aiEngine;
+    private ClanManager clanManager;
     private static Economy econ = null;
     private final java.util.Random random = new java.util.Random();
     private OutpostManager outpostManager;
@@ -277,6 +281,8 @@ public final class Deepwither extends JavaPlugin {
     public MarketSearchHandler getMarketSearchHandler() {
         return marketSearchHandler;
     }
+
+    public SkilltreeGUI getSkilltreeGUI() {return skilltreeGUI;}
 
     @Override
     public void onEnable() {
@@ -498,8 +504,8 @@ public final class Deepwither extends JavaPlugin {
         // コマンド登録
         getCommand("attributes").setExecutor(new AttributeCommand());
         try {
-            SkilltreeGUI gui = new SkilltreeGUI(this, getDataFolder(), skilltreeManager, skillLoader);
-            getCommand("skilltree").setExecutor(gui);
+            skilltreeGUI = new SkilltreeGUI(this, getDataFolder(), skilltreeManager, skillLoader);
+            getCommand("skilltree").setExecutor(skilltreeGUI);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -555,10 +561,14 @@ public final class Deepwither extends JavaPlugin {
         MarketCommand marketCmd = new MarketCommand(this, globalMarketManager, marketGui);
         getCommand("market").setExecutor(marketCmd);
         getCommand("market").setTabCompleter(marketCmd);
+        ClanCommand clanCommand = new ClanCommand(clanManager);
+        getCommand("clan").setExecutor(clanCommand);
+        getCommand("clan").setTabCompleter(clanCommand);
         getCommand("deepwither").setExecutor(new DeepwitherCommand(this));
         getServer().getPluginManager().registerEvents(new PvPWorldListener(), this);
         getServer().getPluginManager().registerEvents(new ItemGlowHandler(this), this);
         getServer().getPluginManager().registerEvents(new DungeonSignListener(),this);
+        getServer().getPluginManager().registerEvents(new ClanChatManager(clanManager),this);
     }
 
     @Override
@@ -591,6 +601,7 @@ public final class Deepwither extends JavaPlugin {
         this.professionDatabase = register(ProfessionDatabase.class, new ProfessionDatabase(this, databaseManager));
         this.boosterManager = register(BoosterManager.class, new BoosterManager(databaseManager));
         this.globalMarketManager = register(GlobalMarketManager.class, new GlobalMarketManager(this, databaseManager));
+        this.clanManager = register(ClanManager.class,new ClanManager(databaseManager));
         // 新しくSQLite対応させたデータストア (引数にdatabaseManagerを渡す)
         this.fileDailyTaskDataStore = register(FileDailyTaskDataStore.class,
                 new FileDailyTaskDataStore(this, databaseManager));
