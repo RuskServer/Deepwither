@@ -11,6 +11,12 @@ import java.util.List;
 
 public class Actuator {
 
+    private double chaosX = 0.1, chaosY = 0.0, chaosZ = 0.0;
+    private static final double SIGMA = 10.0;
+    private static final double RHO = 28.0;
+    private static final double BETA = 8.0 / 3.0;
+    private static final double DT = 0.02; // 1Tick(0.05s)より少し細かい時間刻み
+
     public void execute(ActiveMob activeMob, BanditDecision decision, Location coverLoc) {
         if (activeMob.getEntity() == null || !(activeMob.getEntity().getBukkitEntity() instanceof Mob)) {
             return;
@@ -181,20 +187,36 @@ public class Actuator {
     private void performOrbitalSlide(Mob entity) {
         if (entity.getTarget() == null) return;
 
+        // 1. カオス方程式の更新 (Lorentz Attractor)
+        // 毎Tick、わずかに状態を遷移させることで「蝶の羽ばたき」のような軌道を生む
+        double dx = SIGMA * (chaosY - chaosX) * DT;
+        double dy = (chaosX * (RHO - chaosZ) - chaosY) * DT;
+        double dz = (chaosX * chaosY - BETA * chaosZ) * DT;
+        chaosX += dx; chaosY += dy; chaosZ += dz;
+
         Location self = entity.getLocation();
         Vector toTarget = entity.getTarget().getLocation().toVector().subtract(self.toVector()).normalize();
 
+        // 2. 基底となるサイドベクトルの生成
         Vector side = new Vector(-toTarget.getZ(), 0, toTarget.getX()).normalize();
-        if (entity.getTicksLived() % 40 < 20) side.multiply(-1);
 
-        Vector finalVel = toTarget.multiply(0.6).add(side.multiply(1.2));
+        // 3. 【核心】カオス項による変調
+        // chaosX の値をサイドベクトルの倍率に、chaosY を前後方向の微細な揺らぎに変換
+        // 速度を 1.2 -> 0.7 程度に落とし、その分「軌道の歪み」を最大化
+        double lateralMod = chaosX * 0.15; // 左右への予測不能な振れ幅
+        double longitudinalMod = chaosY * 0.1; // 前後への微細な揺らぎ（フェイント）
 
-        // 進行方向がブロックなら、サイドベクトルの反転を試みる
-        if (isPathBlocked(entity, finalVel.clone().normalize())) {
-            finalVel = toTarget.multiply(0.6).add(side.multiply(-1.2)); // 逆方向にスライド
+        // 速度を抑えつつ、カオス的な合成ベクトルを生成
+        Vector chaoticVel = toTarget.multiply(0.4 + longitudinalMod)
+                .add(side.multiply(lateralMod));
+
+        // 4. スタック（壁）回避ロジックは維持しつつ、カオス状態を反転させる
+        if (isPathBlocked(entity, chaoticVel.clone().normalize())) {
+            chaosX *= -1; // 物理的にぶつかったらカオスの極性を反転（アトラクタの別翼へジャンプ）
+            chaoticVel = toTarget.multiply(0.4).add(side.multiply(chaosX * 0.15));
         }
 
-        entity.setVelocity(finalVel.setY(0.1));
+        entity.setVelocity(chaoticVel.setY(0.1));
     }
 
     /**
