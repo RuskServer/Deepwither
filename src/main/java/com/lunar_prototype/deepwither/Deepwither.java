@@ -19,6 +19,7 @@ import com.lunar_prototype.deepwither.layer_move.BossKillListener;
 import com.lunar_prototype.deepwither.layer_move.LayerMoveManager;
 import com.lunar_prototype.deepwither.layer_move.LayerSignListener;
 import com.lunar_prototype.deepwither.listener.DungeonSignListener;
+import com.lunar_prototype.deepwither.listeners.ArmorSetListener;
 import com.lunar_prototype.deepwither.listeners.ItemGlowHandler;
 import com.lunar_prototype.deepwither.listeners.PvPWorldListener;
 import com.lunar_prototype.deepwither.loot.LootChestListener;
@@ -333,6 +334,7 @@ public final class Deepwither extends JavaPlugin {
         statManager = new StatManager();
         companionManager = new CompanionManager(this);
         itemFactory = new ItemFactory(this);
+        getServer().getPluginManager().registerEvents(new ArmorSetListener(itemFactory),this);
         chargeManager = new ChargeManager();
         backpackManager = new BackpackManager(this);
         getServer().getPluginManager().registerEvents(chargeManager, this);

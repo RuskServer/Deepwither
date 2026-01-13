@@ -45,6 +45,7 @@ public class ItemFactory implements CommandExecutor, TabCompleter {
     public static final NamespacedKey RARITY_KEY = new NamespacedKey(Deepwither.getInstance(), "item_rarity");
     public static final NamespacedKey ITEM_TYPE_KEY = new NamespacedKey(Deepwither.getInstance(), "item_type_name");
     public static final NamespacedKey FLAVOR_TEXT_KEY = new NamespacedKey(Deepwither.getInstance(), "item_flavor_text"); // 文字列結合で保存
+    public static final NamespacedKey SET_PARTNER_KEY = new NamespacedKey(Deepwither.getInstance(), "set_partner_id");
     private static final String KEY_PREFIX = "rpgstats";
 
     public ItemFactory(JavaPlugin plugin) {
@@ -1008,6 +1009,11 @@ class ItemLoader {
                     if (meta != null) {
                         meta.getPersistentDataContainer().set(IS_WAND, PersistentDataType.BOOLEAN, true);
                     }
+                }
+
+                String setPartner = config.getString(key + ".set_partner");
+                if (setPartner != null) {
+                    meta.getPersistentDataContainer().set(ItemFactory.SET_PARTNER_KEY, PersistentDataType.STRING, setPartner);
                 }
 
                 item.setItemMeta(meta);
