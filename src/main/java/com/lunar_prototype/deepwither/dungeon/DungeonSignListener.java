@@ -1,13 +1,18 @@
-package com.lunar_prototype.deepwither.listener;
+package com.lunar_prototype.deepwither.dungeon;
 
+import com.lunar_prototype.deepwither.Deepwither;
 import org.bukkit.ChatColor;
 import org.bukkit.block.Sign;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+
+import java.io.File;
 
 public class DungeonSignListener implements Listener {
 
@@ -41,8 +46,11 @@ public class DungeonSignListener implements Listener {
             Player player = event.getPlayer();
             String dungeonId = ChatColor.stripColor(sign.getLine(1)); // 色コードを除去
 
-            com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager.getInstance()
-                    .createInstance(player, dungeonId);
+            // ConfigをロードしてGUIを起動
+            File dungeonFile = new File(Deepwither.getInstance().getDataFolder(), "dungeons/" + dungeonId + ".yml");
+            FileConfiguration config = YamlConfiguration.loadConfiguration(dungeonFile);
+
+            new DungeonDifficultyGUI(dungeonId, config).open(player);
 
         }
     }

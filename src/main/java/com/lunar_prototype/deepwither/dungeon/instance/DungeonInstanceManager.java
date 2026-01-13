@@ -55,7 +55,7 @@ public class DungeonInstanceManager implements IManager {
     /**
      * 新しいダンジョンインスタンスを生成し、ホストプレイヤーとそのパーティーを転送する
      */
-    public void createInstance(Player host, String dungeonType) {
+    public void createDungeonInstance(Player host, String dungeonType, String difficulty) {
         UUID hostId = host.getUniqueId();
         String worldName = "dw_inst_" + hostId.toString().substring(0, 8) + "_" + System.currentTimeMillis();
 
@@ -80,7 +80,7 @@ public class DungeonInstanceManager implements IManager {
         world.setTime(18000); // 深夜
 
         // 2. ダンジョン生成実行
-        DungeonGenerator generator = new DungeonGenerator(dungeonType);
+        DungeonGenerator generator = new DungeonGenerator(dungeonType,difficulty);
         generator.generateBranching(world,0); // depth10などで生成
 
         // 3. インスタンス管理に追加

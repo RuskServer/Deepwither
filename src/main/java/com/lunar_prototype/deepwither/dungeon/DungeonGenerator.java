@@ -31,6 +31,8 @@ public class DungeonGenerator {
     private final String dungeonName;
     private final List<DungeonPart> partList = new ArrayList<>();
     private final File dungeonFolder;
+    private final String difficulty;
+    private int mobLevel;
     private final Random random = new Random();
 
     // Store placed parts for collision detection
@@ -117,8 +119,9 @@ public class DungeonGenerator {
         }
     }
 
-    public DungeonGenerator(String dungeonName) {
+    public DungeonGenerator(String dungeonName, String difficulty) {
         this.dungeonName = dungeonName;
+        this.difficulty = difficulty;
         this.dungeonFolder = new File(Deepwither.getInstance().getDataFolder(), "dungeons/" + dungeonName);
         loadConfig();
     }
@@ -137,7 +140,8 @@ public class DungeonGenerator {
 
         this.maxDepth = config.getInt("max_depth", 10);
 
-        this.lootChestId = config.getString("loot_chest", "common_loot_chest");
+        this.mobLevel = config.getInt("difficulty." + difficulty + ".mob_level", 1);
+        this.lootChestId = config.getString("difficulty." + difficulty + ".loot_id", "common_loot_chest");
 
         List<Map<?, ?>> maps = config.getMapList("parts");
 
@@ -537,7 +541,7 @@ public class DungeonGenerator {
                         new org.bukkit.scheduler.BukkitRunnable() {
                             @Override
                             public void run() {
-                                Deepwither.getInstance().getMobSpawnManager().spawnDungeonMob(spawner.location, spawner.mobId, spawner.level);
+                                Deepwither.getInstance().getMobSpawnManager().spawnDungeonMob(spawner.location, spawner.mobId, mobLevel);
                                 spawner.location.getWorld().spawnParticle(org.bukkit.Particle.CLOUD, spawner.location, 20, 0.5, 1, 0.5, 0.1);
                             }
                         }.runTaskLater(Deepwither.getInstance(), delayBetweenMobs);
