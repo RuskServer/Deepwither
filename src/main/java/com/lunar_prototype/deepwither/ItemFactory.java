@@ -46,7 +46,12 @@ public class ItemFactory implements CommandExecutor, TabCompleter {
     public static final NamespacedKey ITEM_TYPE_KEY = new NamespacedKey(Deepwither.getInstance(), "item_type_name");
     public static final NamespacedKey FLAVOR_TEXT_KEY = new NamespacedKey(Deepwither.getInstance(), "item_flavor_text"); // 文字列結合で保存
     public static final NamespacedKey SET_PARTNER_KEY = new NamespacedKey(Deepwither.getInstance(), "set_partner_id");
+    public final Map<String, List<String>> rarityPools = new HashMap<>(); // <Rarity, List<ItemID>>
     private static final String KEY_PREFIX = "rpgstats";
+
+    public List<String> getItemsByRarity(String rarity) {
+        return rarityPools.getOrDefault(rarity, Collections.emptyList());
+    }
 
     public ItemFactory(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -973,6 +978,11 @@ class ItemLoader {
                 }
                 // 品質ランク判定
                 QualityRank rank = QualityRank.fromRatio(tracker.getRatio());
+
+                boolean droppable = config.getBoolean(key + ".droppable", false);
+                if (droppable) {
+                    factory.rarityPools.computeIfAbsent(rarity, k -> new ArrayList<>()).add(key);
+                }
 
                 // 名前に品質名をプレフィックス付け
                 String originalName = config.getString(key + ".name", key);

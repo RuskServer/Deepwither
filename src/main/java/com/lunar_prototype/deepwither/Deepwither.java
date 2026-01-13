@@ -13,6 +13,8 @@ import com.lunar_prototype.deepwither.crafting.CraftingGUI;
 import com.lunar_prototype.deepwither.crafting.CraftingListener;
 import com.lunar_prototype.deepwither.crafting.CraftingManager;
 import com.lunar_prototype.deepwither.data.*;
+import com.lunar_prototype.deepwither.dynamic_loot.LootDropManager;
+import com.lunar_prototype.deepwither.dynamic_loot.LootLevelManager;
 import com.lunar_prototype.deepwither.fishing.FishingListener;
 import com.lunar_prototype.deepwither.fishing.FishingManager;
 import com.lunar_prototype.deepwither.layer_move.BossKillListener;
@@ -140,6 +142,8 @@ public final class Deepwither extends JavaPlugin {
     private LayerMoveManager layerMoveManager;
     private GlobalMarketManager globalMarketManager;
     private MarketSearchHandler marketSearchHandler;
+    private LootLevelManager lootLevelManager;
+    private LootDropManager lootDropManager;
     private MarketGui marketGui;
     private SeekerAIEngine aiEngine;
     private ClanManager clanManager;
@@ -285,6 +289,14 @@ public final class Deepwither extends JavaPlugin {
 
     public SkilltreeGUI getSkilltreeGUI() {return skilltreeGUI;}
 
+    public LootDropManager getLootDropManager() {
+        return lootDropManager;
+    }
+
+    public LootLevelManager getLootLevelManager() {
+        return lootLevelManager;
+    }
+
     @Override
     public void onEnable() {
         // Plugin startup logic
@@ -354,6 +366,8 @@ public final class Deepwither extends JavaPlugin {
         skillSlotManager = new SkillSlotManager(getDataFolder());
         skillCastManager = new SkillCastManager();
         cooldownManager = new CooldownManager();
+        lootLevelManager = new LootLevelManager();
+        lootDropManager = new LootDropManager(itemFactory);
         layerMoveManager = new LayerMoveManager();
         layerMoveManager.load(getDataFolder());
         // クエスト設定のロード
