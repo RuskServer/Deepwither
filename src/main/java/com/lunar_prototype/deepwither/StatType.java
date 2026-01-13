@@ -37,7 +37,16 @@ public enum StatType {
     VIT("体力", "§a", "❤"),
     MND("精神力", "§b", "✦"),
     INT("知性", "§d", "✎"),
-    AGI("素早さ", "§e", "➤");
+    AGI("素早さ", "§e", "➤"),
+    SCYTHE_DAMAGE("鎌ダメージ", "§c", "⚔"),
+    GREATSWORD_DAMAGE("大剣ダメージ", "§c", "⚔"),
+    SPEAR_DAMAGE("槍ダメージ", "§c", "⚔"),
+    AXE_DAMAGE("斧ダメージ", "§c", "⚔"),
+    MACE_DAMAGE("メイスダメージ", "§c", "⚔"),
+    SWORD_DAMAGE("剣ダメージ", "§c", "⚔"),
+    MACHETE_DAMAGE("マチェットダメージ", "§c", "⚔"),
+    HAMMER_DAMAGE("ハンマーダメージ", "§c", "⚔"),
+    HALBERD_DAMAGE("ハルバードダメージ", "§c", "⚔");
 
     private final String displayName;
     private final String colorCode;

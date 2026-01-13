@@ -61,9 +61,23 @@ public class CustomDamageMechanics implements ITargetedEntitySkill {
                 if (tags.contains("BURST")) baseDamage = (baseDamage * 0.4) + attackerStats.getFinal(StatType.MAGIC_BURST_DAMAGE);
                 if (tags.contains("AOE")) baseDamage = (baseDamage * 0.6) + attackerStats.getFinal(StatType.MAGIC_AOE_DAMAGE);
             } else {
-                double statAtk = isProjectile ? attackerStats.getFinal(StatType.PROJECTILE_DAMAGE) : attackerStats.getFinal(StatType.ATTACK_DAMAGE);
-                double distMult = isProjectile ? damageManager.calculateDistanceMultiplier(player, bukkitTarget) : 1.0;
-                baseDamage = (basePower + statAtk) * multiplier * distMult;
+                // 物理
+                StatType weaponType = damageManager.getWeaponStatType(player.getInventory().getItemInMainHand());
+                double weaponFlat = (weaponType != null) ? attackerStats.getFlat(weaponType) : 0;
+                double weaponPercent = (weaponType != null) ? attackerStats.getPercent(weaponType) : 0;
+
+                if (isProjectile) {
+                    double distMult = damageManager.calculateDistanceMultiplier(player, bukkitTarget);
+                    // 発射体ダメージ + 武器Flat を加算し、倍率を適用
+                    baseDamage = (basePower + attackerStats.getFlat(StatType.PROJECTILE_DAMAGE) + weaponFlat);
+                    double mult = multiplier * (1.0 + (attackerStats.getPercent(StatType.PROJECTILE_DAMAGE) + weaponPercent) / 100.0);
+                    baseDamage *= mult * distMult;
+                } else {
+                    // 近接スキル: (基礎 + 攻撃力Flat + 武器Flat) * (倍率 + ステータス%)
+                    baseDamage = (basePower + attackerStats.getFlat(StatType.ATTACK_DAMAGE) + weaponFlat);
+                    double mult = multiplier * (1.0 + (attackerStats.getPercent(StatType.ATTACK_DAMAGE) + weaponPercent) / 100.0);
+                    baseDamage *= mult;
+                }
             }
 
             // クリティカル判定

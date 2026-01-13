@@ -122,8 +122,21 @@ public class DamageManager implements Listener {
         StatMap attackerStats = StatManager.getTotalStatsFromEquipment(attacker);
         StatMap defenderStats = getDefenderStats(targetLiving);
 
-        double attackPower = isProjectile ? attackerStats.getFinal(StatType.PROJECTILE_DAMAGE) : attackerStats.getFinal(StatType.ATTACK_DAMAGE);
-        double baseDamage = attackPower + (isProjectile ? e.getDamage() : 0);
+        // 1. 武器カテゴリの特定
+        StatType weaponType = getWeaponStatType(attacker.getInventory().getItemInMainHand());
+
+        // 2. ダメージ計算の強化
+        double attackPowerFlat = attackerStats.getFlat(isProjectile ? StatType.PROJECTILE_DAMAGE : StatType.ATTACK_DAMAGE);
+        double attackPowerPercent = attackerStats.getPercent(isProjectile ? StatType.PROJECTILE_DAMAGE : StatType.ATTACK_DAMAGE);
+
+        // 武器固有のボーナスを取得 (Flat & Percent)
+        double weaponFlat = (weaponType != null) ? attackerStats.getFlat(weaponType) : 0;
+        double weaponPercent = (weaponType != null) ? attackerStats.getPercent(weaponType) : 0;
+
+        // 合算計算
+        double baseDamage = (e.getDamage() + attackPowerFlat + weaponFlat);
+        double totalMultiplier = 1.0 + ((attackPowerPercent + weaponPercent) / 100.0);
+        baseDamage *= totalMultiplier;
 
         boolean isCrit = rollChance(attackerStats.getFinal(StatType.CRIT_CHANCE));
         if (isCrit) {
@@ -695,5 +708,28 @@ public class DamageManager implements Listener {
             e.setCancelled(true);
             statManager.healCustomHealth(p, amount);
         }
+    }
+
+    /**
+     * アイテムのロアから武器カテゴリに応じたStatTypeを返します
+     */
+    public StatType getWeaponStatType(ItemStack item) {
+        if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasLore()) return null;
+
+        List<String> lore = item.getItemMeta().getLore();
+        for (String line : lore) {
+            if (!line.contains("§7カテゴリ:§f")) continue;
+
+            if (line.contains("鎌")) return StatType.SCYTHE_DAMAGE;
+            if (line.contains("大剣")) return StatType.GREATSWORD_DAMAGE;
+            if (line.contains("槍")) return StatType.SPEAR_DAMAGE;
+            if (line.contains("斧")) return StatType.AXE_DAMAGE;
+            if (line.contains("メイス")) return StatType.MACE_DAMAGE;
+            if (line.contains("剣")) return StatType.SWORD_DAMAGE;
+            if (line.contains("マチェット")) return StatType.MACHETE_DAMAGE;
+            if (line.contains("ハンマー")) return StatType.HAMMER_DAMAGE;
+            if (line.contains("ハルバード")) return StatType.HALBERD_DAMAGE;
+        }
+        return null;
     }
 }
