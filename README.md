@@ -2,7 +2,7 @@
 
 # Deepwither
 
-**RuskServerが開発・運用している組織(Echoes of Aether)向けのマインクラフトサーバープラグイン** **―― 既存のAI理論を「踏み台」にし、生物的進化を遂げた次世代の戦闘エンジン ――**
+**RuskServerが開発・運用している組織(Echoes of Aether)向けのマインクラフトサーバープラグイン**
 
 [:globe_with_meridians: RuskServer Official Website](https://ruskserver.com/)
 
@@ -46,7 +46,7 @@ Deepwither 最新版は、従来のニューラルネットワークの限界を
 > **[Latest Jenkins Builds](https://build.ruskserver.com/job/deepwither/)**
 > 常に最新の成果物を取得するには上記リンクを確認してください。
 
-## :tools: サポートとポリシー (Support Policy)
+## 🛠️ サポートとポリシー (Support Policy)
 
 本プロジェクトはOSSとして公開されていますが、**公式な個別サポートや動作保証は提供しておりません。**
 
