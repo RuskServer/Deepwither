@@ -2,8 +2,10 @@ package com.lunar_prototype.deepwither.seeker;
 
 import io.lumine.mythic.core.mobs.ActiveMob;
 import org.bukkit.Location;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Mob;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -25,7 +27,7 @@ public class SeekerAIEngine {
         Mob bukkitMob = (Mob) activeMob.getEntity().getBukkitEntity();
         UUID uuid = activeMob.getUniqueId();
 
-        // 1. 環境感知 (15m以内LoS無視ロジックはSensorProvider内に実装されている前提)
+        // 1. 環境感知
         BanditContext context = sensorProvider.scan(activeMob);
         Location nearestCover = sensorProvider.findNearestCoverLocation(activeMob);
 
@@ -34,22 +36,28 @@ public class SeekerAIEngine {
         observeAndLearn(activeMob, brain);
         brain.digestExperience();
 
-        // 3. バージョン選択と意思決定
-        // 例: レベル10以上の個体は将来的にV2エンジンを使用する準備
-        String version;
-        if (activeMob.getLevel() >= 20) {
-            version = "v3";
-        } else if (activeMob.getLevel() >= 10) {
-            version = "v2";
-        } else {
-            version = "v1";
-        }
+        // 3. バージョン選択
+        String version = (activeMob.getLevel() >= 20) ? "v3" : (activeMob.getLevel() >= 10 ? "v2" : "v1");
+
+        // --- 推論時間の計測開始 ---
+        long startTime = System.nanoTime();
+
         BanditDecision decision = liquidEngine.think(version, context, brain, bukkitMob);
 
-        // 4. ログ出力
+        long endTime = System.nanoTime();
+        double durationMs = (endTime - startTime) / 1_000_000.0; // ナノ秒をミリ秒に変換
+        // -----------------------
+
+        // 4. ログ出力 (推論時間を追加)
         String uuidShort = uuid.toString().substring(0, 4);
-        System.out.println(String.format("[%s-%s][%s] Action: %s | %s",
-                activeMob.getType().getInternalName(), uuidShort, decision.engine_version, decision.decision.action_type, decision.reasoning));
+        // 0.05ms以下なら非常に軽量、1.0msを超え始めると最適化の検討が必要な目安です
+        System.out.println(String.format("[%s-%s][%s] Action: %s | Time: %.3fms | %s",
+                activeMob.getType().getInternalName(),
+                uuidShort,
+                decision.engine_version,
+                decision.decision.action_type,
+                durationMs,
+                decision.reasoning));
 
         // 5. 行動実行
         if (!bukkitMob.isDead()) {
@@ -59,53 +67,63 @@ public class SeekerAIEngine {
         }
     }
 
+    /**
+     * 仲間からの模倣学習 (量子化最適化版)
+     * Streamを排除し、インデックスベースのQ-Table同期を行う
+     */
     private void observeAndLearn(ActiveMob self, LiquidBrain myBrain) {
         Mob bukkitSelf = (Mob) self.getEntity().getBukkitEntity();
 
-        bukkitSelf.getNearbyEntities(12, 12, 12).stream()
-                .filter(e -> brainStorage.containsKey(e.getUniqueId()))
-                .forEach(e -> {
-                    LiquidBrain peerBrain = brainStorage.get(e.getUniqueId());
+        // 1. 周囲のエンティティを取得 (12m範囲)
+        List<Entity> nearby = bukkitSelf.getNearbyEntities(12, 12, 12);
 
-                    // 1. 成功体験の模倣 (Q-Table Transfer)
-                    // 仲間が大きな報酬を得ている（＝直近の行動が成功している）場合
-                    if (peerBrain.tacticalMemory.combatAdvantage > myBrain.tacticalMemory.combatAdvantage + 0.2) {
+        for (int i = 0; i < nearby.size(); i++) {
+            Entity e = nearby.get(i);
+            UUID peerId = e.getUniqueId();
 
-                        if (peerBrain.lastStateKey != null && peerBrain.lastActionType != null) {
-                            // 仲間の「状態」と「行動」を、自分のQ-Tableにも「良いもの」として微調整
-                            // 自分で経験していないが、見て学ぶ（オフポリス学習の簡易版）
-                            myBrain.qTable.update(
-                                    peerBrain.lastStateKey,
-                                    peerBrain.lastActionType,
-                                    0.5, // 自分でやるよりは低い報酬値で「参考」にする
-                                    "IMITATED_STATE"
-                            );
+            // brainStorage から仲間の脳を取得 (Map.get は依然必要だが、中身の演算を軽量化)
+            LiquidBrain peerBrain = brainStorage.get(peerId);
+            if (peerBrain == null || peerBrain == myBrain) continue;
 
-                            // 模倣したことを推論ログに残す
-                            // myBrain.lastReasoning += " | MIMIC: " + peerBrain.lastActionType;
-                        }
-                    }
+            // --- 1. 成功体験の模倣 (Q-Table Transfer) ---
+            // 仲間が自分より明らかに優勢（CombatAdvantageが高い）な場合
+            float myAdv = (float) myBrain.tacticalMemory.combatAdvantage;
+            float peerAdv = (float) peerBrain.tacticalMemory.combatAdvantage;
 
-                    // 2. 集合知の「再確認」
-                    // 仲間が特定プレイヤーの弱点を見つけているなら、それを自分の脳にも強く刻む
-                    if (bukkitSelf.getTarget() != null) {
-                        UUID targetId = bukkitSelf.getTarget().getUniqueId();
-                        String peerWeakness = CollectiveKnowledge.getGlobalWeakness(targetId);
-                        if (!peerWeakness.equals("NONE")) {
-                            // 集合知を介して、より確信を持って「弱点」を突くようにマインドセットを調整
-                            myBrain.frustration *= 0.8; // 確信を得ることで迷いを減らす
-                        }
-                    }
+            if (peerAdv > myAdv + 0.2f) {
+                // インデックスベースで「状態」と「行動」をコピー
+                int peerSIdx = peerBrain.lastStateIdx;
+                int peerAIdx = peerBrain.lastActionIdx;
 
-                    // 3. 感情・リキッドパラメータの同期（既存の強化）
-                    // 仲間の Composure（冷静さ）が高いなら学び、低い（パニック）なら伝染する
-                    double composureDiff = peerBrain.composure - myBrain.composure;
-                    myBrain.composure += composureDiff * 0.1; // 10%の速度で同期
+                if (peerSIdx >= 0 && peerAIdx >= 0) {
+                    // オフポリス学習：仲間が成功した行動を自分のQ-Tableに 0.05f の報酬として統合
+                    // 直接 update を呼ぶことで、Stringキー生成を完全に回避
+                    myBrain.qTable.update(peerSIdx, peerAIdx, 0.05f, peerSIdx);
+                }
+            }
 
-                    // Aggression / Fear の同期（Liquid値のmimicを使用）
-                    myBrain.aggression.mimic(peerBrain.aggression, 0.1);
-                    myBrain.fear.mimic(peerBrain.fear, 0.1);
-                });
+            // --- 2. 集合知の再確認 ---
+            Entity myTarget = bukkitSelf.getTarget();
+            if (myTarget != null) {
+                UUID targetId = myTarget.getUniqueId();
+                // 集合知に登録された弱点があるか確認
+                String peerWeakness = CollectiveKnowledge.getGlobalWeakness(targetId);
+                if (!peerWeakness.equals("NONE")) {
+                    // 攻略法を知ることでフラストレーション（迷い）を軽減
+                    myBrain.frustration *= 0.8f;
+                }
+            }
+
+            // --- 3. 感情・リキッドパラメータの同期 ---
+            // 冷静さ (Composure) の伝播
+            float composureDiff = peerBrain.composure - myBrain.composure;
+            myBrain.composure += composureDiff * 0.1f;
+
+            // Aggression / Fear の同期 (LiquidNeuron.mimic を使用)
+            // 引数が float, float に最適化されていることを想定
+            myBrain.aggression.mimic(peerBrain.aggression, 0.1f);
+            myBrain.fear.mimic(peerBrain.fear, 0.1f);
+        }
     }
 
     public void clearBrain(UUID uuid) { brainStorage.remove(uuid); }

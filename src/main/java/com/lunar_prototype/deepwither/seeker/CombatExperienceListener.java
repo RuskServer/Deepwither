@@ -3,6 +3,8 @@ package com.lunar_prototype.deepwither.seeker;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import io.lumine.mythic.core.mobs.ActiveMob;
 import io.papermc.paper.event.player.PlayerArmSwingEvent;
+import org.bukkit.Location;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
@@ -14,6 +16,8 @@ import org.bukkit.util.Vector;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class CombatExperienceListener implements Listener {
     private final SeekerAIEngine aiEngine;
@@ -24,80 +28,72 @@ public class CombatExperienceListener implements Listener {
 
     @EventHandler
     public void onCombat(EntityDamageByEntityEvent event) {
-        double damage = event.getFinalDamage();
+        float damage = (float) event.getFinalDamage();
 
         // --- 1. Mobがダメージを与えた場合 (成功体験) ---
-        if (event.getDamager() instanceof Mob) {
-            Mob attacker = (Mob) event.getDamager();
-
-            // 与ダメージ報酬（ターゲットへの攻撃成功）
-            // 第4引数: evaded=false, 第5引数: damager=null (自分が攻撃側なので不要)
-            applyLearning(attacker, damage, 0.0, false, null);
+        if (event.getDamager() instanceof Mob attacker) {
+            // 量子化学習の適用 (damageDealtに値を渡す)
+            applyLearning(attacker, damage, 0.0f, false, null);
 
             // 既存のReward処理
-            handleReward(attacker, 0.3);
-            getBrain(attacker).ifPresent(brain -> brain.tacticalMemory.myHits++);
+            handleReward(attacker, 0.3f);
+
+            getBrain(attacker).ifPresent(brain -> {
+                brain.tacticalMemory.myHits++;
+            });
         }
 
         // --- 2. Mobがダメージを受けた場合 (失敗体験 & 複数戦の学習) ---
-        if (event.getEntity() instanceof Mob) {
-            Mob victim = (Mob) event.getEntity();
+        if (event.getEntity() instanceof Mob victim) {
             Entity damager = event.getDamager();
 
-            // Q-Learning: ダメージを受けた報酬処理
-            // 第5引数に damager を渡すことで、内部で「ターゲット以外からの被弾（横槍）」を判定可能にする
-            applyLearning(victim, 0.0, damage, false, damager);
+            // Q-Learning: ダメージを受けた報酬処理 (damageTakenに値を渡す)
+            applyLearning(victim, 0.0f, damage, false, damager);
 
-            // 被弾による戦術メモリーの更新
-            getBrain(victim).ifPresent(brain -> brain.tacticalMemory.takenHits++);
+            getBrain(victim).ifPresent(brain -> {
+                brain.tacticalMemory.takenHits++;
 
-            // 既存のPenalty処理
-            handlePenaltyAndPattern(victim, damager, 0.5);
+                // 既存のPenalty処理
+                handlePenaltyAndPattern(victim, damager, 0.5f);
 
-            // 相手がプレイヤーなら攻撃パターンを詳細に記録
-            if (damager instanceof Player) {
-                Player p = (Player) damager;
-                getBrain(victim).ifPresent(brain -> {
-                    double dist = p.getLocation().distance(victim.getLocation());
-                    // 被弾した瞬間、ターゲットが遠くにいるなら、この攻撃者へ即座にヘイトを向ける検討
+                // 相手がプレイヤーなら攻撃パターンを詳細に記録
+                if (damager instanceof Player p) {
+                    float dist = (float) p.getLocation().distance(victim.getLocation());
+
+                    // ターゲット切り替えロジック
                     if (victim.getTarget() == null || victim.getLocation().distance(victim.getTarget().getLocation()) > 10.0) {
-                        if (Math.random() < 0.5) victim.setTarget(p); // 50%で反撃対象を切り替え
+                        if (ThreadLocalRandom.current().nextFloat() < 0.5f) victim.setTarget(p);
                     }
 
-                    // 攻撃パターンのサンプリング
-                    brain.recordAttack(p.getUniqueId(), victim.getTicksLived(), dist, false, null, null);
-                });
-            }
+                    // 攻撃パターンのサンプリング (最新仕様: UUID, distance, isMiss)
+                    brain.recordAttack(p.getUniqueId(), dist, false);
+                }
+            });
         }
     }
 
-    private void handleReward(Entity entity, double amount) {
-        getBrain(entity).ifPresent(brain -> {
+    private void handleReward(Mob mob, float amount) {
+        getBrain(mob).ifPresent(brain -> {
             brain.accumulatedReward += amount;
-            brain.recordSelfAttack(entity.getTicksLived());
+            // 自己攻撃リズムの記録
+            brain.recordSelfAttack(mob.getTicksLived());
         });
     }
 
     /**
-     * 失敗体験の蓄積に加え、V2用の攻撃リズム・距離学習を実行する
+     * 失敗体験の蓄積に加え、最新の攻撃リズム・距離学習を実行する
      */
-    private void handlePenaltyAndPattern(Entity victim, Entity damager, double amount) {
-        if (!(victim instanceof Mob)) return;
-        Mob mob = (Mob) victim;
-
+    private void handlePenaltyAndPattern(Mob mob, Entity damager, float amount) {
         getBrain(mob).ifPresent(brain -> {
             // 失敗体験（ペナルティ）の蓄積
             brain.accumulatedPenalty += amount;
 
-            // --- V2機能: 攻撃パターンの記録 ---
-            // 攻撃者がプレイヤーの場合のみ、その距離と時間を脳に記録する
-            if (damager instanceof Player) {
-                Player player = (Player) damager;
-                double distance = player.getLocation().distance(mob.getLocation());
-                long currentTick = mob.getTicksLived(); // 個体の生存Tickを時間軸として使用
-                Vector toMob = mob.getLocation().toVector().subtract(player.getLocation().toVector()).normalize();
-
-                brain.recordAttack(player.getUniqueId(), currentTick, distance,false,player.getLocation().getDirection(),toMob);
+            // 攻撃者がプレイヤーの場合のみ記録
+            if (damager instanceof Player player) {
+                float distance = (float) player.getLocation().distance(mob.getLocation());
+                // recordAttack(UUID, dist, isMiss)
+                // 被弾しているため isMiss は当然 false
+                brain.recordAttack(player.getUniqueId(), distance, false);
             }
         });
     }
@@ -105,32 +101,42 @@ public class CombatExperienceListener implements Listener {
     @EventHandler
     public void onSwing(PlayerArmSwingEvent event) {
         Player player = event.getPlayer();
+        UUID playerUUID = player.getUniqueId();
+        Location playerLoc = player.getLocation();
+        Vector lookDir = playerLoc.getDirection(); // プレイヤーの視線
 
-        player.getNearbyEntities(8, 8, 8).stream()
-                .filter(e -> e instanceof Mob)
-                .filter(e -> MythicBukkit.inst().getMobManager().isActiveMob(e.getUniqueId()))
-                .forEach(e -> {
-                    Mob mob = (Mob) e;
-                    Optional.ofNullable(aiEngine.getBrain(mob.getUniqueId())).ifPresent(brain -> {
-                        Vector playerLoc = player.getLocation().toVector();
-                        Vector mobLoc = mob.getLocation().toVector();
-                        Vector toMob = mobLoc.clone().subtract(playerLoc).normalize();
-                        Vector lookDir = player.getLocation().getDirection();
-                        double dist = player.getLocation().distance(mob.getLocation());
+        // 8m以内のエンティティを取得
+        List<Entity> nearby = player.getNearbyEntities(8, 8, 8);
 
-                        // --- [追加] 回避成功の学習 ---
-                        // プレイヤーがMobをしっかり狙っている（dot > 0.9）のに当たっていない場合
-                        if (lookDir.dot(toMob) > 0.9) {
-                            // 回避成功報酬（0.8程度）を与える
-                            // これにより「EVADE」や「BURST_DASH」のQ値が跳ね上がる
-                            applyLearning(mob, 0.0, 0.0, true);
-                            brain.tacticalMemory.avoidedHits++; // 回避カウンター増
-                        }
+        for (int i = 0; i < nearby.size(); i++) {
+            Entity e = nearby.get(i);
 
-                        // 既存の空振りリズム学習
-                        brain.recordAttack(player.getUniqueId(), mob.getTicksLived(), dist, true, lookDir, toMob);
-                    });
+            // ActiveMob判定とBrainの取得を統合
+            if (e instanceof Mob mob) {
+                Optional.ofNullable(aiEngine.getBrain(mob.getUniqueId())).ifPresent(brain -> {
+
+                    // 1. ベクトル計算 (float化)
+                    Vector toMob = mob.getLocation().toVector().subtract(playerLoc.toVector()).normalize();
+                    float dot = (float) lookDir.dot(toMob);
+                    float dist = (float) playerLoc.distance(mob.getLocation());
+
+                    // 2. 回避成功の学習判定 (ドット積によるエイム精度チェック)
+                    // dot > 0.9f は約25度以内。プレイヤーがMobを捉えて振っている場合
+                    if (dot > 0.9f) {
+                        // 回避成功報酬 (量子化版 applyLearning)
+                        // 引数: mob, damageDealt, damageTaken, isEvaded, damager
+                        applyLearning(mob, 0.0f, 0.0f, true, player);
+
+                        brain.tacticalMemory.avoidedHits++; // 戦術メモリ更新
+                    }
+
+                    // 3. 空振りリズムの学習 (最新の recordAttack シグネチャ)
+                    // recordAttack(UUID, distance, isMiss)
+                    // このイベントは「当たっていない（振っただけ）」ので isMiss = true
+                    brain.recordAttack(playerUUID, (double) dist, true);
                 });
+            }
+        }
     }
 
     private Optional<LiquidBrain> getBrain(Entity entity) {
@@ -138,52 +144,42 @@ public class CombatExperienceListener implements Listener {
                 .map(am -> aiEngine.getBrain(am.getUniqueId()));
     }
 
-    // A. 通常のダメージ・回避用（引数4つ）
-    public void applyLearning(Mob mob, double damageDealt, double damageTaken, boolean evaded) {
-        // 内部的に damager = null としてメインロジックを呼ぶ
-        applyLearning(mob, damageDealt, damageTaken, evaded, null);
-    }
-
     // B. メインロジック：横槍判定（damager）を含む完全版
-    public void applyLearning(Mob mob, double damageDealt, double damageTaken, boolean evaded, Entity damager) {
-        getBrain(mob).ifPresent(brain -> {
-            double reward = 0.0;
+    /**
+     * 最新の量子化仕様に対応した学習メソッド
+     */
+    public void applyLearning(Mob mob, float damageDealt, float damageTaken, boolean evaded, Entity damager) {
+        Optional.ofNullable(aiEngine.getBrain(mob.getUniqueId())).ifPresent(brain -> {
+            float reward = 0.0f;
 
             // 1. 基本報酬
-            reward += (damageDealt * 2.5);
-            reward -= (damageTaken * 1.5);
-            if (evaded) reward += 1.5;
+            reward += (damageDealt * 2.5f);
+            reward -= (damageTaken * 1.5f);
+            if (evaded) reward += 1.5f;
 
-            // 2. 横槍ペナルティ (ターゲット以外からの被弾)
+            // 2. 横槍ペナルティ
             if (damageTaken > 0 && damager != null) {
                 Entity target = mob.getTarget();
                 if (target != null && !damager.getUniqueId().equals(target.getUniqueId())) {
-                    reward -= 5.0; // 強烈な反省
-                    brain.frustration += 0.2; // ストレス増で探索率アップ
+                    reward -= 5.0f;
+                    brain.frustration += 0.2f;
                 }
             }
 
-            // 3. 槍の間合い突破ボーナス
-            if (mob.getTarget() instanceof Player) {
-                double dist = mob.getLocation().distance(mob.getTarget().getLocation());
-                if (dist < 3.0 && damageTaken < 2.0) {
-                    reward += 1.0;
-                }
-            }
-
-            // 4. 次の状態(Next State)の取得
-            // SensorProvider経由で最新の敵リストを取得してKeyを生成
+            // 3. 次の状態(Next State)をインデックスで取得
             List<BanditContext.EnemyInfo> enemies = new SensorProvider().scanEnemies(mob, mob.getNearbyEntities(32, 32, 32));
-            String nextState = brain.qTable.getStateKey(
-                    brain.tacticalMemory.combatAdvantage,
-                    mob.getTarget() != null ? mob.getLocation().distance(mob.getTarget().getLocation()) : 20.0,
-                    false,
-                    enemies
+            float dist = (mob.getTarget() != null) ? (float) mob.getLocation().distance(mob.getTarget().getLocation()) : 20.0f;
+            float hp = (float) (mob.getHealth() / mob.getAttribute(Attribute.MAX_HEALTH).getValue());
+
+            // packState(adv, dist, hp, isRec, crowd)
+            int nextStateIdx = brain.qTable.packState(
+                    (float) brain.tacticalMemory.combatAdvantage,
+                    dist, hp, false, enemies.size()
             );
 
-            // 5. 学習更新
-            if (brain.lastStateKey != null && brain.lastActionType != null) {
-                brain.qTable.update(brain.lastStateKey, brain.lastActionType, reward, nextState);
+            // 4. 量子化Q-Update (Stringキーを生成せず、intのまま流し込む)
+            if (brain.lastStateIdx >= 0 && brain.lastActionIdx >= 0) {
+                brain.qTable.update(brain.lastStateIdx, brain.lastActionIdx, reward, nextStateIdx);
             }
         });
     }
