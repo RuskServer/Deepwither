@@ -444,13 +444,59 @@ public class LiquidCombatEngine {
         }
     }
 
-    /**
-     * 特定の行動を選択した場合の未来期待値を計算する (量子化シミュレーション)
-     */
     private double evaluateTimeline(int actionIdx, LiquidBrain brain, Player target, Mob self, String globalWeakness) {
-        // Q値をインデックスで直接参照 (超高速)
         float qValue = brain.qTable.getQ(brain.lastStateIdx, actionIdx);
         float score = qValue;
+
+        // 現在の座標と時間
+        Vector currentTargetLoc = target.getLocation().toVector();
+        long currentTick = self.getTicksLived();
+
+        // =========================================================
+        // [追加] A. 予測精度の学習 (Reality Check)
+        // =========================================================
+        // 前回の予測から約1秒(15-25Tick)経過していたら「答え合わせ」をする
+        if (brain.lastPredictedLocation != null && (currentTick - brain.lastPredictionTick) >= 15) {
+
+            // 予測していた場所と、実際の場所のズレ(誤差)を計測
+            double errorDistance = currentTargetLoc.distance(brain.lastPredictedLocation);
+
+            // 学習率 (Learning Rate): 0.1 (徐々に馴染ませる)
+            if (errorDistance < 2.0) {
+                // 予測が当たった(誤差2m以内) -> 速度ベクトルをより信じるようにする
+                brain.velocityTrust = Math.min(1.0f, brain.velocityTrust + 0.1f);
+            } else {
+                // 予測が外れた(急停止や切り返し) -> 速度ベクトルを信用しないようにする
+                brain.velocityTrust = Math.max(0.0f, brain.velocityTrust - 0.15f);
+            }
+
+            // 学習完了したのでリセット (次回予測のために)
+            brain.lastPredictedLocation = null;
+        }
+
+        // =========================================================
+        // [改良] B. 信頼度で補正された未来位置予測
+        // =========================================================
+        Vector enemyVel = target.getVelocity();
+
+        // velocityTrust を掛けることで、不規則な動きをする敵には「控えめな予測」をするようになる
+        // Trustが高い(1.0) -> そのまま20ブロック先を予測 (直進読み)
+        // Trustが低い(0.0) -> ほぼ現在位置を予測 (フェイント読み)
+        double predictionScale = 20.0 * brain.velocityTrust;
+
+        double predX = target.getLocation().getX() + (enemyVel.getX() * predictionScale);
+        double predZ = target.getLocation().getZ() + (enemyVel.getZ() * predictionScale);
+        double predDist = Math.sqrt(Math.pow(predX - self.getLocation().getX(), 2) + Math.pow(predZ - self.getLocation().getZ(), 2));
+
+        // 次回の答え合わせのために、今の予測を保存
+        if (brain.lastPredictedLocation == null) {
+            brain.lastPredictedLocation = new Vector(predX, target.getLocation().getY(), predZ);
+            brain.lastPredictionTick = currentTick;
+        }
+
+        // =========================================================
+        // C. 既存のロジック (変更なし)
+        // =========================================================
 
         // 1. 【自己同期】
         long ticksSinceLastSelf = self.getTicksLived() - brain.selfPattern.lastAttackTick;
@@ -459,13 +505,7 @@ public class LiquidCombatEngine {
             selfRhythmScore = Math.max(0.0f, 1.0f - Math.abs(ticksSinceLastSelf - (float)brain.selfPattern.averageInterval) / 20.0f);
         }
 
-        // 2. 【未来予測位置】 (Vectorのcloneを避け、成分計算を推奨)
-        Vector enemyVel = target.getVelocity();
-        double predX = target.getLocation().getX() + (enemyVel.getX() * 20);
-        double predZ = target.getLocation().getZ() + (enemyVel.getZ() * 20);
-        double predDist = Math.sqrt(Math.pow(predX - self.getLocation().getX(), 2) + Math.pow(predZ - self.getLocation().getZ(), 2));
-
-        // 3. 【敵の未来行動予測】
+        // 2. 【敵の未来行動予測】
         LiquidBrain.AttackPattern pattern = brain.enemyPatterns.get(target.getUniqueId());
         boolean enemyLikelyToAttack = false;
         if (pattern != null) {
@@ -474,17 +514,18 @@ public class LiquidCombatEngine {
         }
 
         // --- インデックス別・多次元スコアリング ---
-        // 0:ATTACK, 1:EVADE, 6:BURST_DASH, 3:COUNTER 等
         switch (actionIdx) {
             case 0 -> { // ATTACK
                 score += selfRhythmScore * 0.4f;
-                if (predDist < 3.0) score += 0.3f;
+                // 信頼度が低い(敵がちょこまか動く)時は、より接近していないと攻撃評価を出さない
+                if (predDist < (3.0 * brain.velocityTrust)) score += 0.3f;
             }
             case 1 -> { // EVADE
                 if (enemyLikelyToAttack) score += 0.6f;
             }
             case 6 -> { // BURST_DASH
-                if (predDist > 5.0) score += 0.4f;
+                // 信頼度が高いなら偏差射撃的に突っ込む、低いなら近距離確実性を取る
+                if (predDist > 5.0 && brain.velocityTrust > 0.5f) score += 0.4f;
                 if (globalWeakness.equals("CLOSE_QUARTERS")) score += 0.3f;
             }
             case 3 -> { // COUNTER

@@ -17,6 +17,14 @@ public class LiquidBrain {
 
     public int actionRepeatCount = 0;
 
+    // 前回予測した「20Tick後の座標」
+    public Vector lastPredictedLocation = null;
+    public long lastPredictionTick = 0;
+
+    // 速度ベクトルの信用度 (0.0f ～ 1.0f)
+    // 1.0なら直進すると信じる、0.0なら今の場所から動かないと疑う
+    public float velocityTrust = 0.5f;
+
     // 量子化エンジン用フィールド
     public int lastStateIdx = 0;
     public int lastActionIdx = 4; // Default: OBSERVE
