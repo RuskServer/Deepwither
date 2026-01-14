@@ -427,16 +427,49 @@ public class LiquidCombatEngine {
             rewardDebug.append(String.format("BAIT_WIN(+%.2f) ", rwd));
         }
 
+        // =========================================================
+        // [新概念] コンボ・チェーン評価 (Action Linkage)
+        // =========================================================
+        if (brain.secondLastActionIdx >= 0) {
+            float comboBonus = 0.0f;
+
+            // A. 追撃チェーン: BURST_DASH -> ATTACK (距離を一気に詰めて殴る)
+            if (brain.secondLastActionIdx == 6 && brain.lastActionIdx == 0) { // 6:BURST_DASH, 0:ATTACK
+                if (currentDist < 3.0) {
+                    comboBonus += 0.25f * correlationFactor;
+                    rewardDebug.append("CHASE_HIT ");
+                }
+            }
+
+            // B. 回避反撃チェーン: EVADE -> COUNTER (避けてから即座に返す)
+            if (brain.secondLastActionIdx == 1 && brain.lastActionIdx == 7) { // 1:EVADE, 7:COUNTER
+                comboBonus += 0.3f * brain.velocityTrust; // 予測が当たっていればさらに高評価
+                rewardDebug.append("EVADE_COUNTER ");
+            }
+
+            // C. 撹乱パルクール: ORBITAL_SLIDE -> BURST_DASH (カオス軌道からの急接近)
+            if (brain.secondLastActionIdx == 5 && brain.lastActionIdx == 6) { // 5:ORBITAL, 6:BURST
+                comboBonus += 0.2f * brain.composure;
+                rewardDebug.append("CHAOS_DASH ");
+            }
+
+            totalProcessReward += comboBonus;
+        }
+
         // 4. 量子化Q-Tableへの反映
         if (totalProcessReward > 0) {
             // 相関学習により、同じ「背面取り」でも状況が悪い（疲労中、予測ミス中）ならQ値の伸びを自動抑制
             brain.qTable.update(brain.lastStateIdx, brain.lastActionIdx, totalProcessReward, brain.lastStateIdx, currentFatigue);
             d.reasoning += " | RWD: " + rewardDebug.toString();
         }
+
+        // 次のターンのために行動履歴をシフト
+        brain.secondLastActionIdx = brain.lastActionIdx;
+        brain.secondLastStateIdx = brain.lastStateIdx;
     }
 
     private double evaluateTimeline(int actionIdx, LiquidBrain brain, Player target, Mob self, String globalWeakness) {
-        float qValue = brain.qTable.getQ(brain.lastStateIdx, actionIdx,brain.fatigueMap[brain.lastActionIdx]);
+        float qValue = brain.qTable.getQ(brain.lastStateIdx, actionIdx, brain.fatigueMap[brain.lastActionIdx]);
         float score = qValue;
 
         // 現在の座標と時間
@@ -444,59 +477,58 @@ public class LiquidCombatEngine {
         long currentTick = self.getTicksLived();
 
         // =========================================================
-        // [追加] A. 予測精度の学習 (Reality Check)
+        // A. 予測精度の学習 (Reality Check)
         // =========================================================
-        // 前回の予測から約1秒(15-25Tick)経過していたら「答え合わせ」をする
         if (brain.lastPredictedLocation != null && (currentTick - brain.lastPredictionTick) >= 15) {
-
-            // 予測していた場所と、実際の場所のズレ(誤差)を計測
             double errorDistance = currentTargetLoc.distance(brain.lastPredictedLocation);
 
-            // 学習率 (Learning Rate): 0.1 (徐々に馴染ませる)
             if (errorDistance < 2.0) {
-                // 予測が当たった(誤差2m以内) -> 速度ベクトルをより信じるようにする
                 brain.velocityTrust = Math.min(1.0f, brain.velocityTrust + 0.1f);
             } else {
-                // 予測が外れた(急停止や切り返し) -> 速度ベクトルを信用しないようにする
                 brain.velocityTrust = Math.max(0.0f, brain.velocityTrust - 0.15f);
             }
-
-            // 学習完了したのでリセット (次回予測のために)
             brain.lastPredictedLocation = null;
         }
 
         // =========================================================
-        // [改良] B. 信頼度で補正された未来位置予測
+        // [新実装] B. 視線（Gaze）とFOVによる「死角」の量子化
+        // =========================================================
+        Vector targetLookDir = target.getLocation().getDirection(); // プレイヤーの視線
+        Vector toSelf = self.getLocation().toVector().subtract(target.getLocation().toVector()).normalize();
+
+        // ドット積により、プレイヤーがどれくらい自分を直視しているか算出 (1.0 = 直視, -1.0 = 背面)
+        float attentionLevel = (float) targetLookDir.dot(toSelf);
+
+        // FOV判定（一般的な90度を基準）。視界外なら不意打ちチャンス
+        boolean isVisible = attentionLevel > 0.707; // cos(45度)
+
+        // =========================================================
+        // C. 信頼度と視線で補正された未来位置予測
         // =========================================================
         Vector enemyVel = target.getVelocity();
 
-        // velocityTrust を掛けることで、不規則な動きをする敵には「控えめな予測」をするようになる
-        // Trustが高い(1.0) -> そのまま20ブロック先を予測 (直進読み)
-        // Trustが低い(0.0) -> ほぼ現在位置を予測 (フェイント読み)
-        double predictionScale = 20.0 * brain.velocityTrust;
+        // 相手が背を向けて逃げている（attentionLevel < 0）なら、予測をより前方に伸ばす
+        double directionBias = (attentionLevel < -0.3f) ? 1.4 : 1.0;
+        double predictionScale = 20.0 * brain.velocityTrust * directionBias;
 
         double predX = target.getLocation().getX() + (enemyVel.getX() * predictionScale);
         double predZ = target.getLocation().getZ() + (enemyVel.getZ() * predictionScale);
         double predDist = Math.sqrt(Math.pow(predX - self.getLocation().getX(), 2) + Math.pow(predZ - self.getLocation().getZ(), 2));
 
-        // 次回の答え合わせのために、今の予測を保存
         if (brain.lastPredictedLocation == null) {
             brain.lastPredictedLocation = new Vector(predX, target.getLocation().getY(), predZ);
             brain.lastPredictionTick = currentTick;
         }
 
         // =========================================================
-        // C. 既存のロジック (変更なし)
+        // D. 既存の同期・リズムロジック
         // =========================================================
-
-        // 1. 【自己同期】
         long ticksSinceLastSelf = self.getTicksLived() - brain.selfPattern.lastAttackTick;
         float selfRhythmScore = 0.0f;
         if (brain.selfPattern.averageInterval > 0) {
             selfRhythmScore = Math.max(0.0f, 1.0f - Math.abs(ticksSinceLastSelf - (float)brain.selfPattern.averageInterval) / 20.0f);
         }
 
-        // 2. 【敵の未来行動予測】
         LiquidBrain.AttackPattern pattern = brain.enemyPatterns.get(target.getUniqueId());
         boolean enemyLikelyToAttack = false;
         if (pattern != null) {
@@ -504,35 +536,39 @@ public class LiquidCombatEngine {
             enemyLikelyToAttack = Math.abs(ticksSinceEnemyLast - (long)pattern.averageInterval) < 10;
         }
 
-        // --- インデックス別・多次元スコアリング ---
+        // =========================================================
+        // E. インデックス別・多次元スコアリング
+        // =========================================================
         switch (actionIdx) {
             case 0 -> { // ATTACK
                 score += selfRhythmScore * 0.4f;
-                // 信頼度が低い(敵がちょこまか動く)時は、より接近していないと攻撃評価を出さない
                 if (predDist < (3.0 * brain.velocityTrust)) score += 0.3f;
+                // 視界外（背後）からの攻撃を高く評価
+                if (!isVisible) score += 0.5f;
             }
             case 1 -> { // EVADE
                 if (enemyLikelyToAttack) score += 0.6f;
+                // 見られている時ほど回避の重要度アップ
+                if (isVisible) score += 0.2f;
             }
             case 2 -> { // BAITING (おとり)
-                // 予測が当たらない(敵がトリッキー)なら、あえて誘って動きを固定させる
                 if (brain.velocityTrust < 0.4f) score += 0.5f;
             }
             case 4 -> { // OBSERVE (観察)
-                // 予測精度が落ちてきたら、一旦リセットして観察に回る
                 if (brain.velocityTrust < 0.3f) score += 0.6f;
             }
             case 5 -> { // RETREAT (撤退)
-                // 敵の動きが読みやすく、かつ距離が近いなら、安全な未来位置へ早めに下がる
                 if (brain.velocityTrust > 0.7f && predDist < 5.0) score += 0.4f;
             }
             case 6 -> { // BURST_DASH
-                // 信頼度が高いなら偏差射撃的に突っ込む、低いなら近距離確実性を取る
+                // ガン逃げ（背を向けている）相手には、一気に距離を詰める
+                if (attentionLevel < -0.5f) score += 0.9f;
                 if (predDist > 5.0 && brain.velocityTrust > 0.5f) score += 0.4f;
                 if (globalWeakness.equals("CLOSE_QUARTERS")) score += 0.3f;
             }
             case 7 -> { // ORBITAL_SLIDE (回り込み)
-                // 予測が信頼できるなら、敵の移動先を先回りするようにスライドする
+                // プレイヤーが凝視しているなら、視線を外すようにスライド
+                if (attentionLevel > 0.8f) score += 0.7f;
                 if (brain.velocityTrust > 0.6f) score += 0.5f;
             }
             case 3 -> { // COUNTER

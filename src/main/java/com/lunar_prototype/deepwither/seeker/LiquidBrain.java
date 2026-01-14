@@ -15,6 +15,10 @@ public class LiquidBrain {
     public double patience = 1.0;
     public float frustration = 0.0f;
 
+    // LiquidBrainクラス内に追加
+    public int secondLastActionIdx = -1; // 前々回の行動
+    public int secondLastStateIdx = -1;  // 前々回の状態
+
     public int actionRepeatCount = 0;
 
     // --- [新実装] Elastic Q-Learning: 活動電位疲労 Ft(a) ---

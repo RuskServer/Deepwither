@@ -149,21 +149,35 @@ public class Actuator {
     private void performBurstDash(Mob entity, double power) {
         if (entity.getTarget() == null) return;
 
-        Vector dir = entity.getTarget().getLocation().toVector()
-                .subtract(entity.getLocation().toVector()).normalize();
+        Location targetLoc = entity.getTarget().getLocation();
+        Vector dir = targetLoc.toVector().subtract(entity.getLocation().toVector()).normalize();
 
-        // 障害物チェック
-        if (isPathBlocked(entity, dir)) {
-            // 壁があるなら、ダッシュではなくPathfinderによる「回り込み」に切り替え
-            entity.getPathfinder().moveTo(entity.getTarget().getLocation(), 2.0);
-            return;
+        // 1. 接地判定（OnGround）の擬似チェック
+        // entity.isOnGround() が使える場合はそれを使用。ない場合は高度差で判定。
+        boolean isOnGround = entity.getLocation().subtract(0, 0.1, 0).getBlock().getType().isSolid();
+
+        if (isOnGround) {
+            // 地面に足がついた瞬間に、ターゲット方向への慣性を乗せて跳ぶ
+            // Y軸に 0.42 (プレイヤーの通常ジャンプ力) を与えつつ、水平方向を加速
+            Vector boost = dir.multiply(power).setY(0.42);
+
+            // 障害物が目の前にある場合は、より高く跳んで飛び越えを試みる
+            if (isPathBlocked(entity, dir)) {
+                boost.setY(0.5);
+                boost.multiply(0.8); // 上に振る分、横は少し抑える
+            }
+
+            entity.setVelocity(boost);
+
+            // 演出：踏み込みのパーティクル
+            entity.getWorld().spawnParticle(org.bukkit.Particle.CLOUD, entity.getLocation(), 5, 0.1, 0.05, 0.1, 0.01);
+        } else {
+            // 空中にいる間は、Pathfinderを止めて慣性移動を邪魔させない
+            // ただし、空中でターゲット方向に微調整の力を加える（エアストレイフ）
+            Vector currentVel = entity.getVelocity();
+            Vector airSteer = dir.multiply(0.05); // 微細な空中制御
+            entity.setVelocity(currentVel.add(airSteer));
         }
-
-        // Y軸成分を動的に調整：少し上向きに飛ばすことで、ハーフブロックや階段で止まりにくくする
-        double upwardBias = entity.getLocation().add(dir).getBlock().getType().isSolid() ? 0.4 : 0.15;
-        entity.setVelocity(dir.multiply(power).setY(upwardBias));
-
-        entity.getWorld().spawnParticle(org.bukkit.Particle.CLOUD, entity.getLocation(), 10, 0.2, 0.1, 0.2, 0.05);
     }
 
     /**
