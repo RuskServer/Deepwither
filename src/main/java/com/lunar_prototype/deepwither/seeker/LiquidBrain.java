@@ -19,6 +19,9 @@ public class LiquidBrain {
     public int secondLastActionIdx = -1; // 前々回の行動
     public int secondLastStateIdx = -1;  // 前々回の状態
 
+    public float attentionLevel = 0.0f; // 1.0(直視されている) ～ -1.0(背を向けられている)
+    public boolean isVisibleFromEnemy = true; // 相手のFOV内に入っているか
+
     public int actionRepeatCount = 0;
 
     // --- [新実装] Elastic Q-Learning: 活動電位疲労 Ft(a) ---
@@ -120,13 +123,6 @@ public class LiquidBrain {
         this.aggression = new LiquidNeuron(0.08 + (random.nextDouble() * 0.04));
         this.fear = new LiquidNeuron(0.08 + (random.nextDouble() * 0.04));
         this.tactical = new LiquidNeuron(0.05 + (random.nextDouble() * 0.02));
-    }
-
-    public void updateTacticalAdvantage() {
-        double offense = (double) tacticalMemory.myHits / Math.max(1, tacticalMemory.myHits + tacticalMemory.myMisses);
-        double defense = (double) tacticalMemory.avoidedHits / Math.max(1, tacticalMemory.takenHits + tacticalMemory.avoidedHits);
-        double currentSnapshot = (offense * 0.6) + (defense * 0.4);
-        tacticalMemory.combatAdvantage = (tacticalMemory.combatAdvantage * 0.8) + (currentSnapshot * 0.2);
     }
 
     /**

@@ -207,21 +207,19 @@ public class LiquidCombatEngine {
     private BanditDecision thinkV2Optimized(BanditContext context, LiquidBrain brain, Mob bukkitEntity) {
         // 1. 基底となるV1ロジックの呼び出し (量子化版)
         BanditDecision d = thinkV1Optimized(context, brain, bukkitEntity);
-        d.engine_version = "v3.1-Elastic-DSR";
+        d.engine_version = "v3.2-Surprise-Boost"; // バージョンアップ
 
-        // --- [新理論実装] 脳の構造的再編 (DSR/AM-QL) ---
-        // 思考を開始する前に、現在のアドレナリンやフラストレーションに基づき脳回路を組み替える
+        // --- [新理論実装] 脳の構造的再編 & 経験消化 ---
         brain.reshapeTopology();
-        // 経験の消化（ニューロンの更新 & 疲労の代謝）もここで行い、最新の状態を反映
         brain.digestExperience();
 
-        brain.updateTacticalAdvantage();
+        updateTacticalAdvantage(bukkitEntity,brain,brain.tacticalMemory);
         float advantage = (float) brain.tacticalMemory.combatAdvantage;
 
         List<BanditContext.EnemyInfo> enemies = context.environment.nearby_enemies;
         if (enemies.isEmpty()) return d;
 
-        // --- 1. 多角的ターゲッティング (プリミティブ・ループによる最適化) ---
+        // --- 1. 多角的ターゲッティング ---
         Entity currentTarget = bukkitEntity.getTarget();
         BanditContext.EnemyInfo bestTargetInfo = null;
         float maxScore = -999.0f;
@@ -229,33 +227,25 @@ public class LiquidCombatEngine {
         for (int i = 0; i < enemies.size(); i++) {
             BanditContext.EnemyInfo enemy = enemies.get(i);
             float score = 0.0f;
-
-            score += (20.0f - (float) enemy.dist) * 1.0f; // 距離
+            score += (20.0f - (float) enemy.dist) * 1.0f;
             if (enemy.playerInstance instanceof Player p) {
-                float hpRatio = (float) (p.getHealth() / p.getMaxHealth());
-                score += (1.0f - hpRatio) * 15.0f; // 低HP優先
+                score += (1.0f - (float) (p.getHealth() / p.getMaxHealth())) * 15.0f;
             }
-            if (enemy.in_sight) score += 5.0f; // 視界
+            if (enemy.in_sight) score += 5.0f;
             if (currentTarget != null && enemy.playerInstance.getUniqueId().equals(currentTarget.getUniqueId())) {
-                score += 8.0f; // ターゲット維持バイアス
+                score += 8.0f;
             }
-
             if (score > maxScore) {
                 maxScore = score;
                 bestTargetInfo = enemy;
             }
         }
 
-        // ターゲットの切り替え判定
         if (bestTargetInfo != null) {
             Player bestPlayer = (Player) bestTargetInfo.playerInstance;
             if (currentTarget == null || !bestPlayer.getUniqueId().equals(currentTarget.getUniqueId())) {
                 bukkitEntity.setTarget(bestPlayer);
                 d.reasoning += " | TGT_SWITCH:" + bestPlayer.getName();
-                if (maxScore > 25.0f && brain.lastStateIdx != -1) {
-                    // 新仕様: 学習更新にも疲労度（この場合は0）を考慮
-                    brain.qTable.update(brain.lastStateIdx, 0, 0.1f, brain.lastStateIdx, 0.0f);
-                }
             }
         }
 
@@ -265,49 +255,55 @@ public class LiquidCombatEngine {
         // 集合知プロファイル
         float globalFear = (float) CollectiveKnowledge.getDangerLevel(target.getUniqueId());
         String globalWeakness = CollectiveKnowledge.getGlobalWeakness(target.getUniqueId());
-
         float enemyDist = (float) bukkitEntity.getLocation().distance(target.getLocation());
-        LiquidBrain.AttackPattern pattern = brain.enemyPatterns.get(target.getUniqueId());
 
-        // --- 2. 敵のパターンマッチング & 自己同期 ---
-        float patternMatchScore = 0.0f;
-        if (pattern != null && pattern.sampleCount > 2) {
-            long ticksSinceLast = bukkitEntity.getTicksLived() - pattern.lastAttackTick;
-            float timingScore = Math.max(0.0f, 1.0f - Math.abs(ticksSinceLast - (float) pattern.averageInterval) / 20.0f);
-            float distScore = Math.max(0.0f, 1.0f - Math.abs(enemyDist - (float) pattern.preferredDist) / 2.0f);
-            patternMatchScore = (timingScore * 0.5f) + (distScore * 0.5f);
+        // =========================================================
+        // [新概念] B. 予測誤差（Surprise）による学習ブースト
+        // =========================================================
+        float prevTrust = brain.velocityTrust;
+        // evaluateTimeline内で reality check が走り、trustが更新される
+        // 行動選択の前に「今の予測がどれだけ外れているか」をスコアリングに反映
+        double expectationBase = evaluateTimeline(brain.lastActionIdx, brain, target, bukkitEntity, globalWeakness);
+
+        float surpriseScore = 0.0f;
+        if (prevTrust > brain.velocityTrust) {
+            // 信頼度が下がった＝「自分の予測が裏切られた」
+            surpriseScore = (prevTrust - brain.velocityTrust);
+            brain.frustration += surpriseScore * 0.5f; // 驚きを不満（ストレス）に変換
+            d.reasoning += String.format(" | SURPRISE(+%.2f)", surpriseScore);
         }
 
-        boolean isRecovering = (brain.selfPattern.averageInterval > 0 && (bukkitEntity.getTicksLived() - brain.selfPattern.lastAttackTick) < 15);
-
         // --- 3. Elastic Action Selection & 量子化状態パッキング ---
+        boolean isRecovering = (brain.selfPattern.averageInterval > 0 && (bukkitEntity.getTicksLived() - brain.selfPattern.lastAttackTick) < 15);
         float hpPct = (float) context.entity.hp_pct / 100.0f;
         int stateIdx = brain.qTable.packState(advantage, enemyDist, hpPct, isRecovering, enemies.size());
 
         int bestAIdx = -1;
         float bestExpectation = -999.0f;
 
-        // シミュレーション回数 (冷静さによって分岐)
+        // 冷静さ（Composure）が高いほど深く考え、不満（Frustration）が高いほど探索回数を増やす
         int visionCount = (brain.composure > 0.7) ? 5 : (brain.composure > 0.3 ? 3 : 2);
+        if (brain.frustration > 0.5f) visionCount += 2; // ストレス時は「何か別の手」を必死に探す
 
         for (int i = 0; i < visionCount; i++) {
-            // [新仕様] QTableから疲労度を加味した実質的なベストアクション候補を取得
-            int candidateIdx = (i == 0) ? brain.qTable.getBestActionIdx(stateIdx, brain.fatigueMap)
-                    : ThreadLocalRandom.current().nextInt(ACTIONS.length);
+            // 探索率（Epsilon）: 不満度が高いほど、既存のベストアクションを無視してランダムな手を試す
+            float currentEpsilon = Math.min(0.8f, 0.1f + (brain.frustration * 0.6f));
 
-            // 未来期待値計算
+            int candidateIdx;
+            if (i == 0 && ThreadLocalRandom.current().nextFloat() > currentEpsilon) {
+                candidateIdx = brain.qTable.getBestActionIdx(stateIdx, brain.fatigueMap);
+            } else {
+                candidateIdx = ThreadLocalRandom.current().nextInt(ACTIONS.length);
+            }
+
             double expectation = evaluateTimeline(candidateIdx, brain, target, bukkitEntity, globalWeakness);
 
-            // [Elastic] 活動電位疲労による期待値の動的減衰
-            float fatigue = brain.fatigueMap[candidateIdx];
-            expectation -= (fatigue * 2.0); // alpha=2.0
+            // [Elastic] 疲労による減衰
+            expectation -= (brain.fatigueMap[candidateIdx] * 2.0);
 
-            // 戦術的分野：スパム防止 (Tactical Boredom)
-            if (candidateIdx == brain.lastActionIdx) {
-                String actionName = ACTIONS[candidateIdx];
-                float penaltyMultiplier = (float) Math.pow(actionName.equals("BURST_DASH") || actionName.equals("OVERWHELM") ? 0.6 : 0.9, brain.actionRepeatCount);
-                if (expectation > 0) expectation *= penaltyMultiplier;
-                if (actionName.equals("BURST_DASH")) expectation -= (brain.actionRepeatCount * 1.5);
+            // 予測誤差が大きい時、未知の行動（疲労していない行動）にボーナス
+            if (surpriseScore > 0.2f) {
+                expectation += (1.0f - brain.fatigueMap[candidateIdx]) * surpriseScore * 2.0f;
             }
 
             if (expectation > bestExpectation) {
@@ -316,33 +312,25 @@ public class LiquidCombatEngine {
             }
         }
 
-        // 集合知バイアス (Epsilon)
-        float epsilon = Math.min(0.6f, 0.1f + (brain.frustration * 0.4f) + (globalFear * 0.1f));
-        if (ThreadLocalRandom.current().nextFloat() < epsilon) {
-            bestAIdx = (globalWeakness.equals("CLOSE_QUARTERS") && ThreadLocalRandom.current().nextFloat() < 0.3f) ? 6 : ThreadLocalRandom.current().nextInt(ACTIONS.length);
-            d.reasoning += " | Q:EXPLORING";
+        // 最終的な探索フラグの付与
+        if (ThreadLocalRandom.current().nextFloat() < (brain.frustration * 0.4f)) {
+            d.reasoning += " | Q:EXPLORING_BY_STRESS";
         }
 
         // --- 4. 戦術的分岐 & DSRによる行動補正 ---
-        float reflexIntensity = (float) brain.reflex.get();
         String recommendedAction = ACTIONS[bestAIdx];
+        float reflexIntensity = (float) brain.reflex.get();
 
         if (brain.adrenaline > 0.85f && reflexIntensity > 0.7f) {
-            // 【サージバイパス発動】 疲労を焼き切り本能(DSR経路)が上書き
             d.decision.action_type = "OVERWHELM";
             d.movement.strategy = "BURST_DASH";
             d.reasoning += " | DSR_BYPASS:SURGE";
-        } else if (advantage < 0.3f || (globalFear > 0.8f && advantage < 0.5f)) {
+        } else if (advantage < 0.3f) {
             d.decision.action_type = recommendedAction.equals("RETREAT") ? "RETREAT" : "DESPERATE_DEFENSE";
             d.movement.strategy = d.decision.action_type.equals("RETREAT") ? "RETREAT" : "MAINTAIN_DISTANCE";
-        } else if (patternMatchScore > 0.7f && brain.composure > 0.6 && !isRecovering && enemies.size() == 1) {
-            d.decision.action_type = "COUNTER";
-            d.movement.strategy = "SIDESTEP_COUNTER";
-            d.decision.use_skill = "Counter_Stance";
         } else if (advantage > 0.7f || globalWeakness.equals("CLOSE_QUARTERS")) {
             d.decision.action_type = "OVERWHELM";
-            d.movement.strategy = (enemies.size() > 1 || globalFear > 0.5f) ? "SPRINT_ZIGZAG" : "BURST_DASH";
-            d.decision.use_skill = "Execution_Strike";
+            d.movement.strategy = (enemies.size() > 1) ? "SPRINT_ZIGZAG" : "BURST_DASH";
         } else {
             d.decision.action_type = recommendedAction;
             switch (recommendedAction) {
@@ -351,19 +339,17 @@ public class LiquidCombatEngine {
                 case "ORBITAL_SLIDE" -> d.movement.strategy = "ORBITAL_SLIDE";
                 default -> d.movement.strategy = "MAINTAIN_DISTANCE";
             }
-            // 疲労が選択に影響している場合のデバッグ
             if (brain.fatigueMap[bestAIdx] > 0.4f) d.reasoning += " | ELASTIC:FATIGUED";
         }
 
-        // 最終更新処理
-        if (bestAIdx == brain.lastActionIdx) {
-            brain.actionRepeatCount++;
-        } else {
-            brain.actionRepeatCount = 0;
-        }
+        // インデックス更新と学習報酬の適用
+        if (bestAIdx == brain.lastActionIdx) brain.actionRepeatCount++;
+        else brain.actionRepeatCount = 0;
 
         brain.lastStateIdx = stateIdx;
         brain.lastActionIdx = bestAIdx;
+
+        // [Surprise Boost] 予測が外れている時は報酬の反映強度を上げる
         applyMobilityRewards(bukkitEntity, brain, d, (double) enemyDist);
 
         return d;
@@ -466,6 +452,66 @@ public class LiquidCombatEngine {
         // 次のターンのために行動履歴をシフト
         brain.secondLastActionIdx = brain.lastActionIdx;
         brain.secondLastStateIdx = brain.lastStateIdx;
+    }
+
+    /**
+     * 戦術的優位性の更新
+     * 判定を厳しくし、膠着状態やハメ状態を即座に「劣勢」と判定するように改良
+     */
+    public void updateTacticalAdvantage(Mob self, LiquidBrain brain, LiquidBrain.TacticalMemory tacticalMemory) {
+        if (self.getTarget() == null || !(self.getTarget() instanceof Player)) {
+            tacticalMemory.combatAdvantage *= 0.95; // ターゲット喪失時は徐々に減衰
+            return;
+        }
+
+        Player target = (Player) self.getTarget();
+
+        // --- [ここが重要] 視線計算のロジック ---
+        Vector targetLookDir = target.getLocation().getDirection(); // 敵が見ている方向
+        Vector toSelf = self.getLocation().toVector().subtract(target.getLocation().toVector()).normalize();
+
+        // ドット積で「視線の重なり」を算出
+        brain.attentionLevel = (float) targetLookDir.dot(toSelf);
+
+        // FOV約90度（cos45度 ≒ 0.707）を基準に可視判定
+        brain.isVisibleFromEnemy = brain.attentionLevel > 0.707;
+
+        // 1. ヒット・回避率 (基本性能)
+        double offense = (double) tacticalMemory.myHits / Math.max(1, tacticalMemory.myHits + tacticalMemory.myMisses);
+        double defense = (double) tacticalMemory.avoidedHits / Math.max(1, tacticalMemory.takenHits + tacticalMemory.avoidedHits);
+
+        // 2. 生命力収支 (HP差によるプレッシャー)
+        // 判定を厳しく: HPが半分以下になると急激にアドバンテージを失う
+        double myHpPct = self.getHealth() / self.getMaxHealth();
+        double targetHpPct = target.getHealth() / target.getMaxHealth();
+        double hpAdvantage = myHpPct / (myHpPct + targetHpPct + 0.01);
+
+        // 3. ポジショニング (視線と距離の相関)
+        // 相手が自分を見ていない(attention < 0) ほど優位、かつ距離が近いほどその価値が高い
+        double dist = self.getLocation().distance(target.getLocation());
+        double distFactor = Math.exp(-dist / 10.0); // 遠いとポジションの価値が薄れる
+        double positionAdvantage = ((1.0 - brain.attentionLevel) / 2.0) * distFactor;
+
+        // 4. 予測精度 (Reality Checkの結果)
+        // 自分の予測が当たっている＝相手を完全にコントロール下に置いている
+        double predictionAdvantage = brain.velocityTrust;
+
+        // --- 加重合成 (Weight Matrix) ---
+        // HP差を最重視 (35%)、予測精度とポジションで「攻めの勢い」を測る
+        double currentSnapshot = (offense * 0.15) +
+                (defense * 0.10) +
+                (hpAdvantage * 0.35) +
+                (positionAdvantage * 0.20) +
+                (predictionAdvantage * 0.20);
+
+        // 以前の値との平滑化
+        // 係数を0.3に上げることで、魔法の連撃を受けた際の「優勢から劣勢への転落」を早める
+        tacticalMemory.combatAdvantage = (tacticalMemory.combatAdvantage * 0.7) + (currentSnapshot * 0.3);
+
+        // 劣勢時のSurpriseトリガーへのフィードバック
+        if (tacticalMemory.combatAdvantage < 0.3) {
+            brain.frustration += 0.05f; // 劣勢が続くとイライラが募る
+        }
     }
 
     private double evaluateTimeline(int actionIdx, LiquidBrain brain, Player target, Mob self, String globalWeakness) {
@@ -595,7 +641,7 @@ public class LiquidCombatEngine {
         // 2. 基本パラメータの量子化
         float hpStress = 1.0f - ((float) context.entity.hp_pct / 100.0f);
         float enemyDist = (float) bestTargetInfo.dist;
-        brain.updateTacticalAdvantage();
+        updateTacticalAdvantage(bukkitEntity,brain,brain.tacticalMemory);
         float advantage = (float) brain.tacticalMemory.combatAdvantage;
 
         // サージ判定（量子化された frustration と adrenaline を使用）
