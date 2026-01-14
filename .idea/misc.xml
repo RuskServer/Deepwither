@@ -7,6 +7,7 @@
   <component name="ExternalStorageConfigurationManager" enabled="true" />
   <component name="JavadocGenerationManager">
     <option name="OUTPUT_DIRECTORY" value="$USER_HOME$/Documents/javadocs" />
+    <option name="OTHER_OPTIONS" value="-encoding UTF-8 -charset UTF-8" />
   </component>
   <component name="MavenProjectsManager">
     <option name="originalFiles">

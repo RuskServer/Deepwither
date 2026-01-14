@@ -12,7 +12,7 @@ public class PlayerQuestData {
 
     private final UUID playerId;
     // 進行中のクエストID（UUID）とその進捗データ
-    private final Map<UUID, QuestProgress> activeQuests;
+    private Map<UUID, QuestProgress> activeQuests;
 
     public PlayerQuestData(UUID playerId) {
         this.playerId = playerId;
@@ -43,8 +43,12 @@ public class PlayerQuestData {
 
     /**
      * 全ての進行中のクエストを取得します。
+     * 修正3: ゲッター自体でnullチェックを行い、呼び出し側でのNPEを完全に防ぐ
      */
     public Map<UUID, QuestProgress> getActiveQuests() {
+        if (activeQuests == null) {
+            activeQuests = new ConcurrentHashMap<>();
+        }
         return activeQuests;
     }
 
