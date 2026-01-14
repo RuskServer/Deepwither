@@ -145,24 +145,36 @@ public class CombatExperienceListener implements Listener {
     }
 
     // B. メインロジック：横槍判定（damager）を含む完全版
-    /**
-     * 最新の量子化仕様に対応した学習メソッド
-     */
     public void applyLearning(Mob mob, float damageDealt, float damageTaken, boolean evaded, Entity damager) {
         Optional.ofNullable(aiEngine.getBrain(mob.getUniqueId())).ifPresent(brain -> {
             float reward = 0.0f;
 
-            // 1. 基本報酬
-            reward += (damageDealt * 2.5f);
-            reward -= (damageTaken * 1.5f);
-            if (evaded) reward += 1.5f;
+            // =========================================================
+            // [動的スケーラー] 状況(信頼度・冷静さ)と疲労の相関
+            // =========================================================
+            float currentFatigue = brain.lastActionIdx >= 0 ? brain.fatigueMap[brain.lastActionIdx] : 0.0f;
+            float correlationFactor = (brain.velocityTrust * 0.5f + brain.composure * 0.5f) * (1.0f - currentFatigue);
 
-            // 2. 横槍ペナルティ
+            // 1. 基本報酬 (スケーリング適用)
+            // 予測が的中している(Trust高)時の攻撃成功は「読み勝ち」として報酬を増幅
+            reward += (damageDealt * (2.0f + 1.0f * correlationFactor));
+
+            // ダメージを受けた際のペナルティは「冷静さ」が高いほど厳しく（油断への戒め）
+            reward -= (damageTaken * (1.0f + 1.0f * brain.composure));
+
+            // 回避報酬は、予測が当たっている状態での回避なら高く評価
+            if (evaded) {
+                reward += (1.0f + 1.0f * brain.velocityTrust);
+            }
+
+            // 2. 横槍ペナルティ (Frustrationとの連動)
             if (damageTaken > 0 && damager != null) {
                 Entity target = mob.getTarget();
                 if (target != null && !damager.getUniqueId().equals(target.getUniqueId())) {
                     reward -= 5.0f;
+                    // 苛立ち(Frustration)が溜まると冷静さが削れる
                     brain.frustration += 0.2f;
+                    brain.composure = Math.max(0.0f, brain.composure - 0.1f);
                 }
             }
 
@@ -171,15 +183,15 @@ public class CombatExperienceListener implements Listener {
             float dist = (mob.getTarget() != null) ? (float) mob.getLocation().distance(mob.getTarget().getLocation()) : 20.0f;
             float hp = (float) (mob.getHealth() / mob.getAttribute(Attribute.MAX_HEALTH).getValue());
 
-            // packState(adv, dist, hp, isRec, crowd)
             int nextStateIdx = brain.qTable.packState(
                     (float) brain.tacticalMemory.combatAdvantage,
                     dist, hp, false, enemies.size()
             );
 
-            // 4. 量子化Q-Update (Stringキーを生成せず、intのまま流し込む)
+            // 4. 量子化Q-Update
             if (brain.lastStateIdx >= 0 && brain.lastActionIdx >= 0) {
-                brain.qTable.update(brain.lastStateIdx, brain.lastActionIdx, reward, nextStateIdx,brain.fatigueMap[brain.lastActionIdx]);
+                // 学習時にもFatigueを渡すことで、連打されている行動のQ値の伸びを抑制
+                brain.qTable.update(brain.lastStateIdx, brain.lastActionIdx, reward, nextStateIdx, currentFatigue);
             }
         });
     }
