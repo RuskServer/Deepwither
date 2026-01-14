@@ -288,7 +288,7 @@ public class LiquidCombatEngine {
         float bestExpectation = -999.0f;
 
         // シミュレーション回数 (冷静さによって分岐)
-        int visionCount = (brain.composure > 0.7) ? 3 : (brain.composure > 0.3 ? 2 : 1);
+        int visionCount = (brain.composure > 0.7) ? 5 : (brain.composure > 0.3 ? 3 : 2);
 
         for (int i = 0; i < visionCount; i++) {
             // [新仕様] QTableから疲労度を加味した実質的なベストアクション候補を取得
