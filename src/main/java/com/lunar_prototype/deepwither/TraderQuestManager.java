@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.lunar_prototype.deepwither.data.PlayerQuestData;
 import com.lunar_prototype.deepwither.TraderManager.QuestData;
 import com.lunar_prototype.deepwither.util.IManager;
+import io.lumine.mythic.bukkit.events.MythicMobDeathEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -94,50 +95,68 @@ public class TraderQuestManager implements IManager, Listener {
     }
 
     /**
-     * キルタスクの監視 (距離・装備指定の拡張対応)
+     * MythicMobsの死亡イベントを監視し、進行中のキルタスクを処理する
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onEntityKill(EntityDeathEvent e) {
-        Player killer = e.getEntity().getKiller();
-        if (killer == null) return;
+    public void onMythicMobKill(MythicMobDeathEvent e) {
+        // プレイヤーによる殺害かチェック
+        if (!(e.getKiller() instanceof Player killer)) return;
 
-        String mobName = e.getEntityType().name();
+        // MythicMobの内部名（YAMLのtargetと比較するID）を取得
+        String mobId = e.getMobType().getInternalName();
         UUID uuid = killer.getUniqueId();
         PlayerQuestData data = playerDataMap.get(uuid);
-        if (data == null) return;
+
+        if (data == null || data.getCurrentProgress().isEmpty()) return;
 
         TraderManager tm = plugin.getTraderManager();
 
-        // 全トレーダーのクエストをチェック
-        for (String traderId : tm.getAllTraderIds()) {
-            Map<String, QuestData> quests = tm.getQuestsForTrader(traderId);
-            if (quests == null) continue;
+        // 進行中のクエストのみをチェック（負荷対策）
+        for (String progressKey : new HashSet<>(data.getCurrentProgress().keySet())) {
+            String[] split = progressKey.split(":");
+            if (split.length < 2) continue;
 
-            for (QuestData quest : quests.values()) {
-                // 1. 未完了且つタイプがKILLか
-                if (data.isCompleted(traderId, quest.getId())) continue;
-                if (!"KILL".equalsIgnoreCase(quest.getType())) continue;
+            String traderId = split[0];
+            String questId = split[1];
 
-                // 2. ターゲット(Mob)が一致するか
-                if (!mobName.equalsIgnoreCase(quest.getTarget())) continue;
+            TraderManager.QuestData quest = tm.getQuestsForTrader(traderId).get(questId);
+            if (quest == null || !"KILL".equalsIgnoreCase(quest.getType())) continue;
 
-                // 3. 拡張条件: 距離チェック
-                if (quest.getMinDistance() > 0 || quest.getMaxDistance() > 0) {
-                    double dist = killer.getLocation().distance(e.getEntity().getLocation());
-                    if (quest.getMinDistance() > 0 && dist < quest.getMinDistance()) continue;
-                    if (quest.getMaxDistance() > 0 && dist > quest.getMaxDistance()) continue;
-                }
+            // --- 1. MythicMob IDが一致するか ---
+            if (!mobId.equalsIgnoreCase(quest.getTarget())) continue;
 
-                // 4. 拡張条件: 装備チェック (メインハンド)
-                if (quest.getRequiredWeapon() != null) {
-                    ItemStack hand = killer.getInventory().getItemInMainHand();
-                    if (!isMatchingItem(hand, quest.getRequiredWeapon())) continue;
-                }
-
-                // 全条件クリア -> 進捗加算
-                incrementProgress(killer, traderId, quest);
+            // --- 2. 拡張条件: 距離チェック ---
+            if (quest.getMinDistance() > 0 || quest.getMaxDistance() > 0) {
+                // e.getEntity() は死んだMobのエンティティ
+                double dist = killer.getLocation().distance(e.getEntity().getLocation());
+                if (quest.getMinDistance() > 0 && dist < quest.getMinDistance()) continue;
+                if (quest.getMaxDistance() > 0 && dist > quest.getMaxDistance()) continue;
             }
+
+            // --- 3. 拡張条件: 装備チェック ---
+            if (quest.getRequiredWeapon() != null) {
+                ItemStack hand = killer.getInventory().getItemInMainHand();
+                if (!isMatchingItem(hand, quest.getRequiredWeapon())) continue;
+            }
+
+            if (quest.getRequiredArmor() != null) {
+                // 必要に応じてチェストプレートなども判定可能ですが、一旦装備指定全般をチェック
+                if (!hasRequiredArmor(killer, quest.getRequiredArmor())) continue;
+            }
+
+            // 全条件クリア -> 進捗加算
+            incrementProgress(killer, traderId, quest);
         }
+    }
+
+    /**
+     * プレイヤーがいずれかの部位に指定されたIDの防具を装備しているか判定
+     */
+    private boolean hasRequiredArmor(Player player, String armorId) {
+        for (ItemStack armor : player.getInventory().getArmorContents()) {
+            if (isMatchingItem(armor, armorId)) return true;
+        }
+        return false;
     }
 
     /**
