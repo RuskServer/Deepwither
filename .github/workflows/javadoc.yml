@@ -2,8 +2,7 @@ name: Deploy Javadoc
 
 on:
   push:
-    branches:
-      - main  # 監視するブランチ名
+    branches: [ "main" ]  # mainにpushされたら毎回リリース
 
 permissions:
   contents: read
