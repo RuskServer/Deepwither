@@ -13,6 +13,7 @@ import io.papermc.paper.registry.set.RegistrySet;
 import org.bukkit.*;
 import org.bukkit.block.BlockType;
 import org.bukkit.command.*;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
@@ -1111,6 +1112,25 @@ class ItemLoader {
                     }
                 }
 
+                if (config.contains(key + ".equipable")) {
+                    ConfigurationSection equipSection = config.getConfigurationSection(key + ".equipable");
+                    if (equipSection != null) {
+                        // 装備スロットの判定 (HEAD, CHEST, LEGS, FEET, etc.)
+                        String slotName = equipSection.getString("slot", "HEAD");
+                        EquipmentSlot slot = EquipmentSlot.valueOf(slotName.toUpperCase());
+
+                        // Equippableコンポーネントの構築
+                        Equippable equippable = Equippable.equippable(slot)
+                                .assetId(equipSection.contains("model") ? NamespacedKey.fromString(equipSection.getString("model")) : null)
+                                .dispensable(equipSection.getBoolean("dispensable", true))
+                                .swappable(equipSection.getBoolean("swappable", true))
+                                .cameraOverlay(equipSection.contains("overlay") ? NamespacedKey.fromString(equipSection.getString("overlay")) : null)
+                                .build();
+
+                        // コンポーネントをアイテムに適用
+                        item.setData(DataComponentTypes.EQUIPPABLE, equippable);
+                    }
+                }
 
                 String armortrim = config.getString(key + ".armortrim");
                 String armortrimmaterial = config.getString(key + ".armortrimmaterial");
