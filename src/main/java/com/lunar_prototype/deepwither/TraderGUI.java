@@ -449,14 +449,17 @@ public class TraderGUI implements Listener {
     }
 
     /**
-     * クエスト一覧GUIを開く
+     * クエスト一覧GUIを開く（説明文・報酬表示対応）
      */
     public void openQuestGUI(Player player, String traderId) {
         TraderManager tm = Deepwither.getInstance().getTraderManager();
         TraderQuestManager tqm = Deepwither.getInstance().getTraderQuestManager();
         Map<String, TraderManager.QuestData> quests = tm.getQuestsForTrader(traderId);
 
-        int size = 27; // クエスト数に応じて調整
+        // クエスト数に合わせて行数を計算 (最低3行、最大6行)
+        int rowCount = (int) Math.ceil(quests.size() / 9.0) + 1;
+        int size = Math.min(Math.max(rowCount, 3), 6) * 9;
+
         Inventory gui = Bukkit.createInventory(player, size, String.format(QUEST_GUI_TITLE, tm.getTraderName(traderId)));
 
         for (TraderManager.QuestData quest : quests.values()) {
@@ -468,42 +471,53 @@ public class TraderGUI implements Listener {
             boolean canAccept = tqm.canAcceptQuest(player, traderId, quest);
 
             String progressKey = traderId + ":" + quest.getId();
-            PlayerQuestData data = tqm.getPlayerData(player); // プレイヤーデータを取得するゲッターが必要
+            PlayerQuestData data = tqm.getPlayerData(player);
             boolean isActive = data != null && data.getCurrentProgress().containsKey(progressKey);
+
+            // --- Loreの構築 ---
+
+            // 1. クエスト説明文 (最上部)
+            if (quest.getDescription() != null && !quest.getDescription().isEmpty()) {
+                for (String line : quest.getDescription()) {
+                    lore.add("§7" + line);
+                }
+                lore.add(""); // 説明とステータスの間に空行
+            }
 
             if (isCompleted) {
                 item = new ItemStack(Material.ENCHANTED_BOOK);
                 meta = item.getItemMeta();
-                meta.setDisplayName("§a§l✔ §7" + quest.getDisplayName());
-                lore.add("§7このタスクは完了しています。");
+                meta.setDisplayName("§a§l✔ §f" + quest.getDisplayName());
+                lore.add("§7ステータス: §a完了済み");
             } else if (!canAccept) {
                 item = new ItemStack(Material.BARRIER);
                 meta = item.getItemMeta();
-                meta.setDisplayName("§c§l[未開放] §7" + quest.getDisplayName());
-                lore.add("§7前提条件: §e" + (quest.getRequiredQuestId() != null ? quest.getRequiredQuestId() : "不明"));
+                meta.setDisplayName("§c§l[ロック中] §7" + quest.getDisplayName());
+                lore.add("§7ステータス: §c未開放");
+                lore.add("§7前提条件: §e" + (quest.getRequiredQuestId() != null ? quest.getRequiredQuestId() : "なし"));
             } else {
                 item = new ItemStack(isActive ? Material.WRITABLE_BOOK : Material.BOOK);
                 meta = item.getItemMeta();
                 meta.setDisplayName((isActive ? "§e§l[進行中] " : "§6§l[受領可能] ") + "§f" + quest.getDisplayName());
 
-                lore.add("§7タイプ: §f" + quest.getType());
-                lore.add("§7目標: §f" + quest.getTarget() + " ×" + quest.getAmount());
+                lore.add("§7タイプ: §f" + (quest.getType().equalsIgnoreCase("KILL") ? "討伐" : "納品"));
+                lore.add("§7目標: §f" + quest.getTarget() + " §7を §f" + quest.getAmount() + "§7個");
 
                 if (isActive) {
-                    int current = data.getCurrentProgress().get(progressKey);
-                    lore.add("§a進捗: §f" + current + " / " + quest.getAmount());
+                    int current = data.getCurrentProgress().getOrDefault(progressKey, 0);
+                    lore.add("§a現在の進捗: §f" + current + " / " + quest.getAmount());
                     lore.add("");
-                    lore.add("§eクリックして納品/報告");
+                    lore.add("§e▶ クリックして報告/納品");
                 } else {
                     lore.add("");
-                    lore.add("§aクリックして受領");
+                    lore.add("§a▶ クリックして受領する");
                 }
             }
 
-            // PDCにクエストIDを保存
+            // PDCの設定
             NamespacedKey qKey = new NamespacedKey(Deepwither.getInstance(), "quest_id");
             meta.getPersistentDataContainer().set(qKey, PersistentDataType.STRING, quest.getId());
-            NamespacedKey tKey = new NamespacedKey(Deepwither.getInstance(), TRADER_ID_KEY);
+            NamespacedKey tKey = new NamespacedKey(Deepwither.getInstance(), "trader_id");
             meta.getPersistentDataContainer().set(tKey, PersistentDataType.STRING, traderId);
 
             meta.setLore(lore);
