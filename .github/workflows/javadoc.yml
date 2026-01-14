@@ -25,6 +25,12 @@ jobs:
       - name: Generate Javadoc
         run: mvn javadoc:javadoc -Dencoding=UTF-8 -Dcharset=UTF-8
 
+      - name: Debug - List files
+        run: |
+          echo "Listing target directory structure:"
+          ls -R target/site 2>/dev/null || echo "target/site not found"
+          find . -name "index.html" | grep apidocs # index.htmlの場所を検索
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
