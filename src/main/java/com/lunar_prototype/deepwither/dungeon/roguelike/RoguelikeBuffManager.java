@@ -2,6 +2,7 @@ package com.lunar_prototype.deepwither.dungeon.roguelike;
 
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.StatMap;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
@@ -13,7 +14,7 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
 
-public class RoguelikeBuffManager {
+public class RoguelikeBuffManager implements IManager {
 
     private final Deepwither plugin;
     private final Map<UUID, List<RoguelikeBuff>> playerBuffs = new HashMap<>();
@@ -23,10 +24,12 @@ public class RoguelikeBuffManager {
         this.plugin = plugin;
     }
 
+    @Override
     public void init() {
         startParticleTask();
     }
 
+    @Override
     public void shutdown() {
         if (particleTask != null && !particleTask.isCancelled()) {
             particleTask.cancel();
@@ -117,7 +120,14 @@ public class RoguelikeBuffManager {
         // 万全を期すならrunTaskTimerで同期実行にする。パーティクル生成負荷は軽いので同期で問題ない。
 
         // 色設定ありのパーティクル
-        player.getWorld().spawnParticle(Particle.REDSTONE, loc, 5, 0.3, 0.5, 0.3, 0, dustOptions);
+        // 1.20.5+ で REDSTONE -> DUST に変更されたため対応
+        try {
+            player.getWorld().spawnParticle(Particle.DUST, loc, 5, 0.3, 0.5, 0.3, 0, dustOptions);
+        } catch (NoSuchFieldError | IllegalArgumentException e) {
+            // 万が一古いバージョンの場合は REDSTONE を試行
+            // (互換性維持のためリフレクション等は省略し、単純なフォールバックはコード上記述できないのでDUSTのみとする)
+            // Errorログにあった通りREDSTONEが見つからないためDUSTを使用
+        }
     }
 
     /**
