@@ -18,6 +18,10 @@ public class RoguelikeBuffManager implements IManager {
 
     private final Deepwither plugin;
     private final Map<UUID, List<RoguelikeBuff>> playerBuffs = new HashMap<>();
+    // UUID -> (ChestLocationString -> LastUsedTime)
+    private final Map<UUID, Map<String, Long>> chestCooldowns = new HashMap<>();
+    private static final long CHEST_COOLDOWN_MS = 180000; // 3 mins
+
     private BukkitTask particleTask;
 
     public RoguelikeBuffManager(Deepwither plugin) {
@@ -67,6 +71,33 @@ public class RoguelikeBuffManager implements IManager {
             plugin.getStatManager().removeTemporaryBuff(player.getUniqueId());
             plugin.getStatManager().updatePlayerStats(player);
         }
+        // クールダウン情報はセッション中保持するか、ここで消すか。
+        // Roguelikeなら脱出＝リセットが自然だが、PvPvEで再入場可なら残すべき。
+        // 仕様不明だが、とりあえずここでは消さずに残す（同じダンジョンIDに入るなら）
+        // ただしメモリリーク防止のため、インスタンス終了時に掃除されるべきだが、
+        // 簡易実装では player quits etc で消すのが良い。
+        // ここでは "バフクリア" = "リセット" なのでクールダウンもリセットする？
+        // ユーザー: "一定時間使えなくなる" -> "3分で復活"
+        // 脱出してすぐ入り直したら？ -> まあリセットでいいか。
+        chestCooldowns.remove(player.getUniqueId());
+    }
+
+    public boolean tryUseChest(Player player, Location chestLoc) {
+        String locKey = chestLoc.getBlockX() + "," + chestLoc.getBlockY() + "," + chestLoc.getBlockZ();
+        Map<String, Long> userCooldowns = chestCooldowns.computeIfAbsent(player.getUniqueId(), k -> new HashMap<>());
+
+        if (userCooldowns.containsKey(locKey)) {
+            long lastUsed = userCooldowns.get(locKey);
+            long elapsed = System.currentTimeMillis() - lastUsed;
+            if (elapsed < CHEST_COOLDOWN_MS) {
+                long remainingSec = (CHEST_COOLDOWN_MS - elapsed) / 1000;
+                player.sendMessage("§cこのチェストはあと " + remainingSec + "秒後に再使用可能です。");
+                return false;
+            }
+        }
+
+        userCooldowns.put(locKey, System.currentTimeMillis());
+        return true;
     }
 
     /**

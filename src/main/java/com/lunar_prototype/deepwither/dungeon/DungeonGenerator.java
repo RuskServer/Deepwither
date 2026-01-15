@@ -65,7 +65,7 @@ public class DungeonGenerator {
     }
     // ------------------------------
 
-    private static class PendingSpawner {
+    public static class PendingSpawner {
         private final Location location;
         private final String mobId;
         private final int level;
@@ -75,10 +75,26 @@ public class DungeonGenerator {
             this.mobId = mobId;
             this.level = level;
         }
+
+        public Location getLocation() {
+            return location;
+        }
+
+        public String getMobId() {
+            return mobId;
+        }
+
+        public int getLevel() {
+            return level;
+        }
     }
 
     public List<Location> getValidSpawnLocations() {
         return validSpawnLocations;
+    }
+
+    public List<PendingSpawner> getPendingSpawners() {
+        return pendingSpawners;
     }
 
     private static class PlacedPart {

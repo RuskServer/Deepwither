@@ -22,7 +22,7 @@ public class DungeonInstance {
     private final String type;
     private final String difficulty;
 
-    public DungeonInstance(String instanceId, World world,String type,String difficulty) {
+    public DungeonInstance(String instanceId, World world, String type, String difficulty) {
         this.instanceId = instanceId;
         this.world = world;
         this.currentPlayers = new HashSet<>();
@@ -63,5 +63,62 @@ public class DungeonInstance {
 
     public long getLastEmptyTime() {
         return lastEmptyTime;
+    }
+
+    // --- PvPvE Lifecycle ---
+    private List<com.lunar_prototype.deepwither.dungeon.DungeonGenerator.PendingSpawner> spawners = new java.util.ArrayList<>();
+    private org.bukkit.scheduler.BukkitTask respawnTask;
+
+    public void setSpawners(List<com.lunar_prototype.deepwither.dungeon.DungeonGenerator.PendingSpawner> spawners) {
+        this.spawners = spawners;
+    }
+
+    public void startLifeCycle() {
+        // 3分ごとにモブをリセット＆リスポーン
+        // 最初の実行は3分後 (既に生成時に湧いているため)
+        respawnTask = new org.bukkit.scheduler.BukkitRunnable() {
+            @Override
+            public void run() {
+                respawnMobs();
+            }
+        }.runTaskTimer(com.lunar_prototype.deepwither.Deepwither.getInstance(), 3600L, 3600L); // 3 mins
+    }
+
+    private void respawnMobs() {
+        if (spawners == null || spawners.isEmpty())
+            return;
+        if (world == null)
+            return;
+
+        // 既存モブの扱い: "リセット" なので、エリア内の特定モブを消すか？
+        // 簡易実装として、単純に追加で湧かせるが、重複しすぎないようにするなら
+        // PendingSpawnerの位置周辺のモブをチェックするなどのロジックが必要。
+        // ここではユーザー要望の「リセットされ復活する」を「湧き直し」と解釈し、
+        // 既存のモブが残っていても湧かせる (PvPvEなら倒されていることが多い想定)
+        // 必要であれば world.getEntities() で一掃する処理を追加
+
+        for (com.lunar_prototype.deepwither.dungeon.DungeonGenerator.PendingSpawner spawner : spawners) {
+            // チャンクがロードされている場合のみ
+            if (spawner.getLocation().getChunk().isLoaded()) {
+                com.lunar_prototype.deepwither.Deepwither.getInstance().getMobSpawnManager()
+                        .spawnDungeonMob(spawner.getLocation(), spawner.getMobId(), spawner.getLevel());
+                world.spawnParticle(org.bukkit.Particle.CLOUD, spawner.getLocation(), 20, 0.5, 1, 0.5, 0.1);
+            }
+        }
+
+        // プレイヤーに通知
+        for (UUID uuid : currentPlayers) {
+            org.bukkit.entity.Player p = org.bukkit.Bukkit.getPlayer(uuid);
+            if (p != null) {
+                p.sendMessage("§c§l[Dungeon] §r§7ダンジョンのモンスターたちが再活性化した...");
+                p.playSound(p.getLocation(), org.bukkit.Sound.ENTITY_WITHER_AMBIENT, 0.5f, 0.5f);
+            }
+        }
+    }
+
+    public void cleanup() {
+        if (respawnTask != null && !respawnTask.isCancelled()) {
+            respawnTask.cancel();
+        }
     }
 }

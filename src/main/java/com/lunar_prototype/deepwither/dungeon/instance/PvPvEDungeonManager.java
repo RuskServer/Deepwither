@@ -133,6 +133,10 @@ public class PvPvEDungeonManager implements IManager {
             // ★修正: DungeonInstanceManager にも登録する (これがないと ExtractionManager が見つけられない)
             DungeonInstanceManager.getInstance().registerInstance(inst);
 
+            // Spawner情報を渡してライフサイクル(リスポーン)開始
+            inst.setSpawners(generator.getPendingSpawners());
+            inst.startLifeCycle();
+
             registerSpawns(inst.getInstanceId(), spawns);
 
             Deepwither.getInstance().getDungeonExtractionManager().registerExtractionTask(inst.getInstanceId(), spawns);

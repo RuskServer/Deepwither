@@ -219,6 +219,8 @@ public class DungeonInstanceManager implements IManager {
             }
         }
 
+        dInstance.cleanup(); // Task停止
+
         World world = dInstance.getWorld();
         if (world != null) {
             File worldFolder = world.getWorldFolder();

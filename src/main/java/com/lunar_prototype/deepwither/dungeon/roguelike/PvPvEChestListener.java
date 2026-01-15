@@ -47,7 +47,16 @@ public class PvPvEChestListener implements Listener {
             // イベントキャンセル（チェストを開かない）
             e.setCancelled(true);
 
-            // バフGUIを開く
+            // クールダウン確認 (PvPvEの場合)
+            // RoguelikeBuffManagerで管理
+            if (!Deepwither.getInstance().getRoguelikeBuffManager().tryUseChest(player, block.getLocation())) {
+                return;
+            }
+
+            // GUIを開く
+            // RoguelikeBuffGUI gui = new RoguelikeBuffGUI(player); // This line is
+            // commented out as per the original structure
+            // gui.open(); // This line is commented out as per the original structure
             if (Deepwither.getInstance().getRoguelikeBuffGUI() != null) {
                 Deepwither.getInstance().getRoguelikeBuffGUI().open(player);
             } else {
