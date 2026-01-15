@@ -96,7 +96,7 @@ public class DeepwitherCommand implements CommandExecutor, TabCompleter {
         }
 
         try {
-            double colorId = Long.parseLong(args[1]);
+            double colorId = Double.parseDouble(args[1]);
             double urgency = Double.parseDouble(args[2]);
 
             // メッセージの結合
