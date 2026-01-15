@@ -11,13 +11,26 @@ public class DungeonInstance {
     private final Set<UUID> currentPlayers;
     private long lastEmptyTime;
 
-    public DungeonInstance(String instanceId, World world) {
+    public String getType() {
+        return type;
+    }
+
+    public String getDifficulty() {
+        return difficulty;
+    }
+
+    private final String type;
+    private final String difficulty;
+
+    public DungeonInstance(String instanceId, World world,String type,String difficulty) {
         this.instanceId = instanceId;
         this.world = world;
         this.currentPlayers = new HashSet<>();
         // 初期状態ではプレイヤーがいないため、作成時刻をセットしておく
         // (生成直後に誰も入らず放置された場合も削除対象にするため)
         this.lastEmptyTime = System.currentTimeMillis();
+        this.type = type;
+        this.difficulty = difficulty;
     }
 
     public String getInstanceId() {

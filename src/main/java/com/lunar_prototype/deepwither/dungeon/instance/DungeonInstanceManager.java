@@ -33,6 +33,13 @@ public class DungeonInstanceManager implements IManager {
         return instance;
     }
 
+    /**
+     * 現在稼働中の全インスタンスを取得する
+     */
+    public Map<String, DungeonInstance> getActiveInstances() {
+        return activeInstances;
+    }
+
     @Override
     public void init() {
         // 1分ごとにクリーンアップタスクを実行
@@ -84,7 +91,7 @@ public class DungeonInstanceManager implements IManager {
         generator.generateBranching(world,0); // depth10などで生成
 
         // 3. インスタンス管理に追加
-        DungeonInstance dInstance = new DungeonInstance(worldName, world);
+        DungeonInstance dInstance = new DungeonInstance(worldName, world,dungeonType,difficulty);
         activeInstances.put(worldName, dInstance);
 
         // 4. パーティーメンバーの転送処理

@@ -14,6 +14,7 @@ import com.lunar_prototype.deepwither.crafting.CraftingListener;
 import com.lunar_prototype.deepwither.crafting.CraftingManager;
 import com.lunar_prototype.deepwither.data.*;
 import com.lunar_prototype.deepwither.dungeon.DungeonSignListener;
+import com.lunar_prototype.deepwither.dungeon.instance.PvPvEDungeonManager;
 import com.lunar_prototype.deepwither.dynamic_loot.LootDropManager;
 import com.lunar_prototype.deepwither.dynamic_loot.LootLevelManager;
 import com.lunar_prototype.deepwither.fishing.FishingListener;
@@ -128,6 +129,12 @@ public final class Deepwither extends JavaPlugin {
     private LootChestManager lootChestManager;
     private TownBurstManager townBurstManager;
     private MythicMobSafeZoneManager mythicMobSafeZoneManager;
+
+    public PvPvEDungeonManager getPvPvEDungeonManager() {
+        return pvPvEDungeonManager;
+    }
+
+    private PvPvEDungeonManager pvPvEDungeonManager;
     private SkilltreeGUI skilltreeGUI;
     private CraftingManager craftingManager;
     private CraftingGUI craftingGUI;
@@ -302,6 +309,8 @@ public final class Deepwither extends JavaPlugin {
     public LootLevelManager getLootLevelManager() {
         return lootLevelManager;
     }
+
+
 
     @Override
     public void onEnable() {
@@ -632,6 +641,8 @@ public final class Deepwither extends JavaPlugin {
 
         this.playerQuestDataStore = (PlayerQuestDataStore) register(FilePlayerQuestDataStore.class,
                 new FilePlayerQuestDataStore(databaseManager));
+
+        this.pvPvEDungeonManager = register(PvPvEDungeonManager.class,new PvPvEDungeonManager(this));
 
         register(com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager.class,
                 new com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager(this));

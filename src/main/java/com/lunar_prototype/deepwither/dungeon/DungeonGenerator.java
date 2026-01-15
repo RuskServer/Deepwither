@@ -37,6 +37,7 @@ public class DungeonGenerator {
 
     // Store placed parts for collision detection
     private final List<PlacedPart> placedParts = new ArrayList<>();
+    private final List<Location> validSpawnLocations = new ArrayList<>();
 
     private final List<String> dungeonMobList = new ArrayList<>();
     private final List<PendingSpawner> pendingSpawners = new ArrayList<>();
@@ -56,6 +57,13 @@ public class DungeonGenerator {
             this.mobId = mobId;
             this.level = level;
         }
+    }
+
+    /**
+     * 生成されたスポーン地点リストを取得する
+     */
+    public List<Location> getValidSpawnLocations() {
+        return validSpawnLocations;
     }
 
     private static class PlacedPart {
@@ -472,6 +480,25 @@ public class DungeonGenerator {
                 Deepwither.getInstance().getLootChestManager().placeDungeonLootChest(loc, lootChestId);
 
                 Deepwither.getInstance().getLogger().info("Placed LootChest: " + lootChestId + " at " + chestPos);
+            }
+
+            for (BlockVector3 spawnOffset : part.getRotatedPlayerSpawnOffsets(rotation)) {
+                BlockVector3 realPos = origin.add(spawnOffset);
+
+                // マーカー(ラピスブロック)を消去
+                removeMarker(world, realPos, Material.LAPIS_BLOCK);
+
+                // スポーン地点として登録
+                // ブロックの中心(0.5) + 足元の高さ考慮で少し上げるか、ブロック位置そのものか
+                // ここではブロックがあった場所の「上」に立たせる想定
+                Location loc = new Location(world, realPos.getX() + 0.5, realPos.getY(), realPos.getZ() + 0.5);
+
+                // 向き(Yaw)を部屋の回転に合わせる (必要に応じてランダム化しても良い)
+                loc.setYaw((float) rotation);
+
+                validSpawnLocations.add(loc);
+
+                Deepwither.getInstance().getLogger().info("Found Player Spawn at: " + realPos);
             }
 
             // 成功としてリストに追加し、メソッドを終了

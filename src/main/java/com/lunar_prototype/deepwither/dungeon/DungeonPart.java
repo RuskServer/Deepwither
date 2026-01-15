@@ -26,6 +26,8 @@ public class DungeonPart {
 
     private final List<BlockVector3> lootChestOffsets = new ArrayList<>();
 
+    private final List<BlockVector3> playerSpawnOffsets = new ArrayList<>();
+
     // Bounding Box relative to Origin
     private BlockVector3 minPoint;
     private BlockVector3 maxPoint;
@@ -102,6 +104,16 @@ public class DungeonPart {
                 Deepwither.getInstance().getLogger().info(String.format(
                         "[%s] Found LOOT_MARKER(Emerald). Offset: %s", fileName, chestVec));
             }
+            if (block.getBlockType().equals(BlockTypes.LAPIS_BLOCK)) {
+                BlockVector3 spawnVec = BlockVector3.at(
+                        pos.getX() - origin.getX(),
+                        pos.getY() - origin.getY(),
+                        pos.getZ() - origin.getZ());
+                this.playerSpawnOffsets.add(spawnVec);
+
+                Deepwither.getInstance().getLogger().info(String.format(
+                        "[%s] Found LOOT_MARKER(Emerald). Offset: %s", fileName, spawnVec));
+            }
         }
 
         if (!foundEntry) {
@@ -128,6 +140,12 @@ public class DungeonPart {
      */
     public List<BlockVector3> getRotatedLootChestOffsets(int rotation) {
         return lootChestOffsets.stream()
+                .map(vec -> transformVector(vec, rotation))
+                .collect(Collectors.toList());
+    }
+
+    public List<BlockVector3> getRotatedPlayerSpawnOffsets(int rotation) {
+        return playerSpawnOffsets.stream()
                 .map(vec -> transformVector(vec, rotation))
                 .collect(Collectors.toList());
     }
