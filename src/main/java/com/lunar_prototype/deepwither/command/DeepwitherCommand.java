@@ -77,7 +77,7 @@ public class DeepwitherCommand implements CommandExecutor, TabCompleter {
             long startTime = System.nanoTime();
 
             // AIによる推論実行 (70μsの神速体験)
-            String response = ai.generateResponse(colorId, urgency);
+            String response = ai.generateResponse(message, urgency);
 
             long endTime = System.nanoTime();
             double microSeconds = (endTime - startTime) / 1000.0;
