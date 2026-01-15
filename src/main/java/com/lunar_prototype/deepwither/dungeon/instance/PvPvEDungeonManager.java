@@ -114,24 +114,31 @@ public class PvPvEDungeonManager implements IManager {
         world.setGameRule(GameRule.KEEP_INVENTORY, false); // Keep Inventory有効
         world.setTime(18000); // 深夜
 
-        // Generatorを回す
+        // Generatorを回す (非同期)
         DungeonGenerator generator = new DungeonGenerator(type, difficulty);
-        generator.generateBranching(world, 0);
 
-        // ★ここでGeneratorからスポーン地点をぶっこ抜く
-        List<Location> spawns = new ArrayList<>(generator.getValidSpawnLocations());
+        host.sendMessage(ChatColor.YELLOW + "ダンジョン生成中... (数秒お待ちください)");
 
-        // インスタンスを登録
-        DungeonInstance inst = new DungeonInstance(worldName, world, type, difficulty);
+        // 非同期生成のコールバックで処理を続行
+        generator.generateBranchingAsync(world, 0, (spawns) -> {
+            if (spawns.isEmpty()) {
+                host.sendMessage(ChatColor.RED + "エラー: ダンジョン生成に失敗しました (スポーン地点なし)");
+                // 失敗時のワールド削除処理なども必要であれば追加
+                return;
+            }
 
-        // ★修正: DungeonInstanceManager にも登録する (これがないと ExtractionManager が見つけられない)
-        DungeonInstanceManager.getInstance().registerInstance(inst);
+            // インスタンスを登録
+            DungeonInstance inst = new DungeonInstance(worldName, world, type, difficulty);
 
-        registerSpawns(inst.getInstanceId(), spawns);
+            // ★修正: DungeonInstanceManager にも登録する (これがないと ExtractionManager が見つけられない)
+            DungeonInstanceManager.getInstance().registerInstance(inst);
 
-        Deepwither.getInstance().getDungeonExtractionManager().registerExtractionTask(inst.getInstanceId(), spawns);
+            registerSpawns(inst.getInstanceId(), spawns);
 
-        spawnPlayerInInstance(host, inst);
+            Deepwither.getInstance().getDungeonExtractionManager().registerExtractionTask(inst.getInstanceId(), spawns);
+
+            spawnPlayerInInstance(host, inst);
+        });
     }
 
     private void spawnPlayerInInstance(Player player, DungeonInstance inst) {
