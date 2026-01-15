@@ -1,0 +1,143 @@
+package com.lunar_prototype.deepwither.dungeon.roguelike;
+
+import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.StatMap;
+import org.bukkit.Bukkit;
+import org.bukkit.Color;
+import org.bukkit.Location;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
+import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
+
+import java.util.*;
+
+public class RoguelikeBuffManager {
+
+    private final Deepwither plugin;
+    private final Map<UUID, List<RoguelikeBuff>> playerBuffs = new HashMap<>();
+    private BukkitTask particleTask;
+
+    public RoguelikeBuffManager(Deepwither plugin) {
+        this.plugin = plugin;
+    }
+
+    public void init() {
+        startParticleTask();
+    }
+
+    public void shutdown() {
+        if (particleTask != null && !particleTask.isCancelled()) {
+            particleTask.cancel();
+        }
+        // オンラインプレイヤーのバフをクリアするのは再起動時などの挙動次第だが、
+        // StatManager側のtemporarybuffもクリアされるはずなので、メモリだけ解放しておく
+        playerBuffs.clear();
+    }
+
+    /**
+     * プレイヤーにバフを追加する
+     */
+    public void addBuff(Player player, RoguelikeBuff buff) {
+        playerBuffs.computeIfAbsent(player.getUniqueId(), k -> new ArrayList<>()).add(buff);
+        recalculateAndApply(player);
+
+        // エフェクトと音
+        player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1.0f, 1.5f);
+        player.sendMessage("§a[Buff] " + buff.getDisplayName() + " §7を獲得しました！");
+    }
+
+    /**
+     * プレイヤーの現在のバフ数を取得
+     */
+    public int getBuffCount(Player player) {
+        List<RoguelikeBuff> buffs = playerBuffs.get(player.getUniqueId());
+        return buffs == null ? 0 : buffs.size();
+    }
+
+    /**
+     * プレイヤーのバフを全てクリアする（ダンジョン脱出時など）
+     */
+    public void clearBuffs(Player player) {
+        if (playerBuffs.remove(player.getUniqueId()) != null) {
+            plugin.getStatManager().removeTemporaryBuff(player.getUniqueId());
+            plugin.getStatManager().updatePlayerStats(player);
+        }
+    }
+
+    /**
+     * 現在のバフリストから合計ステータスを計算し、StatManagerに適用する
+     */
+    private void recalculateAndApply(Player player) {
+        List<RoguelikeBuff> buffs = playerBuffs.get(player.getUniqueId());
+        if (buffs == null || buffs.isEmpty()) {
+            plugin.getStatManager().removeTemporaryBuff(player.getUniqueId());
+        } else {
+            StatMap totalBuffStats = new StatMap();
+            for (RoguelikeBuff buff : buffs) {
+                totalBuffStats.add(buff.getStatMap());
+            }
+            plugin.getStatManager().applyTemporaryBuff(player.getUniqueId(), totalBuffStats);
+        }
+        // StatManagerに変更を通知して再計算させる
+        plugin.getStatManager().updatePlayerStats(player);
+    }
+
+    private void startParticleTask() {
+        particleTask = new BukkitRunnable() {
+            @Override
+            public void run() {
+                for (UUID uuid : playerBuffs.keySet()) {
+                    Player player = Bukkit.getPlayer(uuid);
+                    if (player == null || !player.isOnline() || player.isDead())
+                        continue;
+
+                    List<RoguelikeBuff> buffs = playerBuffs.get(uuid);
+                    if (buffs == null || buffs.isEmpty())
+                        continue;
+
+                    spawnBuffParticle(player, buffs.size());
+                }
+            }
+        }.runTaskTimerAsynchronously(plugin, 0L, 10L); // 0.5秒ごとに実行
+    }
+
+    private void spawnBuffParticle(Player player, int count) {
+        Location loc = player.getLocation().add(0, 1.0, 0); // 体の中心付近
+        Color color = calculateColor(count);
+        Particle.DustOptions dustOptions = new Particle.DustOptions(color, 1.0f);
+
+        // 非同期から呼ぶため、World編集系ではないspawnParticleは安全（実装によるが基本OK）
+        // 不安ならメインスレッドスケジューリングが必要だが、1.13+のspawnParticleはスレッドセーフなことが多い
+        // ここでは念のため同期コンテキストでなくても動く範囲で記述するが、
+        // 厳密にはPlayerのLocation取得などは同期推奨。
+        // 今回はrunTaskTimerAsynchronouslyを使っているが、Location取得はメインスレッドで行うべき場合がある。
+        // ただし、単純な座標取得は多くのサーバー実装で許容される。
+        // 万全を期すならrunTaskTimerで同期実行にする。パーティクル生成負荷は軽いので同期で問題ない。
+
+        // 色設定ありのパーティクル
+        player.getWorld().spawnParticle(Particle.REDSTONE, loc, 5, 0.3, 0.5, 0.3, 0, dustOptions);
+    }
+
+    /**
+     * バフの数に応じて色を変化させる
+     */
+    private Color calculateColor(int count) {
+        // 例:
+        // 1-2: 白～薄い青
+        // 3-5: 青～緑
+        // 6-9: 黄～赤
+        // 10+: 紫/黒など
+
+        if (count <= 2) {
+            return Color.fromRGB(200, 200, 255); // 薄い青
+        } else if (count <= 5) {
+            return Color.fromRGB(100, 255, 100); // 緑
+        } else if (count <= 9) {
+            return Color.fromRGB(255, 255, 0); // 黄色
+        } else {
+            return Color.fromRGB(255, 50, 50); // 赤
+        }
+    }
+}

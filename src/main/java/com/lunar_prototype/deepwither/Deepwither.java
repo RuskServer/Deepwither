@@ -41,6 +41,7 @@ import com.lunar_prototype.deepwither.profession.ProfessionDatabase;
 import com.lunar_prototype.deepwither.profession.ProfessionManager;
 import com.lunar_prototype.deepwither.profiler.CombatAnalyzer;
 import com.lunar_prototype.deepwither.aethelgard.*;
+import com.lunar_prototype.deepwither.dungeon.roguelike.*;
 import com.lunar_prototype.deepwither.raidboss.RaidBossListener;
 import com.lunar_prototype.deepwither.raidboss.RaidBossManager;
 import com.lunar_prototype.deepwither.seeker.CombatExperienceListener;
@@ -129,7 +130,6 @@ public final class Deepwither extends JavaPlugin {
 
     private DungeonExtractionManager dungeonExtractionManager;
 
-
     private TraderQuestManager traderQuestManager;
     public StatManager statManager;
     private DailyTaskManager dailyTaskManager;
@@ -178,6 +178,8 @@ public final class Deepwither extends JavaPlugin {
     private static Economy econ = null;
     private final java.util.Random random = new java.util.Random();
     private OutpostManager outpostManager;
+    private RoguelikeBuffManager roguelikeBuffManager;
+    private RoguelikeBuffGUI roguelikeBuffGUI;
 
     public AttributeManager getAttributeManager() {
         return attributeManager;
@@ -315,7 +317,9 @@ public final class Deepwither extends JavaPlugin {
         return marketSearchHandler;
     }
 
-    public SkilltreeGUI getSkilltreeGUI() {return skilltreeGUI;}
+    public SkilltreeGUI getSkilltreeGUI() {
+        return skilltreeGUI;
+    }
 
     public LootDropManager getLootDropManager() {
         return lootDropManager;
@@ -324,8 +328,6 @@ public final class Deepwither extends JavaPlugin {
     public LootLevelManager getLootLevelManager() {
         return lootLevelManager;
     }
-
-
 
     @Override
     public void onEnable() {
@@ -376,7 +378,7 @@ public final class Deepwither extends JavaPlugin {
         statManager = new StatManager();
         companionManager = new CompanionManager(this);
         itemFactory = new ItemFactory(this);
-        getServer().getPluginManager().registerEvents(new ArmorSetListener(itemFactory),this);
+        getServer().getPluginManager().registerEvents(new ArmorSetListener(itemFactory), this);
         chargeManager = new ChargeManager();
         backpackManager = new BackpackManager(this);
         getServer().getPluginManager().registerEvents(chargeManager, this);
@@ -615,9 +617,13 @@ public final class Deepwither extends JavaPlugin {
         getCommand("deepwither").setExecutor(new DeepwitherCommand(this));
         getServer().getPluginManager().registerEvents(new PvPWorldListener(), this);
         getServer().getPluginManager().registerEvents(new ItemGlowHandler(this), this);
-        getServer().getPluginManager().registerEvents(new DungeonSignListener(),this);
-        getServer().getPluginManager().registerEvents(new ClanChatManager(clanManager),this);
-        getServer().getPluginManager().registerEvents(traderQuestManager,this);
+        getServer().getPluginManager().registerEvents(new DungeonSignListener(), this);
+        getServer().getPluginManager().registerEvents(new ClanChatManager(clanManager), this);
+        getServer().getPluginManager().registerEvents(traderQuestManager, this);
+
+        // Roguelike
+        this.roguelikeBuffGUI = new RoguelikeBuffGUI(this);
+        getServer().getPluginManager().registerEvents(new PvPvEChestListener(this), this);
     }
 
     @Override
@@ -650,8 +656,8 @@ public final class Deepwither extends JavaPlugin {
         this.professionDatabase = register(ProfessionDatabase.class, new ProfessionDatabase(this, databaseManager));
         this.boosterManager = register(BoosterManager.class, new BoosterManager(databaseManager));
         this.globalMarketManager = register(GlobalMarketManager.class, new GlobalMarketManager(this, databaseManager));
-        this.clanManager = register(ClanManager.class,new ClanManager(databaseManager));
-        this.traderQuestManager = register(TraderQuestManager.class,new TraderQuestManager(this,databaseManager));
+        this.clanManager = register(ClanManager.class, new ClanManager(databaseManager));
+        this.traderQuestManager = register(TraderQuestManager.class, new TraderQuestManager(this, databaseManager));
         // 新しくSQLite対応させたデータストア (引数にdatabaseManagerを渡す)
         this.fileDailyTaskDataStore = register(FileDailyTaskDataStore.class,
                 new FileDailyTaskDataStore(this, databaseManager));
@@ -659,10 +665,12 @@ public final class Deepwither extends JavaPlugin {
         this.playerQuestDataStore = (PlayerQuestDataStore) register(FilePlayerQuestDataStore.class,
                 new FilePlayerQuestDataStore(databaseManager));
 
-        this.pvPvEDungeonManager = register(PvPvEDungeonManager.class,new PvPvEDungeonManager(this));
+        this.pvPvEDungeonManager = register(PvPvEDungeonManager.class, new PvPvEDungeonManager(this));
 
         register(com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager.class,
                 new com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager(this));
+
+        this.roguelikeBuffManager = register(RoguelikeBuffManager.class, new RoguelikeBuffManager(this));
     }
 
     private <T extends IManager> T register(Class<T> clazz, T manager) {
@@ -707,6 +715,14 @@ public final class Deepwither extends JavaPlugin {
     // 3. ゲッターの追加
     public ExecutorService getAsyncExecutor() {
         return asyncExecutor;
+    }
+
+    public RoguelikeBuffManager getRoguelikeBuffManager() {
+        return roguelikeBuffManager;
+    }
+
+    public RoguelikeBuffGUI getRoguelikeBuffGUI() {
+        return roguelikeBuffGUI;
     }
 
     // --- データ永続化のメソッド ---
