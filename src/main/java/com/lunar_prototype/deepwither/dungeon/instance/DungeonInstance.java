@@ -77,15 +77,6 @@ public class DungeonInstance {
     }
 
     public void startLifeCycle() {
-        // 3分ごとにモブをリセット＆リスポーン
-        // 最初の実行は3分後 (既に生成時に湧いているため)
-        respawnTask = new org.bukkit.scheduler.BukkitRunnable() {
-            @Override
-            public void run() {
-                respawnMobs();
-            }
-        }.runTaskTimer(com.lunar_prototype.deepwither.Deepwither.getInstance(), 3600L, 3600L); // 3 mins
-
         // 15分制限 (15 * 60 * 20 = 18000 ticks)
         limitTask = new org.bukkit.scheduler.BukkitRunnable() {
             @Override
@@ -106,51 +97,6 @@ public class DungeonInstance {
                 p.setHealth(0); // 死亡
             }
         }
-    }
-
-    private void respawnMobs() {
-        if (spawners == null || spawners.isEmpty())
-            return;
-        if (world == null)
-            return;
-
-        // プレイヤーに通知
-        for (UUID uuid : currentPlayers) {
-            org.bukkit.entity.Player p = org.bukkit.Bukkit.getPlayer(uuid);
-            if (p != null) {
-                p.sendMessage("§c§l[Dungeon] §r§7ダンジョンのモンスターたちが再活性化した...");
-                p.playSound(p.getLocation(), org.bukkit.Sound.ENTITY_WITHER_AMBIENT, 0.5f, 0.5f);
-            }
-        }
-
-        // 分散スポーン処理
-        new org.bukkit.scheduler.BukkitRunnable() {
-            private final int MOBS_PER_TICK = 5;
-            private int currentIndex = 0;
-
-            @Override
-            public void run() {
-                if (spawners.isEmpty() || currentIndex >= spawners.size()) {
-                    this.cancel();
-                    return;
-                }
-
-                int count = 0;
-                while (count < MOBS_PER_TICK && currentIndex < spawners.size()) {
-                    com.lunar_prototype.deepwither.dungeon.DungeonGenerator.PendingSpawner spawner = spawners
-                            .get(currentIndex);
-                    currentIndex++;
-
-                    // チャンクがロードされている場合のみ
-                    if (spawner.getLocation().getChunk().isLoaded()) {
-                        com.lunar_prototype.deepwither.Deepwither.getInstance().getMobSpawnManager()
-                                .spawnDungeonMob(spawner.getLocation(), spawner.getMobId(), spawner.getLevel());
-                        world.spawnParticle(org.bukkit.Particle.CLOUD, spawner.getLocation(), 20, 0.5, 1, 0.5, 0.1);
-                    }
-                    count++;
-                }
-            }
-        }.runTaskTimer(com.lunar_prototype.deepwither.Deepwither.getInstance(), 0L, 1L);
     }
 
     public void cleanup() {
