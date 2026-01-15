@@ -142,6 +142,114 @@ public class EMDALanguageAI {
         addVWord(400L, "最適な", 0.9f, 0.5f, 0.4f);
         addVWord(400L, "無意味な", 0.4f, 0.4f, 0.5f);
         addVWord(400L, "鮮やかな", 0.3f, 1.0f, 0.4f);
+
+        // --- カテゴリ500: 日常のトピック (主語/対象) ---
+        addVWord(500L, "今日のランチ", 0.4f, 0.8f, 0.3f);
+        addVWord(500L, "散歩コース", 0.5f, 0.7f, 0.2f);
+        addVWord(500L, "お気に入りの曲", 0.3f, 0.9f, 0.3f);
+        addVWord(500L, "週末の予定", 0.6f, 0.7f, 0.4f);
+        addVWord(500L, "コンビニの新作", 0.4f, 0.6f, 0.5f);
+        addVWord(500L, "家の近所", 0.7f, 0.4f, 0.2f);
+        addVWord(500L, "懐かしい写真", 0.3f, 0.9f, 0.2f);
+        addVWord(500L, "明日の天気", 0.9f, 0.3f, 0.6f);
+        addVWord(500L, "コーヒーの香り", 0.4f, 0.8f, 0.1f);
+        addVWord(500L, "流行りの動画", 0.5f, 0.7f, 0.6f);
+        addVWord(500L, "読みかけの本", 0.6f, 0.6f, 0.3f);
+        addVWord(500L, "仕事の悩み", 0.7f, 0.5f, 0.8f);
+        addVWord(500L, "ささいな幸せ", 0.2f, 1.0f, 0.1f);
+        addVWord(500L, "いつもの公園", 0.6f, 0.6f, 0.2f);
+        addVWord(500L, "最新のガジェット", 0.8f, 0.7f, 0.5f);
+        addVWord(500L, "昨日の夢", 0.1f, 0.8f, 0.4f);
+        addVWord(500L, "整理整頓", 0.9f, 0.4f, 0.5f);
+        addVWord(500L, "料理のレシピ", 0.8f, 0.6f, 0.4f);
+        addVWord(500L, "旅行の計画", 0.7f, 0.9f, 0.5f);
+        addVWord(500L, "スマホの通知", 0.5f, 0.4f, 0.9f);
+        addVWord(500L, "季節の変わり目", 0.8f, 0.5f, 0.6f);
+        addVWord(500L, "ペットの様子", 0.4f, 0.9f, 0.4f);
+        addVWord(500L, "共通の趣味", 0.6f, 0.8f, 0.3f);
+        addVWord(500L, "目覚まし時計", 0.7f, 0.3f, 0.9f);
+        addVWord(500L, "貯金通帳", 0.9f, 0.2f, 0.7f);
+
+        // --- カテゴリ600: 日常の動作 (動詞/述語) ---
+        addVWord(600L, "とのんびりした", 0.3f, 0.9f, 0.1f);
+        addVWord(600L, "を思い出した", 0.4f, 0.7f, 0.4f);
+        addVWord(600L, "を買いに出かけた", 0.5f, 0.6f, 0.5f);
+        addVWord(600L, "を眺めていた", 0.4f, 0.8f, 0.2f);
+        addVWord(600L, "に失敗した", 0.4f, 0.6f, 0.7f);
+        addVWord(600L, "を予約した", 0.8f, 0.5f, 0.6f);
+        addVWord(600L, "を掃除した", 0.8f, 0.4f, 0.5f);
+        addVWord(600L, "に驚いた", 0.2f, 0.9f, 0.8f);
+        addVWord(600L, "を共有した", 0.6f, 0.8f, 0.4f);
+        addVWord(600L, "を忘れていた", 0.3f, 0.5f, 0.9f);
+        addVWord(600L, "を楽しみに待つ", 0.4f, 1.0f, 0.6f);
+        addVWord(600L, "を習慣にしている", 0.9f, 0.5f, 0.3f);
+        addVWord(600L, "をあきらめた", 0.5f, 0.4f, 0.7f);
+        addVWord(600L, "を大切にしている", 0.5f, 1.0f, 0.3f);
+        addVWord(600L, "を探している", 0.6f, 0.5f, 0.6f);
+        addVWord(600L, "を試してみた", 0.7f, 0.7f, 0.5f);
+        addVWord(600L, "を後回しにした", 0.5f, 0.3f, 0.6f);
+        addVWord(600L, "に癒やされた", 0.2f, 1.0f, 0.1f);
+        addVWord(600L, "を観察した", 0.9f, 0.4f, 0.3f);
+        addVWord(600L, "を整理した", 0.8f, 0.5f, 0.4f);
+        addVWord(600L, "が気になっている", 0.5f, 0.7f, 0.6f);
+        addVWord(600L, "を使い切った", 0.7f, 0.4f, 0.6f);
+        addVWord(600L, "を再開した", 0.7f, 0.7f, 0.6f);
+        addVWord(600L, "に納得した", 0.9f, 0.6f, 0.4f);
+        addVWord(600L, "を見送った", 0.6f, 0.5f, 0.5f);
+
+        // --- カテゴリ700: 感情・ニュアンス (副詞/感嘆詞) ---
+        addVWord(700L, "うっかり", 0.3f, 0.6f, 0.8f);
+        addVWord(700L, "わくわくして", 0.2f, 1.0f, 0.7f);
+        addVWord(700L, "なんとなく", 0.4f, 0.5f, 0.3f);
+        addVWord(700L, "せっせと", 0.8f, 0.6f, 0.5f);
+        addVWord(700L, "ぼんやりと", 0.3f, 0.6f, 0.1f);
+        addVWord(700L, "きっぱりと", 0.9f, 0.5f, 0.6f);
+        addVWord(700L, "しみじみと", 0.4f, 0.9f, 0.2f);
+        addVWord(700L, "とりあえず", 0.5f, 0.4f, 0.7f);
+        addVWord(700L, "しっかり", 0.9f, 0.6f, 0.5f);
+        addVWord(700L, "じわじわと", 0.6f, 0.7f, 0.5f);
+        addVWord(700L, "思い切って", 0.4f, 0.9f, 0.8f);
+        addVWord(700L, "案外", 0.6f, 0.6f, 0.5f);
+        addVWord(700L, "やっぱり", 0.5f, 0.6f, 0.4f);
+        addVWord(700L, "ひっそりと", 0.5f, 0.7f, 0.2f);
+        addVWord(700L, "だらだらと", 0.3f, 0.3f, 0.2f);
+        addVWord(700L, "パッと", 0.4f, 0.7f, 0.9f);
+        addVWord(700L, "ふんわりと", 0.3f, 0.8f, 0.2f);
+        addVWord(700L, "ぐっすり", 0.2f, 0.9f, 0.1f);
+        addVWord(700L, "イライラして", 0.3f, 0.9f, 0.9f);
+        addVWord(700L, "ワクワクしながら", 0.2f, 1.0f, 0.6f);
+        addVWord(700L, "冷静に考えて", 1.0f, 0.3f, 0.5f);
+        addVWord(700L, "正直なところ", 0.7f, 0.8f, 0.5f);
+        addVWord(700L, "たまには", 0.5f, 0.7f, 0.4f);
+        addVWord(700L, "絶対に", 0.8f, 0.8f, 0.9f);
+        addVWord(700L, "そっと", 0.5f, 0.8f, 0.3f);
+
+        // --- カテゴリ800: 生活の状態 (形容詞) ---
+        addVWord(800L, "心地よい", 0.4f, 0.9f, 0.2f);
+        addVWord(800L, "騒がしい", 0.3f, 0.6f, 0.7f);
+        addVWord(800L, "退屈な", 0.6f, 0.3f, 0.2f);
+        addVWord(800L, "贅沢な", 0.5f, 0.9f, 0.3f);
+        addVWord(800L, "慌ただしい", 0.4f, 0.6f, 1.0f);
+        addVWord(800L, "静かな", 0.8f, 0.6f, 0.1f);
+        addVWord(800L, "面倒な", 0.5f, 0.5f, 0.8f);
+        addVWord(800L, "楽しみな", 0.4f, 1.0f, 0.6f);
+        addVWord(800L, "懐かしい", 0.5f, 0.9f, 0.3f);
+        addVWord(800L, "意外な", 0.6f, 0.7f, 0.6f);
+        addVWord(800L, "平和な", 0.7f, 0.9f, 0.1f);
+        addVWord(800L, "退屈しのぎの", 0.6f, 0.4f, 0.3f);
+        addVWord(800L, "気まずい", 0.3f, 0.7f, 0.6f);
+        addVWord(800L, "晴れやかな", 0.3f, 1.0f, 0.4f);
+        addVWord(800L, "窮屈な", 0.6f, 0.5f, 0.7f);
+        addVWord(800L, "手軽な", 0.9f, 0.6f, 0.4f);
+        addVWord(800L, "貴重な", 0.7f, 0.9f, 0.5f);
+        addVWord(800L, "怪しい", 0.4f, 0.6f, 0.8f);
+        addVWord(800L, "新鮮な", 0.6f, 0.8f, 0.4f);
+        addVWord(800L, "心強い", 0.6f, 0.9f, 0.4f);
+        addVWord(800L, "重苦しい", 0.4f, 0.7f, 0.8f);
+        addVWord(800L, "清々しい", 0.5f, 1.0f, 0.3f);
+        addVWord(800L, "だらしない", 0.4f, 0.4f, 0.5f);
+        addVWord(800L, "刺激的な", 0.5f, 0.9f, 0.7f);
+        addVWord(800L, "何気ない", 0.6f, 0.6f, 0.2f);
     }
 
     private void addVWord(long cat, String txt, float l, float e, float u) {
