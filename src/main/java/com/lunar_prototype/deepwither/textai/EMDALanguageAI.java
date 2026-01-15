@@ -45,7 +45,7 @@ public class EMDALanguageAI {
 
     /**
      * [改良版] Resonance Tuning (スパルタ教育)
-     * 文字列タグ [Situation, Emotion] を数値ベクトルに変換して学習
+     * より厳密なトリミングとパース処理
      */
     public void trainFromCSVAsync(File csvFile) {
         java.util.concurrent.CompletableFuture.runAsync(() -> {
@@ -54,41 +54,56 @@ public class EMDALanguageAI {
             int skipCount = 0;
             Map<Long, Integer> stats = new HashMap<>();
 
-            System.out.println("[EMDA-AI] >>> Resonance Tuning 開始: " + csvFile.getName());
-
             try (BufferedReader br = new BufferedReader(new FileReader(csvFile))) {
                 String line;
-                // ヘッダー（situation_tag,dialogue）をスキップ
-                br.readLine();
+                br.readLine(); // ヘッダースキップ
 
                 while ((line = br.readLine()) != null) {
                     if (line.trim().isEmpty()) continue;
 
-                    // 引用符を考慮したカンマ分割 (Regex)
-                    // "[Battle, Calm]",問題ない -> parts[0]="[Battle, Calm]", parts[1]="問題ない"
+                    // カンマ分割の際、前後の空白や引用符をより強力に除去
                     String[] parts = line.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", -1);
-
                     if (parts.length < 2) {
                         skipCount++;
                         continue;
                     }
 
-                    String rawTag = parts[0].replaceAll("[\\[\\]\" ]", ""); // "Battle,Calm"
-                    String phrase = parts[1].trim().replaceAll("^\"|\"$", "");
+                    // タグ文字列の正規化：引用符、括弧、空白をすべて除去
+                    String rawTag = parts[0].replaceAll("[\\[\\]\"\\s]", "");
+                    // セリフの正規化：前後の引用符と空白を除去
+                    String phrase = parts[1].trim().replaceAll("^\"|\"$", "").trim();
 
-                    // 文字列タグを数値ポテンシャルにマッピング
+                    if (phrase.isEmpty()) {
+                        skipCount++;
+                        continue;
+                    }
+
                     float[] v = convertTagToVector(rawTag);
-
-                    // LNNへ焼き付け
                     logic.update(v[0], v[2]);
                     emotion.update(v[1], v[2]);
                     context.update(1.0, v[2]);
 
                     float[] fingerprint = {(float)logic.get(), (float)emotion.get(), (float)context.get()};
 
-                    // カテゴリ分類
-                    long cat = (v[1] > 0.5) ? 2L : 1L; // Emotion値で判定
-                    if (v[0] > 0.7) cat = 100L; // Logic値が高ければ知識層へ
+                    // カテゴリ分類のロジック
+                    long cat;
+
+                    if (v[0] > 0.7 || phrase.contains("システム") || phrase.contains("実装")) {
+                        // 【知識層】
+                        cat = (v[1] < 0.4) ? 101L : 102L; // 冷静なら報告、感情が動いていれば不具合・調整系
+                    }
+                    else if (phrase.endsWith("？") || phrase.contains("なのだ") || phrase.contains("だろう")) {
+                        // 【修飾・問いかけ層】
+                        cat = (v[1] > 0.5) ? 302L : 301L; // 感情的なら驚き、冷静なら肯定
+                    }
+                    else if (v[2] > 0.6) {
+                        // 【アクション・動的なセリフ】
+                        cat = (v[1] > 0.6) ? 202L : 201L; // 怒り/興奮なら激しい動き、そうでなければ通常動作
+                    }
+                    else {
+                        // 【挨拶・日常会話】
+                        cat = (v[1] > 0.7) ? 402L : 401L; // 感情値の高さで「敵対」か「友好」を分ける
+                    }
 
                     addVWord(cat, phrase, fingerprint);
                     stats.put(cat, stats.getOrDefault(cat, 0) + 1);
@@ -96,12 +111,7 @@ public class EMDALanguageAI {
                 }
 
                 saveDictionary();
-
-                long duration = System.currentTimeMillis() - startTime;
-                System.out.println("[EMDA-AI] <<< Resonance Tuning 完了: " + duration + "ms");
-                System.out.println("[EMDA-AI] 成功: " + count + "件 / 失敗: " + skipCount + "件");
-                stats.forEach((cat, c) -> System.out.println("  - カテゴリ [" + cat + "]: " + c + "語"));
-
+                System.out.println("[EMDA-AI] Tuning 完了: " + count + "件成功 (Time: " + (System.currentTimeMillis() - startTime) + "ms)");
             } catch (Exception e) {
                 System.err.println("[EMDA-AI] 学習エラー: " + e.getMessage());
             }
@@ -133,21 +143,22 @@ public class EMDALanguageAI {
      * 文章生成ロジック (v3.1継承・最適化)
      */
     public String generateResponse(String input, double urgency) {
-        // 入力から現在のLNNポテンシャルを更新
         updateLNNState(input, urgency);
-
-        float[] query = {(float)logic.get(), (float)emotion.get(), (float)context.get()};
+        float[] q = {(float)logic.get(), (float)emotion.get(), (float)context.get()};
         StringBuilder sb = new StringBuilder();
 
-        // 1秒の猶予を活かした共鳴選択
-        if (query[2] > 0.5) sb.append(attentionSelect(300L, query)).append("、");
+        // 1. 文脈に応じた「枕詞」の選択 (300番台)
+        String prefix = attentionSelect(q[1] > 0.5 ? 302L : 301L, q);
+        if (!prefix.isEmpty()) sb.append(prefix).append("、");
 
-        long mainCat = (query[1] > 0.6) ? 2L : 1L;
-        if (input.contains("アプデ") || input.contains("Ver")) {
-            sb.append(attentionSelect(100L, query));
-            sb.append(attentionSelect(200L, query));
+        // 2. 状況に応じた「メインセリフ」
+        if (q[0] > 0.6) { // 論理ポテンシャルが高い＝アプデや知識の話
+            sb.append(attentionSelect(101L, q)); // 事実
+            sb.append(attentionSelect(201L, q)); // 動作
         } else {
-            sb.append(attentionSelect(mainCat, query));
+            // 感情/緊急度に応じた日常・戦闘台詞 (400番台)
+            long targetCat = (q[1] > 0.6) ? 402L : 401L;
+            sb.append(attentionSelect(targetCat, q));
         }
 
         return sb.toString();
