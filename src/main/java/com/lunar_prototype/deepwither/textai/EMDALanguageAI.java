@@ -18,6 +18,7 @@ public class EMDALanguageAI {
     private final LiquidNeuron logic = new LiquidNeuron(0.1);
     private final LiquidNeuron emotion = new LiquidNeuron(0.15);
     private final LiquidNeuron context = new LiquidNeuron(0.08);
+    private final LiquidNeuron valence = new LiquidNeuron(0.12); // 正負 (Positive/Negative)
 
     private static class WordNode {
         String text;
@@ -140,24 +141,43 @@ public class EMDALanguageAI {
     }
 
     /**
-     * 文章生成ロジック (v3.1継承・最適化)
+     * 文章生成ロジック (v4.2 Valence連動版)
+     * @param input   入力メッセージ
+     * @param urgency 緊急度 (0.0 - 1.0)
+     * @param val     感情価 (1.0: 友好/快, 0.0: 敵対/不快)
      */
-    public String generateResponse(String input, double urgency) {
-        updateLNNState(input, urgency);
-        float[] q = {(float)logic.get(), (float)emotion.get(), (float)context.get()};
+    public String generateResponse(String input, double urgency, double val) {
+        // 1. 引数の valence を LNN に直接注入
+        updateLNNStateWithValence(input, urgency, val);
+
+        float[] q = {
+                (float)logic.get(),
+                (float)emotion.get(),
+                (float)valence.get(), // 追加した Valence ニューロン
+                (float)context.get()
+        };
         StringBuilder sb = new StringBuilder();
 
-        // 1. 文脈に応じた「枕詞」の選択 (300番台)
-        String prefix = attentionSelect(q[1] > 0.5 ? 302L : 301L, q);
+        // 2. Valence に基づく枕詞の選択 (301: 肯定的, 302: 否定的)
+        long prefixCat = (q[2] > 0.5) ? 301L : 302L;
+        String prefix = attentionSelect(prefixCat, q);
         if (!prefix.isEmpty()) sb.append(prefix).append("、");
 
-        // 2. 状況に応じた「メインセリフ」
-        if (q[0] > 0.6) { // 論理ポテンシャルが高い＝アプデや知識の話
-            sb.append(attentionSelect(101L, q)); // 事実
-            sb.append(attentionSelect(201L, q)); // 動作
+        // 3. メインコンテンツの分岐
+        if (q[0] > 0.7) {
+            // 論理・システム報告
+            sb.append(attentionSelect(q[2] > 0.5 ? 101L : 102L, q));
+            sb.append(attentionSelect(201L, q));
         } else {
-            // 感情/緊急度に応じた日常・戦闘台詞 (400番台)
-            long targetCat = (q[1] > 0.6) ? 402L : 401L;
+            // 4. 感情・挨拶 (ここが「挨拶への煽り」を防ぐキモ)
+            long targetCat;
+            if (q[1] > 0.6) {
+                // 高揚状態: 歓喜(403) か 激怒(402)
+                targetCat = (q[2] > 0.5) ? 403L : 402L;
+            } else {
+                // 平穏状態: 友好(401) か 警戒(404)
+                targetCat = (q[2] > 0.5) ? 401L : 404L;
+            }
             sb.append(attentionSelect(targetCat, q));
         }
 
@@ -176,9 +196,16 @@ public class EMDALanguageAI {
         })).map(n -> n.text).orElse("");
     }
 
-    private void updateLNNState(String input, double urgency) {
+    /**
+     * LNN状態更新 (Valence対応)
+     */
+    private void updateLNNStateWithValence(String input, double urgency, double val) {
         logic.update(input.matches(".*(Ver|実装|修正).*") ? 1.0 : 0.0, urgency);
         emotion.update(input.matches(".*(!|\\?|どけ|殺).*") ? 1.0 : 0.0, urgency);
+
+        // 引数で受け取った valence を直接ニューロンに反映
+        this.valence.update(val, urgency);
+
         context.update(1.0, urgency);
     }
 
