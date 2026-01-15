@@ -41,7 +41,6 @@ public class DungeonGenerator {
     private final List<String> dungeonMobList = new ArrayList<>();
     // pendingSpawners populated during Sync Paste phase
     private final List<PendingSpawner> pendingSpawners = new ArrayList<>();
-    private final Map<String, Clipboard> clipboardCache = new HashMap<>();
     private boolean isMonitoring = false;
 
     private int maxDepth = 10;
@@ -191,28 +190,12 @@ public class DungeonGenerator {
                 DungeonPart part = new DungeonPart(fileName, type.toUpperCase(), length);
                 File schemFile = new File(dungeonFolder, fileName);
                 if (schemFile.exists()) {
-                    // ここでクリップボードを事前に読み込み、キャッシュに保存
-                    loadAndCacheClipboard(part, schemFile);
-                }
-                if (schemFile.exists()) {
                     scanPartMarkers(part, schemFile);
                 } else {
                     Deepwither.getInstance().getLogger().warning("Schematic file not found: " + fileName);
                 }
                 partList.add(part);
             }
-        }
-    }
-
-    private void loadAndCacheClipboard(DungeonPart part, File file) {
-        ClipboardFormat format = ClipboardFormats.findByFile(file);
-        if (format == null) return;
-        try (ClipboardReader reader = format.getReader(new FileInputStream(file))) {
-            Clipboard clipboard = reader.read();
-            part.scanMarkers(clipboard); // マーカー走査
-            clipboardCache.put(part.getFileName(), clipboard); // キャッシュ
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 
@@ -402,41 +385,53 @@ public class DungeonGenerator {
      * Main Threadではないので安全にIO可能
      */
     private boolean planPartPlacement(DungeonPart part, BlockVector3 origin, int rotation, BlockVector3 ignoreOrigin) {
+        // 1. Collision Check (In-Memory)
         PlacedPart candidate = new PlacedPart(part, origin, rotation);
         for (PlacedPart existing : placedParts) {
-            if (ignoreOrigin != null && existing.origin.equals(ignoreOrigin)) continue;
-            if (candidate.intersects(existing)) return false;
+            if (ignoreOrigin != null && existing.origin.equals(ignoreOrigin))
+                continue;
+            if (candidate.intersects(existing))
+                return false;
         }
 
-        // キャッシュから取得 (IOを完全に排除)
-        Clipboard clipboard = clipboardCache.get(part.getFileName());
-        if (clipboard == null) return false;
+        // 2. Load Clipboard (IO)
+        File schemFile = new File(dungeonFolder, part.getFileName());
+        ClipboardFormat format = ClipboardFormats.findByFile(schemFile);
+        if (format == null)
+            return false;
 
-        placedParts.add(candidate);
-        pasteQueue.add(new PendingPaste(part, origin, rotation, clipboard));
-        return true;
+        try (ClipboardReader reader = format.getReader(new FileInputStream(schemFile))) {
+            Clipboard clipboard = reader.read();
+            // 成功したらキューに追加
+            placedParts.add(candidate);
+            pasteQueue.add(new PendingPaste(part, origin, rotation, clipboard));
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     // --- Sync Paste Logic ---
 
     private void startPasteTask(World world, Consumer<List<Location>> callback) {
+        totalPartsToPaste = pasteQueue.size();
+
         new BukkitRunnable() {
             @Override
             public void run() {
-                // セッションをループの外で1回だけ作成
-                try (EditSession editSession = WorldEdit.getInstance().newEditSession(BukkitAdapter.adapt(world))) {
-                    int processPerTick = 3; // 効率化により少し増やしても安定します
+                // 1tickあたり複数個処理して速度を稼ぐ（でも重くならない程度に）
+                int processPerTick = 2;
 
-                    for (int i = 0; i < processPerTick; i++) {
-                        PendingPaste task = pasteQueue.poll();
-                        if (task == null) {
-                            this.cancel();
-                            finishGeneration(callback);
-                            return;
-                        }
-                        // セッションを渡して実行
-                        realPasteOptimized(world, editSession, task);
+                for (int i = 0; i < processPerTick; i++) {
+                    PendingPaste task = pasteQueue.poll();
+                    if (task == null) {
+                        // 全て完了
+                        this.cancel();
+                        finishGeneration(callback);
+                        return;
                     }
+                    realPaste(world, task);
                 }
             }
         }.runTaskTimer(Deepwither.getInstance(), 0L, 1L);
@@ -470,64 +465,6 @@ public class DungeonGenerator {
             removeMarker(world, origin.add(exit), Material.IRON_BLOCK);
         }
 
-        if (!dungeonMobList.isEmpty()) {
-            for (BlockVector3 spawnerOffset : part.getRotatedMobSpawnerOffsets(rotation)) {
-                BlockVector3 spawnPos = origin.add(spawnerOffset);
-                removeMarker(world, spawnPos, Material.REDSTONE_BLOCK);
-
-                String mobId = dungeonMobList.get(random.nextInt(dungeonMobList.size()));
-                Location loc = new Location(world, spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
-                pendingSpawners.add(new PendingSpawner(loc, mobId, 1));
-            }
-        }
-
-        for (BlockVector3 chestOffset : part.getRotatedLootChestOffsets(rotation)) {
-            BlockVector3 chestPos = origin.add(chestOffset);
-            removeMarker(world, chestPos, Material.EMERALD_BLOCK);
-            Location loc = new Location(world, chestPos.getX(), chestPos.getY(), chestPos.getZ());
-            Deepwither.getInstance().getLootChestManager().placeDungeonLootChest(loc, lootChestId);
-        }
-
-        for (BlockVector3 spawnOffset : part.getRotatedPlayerSpawnOffsets(rotation)) {
-            BlockVector3 realPos = origin.add(spawnOffset);
-            removeMarker(world, realPos, Material.LAPIS_BLOCK);
-            Location loc = new Location(world, realPos.getX() + 0.5, realPos.getY(), realPos.getZ() + 0.5);
-            loc.setYaw((float) rotation);
-            validSpawnLocations.add(loc);
-        }
-    }
-
-    private void realPasteOptimized(World world, EditSession editSession, PendingPaste task) {
-        try {
-            ClipboardHolder holder = new ClipboardHolder(task.clipboard);
-            holder.setTransform(new AffineTransform().rotateY(task.rotation));
-
-            Operation operation = holder.createPaste(editSession)
-                    .to(task.origin)
-                    .ignoreAirBlocks(true)
-                    .build();
-            Operations.complete(operation);
-
-            // --- マーカー処理 (変更なし、ただしStreamを避ける) ---
-            processMarkers(world, task);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void processMarkers(World world, PendingPaste task) {
-        BlockVector3 origin = task.origin;
-        DungeonPart part = task.part;
-        int rotation = task.rotation;
-
-        removeMarker(world, origin.add(part.getRotatedEntryOffset(rotation)), Material.GOLD_BLOCK);
-
-        for (BlockVector3 exit : part.getRotatedExitOffsets(rotation)) {
-            removeMarker(world, origin.add(exit), Material.IRON_BLOCK);
-        }
-
-        // Mob処理の際、Particle.FLASHにColorデータが必要な場合はここでの実装に注意
         if (!dungeonMobList.isEmpty()) {
             for (BlockVector3 spawnerOffset : part.getRotatedMobSpawnerOffsets(rotation)) {
                 BlockVector3 spawnPos = origin.add(spawnerOffset);
