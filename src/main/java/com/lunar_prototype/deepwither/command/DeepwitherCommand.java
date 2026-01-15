@@ -43,10 +43,58 @@ public class DeepwitherCommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage("§aDeepwitherの設定をリロードしました。");
                 Deepwither.getInstance().getSkilltreeGUI().reload();
             }
+            case "talk" -> handleTalk(sender, args);
             default -> sendHelp(sender);
         }
 
         return true;
+    }
+
+    /**
+     * /dw talk <colorID> <urgency> <message...>
+     * 例: /dw talk 1 0.8 こんにちは！
+     * 1: 友好(Blue), 2: 威圧(Red) 等のColorフラグを指定
+     */
+    private void handleTalk(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) return;
+
+        if (args.length < 4) {
+            player.sendMessage("§c使用法: /dw talk <ColorID> <Urgency(0-1)> <メッセージ...>");
+            return;
+        }
+
+        try {
+            long colorId = Long.parseLong(args[1]);
+            double urgency = Double.parseDouble(args[2]);
+
+            // メッセージの結合
+            String message = String.join(" ", Arrays.copyOfRange(args, 3, args.length));
+
+            // EMDA_LanguageAI インスタンスの取得 (Deepwitherクラスに保持させている前提)
+            // もしくはデバッグ用にその場で生成
+            var ai = plugin.getAi();
+
+            long startTime = System.nanoTime();
+
+            // AIによる推論実行 (70μsの神速体験)
+            String response = ai.generateResponse(colorId, urgency);
+
+            long endTime = System.nanoTime();
+            double microSeconds = (endTime - startTime) / 1000.0;
+
+            // 結果表示
+            player.sendMessage("§d[EMDA-AI] §f" + response);
+
+            // パフォーマンスデバッグ表示 (Lunar_prototype仕様)
+            if (microSeconds > 1000) {
+                player.sendMessage(String.format("§8[Debug] DSR再編発生: %.2f ms", microSeconds / 1000.0));
+            } else {
+                player.sendMessage(String.format("§8[Debug] 推論時間: %.2f μs", microSeconds));
+            }
+
+        } catch (NumberFormatException e) {
+            player.sendMessage("§c数値の指定が不正です。");
+        }
     }
 
     private void handleDungeon(CommandSender sender, String[] args) {
@@ -126,7 +174,7 @@ public class DeepwitherCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias,
             @NotNull String[] args) {
         if (args.length == 1)
-            return Arrays.asList("dungeon", "reload");
+            return Arrays.asList("dungeon", "reload", "talk");
         if (args.length == 2 && args[0].equalsIgnoreCase("dungeon"))
             return Arrays.asList("generate", "join", "leave","enter");
         if (args.length == 3 && args[1].equalsIgnoreCase("generate")) {

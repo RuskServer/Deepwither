@@ -122,6 +122,8 @@ public class PvPvEDungeonManager implements IManager {
 
         registerSpawns(inst.getInstanceId(),spawns);
 
+        Deepwither.getInstance().getDungeonExtractionManager().registerExtractionTask(inst.getInstanceId(),spawns);
+
         spawnPlayerInInstance(host, inst);
     }
 

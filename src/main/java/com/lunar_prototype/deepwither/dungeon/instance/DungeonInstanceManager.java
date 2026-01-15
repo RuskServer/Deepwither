@@ -197,6 +197,7 @@ public class DungeonInstanceManager implements IManager {
         for (String instanceId : toRemove) {
             plugin.getLogger().info("Cleaning up inactive dungeon instance: " + instanceId);
             unloadInstance(instanceId);
+            Deepwither.getInstance().getDungeonExtractionManager().stopExtractionSystem(instanceId);
         }
     }
 

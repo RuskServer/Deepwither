@@ -14,6 +14,7 @@ import com.lunar_prototype.deepwither.crafting.CraftingListener;
 import com.lunar_prototype.deepwither.crafting.CraftingManager;
 import com.lunar_prototype.deepwither.data.*;
 import com.lunar_prototype.deepwither.dungeon.DungeonSignListener;
+import com.lunar_prototype.deepwither.dungeon.instance.DungeonExtractionManager;
 import com.lunar_prototype.deepwither.dungeon.instance.PvPvEDungeonManager;
 import com.lunar_prototype.deepwither.dynamic_loot.LootDropManager;
 import com.lunar_prototype.deepwither.dynamic_loot.LootLevelManager;
@@ -44,6 +45,7 @@ import com.lunar_prototype.deepwither.raidboss.RaidBossListener;
 import com.lunar_prototype.deepwither.raidboss.RaidBossManager;
 import com.lunar_prototype.deepwither.seeker.CombatExperienceListener;
 import com.lunar_prototype.deepwither.seeker.SeekerAIEngine;
+import com.lunar_prototype.deepwither.textai.EMDALanguageAI;
 import com.lunar_prototype.deepwither.town.TownBurstManager;
 import com.lunar_prototype.deepwither.tutorial.TutorialController;
 import com.lunar_prototype.deepwither.util.IManager;
@@ -106,6 +108,12 @@ public final class Deepwither extends JavaPlugin {
     private CooldownManager cooldownManager;
     private ArtifactManager artifactManager;
     public ArtifactGUIListener artifactGUIListener;
+
+    public EMDALanguageAI getAi() {
+        return ai;
+    }
+
+    private EMDALanguageAI ai;
     private TraderManager traderManager;
     private CreditManager creditManager;
     public ArtifactGUI artifactGUI;
@@ -114,6 +122,13 @@ public final class Deepwither extends JavaPlugin {
     public TraderQuestManager getTraderQuestManager() {
         return traderQuestManager;
     }
+
+    public DungeonExtractionManager getDungeonExtractionManager() {
+        return dungeonExtractionManager;
+    }
+
+    private DungeonExtractionManager dungeonExtractionManager;
+
 
     private TraderQuestManager traderQuestManager;
     public StatManager statManager;
@@ -385,6 +400,7 @@ public final class Deepwither extends JavaPlugin {
         lootDropManager = new LootDropManager(itemFactory);
         layerMoveManager = new LayerMoveManager();
         layerMoveManager.load(getDataFolder());
+        dungeonExtractionManager = new DungeonExtractionManager(this);
         // クエスト設定のロード
         loadGuildQuestConfig();
 
@@ -410,6 +426,7 @@ public final class Deepwither extends JavaPlugin {
         artifactGUI = new ArtifactGUI();
         mythicMobSafeZoneManager = new MythicMobSafeZoneManager(this);
         professionManager = new ProfessionManager(this, professionDatabase);
+        ai = new EMDALanguageAI();
         partyManager = new PartyManager();
         this.partyAPI = new DeepwitherPartyAPI(partyManager); // ★ 初期化
         this.craftingManager = new CraftingManager(this);
