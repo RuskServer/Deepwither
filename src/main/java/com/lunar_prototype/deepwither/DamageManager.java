@@ -30,7 +30,7 @@ public class DamageManager implements Listener {
     private final Map<UUID, Long> onHitCooldowns = new HashMap<>();
 
     // 定数定義
-    private static final Set<String> UNDEAD_MOB_IDS = Set.of("melee_skeleton", "ranged_skeleton","melee_zombi");
+    private static final Set<String> UNDEAD_MOB_IDS = Set.of("melee_skeleton", "ranged_skeleton", "melee_zombi");
     private static final double MAGIC_DEFENSE_DIVISOR = 100.0;
     private static final double DEFENSE_DIVISOR = 100.0; // 物理防御用
     private static final double HEAVY_DEFENSE_DIVISOR = 500.0; // 高耐久用
@@ -75,7 +75,8 @@ public class DamageManager implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onPhysicalDamage(EntityDamageByEntityEvent e) {
         // ... (既存のコードはそのまま維持)
-        if (e.isCancelled()) return;
+        if (e.isCancelled())
+            return;
 
         // 攻撃者の特定 (プレイヤーのみ処理)
         Player attacker = null;
@@ -90,9 +91,12 @@ public class DamageManager implements Listener {
             projectileEntity = proj;
         }
 
-        if (attacker == null) return;
-        if (isProcessingDamage.contains(attacker.getUniqueId())) return;
-        if (!(e.getEntity() instanceof LivingEntity targetLiving)) return;
+        if (attacker == null)
+            return;
+        if (isProcessingDamage.contains(attacker.getUniqueId()))
+            return;
+        if (!(e.getEntity() instanceof LivingEntity targetLiving))
+            return;
 
         if (targetLiving instanceof Player pTarget && statManager.getActualCurrentHealth(pTarget) <= 0) {
             e.setCancelled(true);
@@ -101,7 +105,8 @@ public class DamageManager implements Listener {
 
         if (attacker instanceof Player player) {
             ItemStack item = player.getInventory().getItemInMainHand();
-            if (item.hasItemMeta() && item.getItemMeta().getPersistentDataContainer().has(ItemLoader.IS_WAND, PersistentDataType.BOOLEAN)) {
+            if (item.hasItemMeta() && item.getItemMeta().getPersistentDataContainer().has(ItemLoader.IS_WAND,
+                    PersistentDataType.BOOLEAN)) {
                 e.setCancelled(true);
                 return;
             }
@@ -109,10 +114,14 @@ public class DamageManager implements Listener {
 
         long currentTime = System.currentTimeMillis();
 
-        if (isInvulnerable(targetLiving)) { e.setCancelled(true); return; }
+        if (isInvulnerable(targetLiving)) {
+            e.setCancelled(true);
+            return;
+        }
 
         if (e.getCause() == EntityDamageEvent.DamageCause.ENTITY_EXPLOSION ||
-                e.getCause() == EntityDamageEvent.DamageCause.BLOCK_EXPLOSION) return;
+                e.getCause() == EntityDamageEvent.DamageCause.BLOCK_EXPLOSION)
+            return;
 
         if (targetLiving instanceof Player && isPvPPrevented(attacker, targetLiving)) {
             e.setCancelled(true);
@@ -126,8 +135,10 @@ public class DamageManager implements Listener {
         StatType weaponType = getWeaponStatType(attacker.getInventory().getItemInMainHand());
 
         // 2. ダメージ計算の強化
-        double attackPowerFlat = attackerStats.getFlat(isProjectile ? StatType.PROJECTILE_DAMAGE : StatType.ATTACK_DAMAGE);
-        double attackPowerPercent = attackerStats.getPercent(isProjectile ? StatType.PROJECTILE_DAMAGE : StatType.ATTACK_DAMAGE);
+        double attackPowerFlat = attackerStats
+                .getFlat(isProjectile ? StatType.PROJECTILE_DAMAGE : StatType.ATTACK_DAMAGE);
+        double attackPowerPercent = attackerStats
+                .getPercent(isProjectile ? StatType.PROJECTILE_DAMAGE : StatType.ATTACK_DAMAGE);
 
         // 武器固有のボーナスを取得 (Flat & Percent)
         double weaponFlat = (weaponType != null) ? attackerStats.getFlat(weaponType) : 0;
@@ -167,7 +178,8 @@ public class DamageManager implements Listener {
                 if (cooldown < 1.0f) {
                     double reduced = finalDamage * (1.0 - cooldown);
                     finalDamage *= cooldown;
-                    sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, "§c攻撃クールダウン！ §c-" + Math.round(reduced) + " §7ダメージ §a(" + Math.round(finalDamage) + ")");
+                    sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG,
+                            "§c攻撃クールダウン！ §c-" + Math.round(reduced) + " §7ダメージ §a(" + Math.round(finalDamage) + ")");
                 }
             }
         }
@@ -178,15 +190,17 @@ public class DamageManager implements Listener {
                 double rangeV = 1.5;
 
                 List<Entity> nearbyEntities = targetLiving.getNearbyEntities(rangeH, rangeV, rangeH);
-                targetLiving.getWorld().spawnParticle(Particle.SWEEP_ATTACK, targetLiving.getLocation().add(0, 1, 0), 1);
+                targetLiving.getWorld().spawnParticle(Particle.SWEEP_ATTACK, targetLiving.getLocation().add(0, 1, 0),
+                        1);
                 attacker.playSound(attacker.getLocation(), Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1.0f, 1.0f);
                 double sweepDamage = finalDamage * 0.5;
 
                 for (Entity nearby : nearbyEntities) {
-                    if (nearby.equals(attacker) || nearby.equals(targetLiving)) continue;
+                    if (nearby.equals(attacker) || nearby.equals(targetLiving))
+                        continue;
 
                     if (nearby instanceof LivingEntity livingTarget) {
-                        applyCustomDamage(livingTarget,sweepDamage,attacker);
+                        applyCustomDamage(livingTarget, sweepDamage, attacker);
                         livingTarget.setVelocity(attacker.getLocation().getDirection().multiply(0.3).setY(0.1));
                     }
                 }
@@ -196,7 +210,8 @@ public class DamageManager implements Listener {
         ChargeManager chargeManager = Deepwither.getInstance().getChargeManager();
         String chargedType = chargeManager.consumeCharge(attacker.getUniqueId());
         ItemStack item = attacker.getInventory().getItemInMainHand();
-        String type = item.getItemMeta().getPersistentDataContainer().get(ItemLoader.CHARGE_ATTACK_KEY, PersistentDataType.STRING);
+        String type = item.getItemMeta().getPersistentDataContainer().get(ItemLoader.CHARGE_ATTACK_KEY,
+                PersistentDataType.STRING);
         if (type != null) {
             if (chargedType != null && chargedType.equals("hammer")) {
                 finalDamage *= 3.0;
@@ -214,7 +229,8 @@ public class DamageManager implements Listener {
                         if (!nearby.equals(targetLiving)) {
                             applyCustomDamage(living, areaDamage, attacker);
                         }
-                        Vector kb = living.getLocation().toVector().subtract(attacker.getLocation().toVector()).normalize().multiply(1.5).setY(0.6);
+                        Vector kb = living.getLocation().toVector().subtract(attacker.getLocation().toVector())
+                                .normalize().multiply(1.5).setY(0.6);
                         living.setVelocity(kb);
                     }
                 }
@@ -223,7 +239,8 @@ public class DamageManager implements Listener {
         }
 
         if (targetLiving instanceof Player defenderPlayer && defenderPlayer.isBlocking()) {
-            Vector toAttackerVec = attacker.getLocation().toVector().subtract(defenderPlayer.getLocation().toVector()).normalize();
+            Vector toAttackerVec = attacker.getLocation().toVector().subtract(defenderPlayer.getLocation().toVector())
+                    .normalize();
             Vector defenderLookVec = defenderPlayer.getLocation().getDirection().normalize();
 
             if (toAttackerVec.dot(defenderLookVec) > 0.5) {
@@ -235,24 +252,27 @@ public class DamageManager implements Listener {
                 double blockedDamage = finalDamage * blockRate;
                 finalDamage -= blockedDamage;
                 defenderPlayer.getWorld().playSound(defenderPlayer.getLocation(), Sound.ITEM_SHIELD_BLOCK, 1f, 1f);
-                sendLog(defenderPlayer, PlayerSettingsManager.SettingType.SHOW_MITIGATION, "§b盾防御！ §7軽減: §a" + Math.round(blockedDamage) + " §c(" + Math.round(finalDamage) + "被弾)");
+                sendLog(defenderPlayer, PlayerSettingsManager.SettingType.SHOW_MITIGATION,
+                        "§b盾防御！ §7軽減: §a" + Math.round(blockedDamage) + " §c(" + Math.round(finalDamage) + "被弾)");
             }
         }
 
         finalDamage = Math.max(0.1, finalDamage);
 
         e.setDamage(0.0);
-        if (isProjectile) projectileEntity.remove();
+        if (isProjectile)
+            projectileEntity.remove();
 
         if (isCrit) {
-            sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, "§6§lクリティカル！ §c+" + Math.round(finalDamage));
+            sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG,
+                    "§6§lクリティカル！ §c+" + Math.round(finalDamage));
             Location hitLoc = targetLiving.getLocation().add(0, 1.2, 0); // ターゲットの胸の高さ
             World world = hitLoc.getWorld();
 
             // --- 視覚エフェクト: 重層的なパーティクル ---
 
             // 1. 強烈な閃光 (中心)
-            world.spawnParticle(Particle.FLASH, hitLoc, 1, 0, 0, 0, 0,Color.WHITE);
+            world.spawnParticle(Particle.FLASH, hitLoc, 1, 0, 0, 0, 0, Color.WHITE);
 
             // 2. 衝撃波 (周囲に広がる空気の歪み)
             world.spawnParticle(Particle.SONIC_BOOM, hitLoc, 1, 0, 0, 0, 0);
@@ -276,15 +296,43 @@ public class DamageManager implements Listener {
             // 斬撃の重み（鋭い音）
             world.playSound(hitLoc, Sound.ITEM_TRIDENT_HIT, 1.0f, 0.7f);
         } else if (isProjectile) {
-            sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_GIVEN_DAMAGE, "§7遠距離命中 §c+" + Math.round(finalDamage) + " §e[" + String.format("%.0f%%", distMult * 100) + "]");
+            sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_GIVEN_DAMAGE,
+                    "§7遠距離命中 §c+" + Math.round(finalDamage) + " §e[" + String.format("%.0f%%", distMult * 100) + "]");
         }
 
-        finalizeDamage(targetLiving,finalDamage,attacker, false);
+        finalizeDamage(targetLiving, finalDamage, attacker, false);
         tryTriggerOnHitSkill(attacker, targetLiving, attacker.getInventory().getItemInMainHand());
 
         if (!isProjectile && isSpearWeapon(attacker.getInventory().getItemInMainHand())) {
             spawnSpearThrustEffect(attacker);
             handleSpearCleave(attacker, targetLiving, finalDamage);
+        }
+
+        // --- Advanced PvPvE Buffs Logic ---
+
+        // 1. LifeSteal (Drain)
+        double lifeSteal = attackerStats.getFinal(StatType.LIFESTEAL);
+        if (lifeSteal > 0) {
+            double healAmount = finalDamage * (lifeSteal / 100.0);
+            if (healAmount > 0) {
+                statManager.healCustomHealth(attacker, healAmount);
+                attacker.playSound(attacker.getLocation(), Sound.ENTITY_WITCH_DRINK, 0.5f, 1.2f);
+            }
+        }
+
+        // 2. Bleed
+        if (rollChance(attackerStats.getFinal(StatType.BLEED_CHANCE))) {
+            applyBleed(targetLiving, attacker);
+        }
+
+        // 3. Freeze
+        if (rollChance(attackerStats.getFinal(StatType.FREEZE_CHANCE))) {
+            applyFreeze(targetLiving);
+        }
+
+        // 4. AoE (Explosive)
+        if (rollChance(attackerStats.getFinal(StatType.AOE_CHANCE))) {
+            applyAoE(targetLiving, attacker, finalDamage);
         }
     }
 
@@ -293,8 +341,10 @@ public class DamageManager implements Listener {
     // ----------------------------------------------------
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerReceivingDamage(EntityDamageEvent e) {
-        if (!(e.getEntity() instanceof Player player)) return;
-        if (e.isCancelled()) return;
+        if (!(e.getEntity() instanceof Player player))
+            return;
+        if (e.isCancelled())
+            return;
 
         // すでにスキル等でダメージ処理済み（無敵時間中）ならキャンセル
         if (isInvulnerable(player)) {
@@ -310,25 +360,32 @@ public class DamageManager implements Listener {
 
         // 攻撃者特定
         if (e instanceof EntityDamageByEntityEvent ev) {
-            if (ev.getDamager() instanceof LivingEntity le) attacker = le;
-            else if (ev.getDamager() instanceof Projectile p && p.getShooter() instanceof LivingEntity le) attacker = le;
-            if (attacker instanceof Player) return; // プレイヤー間の攻撃は onPhysicalDamage で処理
+            if (ev.getDamager() instanceof LivingEntity le)
+                attacker = le;
+            else if (ev.getDamager() instanceof Projectile p && p.getShooter() instanceof LivingEntity le)
+                attacker = le;
+            if (attacker instanceof Player)
+                return; // プレイヤー間の攻撃は onPhysicalDamage で処理
         }
 
         // 1. 爆発（魔法）処理
-        if (e.getCause() == EntityDamageEvent.DamageCause.ENTITY_EXPLOSION || e.getCause() == EntityDamageEvent.DamageCause.BLOCK_EXPLOSION) {
+        if (e.getCause() == EntityDamageEvent.DamageCause.ENTITY_EXPLOSION
+                || e.getCause() == EntityDamageEvent.DamageCause.BLOCK_EXPLOSION) {
             finalDamage = applyDefense(rawDamage, defenderStats.getFinal(StatType.MAGIC_RESIST), 100.0);
             isMagic = true;
         } else {
             // 2. モブ攻撃と防御計算
-            double currentDamage = (attacker instanceof Mob) ? applyMobCritLogic(attacker, rawDamage, player) : rawDamage;
+            double currentDamage = (attacker instanceof Mob) ? applyMobCritLogic(attacker, rawDamage, player)
+                    : rawDamage;
             finalDamage = applyDefense(currentDamage, defenderStats.getFinal(StatType.DEFENSE), 500.0);
 
             // 3. 盾防御
             if (player.isBlocking() && attacker != null) {
-                Vector toAttacker = attacker.getLocation().toVector().subtract(player.getLocation().toVector()).normalize();
+                Vector toAttacker = attacker.getLocation().toVector().subtract(player.getLocation().toVector())
+                        .normalize();
                 if (toAttacker.dot(player.getLocation().getDirection().normalize()) > 0.5) {
-                    double blocked = finalDamage * Math.max(0, Math.min(defenderStats.getFinal(StatType.SHIELD_BLOCK_RATE), 1.0));
+                    double blocked = finalDamage
+                            * Math.max(0, Math.min(defenderStats.getFinal(StatType.SHIELD_BLOCK_RATE), 1.0));
                     finalDamage -= blocked;
                     player.getWorld().playSound(player.getLocation(), Sound.ITEM_SHIELD_BLOCK, 1f, 1f);
                 }
@@ -392,7 +449,7 @@ public class DamageManager implements Listener {
             // --- 視覚エフェクト: エラーの起きにくい構成 ---
 
             // 1. 強烈な閃光
-            world.spawnParticle(Particle.FLASH, hitLoc, 1, 0, 0, 0, 0,Color.WHITE);
+            world.spawnParticle(Particle.FLASH, hitLoc, 1, 0, 0, 0, 0, Color.WHITE);
 
             // 2. 衝撃波
             world.spawnParticle(Particle.SONIC_BOOM, hitLoc, 1, 0, 0, 0, 0);
@@ -425,8 +482,9 @@ public class DamageManager implements Listener {
                 .forEach(target -> {
                     if (!isProcessingDamage.contains(attacker.getUniqueId())) {
                         applyCustomDamage(target, cleaveDmg, attacker);
-                        attacker.getWorld().spawnParticle(Particle.SWEEP_ATTACK, target.getLocation().add(0,1,0), 1);
-                        sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_GIVEN_DAMAGE, "§e貫通！ §c+" + Math.round(cleaveDmg));
+                        attacker.getWorld().spawnParticle(Particle.SWEEP_ATTACK, target.getLocation().add(0, 1, 0), 1);
+                        sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_GIVEN_DAMAGE,
+                                "§e貫通！ §c+" + Math.round(cleaveDmg));
                     }
                 });
     }
@@ -457,16 +515,59 @@ public class DamageManager implements Listener {
                     point,
                     1,
                     0, 0, 0,
-                    0
-            );
+                    0);
         }
 
         attacker.getWorld().playSound(
                 attacker.getLocation(),
                 Sound.ENTITY_PLAYER_ATTACK_STRONG,
                 0.6f,
-                1.4f
-        );
+                1.4f);
+    }
+
+    // --- Advanced Buff Private Methods ---
+
+    private void applyBleed(LivingEntity target, Player attacker) {
+        // 簡易実装: 5回、1秒ごとにダメージ
+        new BukkitRunnable() {
+            int count = 0;
+
+            @Override
+            public void run() {
+                if (target.isDead() || !target.isValid() || count >= 5) {
+                    this.cancel();
+                    return;
+                }
+                // 固定ダメージ or 割合？ 一旦固定1ダメージ
+                applyCustomDamage(target, 1.0, attacker);
+                target.getWorld().spawnParticle(Particle.BLOCK_CRACK, target.getLocation().add(0, 1, 0), 10, 0.2, 0.5,
+                        0.2, Bukkit.createBlockData(Material.REDSTONE_BLOCK));
+                count++;
+            }
+        }.runTaskTimer(Deepwither.getInstance(), 20L, 20L);
+        sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_GIVEN_DAMAGE, "§4出血付与！");
+    }
+
+    private void applyFreeze(LivingEntity target) {
+        target.setFreezeTicks(140); // 7秒くらい
+        // 視覚効果
+        target.getWorld().spawnParticle(Particle.SNOWFLAKE, target.getLocation().add(0, 1, 0), 15, 0.5, 1.0, 0.5, 0.05);
+        target.getWorld().playSound(target.getLocation(), Sound.BLOCK_GLASS_BREAK, 1.0f, 1.5f);
+    }
+
+    private void applyAoE(LivingEntity mainTarget, Player attacker, double damage) {
+        double splashDamage = damage * 0.5; // 50%
+        mainTarget.getWorld().spawnParticle(Particle.EXPLOSION_LARGE, mainTarget.getLocation().add(0, 1, 0), 1);
+        mainTarget.getWorld().playSound(mainTarget.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 1.0f, 1.5f);
+
+        for (Entity e : mainTarget.getNearbyEntities(3, 3, 3)) {
+            if (e instanceof LivingEntity living && !e.equals(attacker) && !e.equals(mainTarget)) {
+                if (!isProcessingDamage.contains(attacker.getUniqueId())) {
+                    applyCustomDamage(living, splashDamage, attacker);
+                }
+            }
+        }
+        sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_GIVEN_DAMAGE, "§e拡散ヒット！");
     }
 
     public void finalizeDamage(LivingEntity target, double damage, LivingEntity source, boolean isMagic) {
@@ -550,7 +651,6 @@ public class DamageManager implements Listener {
         return damage;
     }
 
-
     private void processPlayerDamageWithAbsorption(Player player, double damage, String sourceName) {
         if (statManager.getActualCurrentHealth(player) <= 0) {
             return;
@@ -560,7 +660,7 @@ public class DamageManager implements Listener {
         if (absorption > 0) {
             if (damage <= absorption) {
                 double newAbs = absorption - damage;
-                player.setAbsorptionAmount((float)(newAbs / 10.0));
+                player.setAbsorptionAmount((float) (newAbs / 10.0));
                 sendLog(player, PlayerSettingsManager.SettingType.SHOW_MITIGATION, "§eシールド防御: -" + Math.round(damage));
                 return;
             } else {
@@ -574,10 +674,12 @@ public class DamageManager implements Listener {
         double newHp = currentHp - damage;
         statManager.setActualCurrentHealth(player, newHp);
 
-        if (newHp <= 0) player.sendMessage("§4" + sourceName + "に倒されました。");
-        else sendLog(player, PlayerSettingsManager.SettingType.SHOW_TAKEN_DAMAGE, "§c-" + Math.round(damage) + " HP");;
+        if (newHp <= 0)
+            player.sendMessage("§4" + sourceName + "に倒されました。");
+        else
+            sendLog(player, PlayerSettingsManager.SettingType.SHOW_TAKEN_DAMAGE, "§c-" + Math.round(damage) + " HP");
+        ;
     }
-
 
     public double calculateDistanceMultiplier(Player player, LivingEntity targetLiving) {
         double distance = targetLiving.getLocation().distance(player.getLocation());
@@ -657,9 +759,11 @@ public class DamageManager implements Listener {
         }
 
         try {
-            com.sk89q.worldguard.protection.regions.RegionContainer container = com.sk89q.worldguard.WorldGuard.getInstance().getPlatform().getRegionContainer();
+            com.sk89q.worldguard.protection.regions.RegionContainer container = com.sk89q.worldguard.WorldGuard
+                    .getInstance().getPlatform().getRegionContainer();
             com.sk89q.worldguard.protection.regions.RegionQuery query = container.createQuery();
-            com.sk89q.worldguard.protection.ApplicableRegionSet set = query.getApplicableRegions(com.sk89q.worldedit.bukkit.BukkitAdapter.adapt(attacker.getLocation()));
+            com.sk89q.worldguard.protection.ApplicableRegionSet set = query
+                    .getApplicableRegions(com.sk89q.worldedit.bukkit.BukkitAdapter.adapt(attacker.getLocation()));
 
             if (!set.testState(null, com.sk89q.worldguard.protection.flags.Flags.PVP)) {
                 attacker.sendMessage("§cこの区域ではPvPが禁止されています。");
@@ -673,7 +777,8 @@ public class DamageManager implements Listener {
     }
 
     private void tryTriggerOnHitSkill(Player attacker, LivingEntity target, ItemStack item) {
-        if (item == null || !item.hasItemMeta()) return;
+        if (item == null || !item.hasItemMeta())
+            return;
 
         ItemMeta meta = item.getItemMeta();
         PersistentDataContainer container = meta.getPersistentDataContainer();
@@ -682,7 +787,8 @@ public class DamageManager implements Listener {
         Integer cooldown = container.get(ItemLoader.SKILL_COOLDOWN_KEY, PersistentDataType.INTEGER);
         String skillId = container.get(ItemLoader.SKILL_ID_KEY, PersistentDataType.STRING);
 
-        if (chance == null || skillId == null) return;
+        if (chance == null || skillId == null)
+            return;
 
         long lastTrigger = onHitCooldowns.getOrDefault(attacker.getUniqueId(), 0L);
         long currentTime = System.currentTimeMillis();
@@ -695,9 +801,11 @@ public class DamageManager implements Listener {
         int roll = (int) (Math.random() * 100) + 1;
 
         if (roll <= chance) {
-            MythicBukkit.inst().getAPIHelper().castSkill(attacker.getPlayer(),skillId);
+            MythicBukkit.inst().getAPIHelper().castSkill(attacker.getPlayer(), skillId);
             onHitCooldowns.put(attacker.getUniqueId(), currentTime);
-            sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, "§a[On-Hit] スキル「§b" + skillId + "§a」を発動！");;
+            sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG,
+                    "§a[On-Hit] スキル「§b" + skillId + "§a」を発動！");
+            ;
         }
     }
 
@@ -714,21 +822,32 @@ public class DamageManager implements Listener {
      * アイテムのロアから武器カテゴリに応じたStatTypeを返します
      */
     public StatType getWeaponStatType(ItemStack item) {
-        if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasLore()) return null;
+        if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasLore())
+            return null;
 
         List<String> lore = item.getItemMeta().getLore();
         for (String line : lore) {
-            if (!line.contains("§7カテゴリ:§f")) continue;
+            if (!line.contains("§7カテゴリ:§f"))
+                continue;
 
-            if (line.contains("鎌")) return StatType.SCYTHE_DAMAGE;
-            if (line.contains("大剣")) return StatType.GREATSWORD_DAMAGE;
-            if (line.contains("槍")) return StatType.SPEAR_DAMAGE;
-            if (line.contains("斧")) return StatType.AXE_DAMAGE;
-            if (line.contains("メイス")) return StatType.MACE_DAMAGE;
-            if (line.contains("剣")) return StatType.SWORD_DAMAGE;
-            if (line.contains("マチェット")) return StatType.MACHETE_DAMAGE;
-            if (line.contains("ハンマー")) return StatType.HAMMER_DAMAGE;
-            if (line.contains("ハルバード")) return StatType.HALBERD_DAMAGE;
+            if (line.contains("鎌"))
+                return StatType.SCYTHE_DAMAGE;
+            if (line.contains("大剣"))
+                return StatType.GREATSWORD_DAMAGE;
+            if (line.contains("槍"))
+                return StatType.SPEAR_DAMAGE;
+            if (line.contains("斧"))
+                return StatType.AXE_DAMAGE;
+            if (line.contains("メイス"))
+                return StatType.MACE_DAMAGE;
+            if (line.contains("剣"))
+                return StatType.SWORD_DAMAGE;
+            if (line.contains("マチェット"))
+                return StatType.MACHETE_DAMAGE;
+            if (line.contains("ハンマー"))
+                return StatType.HAMMER_DAMAGE;
+            if (line.contains("ハルバード"))
+                return StatType.HALBERD_DAMAGE;
         }
         return null;
     }

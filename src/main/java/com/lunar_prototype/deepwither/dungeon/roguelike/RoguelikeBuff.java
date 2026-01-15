@@ -41,6 +41,30 @@ public enum RoguelikeBuff {
         public void apply(StatMap stats) {
             stats.addFlat(StatType.HP_REGEN, 0.5); // %/sec か flat かはStatManagerの実装依存だが一旦Flat扱い
         }
+    },
+    BLOOD_PACT("§4鮮血の契約", "§7攻撃時、20%の確率で出血を付与する", Material.REDSTONE_BLOCK) {
+        @Override
+        public void apply(StatMap stats) {
+            stats.addFlat(StatType.BLEED_CHANCE, 20.0);
+        }
+    },
+    VAMPIRE_FANG("§c吸血鬼の牙", "§7与えたダメージの5%を回復する", Material.GHAST_TEAR) { // Material変更検討
+        @Override
+        public void apply(StatMap stats) {
+            stats.addFlat(StatType.LIFESTEAL, 5.0);
+        }
+    },
+    FROST_TOUCH("§b氷結の指先", "§7攻撃時、15%の確率で敵を凍結させる", Material.PACKED_ICE) {
+        @Override
+        public void apply(StatMap stats) {
+            stats.addFlat(StatType.FREEZE_CHANCE, 15.0);
+        }
+    },
+    EXPLOSIVE_BLOW("§e爆砕撃", "§7攻撃時、10%の確率で周囲に拡散ダメージを与える", Material.TNT) {
+        @Override
+        public void apply(StatMap stats) {
+            stats.addFlat(StatType.AOE_CHANCE, 10.0);
+        }
     };
 
     private final String displayName;

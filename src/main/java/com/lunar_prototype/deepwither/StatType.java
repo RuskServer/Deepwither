@@ -11,28 +11,28 @@ import org.bukkit.inventory.meta.ItemMeta;
  * ステータスタイプの列挙。
  */
 public enum StatType {
-    ATTACK_DAMAGE("攻撃力", "§c","➸"),
-    ATTACK_SPEED("攻撃速度","&f","➸"),
-    PROJECTILE_DAMAGE("発射体ダメージ","&f","➸"),
-    MAGIC_DAMAGE("魔法攻撃力", "§b","■"),
-    MAGIC_AOE_DAMAGE("魔法AoE攻撃力", "§b","■"),
-    MAGIC_BURST_DAMAGE("魔法バースト攻撃力", "§b","■"),
-    DEFENSE("防御力", "§a","✠"),
-    MAGIC_RESIST("魔法耐性", "§9","✠"),
-    MAGIC_PENETRATION("魔法貫通", "§9","■"),
-    CRIT_CHANCE("クリティカル率", "§e","■"),
-    CRIT_DAMAGE("クリティカルダメージ", "§e","■"),
-    MAX_HEALTH("最大HP", "§4","❤"),
-    HP_REGEN("HP回復","§4","❤"),
-    MOVE_SPEED("移動速度", "§d","■"),
-    SKILL_POWER("スキル威力", "§b","■"),
-    WEAR("損耗率", "§b","■"),
-    REACH("リーチ増加", "§b","■"),
-    REDUCES_MOVEMENT_SPEED_DECREASE("移動速度低下軽減", "§b","■"),
-    MASTERY("マスタリー", "§6","■"),
-    MAX_MANA("最大マナ", "§b","☆"),
-    COOLDOWN_REDUCTION("クールダウン短縮", "§8","⌛"),
-    SHIELD_BLOCK_RATE("盾の減衰率","§d","■"),
+    ATTACK_DAMAGE("攻撃力", "§c", "➸"),
+    ATTACK_SPEED("攻撃速度", "&f", "➸"),
+    PROJECTILE_DAMAGE("発射体ダメージ", "&f", "➸"),
+    MAGIC_DAMAGE("魔法攻撃力", "§b", "■"),
+    MAGIC_AOE_DAMAGE("魔法AoE攻撃力", "§b", "■"),
+    MAGIC_BURST_DAMAGE("魔法バースト攻撃力", "§b", "■"),
+    DEFENSE("防御力", "§a", "✠"),
+    MAGIC_RESIST("魔法耐性", "§9", "✠"),
+    MAGIC_PENETRATION("魔法貫通", "§9", "■"),
+    CRIT_CHANCE("クリティカル率", "§e", "■"),
+    CRIT_DAMAGE("クリティカルダメージ", "§e", "■"),
+    MAX_HEALTH("最大HP", "§4", "❤"),
+    HP_REGEN("HP回復", "§4", "❤"),
+    MOVE_SPEED("移動速度", "§d", "■"),
+    SKILL_POWER("スキル威力", "§b", "■"),
+    WEAR("損耗率", "§b", "■"),
+    REACH("リーチ増加", "§b", "■"),
+    REDUCES_MOVEMENT_SPEED_DECREASE("移動速度低下軽減", "§b", "■"),
+    MASTERY("マスタリー", "§6", "■"),
+    MAX_MANA("最大マナ", "§b", "☆"),
+    COOLDOWN_REDUCTION("クールダウン短縮", "§8", "⌛"),
+    SHIELD_BLOCK_RATE("盾の減衰率", "§d", "■"),
     STR("筋力", "§c", "❖"),
     VIT("体力", "§a", "❤"),
     MND("精神力", "§b", "✦"),
@@ -46,13 +46,18 @@ public enum StatType {
     SWORD_DAMAGE("剣ダメージ", "§c", "⚔"),
     MACHETE_DAMAGE("マチェットダメージ", "§c", "⚔"),
     HAMMER_DAMAGE("ハンマーダメージ", "§c", "⚔"),
-    HALBERD_DAMAGE("ハルバードダメージ", "§c", "⚔");
+    HAMMER_DAMAGE("ハンマーダメージ", "§c", "⚔"),
+    HALBERD_DAMAGE("ハルバードダメージ", "§c", "⚔"),
+    BLEED_CHANCE("出血付与", "§4", "🩸"),
+    LIFESTEAL("ドレイン", "§c", "❤"),
+    FREEZE_CHANCE("凍結付与", "§b", "❄"),
+    AOE_CHANCE("拡散攻撃", "§e", "💥");
 
     private final String displayName;
     private final String colorCode;
     private final String icon;
 
-    StatType(String displayName, String colorCode,String icon) {
+    StatType(String displayName, String colorCode, String icon) {
         this.displayName = displayName;
         this.colorCode = colorCode;
         this.icon = icon;
@@ -83,8 +88,9 @@ class LoreBuilder {
      * 既存のアイテムのLoreを読み込み、提供されたStatMapと修理ステータス（損耗率、マスタリー）
      * に基づいて部分的に更新または行を追加する。
      * * @param item アイテムスタック
-     * @param newStats 新しいカスタムステータス (StatMap)
-     * @param wearRate 損耗率
+     * 
+     * @param newStats     新しいカスタムステータス (StatMap)
+     * @param wearRate     損耗率
      * @param masteryLevel マスタリーレベル
      * @return 更新されたLoreのリスト
      */
@@ -92,7 +98,7 @@ class LoreBuilder {
         ItemMeta meta = item.getItemMeta();
         // Metaがない、またはLoreがない場合は新規作成（build）へ
         if (meta == null || !meta.hasLore()) {
-            return build(newStats, false, null, null, null, null, null,null);
+            return build(newStats, false, null, null, null, null, null, null);
         }
 
         List<String> existingLore = meta.getLore();
@@ -110,7 +116,7 @@ class LoreBuilder {
         // 区切り線が2つ未満の場合は構造が特殊なため、安全策として既存buildを呼ぶか、
         // あるいは構造を維持できないため新規作成する
         if (separatorIndices.size() < 2) {
-            return build(newStats, false, null, null, null, null, null,null);
+            return build(newStats, false, null, null, null, null, null, null);
         }
 
         // --- 2. セクションの特定 ---
@@ -163,7 +169,9 @@ class LoreBuilder {
         return newLore;
     }
 
-    public static List<String> build(StatMap stats, boolean compact, String itemType, List<String> flavorText, ItemLoader.RandomStatTracker tracker,String rarity,Map<StatType, Double> appliedModifiers, FabricationGrade grade) {
+    public static List<String> build(StatMap stats, boolean compact, String itemType, List<String> flavorText,
+            ItemLoader.RandomStatTracker tracker, String rarity, Map<StatType, Double> appliedModifiers,
+            FabricationGrade grade) {
         List<String> lore = new ArrayList<>();
 
         // ★ FG表示を追加 (最上部)
@@ -204,10 +212,14 @@ class LoreBuilder {
         if (tracker != null) {
             double ratio = tracker.getRatio() * 100.0;
             String color;
-            if (ratio >= 90) color = "§6";
-            else if (ratio >= 70) color = "§e";
-            else if (ratio >= 50) color = "§a";
-            else color = "§7";
+            if (ratio >= 90)
+                color = "§6";
+            else if (ratio >= 70)
+                color = "§e";
+            else if (ratio >= 50)
+                color = "§a";
+            else
+                color = "§7";
             lore.add(" §f• 品質: " + color + Math.round(ratio) + "%");
         }
 
@@ -232,7 +244,8 @@ class LoreBuilder {
             double flat = stats.getFlat(type);
             double percent = stats.getPercent(type);
 
-            if (flat == 0 && percent == 0) continue;
+            if (flat == 0 && percent == 0)
+                continue;
 
             String line = formatStat(type, flat, percent, compact);
             lore.add(line);
@@ -267,7 +280,8 @@ class StatUtils {
         StatMap total = new StatMap();
 
         for (ItemStack item : player.getInventory().getArmorContents()) {
-            if (item == null || item.getType().isAir()) continue;
+            if (item == null || item.getType().isAir())
+                continue;
             StatMap itemStats = getStatsFromItem(item);
             total.add(itemStats);
         }
