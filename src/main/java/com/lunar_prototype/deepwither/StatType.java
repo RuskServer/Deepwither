@@ -46,7 +46,6 @@ public enum StatType {
     SWORD_DAMAGE("剣ダメージ", "§c", "⚔"),
     MACHETE_DAMAGE("マチェットダメージ", "§c", "⚔"),
     HAMMER_DAMAGE("ハンマーダメージ", "§c", "⚔"),
-    HAMMER_DAMAGE("ハンマーダメージ", "§c", "⚔"),
     HALBERD_DAMAGE("ハルバードダメージ", "§c", "⚔"),
     BLEED_CHANCE("出血付与", "§4", "🩸"),
     LIFESTEAL("ドレイン", "§c", "❤"),
