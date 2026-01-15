@@ -17,6 +17,7 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import com.lunar_prototype.deepwither.PlayerSettingsManager;
 import org.bukkit.projectiles.ProjectileSource;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
 import java.util.*;
@@ -540,7 +541,7 @@ public class DamageManager implements Listener {
                 }
                 // 固定ダメージ or 割合？ 一旦固定1ダメージ
                 applyCustomDamage(target, 1.0, attacker);
-                target.getWorld().spawnParticle(Particle.BLOCK_CRACK, target.getLocation().add(0, 1, 0), 10, 0.2, 0.5,
+                target.getWorld().spawnParticle(Particle.BLOCK, target.getLocation().add(0, 1, 0), 10, 0.2, 0.5,
                         0.2, Bukkit.createBlockData(Material.REDSTONE_BLOCK));
                 count++;
             }
@@ -557,7 +558,7 @@ public class DamageManager implements Listener {
 
     private void applyAoE(LivingEntity mainTarget, Player attacker, double damage) {
         double splashDamage = damage * 0.5; // 50%
-        mainTarget.getWorld().spawnParticle(Particle.EXPLOSION_LARGE, mainTarget.getLocation().add(0, 1, 0), 1);
+        mainTarget.getWorld().spawnParticle(Particle.EXPLOSION_EMITTER, mainTarget.getLocation().add(0, 1, 0), 1);
         mainTarget.getWorld().playSound(mainTarget.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 1.0f, 1.5f);
 
         for (Entity e : mainTarget.getNearbyEntities(3, 3, 3)) {
