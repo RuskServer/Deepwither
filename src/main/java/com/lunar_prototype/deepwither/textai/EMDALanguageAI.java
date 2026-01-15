@@ -44,68 +44,84 @@ public class EMDALanguageAI {
     }
 
     /**
-     * [新理論] Resonance Tuning (スパルタ教育) - 非同期ログ出力版
-     * CSVを回して単語に「LNNの指紋」を焼き付け、バックグラウンドで保存
+     * [改良版] Resonance Tuning (スパルタ教育)
+     * 文字列タグ [Situation, Emotion] を数値ベクトルに変換して学習
      */
     public void trainFromCSVAsync(File csvFile) {
         java.util.concurrent.CompletableFuture.runAsync(() -> {
             long startTime = System.currentTimeMillis();
             int count = 0;
+            int skipCount = 0;
             Map<Long, Integer> stats = new HashMap<>();
 
             System.out.println("[EMDA-AI] >>> Resonance Tuning 開始: " + csvFile.getName());
 
             try (BufferedReader br = new BufferedReader(new FileReader(csvFile))) {
                 String line;
+                // ヘッダー（situation_tag,dialogue）をスキップ
+                br.readLine();
+
                 while ((line = br.readLine()) != null) {
-                    String[] parts = line.split(",");
-                    if (parts.length < 2) continue;
+                    if (line.trim().isEmpty()) continue;
 
-                    // 状況タグの解析
-                    String[] tags = parts[0].replaceAll("[\\[\\] ]", "").split(":");
-                    if (tags.length < 3) continue;
+                    // 引用符を考慮したカンマ分割 (Regex)
+                    // "[Battle, Calm]",問題ない -> parts[0]="[Battle, Calm]", parts[1]="問題ない"
+                    String[] parts = line.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", -1);
 
-                    float tL = Float.parseFloat(tags[0]);
-                    float tE = Float.parseFloat(tags[1]);
-                    float tU = Float.parseFloat(tags[2]);
-                    String phrase = parts[1].trim();
+                    if (parts.length < 2) {
+                        skipCount++;
+                        continue;
+                    }
 
-                    // 1. LNN状況シミュレート
-                    logic.update(tL, tU);
-                    emotion.update(tE, tU);
-                    context.update(1.0, tU);
+                    String rawTag = parts[0].replaceAll("[\\[\\]\" ]", ""); // "Battle,Calm"
+                    String phrase = parts[1].trim().replaceAll("^\"|\"$", "");
 
-                    // 2. 指紋生成
+                    // 文字列タグを数値ポテンシャルにマッピング
+                    float[] v = convertTagToVector(rawTag);
+
+                    // LNNへ焼き付け
+                    logic.update(v[0], v[2]);
+                    emotion.update(v[1], v[2]);
+                    context.update(1.0, v[2]);
+
                     float[] fingerprint = {(float)logic.get(), (float)emotion.get(), (float)context.get()};
 
-                    // 3. カテゴリ自動分類
-                    long cat = (tE > 0.6) ? 2L : 1L;
-                    if (phrase.contains("システム") || phrase.contains("実装")) cat = 100L;
-                    if (phrase.endsWith("？") || phrase.endsWith("。")) cat = 300L;
+                    // カテゴリ分類
+                    long cat = (v[1] > 0.5) ? 2L : 1L; // Emotion値で判定
+                    if (v[0] > 0.7) cat = 100L; // Logic値が高ければ知識層へ
 
                     addVWord(cat, phrase, fingerprint);
                     stats.put(cat, stats.getOrDefault(cat, 0) + 1);
                     count++;
-
-                    // 100行ごとに進捗を表示
-                    if (count % 100 == 0) {
-                        System.out.println("[EMDA-AI] 学習進行中... " + count + " 行完了");
-                    }
                 }
 
-                saveDictionary(); // 学習結果を永続化
+                saveDictionary();
 
                 long duration = System.currentTimeMillis() - startTime;
-                System.out.println("[EMDA-AI] <<< Resonance Tuning 完了！");
-                System.out.println("[EMDA-AI] 処理時間: " + duration + "ms");
-                System.out.println("[EMDA-AI] 合計学習フレーズ: " + count);
+                System.out.println("[EMDA-AI] <<< Resonance Tuning 完了: " + duration + "ms");
+                System.out.println("[EMDA-AI] 成功: " + count + "件 / 失敗: " + skipCount + "件");
                 stats.forEach((cat, c) -> System.out.println("  - カテゴリ [" + cat + "]: " + c + "語"));
 
             } catch (Exception e) {
-                System.err.println("[EMDA-AI] 非同期学習中にエラーが発生しました: " + e.getMessage());
-                e.printStackTrace();
+                System.err.println("[EMDA-AI] 学習エラー: " + e.getMessage());
             }
         });
+    }
+
+    /**
+     * 文字列タグを [Logic, Emotion, Urgency] の数値に変換するマッパー
+     */
+    private float[] convertTagToVector(String rawTag) {
+        float l = 0.5f, e = 0.5f, u = 0.2f;
+        String tagLower = rawTag.toLowerCase();
+
+        if (tagLower.contains("battle")) { l = 0.2f; u = 0.8f; }
+        if (tagLower.contains("daily") || tagLower.contains("relax")) { l = 0.1f; u = 0.1f; }
+        if (tagLower.contains("calm")) { e = 0.1f; }
+        if (tagLower.contains("angry") || tagLower.contains("pinch")) { e = 0.9f; u = 0.9f; }
+        if (tagLower.contains("friendly") || tagLower.contains("victory")) { e = 0.3f; l = 0.8f; }
+
+        return new float[]{l, e, u};
     }
 
     private void addVWord(long cat, String txt, float[] v) {
