@@ -1,7 +1,9 @@
 package com.lunar_prototype.deepwither.dungeon.instance;
 
 import org.bukkit.World;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -66,7 +68,7 @@ public class DungeonInstance {
     }
 
     // --- PvPvE Lifecycle ---
-    private List<com.lunar_prototype.deepwither.dungeon.DungeonGenerator.PendingSpawner> spawners = new java.util.ArrayList<>();
+    private List<com.lunar_prototype.deepwither.dungeon.DungeonGenerator.PendingSpawner> spawners = new ArrayList<>();
     private org.bukkit.scheduler.BukkitTask respawnTask;
 
     public void setSpawners(List<com.lunar_prototype.deepwither.dungeon.DungeonGenerator.PendingSpawner> spawners) {
