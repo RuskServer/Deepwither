@@ -14,7 +14,7 @@ public class PvPvEDungeonManager implements IManager {
 
     private final Deepwither plugin;
     // 1つのインスタンスに収容する最大人数
-    private static final int MAX_PLAYERS_PER_INSTANCE = 6;
+    private static final int MAX_PLAYERS_PER_INSTANCE = 3;
 
     public PvPvEDungeonManager(Deepwither plugin) {
         this.plugin = plugin;
