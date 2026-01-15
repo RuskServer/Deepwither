@@ -1,6 +1,13 @@
 package com.lunar_prototype.deepwither.dungeon.instance;
 
+import org.bukkit.Bukkit;
 import org.bukkit.World;
+import org.bukkit.boss.BarColor;
+import org.bukkit.boss.BarStyle;
+import org.bukkit.boss.BossBar;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -33,6 +40,13 @@ public class DungeonInstance {
         this.lastEmptyTime = System.currentTimeMillis();
         this.type = type;
         this.difficulty = difficulty;
+
+        // BossBarの初期化
+        this.timerBar = Bukkit.createBossBar(
+                "§e§lダンジョン残り時間",
+                BarColor.GREEN,
+                BarStyle.SOLID
+        );
     }
 
     public String getInstanceId() {
@@ -68,22 +82,42 @@ public class DungeonInstance {
     }
 
     // --- PvPvE Lifecycle ---
-    private List<com.lunar_prototype.deepwither.dungeon.DungeonGenerator.PendingSpawner> spawners = new ArrayList<>();
-    private org.bukkit.scheduler.BukkitTask respawnTask;
-    private org.bukkit.scheduler.BukkitTask limitTask;
+    private BossBar timerBar;
+    private final int MAX_TIME_SECONDS = 15 * 60; // 15分
+    private int remainingSeconds = MAX_TIME_SECONDS;
 
-    public void setSpawners(List<com.lunar_prototype.deepwither.dungeon.DungeonGenerator.PendingSpawner> spawners) {
-        this.spawners = spawners;
-    }
-
+    private BukkitTask timerTask;
     public void startLifeCycle() {
-        // 15分制限 (15 * 60 * 20 = 18000 ticks)
-        limitTask = new org.bukkit.scheduler.BukkitRunnable() {
+        // 1秒ごとに更新するタスク
+        timerTask = new BukkitRunnable() {
             @Override
             public void run() {
-                handleTimeLimit();
+                remainingSeconds--;
+
+                if (remainingSeconds <= 0) {
+                    handleTimeLimit();
+                    this.cancel();
+                    return;
+                }
+
+                // ゲージと色の更新
+                double progress = (double) remainingSeconds / MAX_TIME_SECONDS;
+                timerBar.setProgress(progress);
+
+                // 残り時間に応じて色を変える
+                if (progress < 0.2) {
+                    timerBar.setColor(BarColor.RED);
+                    timerBar.setTitle("§c§l警告: ダンジョン崩壊まで残り " + remainingSeconds + "秒");
+                } else if (progress < 0.5) {
+                    timerBar.setColor(BarColor.YELLOW);
+                }
+
+                // 分:秒 表記にタイトルを更新
+                int mins = remainingSeconds / 60;
+                int secs = remainingSeconds % 60;
+                timerBar.setTitle(String.format("§e§l制限時間: %02d:%02d", mins, secs));
             }
-        }.runTaskLater(com.lunar_prototype.deepwither.Deepwither.getInstance(), 18000L);
+        }.runTaskTimer(com.lunar_prototype.deepwither.Deepwither.getInstance(), 0L, 20L);
     }
 
     private void handleTimeLimit() {
@@ -97,14 +131,13 @@ public class DungeonInstance {
                 p.setHealth(0); // 死亡
             }
         }
+        cleanup();
     }
 
     public void cleanup() {
-        if (respawnTask != null && !respawnTask.isCancelled()) {
-            respawnTask.cancel();
-        }
-        if (limitTask != null && !limitTask.isCancelled()) {
-            limitTask.cancel();
+        if (timerTask != null) timerTask.cancel();
+        if (timerBar != null) {
+            timerBar.removeAll(); // 全プレイヤーからバーを消す
         }
     }
 }
