@@ -21,10 +21,12 @@ public class PvPvEDungeonManager implements IManager {
     }
 
     @Override
-    public void init() {}
+    public void init() {
+    }
 
     @Override
-    public void shutdown() {}
+    public void shutdown() {
+    }
 
     // インスタンスIDごとのスポーン地点データ
     private final Map<String, List<SpawnPoint>> instanceSpawnPoints = new HashMap<>();
@@ -35,7 +37,7 @@ public class PvPvEDungeonManager implements IManager {
     private static class SpawnPoint {
         Location location;
         long lastUsedTime; // 最後に使われた時間
-        int useCount;      // 使用回数（優先度の判定に使用）
+        int useCount; // 使用回数（優先度の判定に使用）
 
         SpawnPoint(Location loc) {
             this.location = loc;
@@ -46,7 +48,7 @@ public class PvPvEDungeonManager implements IManager {
 
     public void enterPvPvEDungeon(Player player, String type, String difficulty) {
         // 1. 既存のワールドを探すロジック (省略)
-        DungeonInstance existing = findMatch(type, difficulty,1);
+        DungeonInstance existing = findMatch(type, difficulty, 1);
 
         if (existing != null) {
             // 2. 既存のワールドへ乱入
@@ -60,8 +62,9 @@ public class PvPvEDungeonManager implements IManager {
     /**
      * 条件に合う既存のダンジョンインスタンスを検索する
      * * @param type ダンジョンの種類 (例: "catacombs")
+     * 
      * @param difficulty 難易度 (例: "hard")
-     * @param teamSize 参入しようとしているパーティーの人数
+     * @param teamSize   参入しようとしているパーティーの人数
      * @return 合致するインスタンス。見つからない場合は null
      */
     private DungeonInstance findMatch(String type, String difficulty, int teamSize) {
@@ -95,7 +98,8 @@ public class PvPvEDungeonManager implements IManager {
         // 1. 空のワールド（Void）を作成
         WorldCreator creator = new WorldCreator(worldName);
         creator.type(WorldType.FLAT);
-        creator.generatorSettings("{\"layers\":[{\"block\":\"minecraft:air\",\"height\":1}],\"biome\":\"minecraft:the_void\"}");
+        creator.generatorSettings(
+                "{\"layers\":[{\"block\":\"minecraft:air\",\"height\":1}],\"biome\":\"minecraft:the_void\"}");
         creator.generateStructures(false);
 
         World world = creator.createWorld();
@@ -118,18 +122,25 @@ public class PvPvEDungeonManager implements IManager {
         List<Location> spawns = new ArrayList<>(generator.getValidSpawnLocations());
 
         // インスタンスを登録
-        DungeonInstance inst = new DungeonInstance(worldName,world,type,difficulty);
+        DungeonInstance inst = new DungeonInstance(worldName, world, type, difficulty);
 
-        registerSpawns(inst.getInstanceId(),spawns);
+        // ★修正: DungeonInstanceManager にも登録する (これがないと ExtractionManager が見つけられない)
+        DungeonInstanceManager.getInstance().registerInstance(inst);
 
-        Deepwither.getInstance().getDungeonExtractionManager().registerExtractionTask(inst.getInstanceId(),spawns);
+        registerSpawns(inst.getInstanceId(), spawns);
+
+        Deepwither.getInstance().getDungeonExtractionManager().registerExtractionTask(inst.getInstanceId(), spawns);
 
         spawnPlayerInInstance(host, inst);
     }
 
     private void spawnPlayerInInstance(Player player, DungeonInstance inst) {
         // ランダムな地点を選んで、使用済みとしてリストから消す（あるいは優先度を下げる）
-        spawnInOptimalLocation(player,inst);
+        spawnInOptimalLocation(player, inst);
+
+        // ★修正: プレイヤーをInstanceManagerに登録する (leaveDungeonなどで必要)
+        DungeonInstanceManager.getInstance().registerPlayer(player, inst.getInstanceId());
+
         player.sendMessage(ChatColor.RED + "警告: 他の探索者が付近にいる可能性があります。");
     }
 
@@ -138,7 +149,8 @@ public class PvPvEDungeonManager implements IManager {
      */
     private void spawnInOptimalLocation(Player player, DungeonInstance inst) {
         List<SpawnPoint> points = instanceSpawnPoints.get(inst.getInstanceId());
-        if (points == null || points.isEmpty()) return;
+        if (points == null || points.isEmpty())
+            return;
 
         // 1. 半径64ブロック以内にプレイヤーがいない地点をフィルタリング
         List<SpawnPoint> safePoints = points.stream()

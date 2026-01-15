@@ -71,7 +71,8 @@ public class DungeonInstanceManager implements IManager {
         // 1. 空のワールド（Void）を作成
         WorldCreator creator = new WorldCreator(worldName);
         creator.type(WorldType.FLAT);
-        creator.generatorSettings("{\"layers\":[{\"block\":\"minecraft:air\",\"height\":1}],\"biome\":\"minecraft:the_void\"}");
+        creator.generatorSettings(
+                "{\"layers\":[{\"block\":\"minecraft:air\",\"height\":1}],\"biome\":\"minecraft:the_void\"}");
         creator.generateStructures(false);
 
         World world = creator.createWorld();
@@ -87,11 +88,11 @@ public class DungeonInstanceManager implements IManager {
         world.setTime(18000); // 深夜
 
         // 2. ダンジョン生成実行
-        DungeonGenerator generator = new DungeonGenerator(dungeonType,difficulty);
-        generator.generateBranching(world,0); // depth10などで生成
+        DungeonGenerator generator = new DungeonGenerator(dungeonType, difficulty);
+        generator.generateBranching(world, 0); // depth10などで生成
 
         // 3. インスタンス管理に追加
-        DungeonInstance dInstance = new DungeonInstance(worldName, world,dungeonType,difficulty);
+        DungeonInstance dInstance = new DungeonInstance(worldName, world, dungeonType, difficulty);
         activeInstances.put(worldName, dInstance);
 
         // 4. パーティーメンバーの転送処理
@@ -235,6 +236,22 @@ public class DungeonInstanceManager implements IManager {
         }
 
         activeInstances.remove(worldName);
+    }
+
+    // --- New Methods for PvPvE Manager ---
+
+    public void registerInstance(DungeonInstance instance) {
+        activeInstances.put(instance.getInstanceId(), instance);
+        plugin.getLogger().info("Registered external dungeon instance: " + instance.getInstanceId());
+    }
+
+    public void registerPlayer(Player player, String instanceId) {
+        DungeonInstance dInstance = activeInstances.get(instanceId);
+        if (dInstance == null)
+            return;
+
+        dInstance.addPlayer(player.getUniqueId());
+        playerInstanceMap.put(player.getUniqueId(), instanceId);
     }
 
     private void deleteDirectory(File file) throws IOException {
