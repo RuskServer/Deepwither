@@ -33,6 +33,9 @@ public class DungeonExtractionManager {
      * ダンジョン生成完了時に呼び出す。3分おきに脱出地点を増やすタイマーを開始
      */
     public void registerExtractionTask(String instanceId, List<Location> spawnPoints) {
+        plugin.getLogger().info("[DungeonExtractionManager] Registering task for instance: " + instanceId + " with "
+                + spawnPoints.size() + " spawns.");
+
         List<Location> shuffled = new ArrayList<>(spawnPoints);
         Collections.shuffle(shuffled);
 
@@ -45,12 +48,15 @@ public class DungeonExtractionManager {
             public void run() {
                 // インスタンスが消滅していたらタスク終了
                 if (DungeonInstanceManager.getInstance().getActiveInstances().get(instanceId) == null) {
+                    plugin.getLogger().info("[DungeonExtractionManager] Instance " + instanceId
+                            + " not found or inactive. Cancelling task.");
                     pendingExtractions.remove(instanceId);
                     activeExtractions.remove(instanceId);
                     this.cancel();
                     return;
                 }
 
+                plugin.getLogger().info("[DungeonExtractionManager] Running extraction task for " + instanceId);
                 activateNextPoint(instanceId);
             }
         }.runTaskTimer(plugin, 3600L, 3600L);
@@ -63,7 +69,10 @@ public class DungeonExtractionManager {
      */
     private void activateNextPoint(String instanceId) {
         List<Location> pending = pendingExtractions.get(instanceId);
-        if (pending == null || pending.isEmpty()) return;
+        if (pending == null || pending.isEmpty()) {
+            plugin.getLogger().warning("[DungeonExtractionManager] No pending extractions for " + instanceId);
+            return;
+        }
 
         Location loc = pending.remove(0);
         activeExtractions.get(instanceId).add(loc);
@@ -81,15 +90,16 @@ public class DungeonExtractionManager {
                 + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ());
 
         // パーティクル演出タスク（常時発光させて見つけやすくする）
-        startParticleEffect(instanceId,loc);
+        startParticleEffect(instanceId, loc);
     }
 
     /**
      * 脱出地点のパーティクル演出
      */
-    private void startParticleEffect(String instanceId,Location loc) {
+    private void startParticleEffect(String instanceId, Location loc) {
         BukkitTask effectTask = new BukkitRunnable() {
             double angle = 0;
+
             @Override
             public void run() {
                 if (loc.getBlock().getType() != Material.END_PORTAL_FRAME) {
@@ -147,7 +157,8 @@ public class DungeonExtractionManager {
                     String instanceId = player.getWorld().getName(); // ワールド名がIDの場合
                     List<Location> extractions = activeExtractions.get(instanceId);
 
-                    if (extractions == null) continue;
+                    if (extractions == null)
+                        continue;
 
                     for (Location loc : extractions) {
                         if (player.getLocation().distance(loc) < 2.0) {
@@ -181,7 +192,8 @@ public class DungeonExtractionManager {
         if (inst != null) {
             inst.getPlayers().forEach(uuid -> {
                 Player p = Bukkit.getPlayer(uuid);
-                if (p != null) p.sendMessage(message);
+                if (p != null)
+                    p.sendMessage(message);
             });
         }
     }
