@@ -134,7 +134,6 @@ public class PvPvEDungeonManager implements IManager {
             DungeonInstanceManager.getInstance().registerInstance(inst);
 
             // Spawner情報を渡してライフサイクル(リスポーン)開始
-            inst.setSpawners(generator.getPendingSpawners());
             inst.startLifeCycle();
 
             registerSpawns(inst.getInstanceId(), spawns);
