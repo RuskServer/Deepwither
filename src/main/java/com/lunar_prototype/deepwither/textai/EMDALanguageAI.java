@@ -5,127 +5,197 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * EMDA_LanguageAI v3.0
- * 1. Semantic Resonance (意味共鳴): 単語をLNNのポテンシャルとして扱う
- * 2. Vectorized Dictionary: 属性（Colorフラグ）を持つ単語ノード
- * 3. 1sec Simulation: 1秒間で最適な「意味の響き」を探索
+ * EMDA_LanguageAI v3.1
+ * 1. Semantic Embedding: 単語を多次元ベクトルとして定義
+ * 2. LNN Attention: LNNの電位とベクトルの「コサイン類似度」で単語を選択
+ * 3. Dynamic Grammer: 文脈(context)の強さに応じて助詞を動的に挿入
  */
 public class EMDALanguageAI {
-    // 意思決定層 (LNN)
     private final LiquidNeuron logic = new LiquidNeuron(0.1);
     private final LiquidNeuron emotion = new LiquidNeuron(0.15);
     private final LiquidNeuron context = new LiquidNeuron(0.08);
 
-    // 単語ノード（文字列 + 属性ベクトル）
+    // 単語ノード：テキストと「意味ベクトル」を保持
     private static class WordNode {
         String text;
-        long colorFlags; // 0x1:友好, 0x2:威圧, 0x100:知識, 0x200:動作, 0x400:修飾
-        float potential; // LNNを揺らす強さ
+        // [0]:論理度, [1]:感情度, [2]:緊急度
+        float[] vector;
 
-        WordNode(String text, long flags, float pot) {
+        WordNode(String text, float l, float e, float u) {
             this.text = text;
-            this.colorFlags = flags;
-            this.potential = pot;
+            this.vector = new float[]{l, e, u};
         }
     }
 
-    private final Map<Long, List<WordNode>> swarmDictionary = new ConcurrentHashMap<>();
+    private final Map<Long, List<WordNode>> vDictionary = new ConcurrentHashMap<>();
     private final Map<String, Float> wordFatigueMap = new HashMap<>();
-    private static final float FATIGUE_STRESS = 0.25f;
-    private static final float FATIGUE_DECAY = 0.90f;
 
     public EMDALanguageAI() {
-        setupVectorizedDictionary();
+        setupSemanticDictionary();
     }
 
-    private void setupVectorizedDictionary() {
-        // 辞書100語を「属性付きノード」として定義
-        addWords(1L, 0x1L, 0.4f, "こんにちは", "調子はどうだ？", "いい天気だな", "力になれることはあるか？", "今日も精が出るな", "冒険の調子はどうだい？", "何か手伝えるか？", "お疲れ様！", "ゆっくりしていってくれ", "やあ、また会ったね", "平和な一日だ", "調子よさそうだな", "気分はどうだい？", "頑張ってるな", "無理はするなよ", "何かいいことあったか？", "元気そうで何よりだ", "ようこそわが村へ", "いい風が吹いている", "応援してるぞ");
-        addWords(2L, 0x2L, 0.8f, "失せろ", "何の用だ？", "邪魔をするな", "消えろ", "目障りだ", "死にたいのか？", "そこをどけ", "馴れ馴れしくするな", "不愉快だ", "俺に構うな", "後悔させてやろうか？", "命が惜しければ去れ", "口を慎め", "お前の顔は見飽きた", "近寄るな", "時間の無駄だ", "安らぎは終わりだ", "地獄へ落ちろ", "愚か者が", "話は終わりだ");
-        addWords(100L, 0x100L, 0.6f, "弓兵スキルツリー", "斧のエフェクト", "クランシステム", "ダメージ内部処理", "APIバージョン", "新ダンジョン", "ボスモンスター", "伝説の武器", "古代の都市", "静寂の温室跡", "スキルリセット", "パーティクル処理", "サーバーの安定性", "新しい防具", "エンチャント", "取引システム", "評判システム", "マスタリーレベル", "特殊攻撃", "連撃システム");
-        addWords(200L, 0x200L, 0.5f, "が実装されたぞ", "をリワークした", "を更新した", "を修正した", "が追加された", "が強化された", "が弱体化した", "を最適化した", "が目撃された", "を調査中だ", "が解放された", "が発見された", "を試してくれ", "に期待してくれ", "を注意しろ", "が変更された", "がバグってた", "を直した", "が動いている", "を完了した");
-        addWords(300L, 0x400L, 0.3f, "驚くべきことに", "残念ながら", "ついに", "ようやく", "まさか", "もっとも", "そして", "しかし", "おそらく", "間違いなく", "嬉しいことに", "恐ろしいことに", "ちなみに", "要するに", "実は", "幸いにも", "あいにく", "当然ながら", "密かに", "大胆にも");
+    private void setupSemanticDictionary() {
+        // --- カテゴリ100: システム・アセット (主語/対象) ---
+        addVWord(100L, "レンダリングパイプライン", 0.95f, 0.1f, 0.4f);
+        addVWord(100L, "物理演算エンジン", 0.9f, 0.2f, 0.5f);
+        addVWord(100L, "シェーダーキャッシュ", 0.85f, 0.1f, 0.6f);
+        addVWord(100L, "パーティクル制御", 0.7f, 0.6f, 0.4f);
+        addVWord(100L, "サーバー同期", 0.9f, 0.3f, 0.8f);
+        addVWord(100L, "敵AIルーチン", 0.8f, 0.4f, 0.5f);
+        addVWord(100L, "メモリリーク", 0.9f, 0.1f, 1.0f);
+        addVWord(100L, "新規モーション", 0.5f, 0.7f, 0.4f);
+        addVWord(100L, "テクスチャ解像度", 0.7f, 0.5f, 0.3f);
+        addVWord(100L, "ユーザーUI", 0.6f, 0.6f, 0.5f);
+        addVWord(100L, "データベース", 1.0f, 0.0f, 0.5f);
+        addVWord(100L, "ライティング設定", 0.6f, 0.8f, 0.3f);
+        addVWord(100L, "デバッグコンソール", 0.9f, 0.1f, 0.7f);
+        addVWord(100L, "バックアップデータ", 1.0f, 0.0f, 0.9f);
+        addVWord(100L, "プロトタイプモデル", 0.5f, 0.5f, 0.4f);
+        addVWord(100L, "最終ビルド", 0.8f, 0.6f, 0.9f);
+        addVWord(100L, "スクリプト実行", 0.9f, 0.2f, 0.6f);
+        addVWord(100L, "エフェクト素材", 0.4f, 0.8f, 0.3f);
+        addVWord(100L, "衝突判定", 0.8f, 0.3f, 0.7f);
+        addVWord(100L, "並列処理", 0.95f, 0.1f, 0.5f);
+        addVWord(100L, "座標系エラー", 0.8f, 0.2f, 0.8f);
+        addVWord(100L, "サウンドバッファ", 0.7f, 0.4f, 0.5f);
+        addVWord(100L, "ネットワーク遅延", 0.7f, 0.5f, 0.9f);
+        addVWord(100L, "最適化コード", 1.0f, 0.2f, 0.6f);
+        addVWord(100L, "入力デバイス", 0.8f, 0.3f, 0.4f);
+
+        // --- カテゴリ200: 動作・状態 (動詞/述語) ---
+        addVWord(200L, "を最適化した", 0.9f, 0.3f, 0.5f);
+        addVWord(200L, "を破壊した", 0.1f, 0.9f, 0.8f);
+        addVWord(200L, "を再構築した", 0.8f, 0.5f, 0.6f);
+        addVWord(200L, "を検証している", 0.95f, 0.1f, 0.4f);
+        addVWord(200L, "を実装し終えた", 0.7f, 0.8f, 0.6f);
+        addVWord(200L, "を見落としていた", 0.3f, 0.7f, 0.9f);
+        addVWord(200L, "が正常に動作する", 0.9f, 0.4f, 0.2f);
+        addVWord(200L, "がクラッシュした", 0.2f, 0.9f, 1.0f);
+        addVWord(200L, "をデプロイした", 0.8f, 0.5f, 0.7f);
+        addVWord(200L, "を差し替えた", 0.6f, 0.4f, 0.5f);
+        addVWord(200L, "を削除した", 0.7f, 0.3f, 0.6f);
+        addVWord(200L, "を追加実装した", 0.7f, 0.7f, 0.5f);
+        addVWord(200L, "を統合した", 0.9f, 0.3f, 0.4f);
+        addVWord(200L, "を見失った", 0.2f, 0.8f, 0.8f);
+        addVWord(200L, "を修正完了した", 0.9f, 0.5f, 0.6f);
+        addVWord(200L, "が暴走している", 0.1f, 1.0f, 1.0f);
+        addVWord(200L, "を無視した", 0.4f, 0.5f, 0.7f);
+        addVWord(200L, "を評価した", 0.9f, 0.2f, 0.3f);
+        addVWord(200L, "が静止した", 0.6f, 0.2f, 0.4f);
+        addVWord(200L, "をテスト中だ", 0.8f, 0.3f, 0.5f);
+        addVWord(200L, "を上書きした", 0.5f, 0.4f, 0.8f);
+        addVWord(200L, "を再起動した", 0.7f, 0.4f, 0.8f);
+        addVWord(200L, "を承認した", 0.9f, 0.5f, 0.3f);
+        addVWord(200L, "が限界に達した", 0.3f, 0.9f, 0.9f);
+        addVWord(200L, "をマージした", 0.9f, 0.2f, 0.5f);
+
+        // --- カテゴリ300: 文脈・強調 (副詞/接続詞) ---
+        addVWord(300L, "意図せず", 0.4f, 0.6f, 0.8f);
+        addVWord(300L, "計画通り", 1.0f, 0.3f, 0.2f);
+        addVWord(300L, "ついに", 0.3f, 1.0f, 0.7f);
+        addVWord(300L, "残念ながら", 0.4f, 0.8f, 0.5f);
+        addVWord(300L, "劇的に", 0.5f, 0.9f, 0.6f);
+        addVWord(300L, "淡々と", 0.9f, 0.1f, 0.2f);
+        addVWord(300L, "強引に", 0.3f, 0.7f, 0.8f);
+        addVWord(300L, "慎重に", 0.9f, 0.3f, 0.4f);
+        addVWord(300L, "不意に", 0.2f, 0.7f, 0.9f);
+        addVWord(300L, "完全に", 0.8f, 0.6f, 0.5f);
+        addVWord(300L, "わずかに", 0.6f, 0.3f, 0.3f);
+        addVWord(300L, "至急", 0.5f, 0.6f, 1.0f);
+        addVWord(300L, "あえて", 0.6f, 0.6f, 0.4f);
+        addVWord(300L, "まさか", 0.1f, 1.0f, 0.8f);
+        addVWord(300L, "ようやく", 0.4f, 0.9f, 0.6f);
+        addVWord(300L, "常に", 0.9f, 0.2f, 0.2f);
+        addVWord(300L, "一度だけ", 0.7f, 0.4f, 0.5f);
+        addVWord(300L, "繰り返し", 0.8f, 0.3f, 0.4f);
+        addVWord(300L, "自動的に", 0.95f, 0.1f, 0.3f);
+        addVWord(300L, "致命的に", 0.4f, 0.8f, 1.0f);
+        addVWord(300L, "効率よく", 0.9f, 0.5f, 0.4f);
+        addVWord(300L, "泥臭く", 0.3f, 0.8f, 0.5f);
+        addVWord(300L, "論理的に", 1.0f, 0.1f, 0.3f);
+        addVWord(300L, "感覚的に", 0.2f, 0.9f, 0.4f);
+        addVWord(300L, "突発的に", 0.2f, 0.7f, 0.9f);
+
+        // --- カテゴリ400: 形容詞・評価 ---
+        addVWord(400L, "高精度な", 0.95f, 0.2f, 0.3f);
+        addVWord(400L, "不安定な", 0.3f, 0.6f, 0.8f);
+        addVWord(400L, "美しい", 0.2f, 0.9f, 0.2f);
+        addVWord(400L, "不可解な", 0.5f, 0.7f, 0.7f);
+        addVWord(400L, "画期的な", 0.6f, 0.9f, 0.5f);
+        addVWord(400L, "退屈な", 0.5f, 0.2f, 0.1f);
+        addVWord(400L, "深刻な", 0.6f, 0.7f, 0.9f);
+        addVWord(400L, "快適な", 0.4f, 0.8f, 0.2f);
+        addVWord(400L, "旧式の", 0.7f, 0.3f, 0.4f);
+        addVWord(400L, "未知の", 0.4f, 0.8f, 0.6f);
+        addVWord(400L, "複雑な", 0.8f, 0.4f, 0.6f);
+        addVWord(400L, "シンプルな", 0.9f, 0.4f, 0.3f);
+        addVWord(400L, "巨大な", 0.5f, 0.7f, 0.5f);
+        addVWord(400L, "繊細な", 0.6f, 0.8f, 0.3f);
+        addVWord(400L, "暫定的な", 0.8f, 0.3f, 0.6f);
+        addVWord(400L, "絶対的な", 1.0f, 0.4f, 0.5f);
+        addVWord(400L, "絶望的な", 0.2f, 1.0f, 1.0f);
+        addVWord(400L, "理想的な", 0.6f, 0.9f, 0.3f);
+        addVWord(400L, "冗長な", 0.8f, 0.2f, 0.4f);
+        addVWord(400L, "革新的な", 0.5f, 0.9f, 0.6f);
+        addVWord(400L, "堅牢な", 0.95f, 0.3f, 0.4f);
+        addVWord(400L, "脆弱な", 0.5f, 0.5f, 0.8f);
+        addVWord(400L, "最適な", 0.9f, 0.5f, 0.4f);
+        addVWord(400L, "無意味な", 0.4f, 0.4f, 0.5f);
+        addVWord(400L, "鮮やかな", 0.3f, 1.0f, 0.4f);
     }
 
-    private void addWords(long cat, long flags, float pot, String... texts) {
-        List<WordNode> list = swarmDictionary.computeIfAbsent(cat, k -> new ArrayList<>());
-        for (String t : texts) list.add(new WordNode(t, flags, pot));
+    private void addVWord(long cat, String txt, float l, float e, float u) {
+        vDictionary.computeIfAbsent(cat, k -> new ArrayList<>()).add(new WordNode(txt, l, e, u));
     }
 
-    /**
-     * 1秒の猶予を活かした「共鳴探索」
-     */
     public String generateResponse(String input, double urgency) {
-        // 1. 文脈の「波形」を解析
-        long matchedFlags = analyzeInputFlags(input);
+        // 入力解析（簡易的な意図抽出）
+        float inL = input.contains("Ver") || input.contains("実装") ? 1.0f : 0.0f;
+        float inE = input.contains("!") || input.contains("?") ? 1.0f : 0.0f;
 
-        // 2. LNN更新（過去の context と現在の入力を干渉させる）
-        context.update(matchedFlags != 0 ? 1.0 : 0.0, urgency);
-        logic.update((matchedFlags & 0x100L) != 0 ? context.get() : 0.0, urgency);
-        emotion.update((matchedFlags & 0x2L) != 0 ? 1.0 : 0.0, urgency);
+        // LNN更新
+        logic.update(inL, urgency);
+        emotion.update(inE, urgency);
+        context.update((inL + inE) > 0 ? 1.0 : 0.0, urgency);
 
-        reshapeLanguageTopology(urgency);
-
-        // 3. 1秒のシミュレーション：ポテンシャルに「共鳴」する単語セットを探索
-        return simulateBestResonance(matchedFlags);
+        return assembleSemanticSentence();
     }
 
-    private String simulateBestResonance(long matchedFlags) {
-        // logic, emotion, context の現在の状態を「目標波形」とする
-        double targetL = logic.get();
-        double targetE = emotion.get();
+    private String assembleSemanticSentence() {
+        // 現在のLNNの状態を「クエリベクトル」とする (AttentionのQuery)
+        float[] query = {(float)logic.get(), (float)emotion.get(), (float)context.get()};
 
         StringBuilder sb = new StringBuilder();
 
-        // 修飾語の選択（感情ポテンシャルが高い時につく）
-        if (targetE > 0.6 || context.get() > 0.5) {
-            sb.append(resonate(300L, targetL, targetE)).append("、");
+        // 1. 修飾語の選定 (文脈が深い場合のみ)
+        if (query[2] > 0.4) {
+            sb.append(attentionSelect(300L, query)).append("、");
         }
 
-        // 本文の合成
-        if ((matchedFlags & 0x100L) != 0) {
-            sb.append(resonate(100L, targetL, targetE));
-            sb.append(resonate(200L, targetL, targetE));
-        } else {
-            long cat = (targetE > 0.5) ? 2L : 1L;
-            sb.append(resonate(cat, targetL, targetE));
-        }
+        // 2. 主体と動作の結合
+        sb.append(attentionSelect(100L, query));
+        sb.append(attentionSelect(200L, query));
 
-        String result = sb.toString();
-        updateFatigue(result);
-        return result;
+        return sb.toString();
     }
 
-    private String resonate(long category, double targetL, double targetE) {
-        List<WordNode> nodes = swarmDictionary.get(category);
-        if (nodes == null) return "...";
+    /**
+     * Attentionメカニズムの模倣
+     * LNNの現在の「ポテンシャル波形」と最も近いベクトルを持つ単語を抽出
+     */
+    private String attentionSelect(long cat, float[] query) {
+        List<WordNode> nodes = vDictionary.get(cat);
+        if (nodes == null) return "";
 
-        // 単語の潜在能力(potential)とLNNの状態がどれだけ「共鳴」するかで選ぶ
-        return nodes.stream()
-                .max(Comparator.comparingDouble(node -> {
-                    float f = wordFatigueMap.getOrDefault(node.text, 0.0f);
-                    // 距離計算：LNNの目標状態に近いポテンシャルを持つ単語ほど選ばれやすい（Attentionの模倣）
-                    double resonance = 1.0 - Math.abs(node.potential - (targetL + targetE)/2.0);
-                    return resonance * (1.0 - f) * Math.random();
-                })).map(n -> n.text).orElse("...");
-    }
-
-    private long analyzeInputFlags(String input) {
-        long flags = 0;
-        if (input.contains("弓") || input.contains("スキル") || input.contains("Ver")) flags |= 0x100L;
-        if (input.contains("殺") || input.contains("敵") || input.contains("どけ")) flags |= 0x2L;
-        return flags;
-    }
-
-    private void reshapeLanguageTopology(double urgency) {
-        logic.disconnect(emotion);
-        context.disconnect(logic);
-        if (urgency > 0.8) emotion.connect(logic, -0.5f);
-        else context.connect(logic, 0.4f);
-    }
-
-    private void updateFatigue(String selected) {
-        wordFatigueMap.replaceAll((k, v) -> v * FATIGUE_DECAY);
-        wordFatigueMap.put(selected, wordFatigueMap.getOrDefault(selected, 0.0f) + FATIGUE_STRESS);
+        return nodes.stream().max(Comparator.comparingDouble(node -> {
+            // コサイン類似度に近い計算（ベクトルの内積）
+            double score = 0;
+            for (int i = 0; i < query.length; i++) {
+                score += query[i] * node.vector[i];
+            }
+            // 疲労度(Fatigue)による抑制
+            float f = wordFatigueMap.getOrDefault(node.text, 0.0f);
+            return score * (1.0 - f);
+        })).map(n -> n.text).orElse("...");
     }
 }
