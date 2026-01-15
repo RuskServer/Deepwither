@@ -131,6 +131,55 @@ public class RoguelikeBuffManager implements IManager, Listener {
         plugin.getStatManager().updatePlayerStats(player);
     }
 
+    // --- Visibility & Invincibility Logic ---
+
+    public void startBuffSelection(Player player) {
+        selectingBuffPlayers.add(player.getUniqueId());
+        updateVisibility(player);
+    }
+
+    public void endBuffSelection(Player player) {
+        selectingBuffPlayers.remove(player.getUniqueId());
+        updateVisibility(player);
+    }
+
+    /**
+     * ターゲットプレイヤーの現在の状態に基づいて、他プレイヤーからの可視性を更新する
+     */
+    public void updateVisibility(Player target) {
+        boolean shouldBeHidden = false;
+
+        // 条件1: バフ選択中 (チェスト開いている)
+        if (selectingBuffPlayers.contains(target.getUniqueId())) {
+            shouldBeHidden = true;
+        }
+        // 条件2: まだバフを1つも持っていない (ゲーム開始直後)
+        else if (getBuffCount(target) == 0) {
+            shouldBeHidden = true;
+        }
+
+        // 全プレイヤーに対して更新
+        for (Player other : Bukkit.getOnlinePlayers()) {
+            if (other.getUniqueId().equals(target.getUniqueId()))
+                continue;
+
+            if (shouldBeHidden) {
+                other.hidePlayer(plugin, target);
+            } else {
+                other.showPlayer(plugin, target);
+            }
+        }
+    }
+
+    @EventHandler
+    public void onEntityDamage(EntityDamageEvent e) {
+        if (e.getEntity() instanceof Player player) {
+            if (selectingBuffPlayers.contains(player.getUniqueId())) {
+                e.setCancelled(true);
+            }
+        }
+    }
+
     private void startParticleTask() {
         particleTask = new BukkitRunnable() {
             @Override
