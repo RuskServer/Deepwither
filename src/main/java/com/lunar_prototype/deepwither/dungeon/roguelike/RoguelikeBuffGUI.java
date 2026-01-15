@@ -49,6 +49,7 @@ public class RoguelikeBuffGUI implements Listener {
             inv.setItem(slots[i], item);
         }
 
+        Deepwither.getInstance().getRoguelikeBuffManager().startBuffSelection(player);
         player.openInventory(inv);
         player.playSound(player.getLocation(), Sound.BLOCK_CHEST_OPEN, 1.0f, 1.0f);
     }
@@ -108,6 +109,15 @@ public class RoguelikeBuffGUI implements Listener {
             // バフ適用
             Deepwither.getInstance().getRoguelikeBuffManager().addBuff(player, selectedBuff);
             player.closeInventory();
+        }
+    }
+
+    @EventHandler
+    public void onInventoryClose(org.bukkit.event.inventory.InventoryCloseEvent e) {
+        if (e.getView().getTitle().equals(GUI_TITLE)) {
+            if (e.getPlayer() instanceof Player player) {
+                Deepwither.getInstance().getRoguelikeBuffManager().endBuffSelection(player);
+            }
         }
     }
 }

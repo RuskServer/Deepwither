@@ -14,13 +14,22 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
 
-public class RoguelikeBuffManager implements IManager {
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageEvent;
+
+import java.util.*;
+
+public class RoguelikeBuffManager implements IManager, Listener {
 
     private final Deepwither plugin;
     private final Map<UUID, List<RoguelikeBuff>> playerBuffs = new HashMap<>();
     // UUID -> (ChestLocationString -> LastUsedTime)
     private final Map<UUID, Map<String, Long>> chestCooldowns = new HashMap<>();
     private static final long CHEST_COOLDOWN_MS = 180000; // 3 mins
+
+    // バフ選択中のプレイヤー (透明＆無敵)
+    private final Set<UUID> selectingBuffPlayers = new HashSet<>();
 
     private BukkitTask particleTask;
 
@@ -31,6 +40,7 @@ public class RoguelikeBuffManager implements IManager {
     @Override
     public void init() {
         startParticleTask();
+        plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
 
     @Override
@@ -53,6 +63,9 @@ public class RoguelikeBuffManager implements IManager {
         // エフェクトと音
         player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1.0f, 1.5f);
         player.sendMessage("§a[Buff] " + buff.getDisplayName() + " §7を獲得しました！");
+
+        // 可視性更新 (0 -> 1個になった時など変化があるため)
+        updateVisibility(player);
     }
 
     /**
@@ -71,15 +84,15 @@ public class RoguelikeBuffManager implements IManager {
             plugin.getStatManager().removeTemporaryBuff(player.getUniqueId());
             plugin.getStatManager().updatePlayerStats(player);
         }
-        // クールダウン情報はセッション中保持するか、ここで消すか。
-        // Roguelikeなら脱出＝リセットが自然だが、PvPvEで再入場可なら残すべき。
-        // 仕様不明だが、とりあえずここでは消さずに残す（同じダンジョンIDに入るなら）
-        // ただしメモリリーク防止のため、インスタンス終了時に掃除されるべきだが、
-        // 簡易実装では player quits etc で消すのが良い。
-        // ここでは "バフクリア" = "リセット" なのでクールダウンもリセットする？
-        // ユーザー: "一定時間使えなくなる" -> "3分で復活"
-        // 脱出してすぐ入り直したら？ -> まあリセットでいいか。
         chestCooldowns.remove(player.getUniqueId());
+        selectingBuffPlayers.remove(player.getUniqueId());
+        updateVisibility(player); // 状態リセットに合わせて更新
+
+        // 抜けるときは全員から見えるように戻す（必要であれば）
+        // ただ、PvPvEワールドから出るなら関係ないが、ロビーに戻るなら見えるべき。
+        for (Player other : Bukkit.getOnlinePlayers()) {
+            other.showPlayer(plugin, player);
+        }
     }
 
     public boolean tryUseChest(Player player, Location chestLoc) {

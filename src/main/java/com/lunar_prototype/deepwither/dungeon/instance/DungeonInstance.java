@@ -70,6 +70,7 @@ public class DungeonInstance {
     // --- PvPvE Lifecycle ---
     private List<com.lunar_prototype.deepwither.dungeon.DungeonGenerator.PendingSpawner> spawners = new ArrayList<>();
     private org.bukkit.scheduler.BukkitTask respawnTask;
+    private org.bukkit.scheduler.BukkitTask limitTask;
 
     public void setSpawners(List<com.lunar_prototype.deepwither.dungeon.DungeonGenerator.PendingSpawner> spawners) {
         this.spawners = spawners;
@@ -84,6 +85,27 @@ public class DungeonInstance {
                 respawnMobs();
             }
         }.runTaskTimer(com.lunar_prototype.deepwither.Deepwither.getInstance(), 3600L, 3600L); // 3 mins
+
+        // 15分制限 (15 * 60 * 20 = 18000 ticks)
+        limitTask = new org.bukkit.scheduler.BukkitRunnable() {
+            @Override
+            public void run() {
+                handleTimeLimit();
+            }
+        }.runTaskLater(com.lunar_prototype.deepwither.Deepwither.getInstance(), 18000L);
+    }
+
+    private void handleTimeLimit() {
+        if (currentPlayers.isEmpty())
+            return;
+
+        for (UUID uuid : currentPlayers) {
+            org.bukkit.entity.Player p = org.bukkit.Bukkit.getPlayer(uuid);
+            if (p != null) {
+                p.sendMessage("§c§l[Dungeon] §r§4制限時間が経過しました。ダンジョンは崩壊します...");
+                p.setHealth(0); // 死亡
+            }
+        }
     }
 
     private void respawnMobs() {
@@ -121,6 +143,9 @@ public class DungeonInstance {
     public void cleanup() {
         if (respawnTask != null && !respawnTask.isCancelled()) {
             respawnTask.cancel();
+        }
+        if (limitTask != null && !limitTask.isCancelled()) {
+            limitTask.cancel();
         }
     }
 }
