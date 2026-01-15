@@ -426,7 +426,7 @@ public final class Deepwither extends JavaPlugin {
         artifactGUI = new ArtifactGUI();
         mythicMobSafeZoneManager = new MythicMobSafeZoneManager(this);
         professionManager = new ProfessionManager(this, professionDatabase);
-        ai = new EMDALanguageAI();
+        ai = new EMDALanguageAI(this.getDataFolder());
         partyManager = new PartyManager();
         this.partyAPI = new DeepwitherPartyAPI(partyManager); // ★ 初期化
         this.craftingManager = new CraftingManager(this);

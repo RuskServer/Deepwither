@@ -9,6 +9,7 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -38,6 +39,7 @@ public class DeepwitherCommand implements CommandExecutor, TabCompleter {
 
         switch (subCommand) {
             case "dungeon" -> handleDungeon(sender, args);
+            case "train" -> handleTrain(sender, args);
             case "reload" -> {
                 // リロード処理など
                 sender.sendMessage("§aDeepwitherの設定をリロードしました。");
@@ -48,6 +50,36 @@ public class DeepwitherCommand implements CommandExecutor, TabCompleter {
         }
 
         return true;
+    }
+
+    /**
+     * /dw train <csvFileName>
+     * plugins/Deepwither/training/ 内のCSVファイルを読み込んで学習
+     */
+    private void handleTrain(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage("§c使用法: /dw train <ファイル名.csv>");
+            return;
+        }
+
+        String fileName = args[1];
+        if (!fileName.endsWith(".csv")) fileName += ".csv";
+
+        // trainingフォルダを取得
+        File trainingDir = new File(plugin.getDataFolder(), "training");
+        if (!trainingDir.exists()) trainingDir.mkdirs();
+
+        File csvFile = new File(trainingDir, fileName);
+
+        if (!csvFile.exists()) {
+            sender.sendMessage("§cファイルが見つかりません: " + csvFile.getPath());
+            return;
+        }
+
+        sender.sendMessage("§d[EMDA-AI] §f学習を開始します。進捗はコンソールを確認してください...");
+
+        // 非同期でResonance Tuningを実行
+        plugin.getAi().trainFromCSVAsync(csvFile);
     }
 
     /**
