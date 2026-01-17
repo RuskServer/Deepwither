@@ -13,6 +13,7 @@ import com.sk89q.worldedit.function.operation.Operations;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.math.transform.AffineTransform;
 import com.sk89q.worldedit.session.ClipboardHolder;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -533,6 +534,19 @@ public class DungeonGenerator {
                     return;
                 }
 
+                // --- 修正: List型でのワールド有効性チェック ---
+                // 最初の要素からワールドの状態を確認
+                PendingSpawner first = pendingSpawners.get(0);
+                World worldObj = first.location.getWorld();
+
+                // ワールドがアンロードされているか、既に無効な場合は全クリアして終了
+                if (worldObj == null || !Bukkit.getWorlds().contains(worldObj)) {
+                    pendingSpawners.clear();
+                    this.cancel();
+                    isMonitoring = false;
+                    return;
+                }
+
                 int spawnedThisTick = 0;
                 final int MAX_SPAWNS_PER_CHECK = 3;
 
@@ -540,8 +554,15 @@ public class DungeonGenerator {
                 while (iterator.hasNext() && spawnedThisTick < MAX_SPAWNS_PER_CHECK) {
                     PendingSpawner spawner = iterator.next();
 
+                    // spawnerごとのワールド取得（安全のため）
+                    World currentWorld = spawner.location.getWorld();
+                    if (currentWorld == null) {
+                        iterator.remove();
+                        continue;
+                    }
+
                     // 1. 付近のプレイヤーを探す（バフ数を確認するため）
-                    Player nearbyPlayer = (Player) spawner.location.getWorld().getNearbyEntities(spawner.location, 12, 12, 12)
+                    Player nearbyPlayer = (Player) spawner.location.getWorld().getNearbyEntities(spawner.location, 5, 5, 5)
                             .stream()
                             .filter(entity -> entity instanceof Player)
                             .findFirst() // 最初に見つかったプレイヤーを基準にする
