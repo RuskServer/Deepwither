@@ -556,7 +556,7 @@ public class DungeonGenerator {
 
                         // 例: 最終レベル = 基本レベル + (バフ数 * 1.5)
                         // 計算式は適宜調整してください
-                        int scaledLevel = mobLevel + (int) Math.floor(buffCount * 1.5);
+                        int scaledLevel = mobLevel + (int) Math.floor(buffCount * 1.2);
 
                         new BukkitRunnable() {
                             @Override
