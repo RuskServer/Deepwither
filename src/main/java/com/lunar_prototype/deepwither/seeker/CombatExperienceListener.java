@@ -144,10 +144,11 @@ public class CombatExperienceListener implements Listener {
                 .map(am -> aiEngine.getBrain(am.getUniqueId()));
     }
 
-    // B. メインロジック：横槍判定（damager）を含む完全版
+    // B. メインロジック：TQH統合版（冷却と加熱の物理シミュレーション）
     public void applyLearning(Mob mob, float damageDealt, float damageTaken, boolean evaded, Entity damager) {
         Optional.ofNullable(aiEngine.getBrain(mob.getUniqueId())).ifPresent(brain -> {
-            float reward = 0.0f;
+            float rawReward = 0.0f;
+            float thermalStress = 0.0f; // [TQH] このアクションで発生した「熱」
 
             // =========================================================
             // [動的スケーラー] 状況(信頼度・冷静さ)と疲労の相関
@@ -155,44 +156,61 @@ public class CombatExperienceListener implements Listener {
             float currentFatigue = brain.lastActionIdx >= 0 ? brain.fatigueMap[brain.lastActionIdx] : 0.0f;
             float correlationFactor = (brain.velocityTrust * 0.5f + brain.composure * 0.5f) * (1.0f - currentFatigue);
 
-            // 1. 基本報酬 (スケーリング適用)
-            // 予測が的中している(Trust高)時の攻撃成功は「読み勝ち」として報酬を増幅
-            reward += (damageDealt * (2.0f + 1.0f * correlationFactor));
+            // 1. 基本報酬の計算 (冷却材の生成)
+            // 攻撃成功はシステムを冷却し、現在の「勝ちパターン」を脳に結晶化させる
+            rawReward += (damageDealt * (2.0f + 1.0f * correlationFactor));
 
-            // ダメージを受けた際のペナルティは「冷静さ」が高いほど厳しく（油断への戒め）
-            reward -= (damageTaken * (1.0f + 1.0f * brain.composure));
+            // ダメージによるペナルティ
+            rawReward -= (damageTaken * (1.0f + 1.0f * brain.composure));
 
-            // 回避報酬は、予測が当たっている状態での回避なら高く評価
+            // 回避成功
             if (evaded) {
-                reward += (1.0f + 1.0f * brain.velocityTrust);
+                rawReward += (1.0f + 1.0f * brain.velocityTrust);
             }
 
-            // 2. 横槍ペナルティ (Frustrationとの連動)
+            // 2. 横槍判定と熱暴走 (Thermal Stress)
             if (damageTaken > 0 && damager != null) {
                 Entity target = mob.getTarget();
                 if (target != null && !damager.getUniqueId().equals(target.getUniqueId())) {
-                    reward -= 5.0f;
-                    // 苛立ち(Frustration)が溜まると冷静さが削れる
+                    rawReward -= 5.0f;
+                    // 横槍は「予測不能な不快感」として、システム温度を直接上昇させる
+                    thermalStress += 0.5f;
                     brain.frustration += 0.2f;
                     brain.composure = Math.max(0.0f, brain.composure - 0.1f);
                 }
             }
 
-            // 3. 次の状態(Next State)をインデックスで取得
+            // 3. 次の状態(Next State)の取得
             List<BanditContext.EnemyInfo> enemies = new SensorProvider().scanEnemies(mob, mob.getNearbyEntities(32, 32, 32));
             float dist = (mob.getTarget() != null) ? (float) mob.getLocation().distance(mob.getTarget().getLocation()) : 20.0f;
-            float hp = (float) (mob.getHealth() / mob.getAttribute(Attribute.MAX_HEALTH).getValue());
+            float hp = (float) (mob.getHealth() / mob.getMaxHealth()); // Quantum-optimized access
 
             int nextStateIdx = brain.qTable.packState(
                     (float) brain.tacticalMemory.combatAdvantage,
                     dist, hp, false, enemies.size()
             );
 
-            // 4. 量子化Q-Update
+            // 4. [TQH Core] 量子化Q-Update & 熱力学フィードバック
             if (brain.lastStateIdx >= 0 && brain.lastActionIdx >= 0) {
-                // 学習時にもFatigueを渡すことで、連打されている行動のQ値の伸びを抑制
-                brain.qTable.update(brain.lastStateIdx, brain.lastActionIdx, reward, nextStateIdx, currentFatigue);
+                // TD誤差（驚き）を算出
+                float tdError = brain.qTable.updateTQH(brain.lastStateIdx, brain.lastActionIdx, rawReward, nextStateIdx, currentFatigue);
+
+                // 【加熱】予測が外れた(tdErrorが大きい) ＋ 横槍(thermalStress) ＝ システム温度上昇
+                brain.systemTemperature += (Math.abs(tdError) * 0.25f) + thermalStress;
+
+                // 【冷却】正の報酬が得られた場合、システムを冷却して構造を固定
+                if (rawReward > 0) {
+                    brain.systemTemperature -= (rawReward * 0.45f);
+                }
             }
+
+            // 5. 蓄積報酬の反映（digestExperienceでの後処理用）
+            brain.accumulatedReward += Math.max(0, rawReward);
+            brain.accumulatedPenalty += Math.max(0, -rawReward);
+
+            // [2026-01-12] 状態に応じた構造再編のトリガー
+            // 学習の直後に相転移をチェックすることで、即座にParticle.FLASHの色に反映させる
+            brain.reshapeTopology();
         });
     }
 }

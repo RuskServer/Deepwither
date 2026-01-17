@@ -68,8 +68,8 @@ public class SeekerAIEngine {
     }
 
     /**
-     * 仲間からの模倣学習 (量子化最適化版)
-     * Streamを排除し、インデックスベースのQ-Table同期を行う
+     * [TQH Integrated] 仲間からの模倣学習
+     * 成功体験の模倣だけでなく、システム温度（Temperature）の伝播と平衡化を行う。
      */
     private void observeAndLearn(ActiveMob self, LiquidBrain myBrain) {
         Mob bukkitSelf = (Mob) self.getEntity().getBukkitEntity();
@@ -81,49 +81,58 @@ public class SeekerAIEngine {
             Entity e = nearby.get(i);
             UUID peerId = e.getUniqueId();
 
-            // brainStorage から仲間の脳を取得 (Map.get は依然必要だが、中身の演算を軽量化)
             LiquidBrain peerBrain = brainStorage.get(peerId);
             if (peerBrain == null || peerBrain == myBrain) continue;
 
-            // --- 1. 成功体験の模倣 (Q-Table Transfer) ---
-            // 仲間が自分より明らかに優勢（CombatAdvantageが高い）な場合
+            // --- 1. [TQH] 熱力学的平衡 (Thermal Equilibrium) ---
+            // 仲間との間で「温度」が伝播する。
+            // 平静な個体は周囲を冷やし、パニック（GAS状態）の個体は周囲を加熱する。
+            float tempDiff = peerBrain.systemTemperature - myBrain.systemTemperature;
+            myBrain.systemTemperature += tempDiff * 0.15f; // 熱伝導率 0.15
+
+            // --- 2. 成功体験の模倣 (Q-Table Transfer) ---
             float myAdv = (float) myBrain.tacticalMemory.combatAdvantage;
             float peerAdv = (float) peerBrain.tacticalMemory.combatAdvantage;
 
             if (peerAdv > myAdv + 0.2f) {
-                // インデックスベースで「状態」と「行動」をコピー
                 int peerSIdx = peerBrain.lastStateIdx;
                 int peerAIdx = peerBrain.lastActionIdx;
 
                 if (peerSIdx >= 0 && peerAIdx >= 0) {
-                    // オフポリス学習：仲間が成功した行動を自分のQ-Tableに 0.05f の報酬として統合
-                    // 直接 update を呼ぶことで、Stringキー生成を完全に回避
-                    myBrain.qTable.update(peerSIdx, peerAIdx, 0.05f, peerSIdx,myBrain.fatigueMap[myBrain.lastActionIdx]);
+                    // オフポリス学習：仲間が成功した行動を統合
+                    // TQH版 updateTQH を使用。成功体験の模倣は「小規模な冷却」を伴う。
+                    float tdError = myBrain.qTable.updateTQH(peerSIdx, peerAIdx, 0.05f, peerSIdx, myBrain.fatigueMap[peerAIdx]);
+
+                    // 成功体験を学ぶことで、システムはわずかに安定（冷却）する
+                    myBrain.systemTemperature -= 0.02f;
                 }
             }
 
-            // --- 2. 集合知の再確認 ---
+            // --- 3. 集合知の再確認 ---
             Entity myTarget = bukkitSelf.getTarget();
             if (myTarget != null) {
-                UUID targetId = myTarget.getUniqueId();
-                // 集合知に登録された弱点があるか確認
-                String peerWeakness = CollectiveKnowledge.getGlobalWeakness(targetId);
+                String peerWeakness = CollectiveKnowledge.getGlobalWeakness(myTarget.getUniqueId());
                 if (!peerWeakness.equals("NONE")) {
-                    // 攻略法を知ることでフラストレーション（迷い）を軽減
+                    // 攻略法を知ることで迷い（Frustration）を軽減し、温度を安定させる
                     myBrain.frustration *= 0.8f;
+                    myBrain.systemTemperature *= 0.95f;
                 }
             }
 
-            // --- 3. 感情・リキッドパラメータの同期 ---
+            // --- 4. リキッドパラメータの同期 (TQH拡張) ---
             // 冷静さ (Composure) の伝播
             float composureDiff = peerBrain.composure - myBrain.composure;
             myBrain.composure += composureDiff * 0.1f;
 
-            // Aggression / Fear の同期 (LiquidNeuron.mimic を使用)
-            // 引数が float, float に最適化されていることを想定
+            // Aggression / Fear の同期 (LiquidNeuron.mimic)
+            // [注意] mimicによって、ニューロンのbaseDecay（結晶化時のベースライン）が同期されます
             myBrain.aggression.mimic(peerBrain.aggression, 0.1f);
             myBrain.fear.mimic(peerBrain.fear, 0.1f);
         }
+
+        // [2026-01-12] 模倣による温度変化後、即座に相転移をチェック
+        // これにより、仲間に同調して FLASH の色が変わる演出が成立する
+        myBrain.reshapeTopology();
     }
 
     public void clearBrain(UUID uuid) { brainStorage.remove(uuid); }

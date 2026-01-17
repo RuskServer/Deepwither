@@ -28,17 +28,18 @@ public class LiquidCombatEngine {
     }
 
     /**
-     * thinkV1の全機能を維持しつつ、量子化とループ最適化を適用した軽量版
+     * [TQH Integrated] thinkV1Optimized
+     * 既存の予測・士気計算・疲労系を維持しつつ、システムの熱力学的状態を反映。
      */
     private BanditDecision thinkV1Optimized(BanditContext context, LiquidBrain brain, Mob bukkitEntity) {
-        // 1. 基本数値の量子化 (double -> float)
+        // 1. 基本数値の量子化 (既存)
         float hpStress = 1.0f - ((float) context.entity.hp_pct / 100.0f);
         float enemyDist = 20.0f;
         float currentDist = 20.0f;
         float predictedDist = 20.0f;
         Player targetPlayer = null;
 
-        // 2. 最寄りの敵の探索 (Stream/Comparatorを廃止し、プリミティブなループへ)
+        // 2. 最寄りの敵の探索 (既存)
         List<BanditContext.EnemyInfo> enemies = context.environment.nearby_enemies;
         if (!enemies.isEmpty()) {
             float minSafeDist = Float.MAX_VALUE;
@@ -47,7 +48,6 @@ public class LiquidCombatEngine {
                 float d = (float) info.dist;
                 if (d < minSafeDist) {
                     minSafeDist = d;
-                    // info.playerInstance を保持 (後の計算用)
                     if (info.playerInstance instanceof Player p) {
                         targetPlayer = p;
                         enemyDist = d;
@@ -56,62 +56,62 @@ public class LiquidCombatEngine {
             }
         }
 
-        // 3. 攻撃切迫度の計算
+        // 3. 攻撃切迫度の計算 (既存)
         float attackImminence = (float) calculateAttackImminence(targetPlayer, (double) enemyDist, bukkitEntity);
 
-        // 4. アドレナリンと緊急度の計算 (float演算)
+        // 4. アドレナリンと緊急度の計算 (既存)
         float urgency = (hpStress * 0.3f) + ((float) brain.adrenaline * 0.7f);
         if (attackImminence > 0.5f) urgency = 1.0f;
         if (urgency > 1.0f) urgency = 1.0f;
 
-        // 5. 予測モデルの適用 (オブジェクト生成を抑えた座標計算)
+        // 5. 予測モデルの適用 (既存)
         if (targetPlayer != null) {
-            // 現在の距離
             currentDist = (float) bukkitEntity.getLocation().distance(targetPlayer.getLocation());
-
-            // ターゲットの未来位置予測 (0.5秒後)
             Vector targetFuture = predictFutureLocationImproved(targetPlayer, 0.5);
-
-            // 自分の未来位置をスタック上の変数で計算 (new Vector().add() を回避)
             Vector myVel = bukkitEntity.getVelocity();
             double myFutureX = bukkitEntity.getLocation().getX() + (myVel.getX() * 10);
             double myFutureY = bukkitEntity.getLocation().getY() + (myVel.getY() * 10);
             double myFutureZ = bukkitEntity.getLocation().getZ() + (myVel.getZ() * 10);
-
-            // 予測距離の計算
             double dx = targetFuture.getX() - myFutureX;
             double dy = targetFuture.getY() - myFutureY;
             double dz = targetFuture.getZ() - myFutureZ;
             predictedDist = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
         }
 
-        // 6. 反射(Reflex)の更新
+        // 6. 反射(Reflex)の更新 (TQH版 update に差し替え)
         float futureImminence = (float) calculateAttackImminence(targetPlayer, (double) predictedDist, bukkitEntity);
         float imminenceDelta = Math.max(0.0f, futureImminence - attackImminence);
-        brain.reflex.update(futureImminence + (imminenceDelta * 2.0f), 1.0f);
+        // [TQH] systemTemperature を引数に追加
+        brain.reflex.update(futureImminence + (imminenceDelta * 2.0f), 1.0f, brain.systemTemperature);
 
-        // 7. 脳内状態の更新 (CollectiveKnowledgeの量子化アクセス)
+        // 7. 脳内状態の更新
         float globalFear = 0.0f;
         if (targetPlayer != null) {
-            // 直接取得メソッドがあればそれを使用、なければ既存マップから
             CollectiveKnowledge.PlayerTacticalProfile profile = CollectiveKnowledge.playerProfiles.get(targetPlayer.getUniqueId());
-            if (profile != null) {
-                globalFear = (float) profile.dangerLevel;
-            }
+            if (profile != null) globalFear = (float) profile.dangerLevel;
         }
         float collectiveShock = (float) CollectiveKnowledge.globalFearBias;
 
-        // リキッドニューロン群の更新
-        brain.fear.update(1.0f, (globalFear * 0.5f) + (collectiveShock * 0.3f) + (hpStress > 0.5f || attackImminence > 0.6f ? 0.2f : 0.0f));
-        brain.aggression.update((enemyDist < 10.0f ? 0.8f : 0.2f), (double) urgency);
-        brain.tactical.update((enemyDist < 6.0f ? 1.0f : 0.3f), (double) (urgency * 0.5f));
+        // [TQH Integrated Updates]
+        // 既存の入力計算を維持しつつ、systemTemperature による流動性を付与
+        brain.fear.update(1.0f, (globalFear * 0.5f) + (collectiveShock * 0.3f) + (hpStress > 0.5f || attackImminence > 0.6f ? 0.2f : 0.0f), brain.systemTemperature);
+        brain.aggression.update((enemyDist < 10.0f ? 0.8f : 0.2f), (double) urgency, brain.systemTemperature);
+        brain.tactical.update((enemyDist < 6.0f ? 1.0f : 0.3f), (double) (urgency * 0.5f), brain.systemTemperature);
 
-        // 8. 士気の計算 (float版)
+        // 8. 士気の計算 (既存ロジックを維持)
         brain.morale = (double) (brain.aggression.get() - (brain.fear.get() * (1.0f - (float) brain.composure * 0.3f))
                 + (float) CollectiveKnowledge.globalAggressionBias - collectiveShock);
 
-        // 9. 意思決定の解決 (既存メソッドへ繋ぐ)
-        return resolveDecisionV1(brain, context, (double) enemyDist);
+        // 9. [2026-01-12] Particle.FLASH 演出の準備
+        // 温度状態に応じた色を取得（脳内で定義した getTQHFlashColor を想定）
+        int[] rgb = brain.getTQHFlashColor();
+        BanditDecision decision = resolveDecisionV1(brain, context, (double) enemyDist);
+
+        // 決定オブジェクトにColorデータを注入（※BanditDecisionにColorフィールドがあると想定）
+        // もしくはここで直接パーティクルを呼ぶ設計なら：
+        // triggerTQHFlashEffect(bukkitEntity, Color.fromRGB(rgb[0], rgb[1], rgb[2]));
+
+        return decision;
     }
 
     private BanditDecision resolveDecisionV1(LiquidBrain brain, BanditContext context, double enemyDist) {
@@ -365,19 +365,17 @@ public class LiquidCombatEngine {
         StringBuilder rewardDebug = new StringBuilder();
 
         // =========================================================
-        // [新概念] 相関スケーラー: 信頼度・冷静さ・疲労を統合
+        // [相関スケーラー] 信頼度・冷静さ・疲労を統合 (既存仕様)
         // =========================================================
-        // 予測が当たるほど、冷静なほど報酬は増幅し、疲労している行動ほど減衰する
         float currentFatigue = brain.fatigueMap[brain.lastActionIdx];
         float correlationFactor = (brain.velocityTrust * 0.5f + brain.composure * 0.5f) * (1.0f - currentFatigue);
 
-        // 1. 背後・側面奪取 (Flanking) - 信頼度が高いほど「読み勝ち」として高評価
+        // 1. 背後・側面奪取 (Flanking)
         Vector toSelf = bukkitEntity.getLocation().toVector().subtract(target.getLocation().toVector()).normalize();
         Vector targetFacing = target.getLocation().getDirection();
         float dot = (float) toSelf.dot(targetFacing);
 
         if (dot < -0.3f) {
-            // 信頼度と冷静さが高い時の背面取りは最大 +0.4f までスケーリング
             float rwd = 0.1f + (0.3f * correlationFactor);
             totalProcessReward += rwd;
             rewardDebug.append(String.format("FLANK(+%.2f) ", rwd));
@@ -387,69 +385,69 @@ public class LiquidCombatEngine {
             rewardDebug.append(String.format("SIDE(+%.2f) ", rwd));
         }
 
-        // 2. リーチ・スペーシング (Spacing) - 冷静な距離維持を評価
+        // 2. リーチ・スペーシング (Spacing)
         String weakness = CollectiveKnowledge.getGlobalWeakness(target.getUniqueId());
         if (weakness.equals("CLOSE_QUARTERS")) {
             if (currentDist < 2.5) {
-                // インファイト維持は冷静さ(Composure)をより重視
                 float rwd = 0.2f * brain.composure;
                 totalProcessReward += rwd;
                 rewardDebug.append(String.format("STICKY(+%.2f) ", rwd));
             }
-        } else {
-            if (currentDist > 3.0 && currentDist < 5.0) {
-                // 適切な距離維持。予測が安定(Trust)しているなら報酬アップ
-                float rwd = 0.05f + (0.1f * brain.velocityTrust);
-                totalProcessReward += rwd;
-                rewardDebug.append(String.format("DIST(+%.2f) ", rwd));
-            }
+        } else if (currentDist > 3.0 && currentDist < 5.0) {
+            float rwd = 0.05f + (0.1f * brain.velocityTrust);
+            totalProcessReward += rwd;
+            rewardDebug.append(String.format("DIST(+%.2f) ", rwd));
         }
 
         // 3. 視線誘導 (Baiting Success)
         if (brain.lastActionIdx == 2 && brain.composure > 0.8f) {
-            // BAITINGは「相手をハメた」判定のため、現在の信頼度が高い(＝相手が予測通り動いた)なら高評価
             float rwd = 0.1f + (0.2f * brain.velocityTrust);
             totalProcessReward += rwd;
             rewardDebug.append(String.format("BAIT_WIN(+%.2f) ", rwd));
         }
 
         // =========================================================
-        // [新概念] コンボ・チェーン評価 (Action Linkage)
+        // [Action Linkage] コンボ・チェーン評価 (既存仕様)
         // =========================================================
         if (brain.secondLastActionIdx >= 0) {
             float comboBonus = 0.0f;
-
-            // A. 追撃チェーン: BURST_DASH -> ATTACK (距離を一気に詰めて殴る)
-            if (brain.secondLastActionIdx == 6 && brain.lastActionIdx == 0) { // 6:BURST_DASH, 0:ATTACK
-                if (currentDist < 3.0) {
-                    comboBonus += 0.25f * correlationFactor;
-                    rewardDebug.append("CHASE_HIT ");
-                }
+            if (brain.secondLastActionIdx == 6 && brain.lastActionIdx == 0 && currentDist < 3.0) { // BURST -> ATTACK
+                comboBonus += 0.25f * correlationFactor;
+                rewardDebug.append("CHASE_HIT ");
             }
-
-            // B. 回避反撃チェーン: EVADE -> COUNTER (避けてから即座に返す)
-            if (brain.secondLastActionIdx == 1 && brain.lastActionIdx == 7) { // 1:EVADE, 7:COUNTER
-                comboBonus += 0.3f * brain.velocityTrust; // 予測が当たっていればさらに高評価
+            if (brain.secondLastActionIdx == 1 && brain.lastActionIdx == 7) { // EVADE -> COUNTER
+                comboBonus += 0.3f * brain.velocityTrust;
                 rewardDebug.append("EVADE_COUNTER ");
             }
-
-            // C. 撹乱パルクール: ORBITAL_SLIDE -> BURST_DASH (カオス軌道からの急接近)
-            if (brain.secondLastActionIdx == 5 && brain.lastActionIdx == 6) { // 5:ORBITAL, 6:BURST
+            if (brain.secondLastActionIdx == 5 && brain.lastActionIdx == 6) { // ORBITAL -> BURST
                 comboBonus += 0.2f * brain.composure;
                 rewardDebug.append("CHAOS_DASH ");
             }
-
             totalProcessReward += comboBonus;
         }
 
-        // 4. 量子化Q-Tableへの反映
+        // =========================================================
+        // [TQH Core] 熱力学的Q更新と冷却（結晶化）
+        // =========================================================
         if (totalProcessReward > 0) {
-            // 相関学習により、同じ「背面取り」でも状況が悪い（疲労中、予測ミス中）ならQ値の伸びを自動抑制
-            brain.qTable.update(brain.lastStateIdx, brain.lastActionIdx, totalProcessReward, brain.lastStateIdx, currentFatigue);
-            d.reasoning += " | RWD: " + rewardDebug.toString();
+            // Q値の更新とTD誤差（驚き）の取得
+            // 良い動きができた＝予測が当たった、あるいは良い発見をした
+            float tdError = brain.qTable.updateTQH(brain.lastStateIdx, brain.lastActionIdx, totalProcessReward, brain.lastStateIdx, currentFatigue);
+
+            // 【冷却】立ち回りの成功は系を冷却し、現在のトポロジー（脳構造）を「固体」として固定する
+            // 0.45fは冷却係数。報酬が多いほどシステムは冷徹(SOLID)になる。
+            brain.systemTemperature -= (totalProcessReward * 0.45f);
+
+            // 自然放熱とのバランスを取り、最低値をクランプ
+            if (brain.systemTemperature < 0.0f) brain.systemTemperature = 0.0f;
+
+            d.reasoning += String.format(" | RWD:%s | TEMP:%.2f", rewardDebug.toString(), brain.systemTemperature);
+
+            // [2026-01-12] 報酬獲得の瞬間に冷却色のFLASHをトリガーするための相転移チェック
+            brain.reshapeTopology();
         }
 
-        // 次のターンのために行動履歴をシフト
+        // 履歴シフト
         brain.secondLastActionIdx = brain.lastActionIdx;
         brain.secondLastStateIdx = brain.lastStateIdx;
     }

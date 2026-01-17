@@ -4,14 +4,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * リキッド・ニューロン
- * 入力に対して動的な時定数(tau)で反応するニューロンモデル。
- * 状況の緊急度が高いほど、tauが小さくなり(液体がサラサラになり)、即座に適応する。
+ * [TQH Integrated]
+ * 既存の動的時定数に加え、システム温度による「相転移」をサポート。
+ * 高温時は気体のように反応が速まり、低温時は固体のように結晶化（固定）する。
  */
 public class LiquidNeuron {
     private float state;
     private float baseDecay;
-
     private final Map<LiquidNeuron, Float> synapses = new HashMap<>();
 
     public LiquidNeuron(double initialDecay) {
@@ -19,54 +18,37 @@ public class LiquidNeuron {
         this.state = 0.0f;
     }
 
-    /**
-     * [新理論] 構造的再編: 他のニューロンとの間に新しい回路を形成する
-     */
-    public void connect(LiquidNeuron target, float weight) {
-        this.synapses.put(target, weight);
-    }
+    public void connect(LiquidNeuron target, float weight) { this.synapses.put(target, weight); }
+    public void disconnect(LiquidNeuron target) { this.synapses.remove(target); }
 
     /**
-     * [新理論] 回路の切断: 接続を物理的に排除する（プルーニング）
+     * TQH Update: システム温度を第3のパラメータとして受け取る
      */
-    public void disconnect(LiquidNeuron target) {
-        this.synapses.remove(target);
-    }
-
-    public void update(double input, double urgency) {
+    public void update(double input, double urgency, float systemTemp) {
         float synapticInput = (float) input;
 
-        // 他のニューロンからの信号を重み付きで加算
-        // これが AM-QL における「構造が機能（計算結果）を変える」核心部
         for (Map.Entry<LiquidNeuron, Float> entry : synapses.entrySet()) {
             synapticInput += (float) (entry.getKey().get() * entry.getValue());
         }
 
-        // urgency(緊急度)に応じてtauが変動し、反応が「サラサラ」になる
-        float alpha = baseDecay + ((float)urgency * (1.0f - baseDecay));
+        // TQH: 既存の urgency に加え、温度(systemTemp)が alpha (流動性)を増大させる
+        // systemTemp 0.0(固体) -> 変化なし, 1.0+(気体) -> 激しい流動
+        float thermalEffect = Math.max(0.0f, systemTemp * 0.4f);
+        float alpha = baseDecay + ((float)urgency * (1.0f - baseDecay)) + thermalEffect;
 
-        // 入力を synapticInput に差し替えて状態を更新
+        alpha = Math.max(0.01f, Math.min(1.0f, alpha));
+
         this.state += alpha * (synapticInput - this.state);
 
         if (this.state > 1.0f) this.state = 1.0f;
         else if (this.state < 0.0f) this.state = 0.0f;
     }
 
-    /**
-     * 他のニューロンの特性（感度）を模倣して、自分のパラメータを微調整する
-     * 量子化(float)対応版
-     */
     public void mimic(LiquidNeuron leader, double learningRate) {
-        // leader.baseDecay も float になっているため、キャストなしで直接演算
-        // 感度（反応の粘性）を集団のリーダーに同期させる
         this.baseDecay += (leader.baseDecay - this.baseDecay) * (float) learningRate;
-
-        // baseDecay が極端な値（0以下や1以上）にならないようクリッピング
         if (this.baseDecay > 0.95f) this.baseDecay = 0.95f;
         if (this.baseDecay < 0.05f) this.baseDecay = 0.05f;
     }
 
-    public double get() {
-        return state;
-    }
+    public double get() { return state; }
 }
