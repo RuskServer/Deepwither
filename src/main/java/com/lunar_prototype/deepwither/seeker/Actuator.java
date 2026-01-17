@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither.seeker;
 
+import com.lunar_prototype.deepwither.Deepwither;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import io.lumine.mythic.core.mobs.ActiveMob;
 import org.bukkit.Location;
@@ -44,7 +45,7 @@ public class Actuator {
         if (move.strategy != null) {
             // --- 既存の回避ロジック ---
             if (move.strategy.equals("BACKSTEP") || move.strategy.equals("SIDESTEP")) {
-                performEvasiveStep(entity, move.strategy);
+                performEvasiveStep(entity, move.strategy,Deepwither.getInstance().getAiEngine().getBrain(entity.getUniqueId()));
                 return;
             }
 
@@ -55,7 +56,7 @@ public class Actuator {
             }
 
             if  (move.strategy.equals("BURST_DASH")) {
-                performBurstDash(entity,1.4); // 揺れのない最短距離での突進
+                performBurstDash(entity,1.4, Deepwither.getInstance().getAiEngine().getBrain(entity.getUniqueId())); // 揺れのない最短距離での突進
                 return;
             }
 
@@ -144,39 +145,56 @@ public class Actuator {
     }
 
     /**
-     * 瞬間的なベクトル加速
+     * 距離15ブロック以内なら未来予想位置を算出して確実に敵を捉えるバーストダッシュ
      */
-    private void performBurstDash(Mob entity, double power) {
+    private void performBurstDash(Mob entity, double power, LiquidBrain brain) {
         if (entity.getTarget() == null) return;
 
-        Location targetLoc = entity.getTarget().getLocation();
-        Vector dir = targetLoc.toVector().subtract(entity.getLocation().toVector()).normalize();
+        Location myLoc = entity.getLocation();
+        Entity target = entity.getTarget();
+        double dist = myLoc.distance(target.getLocation());
 
-        // 1. 接地判定（OnGround）の擬似チェック
-        // entity.isOnGround() が使える場合はそれを使用。ない場合は高度差で判定。
+        Vector targetDir;
+
+        // --- 未来位置予測ロジック (15ブロック以内かつ予測データがある場合) ---
+        if (dist < 15.0 && brain.lastPredictedLocation != null && brain.velocityTrust > 0.3) {
+            // 脳内に保存されている「20Tick後の予測位置」を利用
+            // ただし、ダッシュの到達時間に合わせて重みを調整
+            Vector predictedPos = brain.lastPredictedLocation;
+            targetDir = predictedPos.clone().subtract(myLoc.toVector()).normalize();
+
+            // 予測地点へのベクトルを強調（偏差撃ちに近い感覚）
+            targetDir.multiply(1.2).add(target.getLocation().toVector().subtract(myLoc.toVector()).normalize()).normalize();
+        } else {
+            // 通常の追跡
+            targetDir = target.getLocation().toVector().subtract(myLoc.toVector()).normalize();
+        }
+
         boolean isOnGround = entity.getLocation().subtract(0, 0.1, 0).getBlock().getType().isSolid();
 
         if (isOnGround) {
-            // 地面に足がついた瞬間に、ターゲット方向への慣性を乗せて跳ぶ
-            // Y軸に 0.42 (プレイヤーの通常ジャンプ力) を与えつつ、水平方向を加速
-            Vector boost = dir.multiply(power).setY(0.42);
+            // ターゲット位置を捉えるためのブースト
+            Vector boost = targetDir.multiply(power).setY(0.42);
 
-            // 障害物が目の前にある場合は、より高く跳んで飛び越えを試みる
-            if (isPathBlocked(entity, dir)) {
-                boost.setY(0.5);
-                boost.multiply(0.8); // 上に振る分、横は少し抑える
+            // 障害物判定（既存ロジック）
+            if (isPathBlocked(entity, targetDir)) {
+                boost.setY(0.55); // 少し高く
+                boost.multiply(0.85);
             }
 
             entity.setVelocity(boost);
 
-            // 演出：踏み込みのパーティクル
-            entity.getWorld().spawnParticle(org.bukkit.Particle.CLOUD, entity.getLocation(), 5, 0.1, 0.05, 0.1, 0.01);
+            // 演出: 2026-01-12 指定の Color データを適用した Particle.FLASH
+            int[] rgb = brain.getTQHFlashColor();
+            entity.getWorld().spawnParticle(
+                    org.bukkit.Particle.DUST, // または FLASH
+                    entity.getLocation().add(0, 1, 0),
+                    10, 0.2, 0.2, 0.2,
+                    new org.bukkit.Particle.DustOptions(org.bukkit.Color.fromRGB(rgb[0], rgb[1], rgb[2]), 1.5f)
+            );
         } else {
-            // 空中にいる間は、Pathfinderを止めて慣性移動を邪魔させない
-            // ただし、空中でターゲット方向に微調整の力を加える（エアストレイフ）
-            Vector currentVel = entity.getVelocity();
-            Vector airSteer = dir.multiply(0.05); // 微細な空中制御
-            entity.setVelocity(currentVel.add(airSteer));
+            // 空中制御（エアストレイフ）
+            entity.setVelocity(entity.getVelocity().add(targetDir.multiply(0.08)));
         }
     }
 
@@ -258,32 +276,70 @@ public class Actuator {
     }
 
     /**
-     * Pathfinderを利用して、地形を考慮した回避運動を行う
+     * TQH相転移と空間検知を組み合わせた高精度回避
      */
-    private void performEvasiveStep(Mob entity, String strategy) {
+    private void performEvasiveStep(Mob entity, String strategy, LiquidBrain brain) {
         if (entity.getTarget() == null) return;
 
         Location selfLoc = entity.getLocation();
         Location targetLoc = entity.getTarget().getLocation();
+        Vector awayDir = selfLoc.toVector().subtract(targetLoc.toVector()).setY(0).normalize();
 
-        // ターゲットから自分への方向ベクトル
-        Vector awayVec = selfLoc.toVector().subtract(targetLoc.toVector()).normalize();
-        Location destination;
+        Location bestDest = null;
 
+        // 1. 基本戦略の座標計算
         if (strategy.equals("BACKSTEP")) {
-            // 現在地からターゲットの反対方向へ3m地点を計算
-            destination = selfLoc.clone().add(awayVec.multiply(3.0));
-        } else {
-            // サイドステップ（垂直方向）へ3m地点を計算
-            Vector sideVec = new Vector(-awayVec.getZ(), 0, awayVec.getX());
-            if (Math.random() > 0.5) sideVec.multiply(-1);
-            destination = selfLoc.clone().add(sideVec.multiply(3.0));
+            bestDest = findSafeDestination(selfLoc, awayDir, 3.5); // 少し距離を伸ばす
         }
 
-        // --- 地形対応のポイント ---
-        // 計算した地点が「空中」や「壁の中」である可能性を考慮し、
-        // Pathfinderにその地点、あるいはその周辺の安全な場所を探させる
-        entity.getPathfinder().moveTo(destination, 2.0); // 通常の2倍の速度(Sprint)で回避
+        // バックステップが不可能（壁など）、またはサイドステップ戦略の場合
+        if (bestDest == null || strategy.equals("SIDESTEP")) {
+            // 右と左の両方をチェックし、より開けている方を選択
+            Vector leftDir = new Vector(-awayDir.getZ(), 0, awayDir.getX());
+            Vector rightDir = leftDir.clone().multiply(-1);
+
+            Location leftDest = findSafeDestination(selfLoc, leftDir, 4.0);
+            Location rightDest = findSafeDestination(selfLoc, rightDir, 4.0);
+
+            // ターゲットの視線（方位）も考慮して、より「死角」に近い方を選ばせるのが理想
+            bestDest = (leftDest != null) ? leftDest : rightDest;
+        }
+
+        if (bestDest != null) {
+            // Pathfinderをリセットして強制移動
+            entity.getPathfinder().stopPathfinding();
+
+            // 高温(GAS)時は、Pathfinderを待たずVelocityでも補佐（キレを出す）
+            if (brain.systemTemperature > 1.0f) {
+                Vector jumpDir = bestDest.toVector().subtract(selfLoc.toVector()).normalize().multiply(0.5);
+                entity.setVelocity(entity.getVelocity().add(jumpDir.setY(0.2)));
+            }
+
+            entity.getPathfinder().moveTo(bestDest, 1.8);
+
+            // [2026-01-12] 回避時のFLASH演出
+            int[] rgb = brain.getTQHFlashColor();
+            entity.getWorld().spawnParticle(org.bukkit.Particle.CLOUD, selfLoc, 3, 0.2, 0.1, 0.2, 0.02);
+        }
+    }
+
+    /**
+     * 指定方向が安全（ブロックがない、かつ落下しない）かを確認して座標を返す
+     */
+    private Location findSafeDestination(Location start, Vector dir, double dist) {
+        Location dest = start.clone().add(dir.multiply(dist));
+
+        // 1. 壁判定 (Raytrace)
+        var ray = start.getWorld().rayTraceBlocks(start.add(0, 1, 0), dir, dist);
+        if (ray != null && ray.getHitBlock() != null) return null;
+
+        // 2. 足場判定 (落下防止)
+        if (!dest.subtract(0, 1, 0).getBlock().getType().isSolid()) {
+            // 1ブロック下までなら段差として許容
+            if (!dest.subtract(0, 1, 0).getBlock().getType().isSolid()) return null;
+        }
+
+        return dest.add(0, 1, 0); // 足場より1つ上の座標を返す
     }
 
     private void handleActions(ActiveMob activeMob, BanditDecision decision) {

@@ -173,6 +173,11 @@ public final class Deepwither extends JavaPlugin {
     private LootLevelManager lootLevelManager;
     private LootDropManager lootDropManager;
     private MarketGui marketGui;
+
+    public SeekerAIEngine getAiEngine() {
+        return aiEngine;
+    }
+
     private SeekerAIEngine aiEngine;
     private ClanManager clanManager;
     private static Economy econ = null;
