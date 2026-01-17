@@ -95,12 +95,16 @@ public class LiquidBrain {
     public final TacticalMemory tacticalMemory = new TacticalMemory();
     public final SelfPattern selfPattern = new SelfPattern();
 
+    private final LiquidAstrocyte astrocyte;
+
     public LiquidBrain(UUID uuid) {
         Random random = new Random(uuid.getMostSignificantBits());
         this.composure = (float) (0.3 + (random.nextDouble() * 0.7));
         this.aggression = new LiquidNeuron(0.08 + (random.nextDouble() * 0.04));
         this.fear = new LiquidNeuron(0.08 + (random.nextDouble() * 0.04));
         this.tactical = new LiquidNeuron(0.05 + (random.nextDouble() * 0.02));
+
+        this.astrocyte = new LiquidAstrocyte(aggression, fear, tactical, reflex);
     }
 
     /**
@@ -145,6 +149,14 @@ public class LiquidBrain {
 
         // 6. 構造的再編 (TQHによる相転移)
         reshapeTopology();
+
+        // 2. [NEW] アストロサイトによる空間統制
+        // ニューロン同士が勝手に結合を強めすぎた場合、ここでグリアが冷や水を浴びせる
+        astrocyte.regulate(systemTemperature);
+    }
+
+    public float getGliaActivity() {
+        return astrocyte.getInterventionLevel();
     }
 
     /**

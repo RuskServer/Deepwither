@@ -50,5 +50,24 @@ public class LiquidNeuron {
         if (this.baseDecay < 0.05f) this.baseDecay = 0.05f;
     }
 
+    /**
+     * [Glia Interface] アストロサイトによる強制抑制
+     * 過剰発火時、外部から強制的に値を引き下げ、不応期（反応しにくい状態）を作る。
+     * @param dampeningFactor 抑制の強さ (0.0 - 1.0)
+     */
+    public void applyInhibition(float dampeningFactor) {
+        // 1. 現在の興奮レベルを直接削る
+        this.state -= (this.state * dampeningFactor);
+
+        // 2. baseDecay（減衰率）を一時的に高め、次の入力に反応しにくくする（不応期のシミュレート）
+        // ※この影響は update() 内で alpha が再計算されるため、短期的です
+        this.state = Math.max(0.0f, this.state);
+    }
+
+    // ゲッターの追加（Astrocyteが監視するため）
+    public float getState() {
+        return this.state;
+    }
+
     public double get() { return state; }
 }

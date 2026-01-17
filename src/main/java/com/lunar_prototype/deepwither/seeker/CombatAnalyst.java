@@ -109,6 +109,7 @@ public class CombatAnalyst {
         styler.setPlotBackgroundColor(new Color(30, 30, 35));
         styler.setChartFontColor(Color.LIGHT_GRAY);
         styler.setAnnotationLineColor(Color.WHITE);
+        styler.setAnnotationTextFontColor(Color.WHITE);
         styler.setPlotGridLinesColor(new Color(50, 50, 55));
         styler.setLegendPosition(Styler.LegendPosition.OutsideS); // 凡例を下に出してグラフ領域を確保
         styler.setLegendBackgroundColor(new Color(25, 25, 30));
