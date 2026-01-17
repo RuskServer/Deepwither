@@ -17,6 +17,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.File;
@@ -520,8 +521,7 @@ public class DungeonGenerator {
     }
 
     private void startSpawnerMonitor() {
-        if (isMonitoring)
-            return;
+        if (isMonitoring) return;
         isMonitoring = true;
 
         new BukkitRunnable() {
@@ -535,28 +535,46 @@ public class DungeonGenerator {
 
                 int spawnedThisTick = 0;
                 final int MAX_SPAWNS_PER_CHECK = 3;
-                long delayBetweenMobs = 0;
 
                 Iterator<PendingSpawner> iterator = pendingSpawners.iterator();
                 while (iterator.hasNext() && spawnedThisTick < MAX_SPAWNS_PER_CHECK) {
                     PendingSpawner spawner = iterator.next();
-                    boolean playerNearby = spawner.location.getWorld().getNearbyEntities(spawner.location, 12, 12, 12)
-                            .stream()
-                            .anyMatch(entity -> entity instanceof org.bukkit.entity.Player);
 
-                    if (playerNearby) {
+                    // 1. 付近のプレイヤーを探す（バフ数を確認するため）
+                    Player nearbyPlayer = (Player) spawner.location.getWorld().getNearbyEntities(spawner.location, 12, 12, 12)
+                            .stream()
+                            .filter(entity -> entity instanceof Player)
+                            .findFirst() // 最初に見つかったプレイヤーを基準にする
+                            .orElse(null);
+
+                    if (nearbyPlayer != null) {
                         spawnedThisTick++;
+
+                        // 2. バフ数に応じたレベルのスケーリング計算
+                        // 基本レベル(mobLevel)にバフ数に応じた補正を加える
+                        int buffCount = Deepwither.getInstance().getRoguelikeBuffManager().getBuffCount(nearbyPlayer);
+
+                        // 例: 最終レベル = 基本レベル + (バフ数 * 1.5)
+                        // 計算式は適宜調整してください
+                        int scaledLevel = mobLevel + (int) Math.floor(buffCount * 1.5);
+
                         new BukkitRunnable() {
                             @Override
                             public void run() {
-                                Deepwither.getInstance().getMobSpawnManager().spawnDungeonMob(spawner.location,
-                                        spawner.mobId, mobLevel);
-                                spawner.location.getWorld().spawnParticle(org.bukkit.Particle.CLOUD, spawner.location,
-                                        20, 0.5, 1, 0.5, 0.1);
-                            }
-                        }.runTaskLater(Deepwither.getInstance(), delayBetweenMobs);
+                                Deepwither.getInstance().getMobSpawnManager().spawnDungeonMob(
+                                        spawner.location,
+                                        spawner.mobId,
+                                        scaledLevel // スケーリング後のレベルを適用
+                                );
 
-                        delayBetweenMobs += 5L;
+                                spawner.location.getWorld().spawnParticle(
+                                        org.bukkit.Particle.CLOUD,
+                                        spawner.location,
+                                        20, 0.5, 1, 0.5, 0.1
+                                );
+                            }
+                        }.runTaskLater(Deepwither.getInstance(), 0L);
+
                         iterator.remove();
                     }
                 }
