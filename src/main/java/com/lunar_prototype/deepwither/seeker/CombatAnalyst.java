@@ -1,12 +1,16 @@
 package com.lunar_prototype.deepwither.seeker;
 
+import com.lunar_prototype.deepwither.Deepwither;
 import org.knowm.xchart.BitmapEncoder;
 import org.knowm.xchart.XYChart;
 import org.knowm.xchart.XYChartBuilder;
+import org.knowm.xchart.XYSeries;
 import org.knowm.xchart.style.Styler;
+import org.knowm.xchart.style.XYStyler;
 import org.knowm.xchart.style.markers.SeriesMarkers;
 
 import java.awt.*;
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.stream.IntStream;
@@ -79,32 +83,59 @@ public class CombatAnalyst {
 
     public static void saveProfessionalGraph(LiquidBrain brain, String opponentName, Result result) {
         List<LiquidBrain.BrainSnapshot> history = brain.getCombatHistory();
+        if (history.isEmpty()) return;
 
-        // 1. データの準備
+        // 1. ディレクトリの準備 (エラー解消の核心)
+        File logDir = new File(Deepwither.getInstance().getDataFolder(), "logs");
+        if (!logDir.exists()) {
+            logDir.mkdirs();
+        }
+
+        // 2. データの準備
         double[] xData = IntStream.range(0, history.size()).asDoubleStream().toArray();
-        double[] yData = history.stream().mapToDouble(s -> (double)s.temp()).toArray();
+        double[] yData = history.stream().mapToDouble(s -> (double) s.temp()).toArray();
 
-        // 2. グラフの作成 (現代的なデザイン)
+        // 3. グラフの作成 (デザインの洗練)
         XYChart chart = new XYChartBuilder()
-                .width(800).height(400)
-                .title("TQH Phase Transition: v3.3-Astro-Interception")
-                .xAxisTitle("Ticks").yAxisTitle("System Temp")
+                .width(1000).height(500) // 視認性のために少し横長に
+                .title("TQH Phase Transition: [" + opponentName + "]") // 相手の名前を入れると管理しやすい
+                .xAxisTitle("Time (Ticks)")
+                .yAxisTitle("System Temp")
                 .build();
 
-        // 3. スタイルのカスタマイズ
-        chart.getStyler().setChartBackgroundColor(new Color(25, 25, 30)); // ダークモード
-        chart.getStyler().setChartFontColor(Color.WHITE);
-        chart.getStyler().setPlotGridLinesVisible(true);
-        chart.getStyler().setLegendPosition(Styler.LegendPosition.InsideNE);
+        // 4. スタイルのカスタマイズ (より「プロフェッショナル」な外観へ)
+        XYStyler styler = chart.getStyler();
+        styler.setChartBackgroundColor(new Color(20, 20, 25)); // より深い黒
+        styler.setPlotBackgroundColor(new Color(30, 30, 35));
+        styler.setChartFontColor(Color.LIGHT_GRAY);
+        styler.setAnnotationLineColor(Color.WHITE);
+        styler.setPlotGridLinesColor(new Color(50, 50, 55));
+        styler.setLegendPosition(Styler.LegendPosition.OutsideS); // 凡例を下に出してグラフ領域を確保
+        styler.setLegendBackgroundColor(new Color(25, 25, 30));
 
-        // 相（フェーズ）の色分けをシリーズとして追加
-        chart.addSeries("Brain Temp", xData, yData).setMarker(SeriesMarkers.NONE).setLineColor(Color.CYAN);
+        // 軸の範囲を自動調整（データが少ない時も綺麗に見せる）
+        styler.setYAxisMin(0.0);
 
-        // 4. 保存
+        // シリーズの追加
+        XYSeries series = chart.addSeries("Brain Temp", xData, yData);
+        series.setMarker(SeriesMarkers.NONE);
+        series.setLineColor(new Color(0, 255, 200)); // 鮮やかなティール
+        series.setLineWidth(2.5f);
+
+        // 5. ファイル名と保存
+        // タイムスタンプだけでなく、相手の名前と結果を入れると後でログ解析が捗ります
+        String resultTag = (result != null) ? result.toString().toLowerCase() : "unknown";
+        String fileName = String.format("brain_%s_%s_%d",
+                opponentName.replaceAll("[^a-zA-Z0-9]", ""),
+                resultTag,
+                System.currentTimeMillis());
+
         try {
-            BitmapEncoder.saveBitmap(chart, "./plugins/Deepwither/logs/brain_" + System.currentTimeMillis(), BitmapEncoder.BitmapFormat.PNG);
+            File outputFile = new File(logDir, fileName);
+            // BitmapEncoderは内部で拡張子を補完する場合があるためgetAbsolutePathを使用
+            BitmapEncoder.saveBitmap(chart, outputFile.getAbsolutePath(), BitmapEncoder.BitmapFormat.PNG);
         } catch (IOException e) {
-            e.printStackTrace();
+            Deepwither.getInstance().getLogger().warning("Failed to save combat graph: " + e.getMessage());
         }
     }
 
