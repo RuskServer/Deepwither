@@ -159,33 +159,66 @@ public class LiquidBrain {
         return astrocyte.getInterventionLevel();
     }
 
-    /**
-     * [TQH Phase Transition]
-     * システム温度に基づき、脳の物理構造（トポロジー）を書き換える
-     */
     public void reshapeTopology() {
         clearTemporarySynapses();
 
+        // グリアの介入度（過剰発火の抑制レベル）を取得
+        float gliaIntervention = astrocyte.getInterventionLevel();
+
+        // 1. 【GAS / Hyper-Excited】 - 暴走とグリアの相克
         if (systemTemperature > 1.2f) {
-            // 【気体状態: GAS】 超高エントロピー・混沌探索
-            // 全ての抑制を解除し、反射層を攻撃層に直結。予測不能な動きを生む。
-            aggression.connect(reflex, 1.8f);
-            reflex.connect(tactical, -0.8f); // 冷静さを破壊
-        }
-        else if (systemTemperature < 0.3f) {
-            // 【固体状態: SOLID】 低エントロピー・結晶化
-            // 成功パターンを「正解」として強固に固定。無駄のない動き。
-            tactical.connect(aggression, 0.9f);
-            aggression.connect(tactical, 0.3f);
-        }
-        else {
-            // 【液体状態: LIQUID】 既存の adrenaline/composure に基づく流動的判断
-            if (adrenaline > 0.85f) aggression.connect(reflex, 1.2f);
-            if (composure > 0.7f) {
-                aggression.connect(tactical, 0.5f);
-                fear.connect(tactical, 0.5f);
+            aggression.connect(reflex, 2.0f); // 反射の暴走
+
+            // グリアが強く介入している場合、攻撃を抑制し回避へバイアスをかける
+            if (gliaIntervention > 0.6f) {
+                aggression.disconnect(reflex);
+                reflex.connect(fear, 1.5f); // 攻撃を止め、「逃げ」の反射へ強制転換
             }
-            if (frustration > 0.6f) reflex.connect(tactical, -0.4f);
+            reflex.connect(tactical, -1.0f); // 思考能力の完全遮断
+        }
+
+        // 2. 【SOLID / Crystalized】 - 冷徹な最適化
+        else if (systemTemperature < 0.3f) {
+            // 疲労が少ないエリアを優先的に接続する
+            if (fatigueMap[0] < 0.5f) { // 攻撃疲労が少ない
+                tactical.connect(aggression, 1.2f);
+            } else {
+                // 攻撃に疲れているなら、待ち（Baiting）にシフトするため戦術層を強化
+                tactical.connect(fear, 0.4f);
+            }
+            // 予測信頼度が高い場合、反射を戦術層に従属させる
+            if (velocityTrust > 0.8f) {
+                tactical.connect(reflex, 0.6f);
+            }
+        }
+
+        // 3. 【LIQUID / Adaptive】 - 感情ベースの柔軟な接続
+        else {
+            // --- 攻勢の葛藤 ---
+            if (adrenaline > 0.8f && frustration < 0.4f) {
+                // 乗っている状態：攻撃と反射が同期
+                aggression.connect(reflex, 1.0f);
+            } else if (frustration > 0.7f) {
+                // 焦燥状態：戦術を無視して反射が先行
+                reflex.connect(aggression, 1.5f);
+                tactical.disconnect(aggression);
+            }
+
+            // --- 防御の葛藤 ---
+            if (morale < 0.3f) {
+                // 士気低下：恐怖が反射を支配（パニック回避）
+                fear.connect(reflex, 1.8f);
+            } else if (composure > 0.6f) {
+                // 冷静：恐怖を戦術的に利用（計画的撤退）
+                fear.connect(tactical, 0.8f);
+                tactical.connect(reflex, 0.3f);
+            }
+        }
+
+        // 4. 【Emergency / Surprise Boost】 - 予測外の事態への即応
+        // 相手が予測不能な動きをした際、一時的に全ニューロンを「並列」に繋ぎ直す
+        if (velocityTrust < 0.2f && adrenaline > 0.5f) {
+            aggression.connect(fear, 0.5f); // 攻守混合状態
         }
     }
 
