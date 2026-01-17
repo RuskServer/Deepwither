@@ -191,6 +191,37 @@ public class LiquidBrain {
         return new int[]{255, 100, 0}; // Orange (液体・平常)
     }
 
+    /**
+     * [TQH-Analytics] 戦闘中の脳状態を記録するデータポイント
+     */
+    public record BrainSnapshot(
+            long tick,
+            float temp,
+            float morale,
+            float frustration,
+            String action,
+            int[] color
+    ) {}
+
+    public List<BrainSnapshot> getCombatHistory() {
+        return combatHistory;
+    }
+
+    // LiquidBrain内に追加
+    private final List<BrainSnapshot> combatHistory = new ArrayList<>();
+
+    public void recordSnapshot(String action) {
+        if (combatHistory.size() > 500) combatHistory.remove(0); // 直近500回（約25秒分）を保持
+        combatHistory.add(new BrainSnapshot(
+                System.currentTimeMillis(),
+                systemTemperature,
+                (float)morale,
+                frustration,
+                action,
+                getTQHFlashColor()
+        ));
+    }
+
     // --- 以下、既存の AttackPattern 等の内部クラス・メソッドを保持 ---
     public void recordAttack(UUID targetId, double distance, boolean isMiss) { /* 既存通り */ }
     public void recordSelfAttack(long currentTick) { /* 既存通り */ }

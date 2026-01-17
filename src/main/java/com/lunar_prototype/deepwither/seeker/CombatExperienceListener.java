@@ -1,16 +1,20 @@
 package com.lunar_prototype.deepwither.seeker;
 
+import com.lunar_prototype.deepwither.Deepwither;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import io.lumine.mythic.core.mobs.ActiveMob;
 import io.papermc.paper.event.player.PlayerArmSwingEvent;
 import org.bukkit.Location;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerAnimationEvent;
 import org.bukkit.util.Vector;
 
@@ -212,5 +216,38 @@ public class CombatExperienceListener implements Listener {
             // 学習の直後に相転移をチェックすることで、即座にParticle.FLASHの色に反映させる
             brain.reshapeTopology();
         });
+    }
+
+    /**
+     * ケース1: 山賊が死んだ時 (DEFEAT分析)
+     */
+    @EventHandler
+    public void onSeekerDeath(EntityDeathEvent event) {
+        LivingEntity entity = event.getEntity();
+        LiquidBrain brain = aiEngine.getBrain(entity.getUniqueId());
+
+        if (brain != null) {
+            String killerName = entity.getKiller() != null ? entity.getKiller().getName() : "Unknown";
+
+            // 敗北として分析レポートを生成
+            CombatAnalyst.review(brain, killerName, CombatAnalyst.Result.DEFEAT);
+        }
+    }
+
+    /**
+     * ケース2: プレイヤーが殺された時 (VICTORY分析)
+     */
+    @EventHandler
+    public void onPlayerDeath(PlayerDeathEvent event) {
+        Player victim = event.getEntity();
+        // 殺害者がMobであり、かつSeekerのBrainを持っているか確認
+        if (victim.getKiller() instanceof Mob killer) {
+            LiquidBrain brain = aiEngine.getBrain(killer.getUniqueId());
+
+            if (brain != null) {
+                // 勝利として分析レポートを生成
+                CombatAnalyst.review(brain, victim.getName(), CombatAnalyst.Result.VICTORY);
+            }
+        }
     }
 }

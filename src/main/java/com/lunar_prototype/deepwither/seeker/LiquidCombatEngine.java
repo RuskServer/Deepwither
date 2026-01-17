@@ -352,6 +352,8 @@ public class LiquidCombatEngine {
         // [Surprise Boost] 予測が外れている時は報酬の反映強度を上げる
         applyMobilityRewards(bukkitEntity, brain, d, (double) enemyDist);
 
+        brain.recordSnapshot(d.movement.strategy);
+
         return d;
     }
 
