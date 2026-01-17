@@ -207,7 +207,7 @@ public class LiquidCombatEngine {
     private BanditDecision thinkV2Optimized(BanditContext context, LiquidBrain brain, Mob bukkitEntity) {
         // 1. 基底となるV1ロジックの呼び出し (量子化版)
         BanditDecision d = thinkV1Optimized(context, brain, bukkitEntity);
-        d.engine_version = "v3.2-Surprise-Boost"; // バージョンアップ
+        d.engine_version = "v3.3-Astro-Interception";
 
         // --- [新理論実装] 脳の構造的再編 & 経験消化 ---
         brain.reshapeTopology();
