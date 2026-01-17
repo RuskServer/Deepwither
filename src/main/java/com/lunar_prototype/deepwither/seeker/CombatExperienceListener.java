@@ -235,18 +235,23 @@ public class CombatExperienceListener implements Listener {
     }
 
     /**
-     * ケース2: プレイヤーが殺された時 (VICTORY分析)
+     * プレイヤーが殺された時 (VICTORY分析)
+     * getKiller() が Mob の場合は null を返す Minecraft の仕様を回避
      */
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player victim = event.getEntity();
-        // 殺害者がMobであり、かつSeekerのBrainを持っているか確認
-        if (victim.getKiller() instanceof Mob killer) {
-            LiquidBrain brain = aiEngine.getBrain(killer.getUniqueId());
 
-            if (brain != null) {
-                // 勝利として分析レポートを生成
-                CombatAnalyst.review(brain, victim.getName(), CombatAnalyst.Result.VICTORY);
+        // 直近のダメージ原因を確認
+        if (victim.getLastDamageCause() instanceof EntityDamageByEntityEvent nlev) {
+            // ダメージを与えたのがMob（山賊）かチェック
+            if (nlev.getDamager() instanceof Mob killer) {
+                LiquidBrain brain = aiEngine.getBrain(killer.getUniqueId());
+
+                if (brain != null) {
+                    // 勝利レポート生成
+                    CombatAnalyst.review(brain, victim.getName(), CombatAnalyst.Result.VICTORY);
+                }
             }
         }
     }
