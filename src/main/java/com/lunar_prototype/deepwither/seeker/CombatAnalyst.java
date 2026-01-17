@@ -1,6 +1,15 @@
 package com.lunar_prototype.deepwither.seeker;
 
+import org.knowm.xchart.BitmapEncoder;
+import org.knowm.xchart.XYChart;
+import org.knowm.xchart.XYChartBuilder;
+import org.knowm.xchart.style.Styler;
+import org.knowm.xchart.style.markers.SeriesMarkers;
+
+import java.awt.*;
+import java.io.IOException;
 import java.util.List;
+import java.util.stream.IntStream;
 
 /**
  * [TQH-Analytics] CombatAnalyst v1.0
@@ -25,6 +34,8 @@ public class CombatAnalyst {
 
         // 2. 統計分析
         analyzePhysiology(brain, history, result);
+
+        saveProfessionalGraph(brain,opponentName,result);
 
         // 3. [2026-01-12] FLASH演出へのフィードバック
         int[] lastColor = brain.getTQHFlashColor();
@@ -63,6 +74,37 @@ public class CombatAnalyst {
             if (avgTemp > 1.2f) System.out.println(" > 原因: 熱暴走(GAS)による制御不能。攻撃精度が著しく低下していました。");
             else if (brain.frustration > 0.8f) System.out.println(" > 原因: フラストレーションの蓄積。焦りによる強引な突撃が致命傷です。");
             else System.out.println(" > 原因: 戦術的敗北。予測モデル(VelocityTrust)が相手に完全に適応されていました。");
+        }
+    }
+
+    public static void saveProfessionalGraph(LiquidBrain brain, String opponentName, Result result) {
+        List<LiquidBrain.BrainSnapshot> history = brain.getCombatHistory();
+
+        // 1. データの準備
+        double[] xData = IntStream.range(0, history.size()).asDoubleStream().toArray();
+        double[] yData = history.stream().mapToDouble(s -> (double)s.temp()).toArray();
+
+        // 2. グラフの作成 (現代的なデザイン)
+        XYChart chart = new XYChartBuilder()
+                .width(800).height(400)
+                .title("TQH Phase Transition: v3.3-Astro-Interception")
+                .xAxisTitle("Ticks").yAxisTitle("System Temp")
+                .build();
+
+        // 3. スタイルのカスタマイズ
+        chart.getStyler().setChartBackgroundColor(new Color(25, 25, 30)); // ダークモード
+        chart.getStyler().setChartFontColor(Color.WHITE);
+        chart.getStyler().setPlotGridLinesVisible(true);
+        chart.getStyler().setLegendPosition(Styler.LegendPosition.InsideNE);
+
+        // 相（フェーズ）の色分けをシリーズとして追加
+        chart.addSeries("Brain Temp", xData, yData).setMarker(SeriesMarkers.NONE).setLineColor(Color.CYAN);
+
+        // 4. 保存
+        try {
+            BitmapEncoder.saveBitmap(chart, "./plugins/Deepwither/logs/brain_" + System.currentTimeMillis(), BitmapEncoder.BitmapFormat.PNG);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 

@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 public class SensorProvider {
 
     // 周囲何ブロックまでをスキャン対象にするか
-    private static final int SCAN_RADIUS = 32;
+    private static final int SCAN_RADIUS = 64;
 
     public BanditContext scan(ActiveMob activeMob) {
         BanditContext context = new BanditContext();
