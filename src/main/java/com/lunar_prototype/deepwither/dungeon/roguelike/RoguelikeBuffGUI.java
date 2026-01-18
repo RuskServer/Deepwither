@@ -11,11 +11,9 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.scheduler.BukkitRunnable;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 public class RoguelikeBuffGUI implements Listener {
 
@@ -27,31 +25,72 @@ public class RoguelikeBuffGUI implements Listener {
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
+    // アニメーション中のプレイヤーを保持（クリック防止用）
+    private final Set<UUID> animatingPlayers = new HashSet<>();
+
     public void open(Player player) {
         Inventory inv = Bukkit.createInventory(null, 27, GUI_TITLE);
 
-        // 背景
+        // 1. 背景の設置
         ItemStack glass = createItem(Material.GRAY_STAINED_GLASS_PANE, " ");
-        for (int i = 0; i < 27; i++)
-            inv.setItem(i, glass);
+        for (int i = 0; i < 27; i++) inv.setItem(i, glass);
 
-        // ランダムに3つのバフを選出
+        // 2. バフの選出（元のロジックを維持）
         List<RoguelikeBuff> allBuffs = new ArrayList<>(Arrays.asList(RoguelikeBuff.values()));
         Collections.shuffle(allBuffs);
         List<RoguelikeBuff> choices = allBuffs.subList(0, Math.min(3, allBuffs.size()));
 
-        // スロット位置: 11, 13, 15
         int[] slots = { 11, 13, 15 };
 
-        for (int i = 0; i < choices.size(); i++) {
-            RoguelikeBuff buff = choices.get(i);
-            ItemStack item = createBuffItem(buff);
-            inv.setItem(slots[i], item);
-        }
-
-        Deepwither.getInstance().getRoguelikeBuffManager().startBuffSelection(player);
+        // インベントリを開く（この時点では中身はガラスのみ）
         player.openInventory(inv);
-        player.playSound(player.getLocation(), Sound.BLOCK_CHEST_OPEN, 1.0f, 1.0f);
+        animatingPlayers.add(player.getUniqueId());
+        Deepwither.getInstance().getRoguelikeBuffManager().startBuffSelection(player);
+
+        // 3. 演出用タスク
+        new BukkitRunnable() {
+            int tick = 0;
+            int revealed = 0;
+            final Random random = new Random();
+            final Material[] rouletteIcons = {Material.ENCHANTED_BOOK, Material.DRAGON_BREATH, Material.NETHER_STAR, Material.FIREWORK_STAR};
+
+            @Override
+            public void run() {
+                // プレイヤーが閉じたら終了
+                if (!player.getOpenInventory().getTitle().equals(GUI_TITLE)) {
+                    animatingPlayers.remove(player.getUniqueId());
+                    this.cancel();
+                    return;
+                }
+
+                // まだ公開されていないスロットをランダムなアイテムでシャッフル
+                for (int i = revealed; i < slots.length; i++) {
+                    inv.setItem(slots[i], new ItemStack(rouletteIcons[random.nextInt(rouletteIcons.length)]));
+                }
+
+                // チッ、チッ、という音（ピッチを少しずつ上げる）
+                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 0.6f, 0.5f + (tick * 0.05f));
+
+                // 15ティック(0.75秒)ごとに1つずつ確定
+                if (tick > 0 && tick % 15 == 0) {
+                    RoguelikeBuff buff = choices.get(revealed);
+                    inv.setItem(slots[revealed], createBuffItem(buff));
+
+                    // 確定時の「ドン！」という音とエフェクト
+                    player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 0.8f);
+
+                    revealed++;
+                }
+
+                // 全て確定
+                if (revealed >= choices.size()) {
+                    animatingPlayers.remove(player.getUniqueId()); // クリック解禁
+                    player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.2f);
+                    this.cancel();
+                }
+                tick++;
+            }
+        }.runTaskTimer(Deepwither.getInstance(), 1L, 2L); // 0.1秒間隔
     }
 
     private ItemStack createBuffItem(RoguelikeBuff buff) {
@@ -92,6 +131,11 @@ public class RoguelikeBuffGUI implements Listener {
 
         if (!(e.getWhoClicked() instanceof Player player))
             return;
+
+        if (animatingPlayers.contains(player.getUniqueId())) {
+            return;
+        }
+
         ItemStack clicked = e.getCurrentItem();
         if (clicked == null || !clicked.hasItemMeta())
             return;
