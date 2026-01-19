@@ -10,6 +10,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityRegainHealthEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -365,8 +366,19 @@ public class DamageManager implements Listener {
                 attacker = le;
             else if (ev.getDamager() instanceof Projectile p && p.getShooter() instanceof LivingEntity le)
                 attacker = le;
+
             if (attacker instanceof Player)
-                return; // プレイヤー間の攻撃は onPhysicalDamage で処理
+                return;
+
+            // ★★★ 無敵モブ（幽霊）カウンター対策 ★★★
+            // 自分を殴ってきた相手が、HP0以下なのに生きている不整合状態なら
+            if (attacker != null && (attacker.getHealth() <= 0 || !attacker.isValid() || attacker.isDead())) {
+                attacker.remove(); // その場で消去
+                iFrameEndTimes.remove(attacker.getUniqueId()); // マップも掃除
+                e.setCancelled(true); // ダメージも無効化
+                // player.sendMessage("§8[System] 幽霊モブの干渉を阻止しました。"); // 必要ならデバッグ用
+                return;
+            }
         }
 
         // 1. 爆発（魔法）処理
@@ -395,6 +407,33 @@ public class DamageManager implements Listener {
 
         e.setDamage(0.0);
         finalizeDamage(player, finalDamage, attacker, isMagic);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
+    public void onGhostEntityCheck(EntityDamageEvent e) {
+        // プレイヤー以外のモブが対象
+        if (!(e.getEntity() instanceof LivingEntity target) || target instanceof Player) return;
+
+        // 幽霊モブの条件：HPが0以下、あるいは死んでいる判定なのに、存在し続けている
+        if (target.getHealth() <= 0 || target.isDead() || !target.isValid()) {
+
+            // 当たり判定が消えている場合が多いので、このイベントが呼ばれたこと自体がチャンス
+            iFrameEndTimes.remove(target.getUniqueId()); // 無敵時間マップも掃除
+
+            // 1ティック後に生存していたら強制排除
+            Bukkit.getScheduler().runTask(Deepwither.getInstance(), () -> {
+                if (target.isValid()) {
+                    target.remove();
+                    // Bukkit.getLogger().info("[Deepwither] 幽霊モブを検知し強制排除しました: " + target.getType());
+                }
+            });
+        }
+    }
+
+    @EventHandler
+    public void onMobDeath(EntityDeathEvent e) {
+        // モブが死んだら、その瞬間に無敵時間管理から外す
+        iFrameEndTimes.remove(e.getEntity().getUniqueId());
     }
 
     public StatMap getDefenderStats(LivingEntity entity) {

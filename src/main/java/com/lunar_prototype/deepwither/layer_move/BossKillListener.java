@@ -2,6 +2,7 @@ package com.lunar_prototype.deepwither.layer_move;
 
 import com.lunar_prototype.deepwither.Deepwither;
 import io.lumine.mythic.bukkit.events.MythicMobDeathEvent;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
@@ -46,9 +47,18 @@ public class BossKillListener implements Listener {
 
                 player.sendMessage("");
                 player.sendMessage(ChatColor.GOLD + "★ ボス「" + killedMobId + "」の撃破を記録しました！");
-                player.sendMessage(ChatColor.YELLOW + "これで新しい階層への道が開かれました。 /dungeon leaveを用いて帰還してください");
+                player.sendMessage(ChatColor.YELLOW + "これで新しい階層への道が開かれました。");
                 player.sendMessage("");
             }
+
+            // 1秒(20ticks)待機してから退出させる（メッセージを読ませるため）
+            // 即座に退出させて良い場合は直接 player.performCommand だけでOKです
+            Bukkit.getScheduler().runTaskLater(Deepwither.getInstance(), () -> {
+                if (player.isOnline()) {
+                    player.sendMessage(ChatColor.GRAY + "§o自動的にダンジョンから退出します...");
+                    player.performCommand("dungeon leave");
+                }
+            }, 20L);
         }
     }
 }
