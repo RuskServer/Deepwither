@@ -56,6 +56,7 @@ public class CombatExperienceListener implements Listener {
 
             getBrain(victim).ifPresent(brain -> {
                 brain.tacticalMemory.takenHits++;
+                brain.tacticalMemory.lastHitTime = victim.getTicksLived();
 
                 // 既存のPenalty処理
                 handlePenaltyAndPattern(victim, damager, 0.5f);

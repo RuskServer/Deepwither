@@ -271,6 +271,8 @@ public class LiquidBrain {
     public void recordAttack(UUID targetId, double distance, boolean isMiss) { /* 既存通り */ }
     public void recordSelfAttack(long currentTick) { /* 既存通り */ }
     public class AttackPattern { public long lastAttackTick; public double averageInterval; public double preferredDist; public int sampleCount; }
-    public class TacticalMemory { public double combatAdvantage = 0.5; public int myHits, myMisses, takenHits, avoidedHits; }
+    public class TacticalMemory { public double combatAdvantage = 0.5; public int myHits, myMisses, takenHits, avoidedHits;
+        public long lastHitTime;
+    }
     public static class SelfPattern { public long lastAttackTick = 0; public double averageInterval = 0; public int sampleCount = 0; }
 }

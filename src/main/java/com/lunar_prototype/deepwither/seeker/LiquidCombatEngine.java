@@ -21,7 +21,6 @@ public class LiquidCombatEngine {
     public BanditDecision think(String version, BanditContext context, LiquidBrain brain, Mob bukkitEntity) {
         // バージョンごとの推論へ（内部は全てintとfloatで完結）
         return switch (version) {
-            case "v3" -> thinkV3Optimized(context,brain,bukkitEntity);
             case "v2" -> thinkV2Optimized(context,brain,bukkitEntity);
             default   -> thinkV1Optimized(context,brain,bukkitEntity);
         };
@@ -317,21 +316,57 @@ public class LiquidCombatEngine {
             d.reasoning += " | Q:EXPLORING_BY_STRESS";
         }
 
+        if (prevTrust > brain.velocityTrust) {
+            float surprise = (prevTrust - brain.velocityTrust);
+            // 驚きが 0.3 を超えると、脳が「GAS相」へ強制遷移。リミッター解除。
+            if (surprise > 0.3f) {
+                brain.systemTemperature += surprise * 2.0f;
+                d.reasoning += " | METABOLIC_BURST!";
+            }
+        }
+
         // --- 4. 戦術的分岐 & DSRによる行動補正 ---
         String recommendedAction = ACTIONS[bestAIdx];
         float reflexIntensity = (float) brain.reflex.get();
 
-        if (brain.adrenaline > 0.85f && reflexIntensity > 0.7f) {
+        // =========================================================
+        // [最優先] アドバンテージと温度に基づいた「相」の強制介入
+        // =========================================================
+        if (advantage < 0.2f) {
+            // 【絶望的劣勢：EMERGENCY SOLID】
+            // グリアが緊急抑制。脳を冷却し、生存のための最小・最適行動に固定する
+            brain.systemTemperature *= 0.5f;
+            d.decision.action_type = "RETREAT";
+            d.movement.strategy = "BACKSTEP_COUNTER"; // カウンター付き回避で仕切り直し
+            d.reasoning += " | EMERGENCY_SOLID_MODE";
+        }
+        else if (advantage > 0.8f && brain.systemTemperature > 1.0f) {
+            // 【圧倒的優勢：HUNTING GAS】
+            // 相手を完全に呑み込んでいる状態。リミッターを外して偏差ダッシュで仕留める
+            d.decision.action_type = "OVERWHELM";
+            d.movement.strategy = "INTERCEPTION_DASH";
+            d.reasoning += " | HUNTING_PHASE(GAS_MAX)";
+        }
+        // =========================================================
+        // [通常] 既存の adrenaline/advantage ロジック
+        // =========================================================
+        else if (brain.adrenaline > 0.85f && reflexIntensity > 0.7f) {
             d.decision.action_type = "OVERWHELM";
             d.movement.strategy = "BURST_DASH";
             d.reasoning += " | DSR_BYPASS:SURGE";
-        } else if (advantage < 0.3f) {
+        }
+        else if (advantage < 0.3f) {
+            // 緩やかな劣勢
             d.decision.action_type = recommendedAction.equals("RETREAT") ? "RETREAT" : "DESPERATE_DEFENSE";
             d.movement.strategy = d.decision.action_type.equals("RETREAT") ? "RETREAT" : "MAINTAIN_DISTANCE";
-        } else if (advantage > 0.7f || globalWeakness.equals("CLOSE_QUARTERS")) {
+        }
+        else if (advantage > 0.7f || globalWeakness.equals("CLOSE_QUARTERS")) {
+            // 緩やかな優勢
             d.decision.action_type = "OVERWHELM";
             d.movement.strategy = (enemies.size() > 1) ? "SPRINT_ZIGZAG" : "BURST_DASH";
-        } else {
+        }
+        else {
+            // 標準的なQ学習ベースの選択
             d.decision.action_type = recommendedAction;
             switch (recommendedAction) {
                 case "EVADE" -> d.movement.strategy = "SIDESTEP";
@@ -455,63 +490,50 @@ public class LiquidCombatEngine {
     }
 
     /**
-     * 戦術的優位性の更新
-     * 判定を厳しくし、膠着状態やハメ状態を即座に「劣勢」と判定するように改良
+     * [v3.3] メタ認知型・戦術優位性評価
      */
     public void updateTacticalAdvantage(Mob self, LiquidBrain brain, LiquidBrain.TacticalMemory tacticalMemory) {
-        if (self.getTarget() == null || !(self.getTarget() instanceof Player)) {
-            tacticalMemory.combatAdvantage *= 0.95; // ターゲット喪失時は徐々に減衰
+        if (self.getTarget() == null) {
+            tacticalMemory.combatAdvantage *= 0.9;
             return;
         }
 
         Player target = (Player) self.getTarget();
 
-        // --- [ここが重要] 視線計算のロジック ---
-        Vector targetLookDir = target.getLocation().getDirection(); // 敵が見ている方向
+        // 1. 【認知重み】 相手との「視線の交差」と「予測信頼度」
         Vector toSelf = self.getLocation().toVector().subtract(target.getLocation().toVector()).normalize();
+        brain.attentionLevel = (float) target.getLocation().getDirection().dot(toSelf);
 
-        // ドット積で「視線の重なり」を算出
-        brain.attentionLevel = (float) targetLookDir.dot(toSelf);
+        // 予測が当たっているほど冷静（優勢）、外れるほど動揺（劣勢）
+        double cognitiveAdvantage = brain.velocityTrust;
 
-        // FOV約90度（cos45度 ≒ 0.707）を基準に可視判定
-        brain.isVisibleFromEnemy = brain.attentionLevel > 0.707;
+        // 2. 【グリア・空間評価】 周囲の閉塞感 (Glia Spatial Mapping)
+        // 背後に壁がある、または移動が制限されているとアドバンテージが急落する
+        float gliaStress = brain.getGliaActivity(); // 0.0~1.0 (過剰興奮抑制レベル)
+        double spatialFreedom = 1.0 - gliaStress;
 
-        // 1. ヒット・回避率 (基本性能)
-        double offense = (double) tacticalMemory.myHits / Math.max(1, tacticalMemory.myHits + tacticalMemory.myMisses);
-        double defense = (double) tacticalMemory.avoidedHits / Math.max(1, tacticalMemory.takenHits + tacticalMemory.avoidedHits);
-
-        // 2. 生命力収支 (HP差によるプレッシャー)
-        // 判定を厳しく: HPが半分以下になると急激にアドバンテージを失う
+        // 3. 【生命維持バイアス】 HPが減るほど「恐怖（Fear）」が重みを増す
         double myHpPct = self.getHealth() / self.getMaxHealth();
         double targetHpPct = target.getHealth() / target.getMaxHealth();
-        double hpAdvantage = myHpPct / (myHpPct + targetHpPct + 0.01);
 
-        // 3. ポジショニング (視線と距離の相関)
-        // 相手が自分を見ていない(attention < 0) ほど優位、かつ距離が近いほどその価値が高い
-        double dist = self.getLocation().distance(target.getLocation());
-        double distFactor = Math.exp(-dist / 10.0); // 遠いとポジションの価値が薄れる
-        double positionAdvantage = ((1.0 - brain.attentionLevel) / 2.0) * distFactor;
+        // 4. 【ハメ判定】 短時間に連続でダメージを受けているか？ (Momentum Check)
+        // LiquidBrainのselfPatternから直近の被弾間隔を参照
+        boolean beingComboed = (System.currentTimeMillis() - brain.tacticalMemory.lastHitTime < 500);
 
-        // 4. 予測精度 (Reality Checkの結果)
-        // 自分の予測が当たっている＝相手を完全にコントロール下に置いている
-        double predictionAdvantage = brain.velocityTrust;
+        // --- ダイナミック・ウェイト (状況に応じて重みが変わる) ---
+        double wHp = (myHpPct < 0.4) ? 0.5 : 0.2; // ピンチならHPを最優先で考える
+        double wSpatial = 0.3; // 空間の広さは常に重要
+        double wCognitive = 0.3; // 「読み切っているか」の比重
+        double wCombo = beingComboed ? -0.4 : 0.0; // ハメられている間は一気に劣勢判定
 
-        // --- 加重合成 (Weight Matrix) ---
-        // HP差を最重視 (35%)、予測精度とポジションで「攻めの勢い」を測る
-        double currentSnapshot = (offense * 0.15) +
-                (defense * 0.10) +
-                (hpAdvantage * 0.35) +
-                (positionAdvantage * 0.20) +
-                (predictionAdvantage * 0.20);
+        double currentSnapshot = (myHpPct * wHp) +
+                (spatialFreedom * wSpatial) +
+                (cognitiveAdvantage * wCognitive) +
+                wCombo;
 
-        // 以前の値との平滑化
-        // 係数を0.3に上げることで、魔法の連撃を受けた際の「優勢から劣勢への転落」を早める
-        tacticalMemory.combatAdvantage = (tacticalMemory.combatAdvantage * 0.7) + (currentSnapshot * 0.3);
-
-        // 劣勢時のSurpriseトリガーへのフィードバック
-        if (tacticalMemory.combatAdvantage < 0.3) {
-            brain.frustration += 0.05f; // 劣勢が続くとイライラが募る
-        }
+        // 転落をよりダイナミックに (反応速度の向上)
+        float learningRate = (gliaStress > 0.5f) ? 0.5f : 0.2f;
+        tacticalMemory.combatAdvantage = (tacticalMemory.combatAdvantage * (1.0 - learningRate)) + (currentSnapshot * learningRate);
     }
 
     private double evaluateTimeline(int actionIdx, LiquidBrain brain, Player target, Mob self, String globalWeakness) {
@@ -623,146 +645,5 @@ public class LiquidCombatEngine {
         }
 
         return (double) score;
-    }
-
-    private BanditDecision thinkV3Optimized(BanditContext context, LiquidBrain brain, Mob bukkitEntity) {
-        BanditDecision d = new BanditDecision();
-        d.engine_version = "v3.1-System-Breaker-Quantized";
-
-        List<BanditContext.EnemyInfo> enemies = context.environment.nearby_enemies;
-        if (enemies.isEmpty()) return d;
-
-        // 1. 多角的ターゲッティング (プリミティブ・ループによる最適化済み)
-        BanditContext.EnemyInfo bestTargetInfo = selectBestTargetV3(enemies, bukkitEntity.getTarget());
-        if (bestTargetInfo == null) return d;
-        Player target = (Player) bestTargetInfo.playerInstance;
-        bukkitEntity.setTarget(target);
-
-        // 2. 基本パラメータの量子化
-        float hpStress = 1.0f - ((float) context.entity.hp_pct / 100.0f);
-        float enemyDist = (float) bestTargetInfo.dist;
-        updateTacticalAdvantage(bukkitEntity,brain,brain.tacticalMemory);
-        float advantage = (float) brain.tacticalMemory.combatAdvantage;
-
-        // サージ判定（量子化された frustration と adrenaline を使用）
-        boolean isSurging = (brain.frustration > 0.9f && brain.adrenaline > 0.8f);
-
-        // 3. FOV計算の最適化 (acosを避け、ドット積を直接使用)
-        // ターゲットの正面方向と自分へのベクトルの重なり具合
-        Vector targetLook = target.getLocation().getDirection().normalize();
-        Vector toSelf = bukkitEntity.getLocation().toVector().subtract(target.getLocation().toVector()).normalize();
-        float dotProduct = (float) targetLook.dot(toSelf);
-        // dotProduct: 1.0=正面, 0.0=真横(90度), -1.0=真後ろ
-
-        String globalWeakness = CollectiveKnowledge.getGlobalWeakness(target.getUniqueId());
-        float globalFear = (float) CollectiveKnowledge.getDangerLevel(target.getUniqueId());
-
-        boolean isRec = (bukkitEntity.getTicksLived() - brain.selfPattern.lastAttackTick) < 15;
-
-        // 4. 量子化状態パッキング (512状態へ圧縮)
-        int stateIdx = brain.qTable.packState(advantage, enemyDist, 1.0f - hpStress, isRec, enemies.size());
-
-        // 5. 多次元推論 (Multiverse Reasoning - 配列インデックスで超高速化)
-        int visionCount = isSurging ? 5 : (brain.composure > 0.7f ? 3 : (brain.composure > 0.3f ? 2 : 1));
-        int bestActionIdx = 4; // Default: OBSERVE
-        float maxExpectation = -Float.MAX_VALUE;
-
-        // 6. 意思決定の適用
-        //applyTacticalBranchV3(d, ACTIONS[bestActionIdx], (double)advantage, (double)globalFear, isSurging, globalWeakness, enemies.size());
-
-        // 7. カオス注入 (軽量ベクトル生成)
-        if (ThreadLocalRandom.current().nextFloat() < 0.2f) {
-            d.movement.jitter_vector = new Vector(ThreadLocalRandom.current().nextFloat()-0.5f, 0, ThreadLocalRandom.current().nextFloat()-0.5f).multiply(0.4f);
-        }
-
-        // 8. 記録と報酬処理
-        brain.lastStateIdx = stateIdx;
-        brain.lastActionIdx = bestActionIdx;
-        applyV3ProcessRewardsOptimized(brain, d, dotProduct, isSurging, enemyDist);
-
-        // デバッグ情報
-        d.reasoning += String.format(" | MV:%d(%s) | DOT:%.2f", visionCount, ACTIONS[bestActionIdx], dotProduct);
-        if (isSurging) d.reasoning += " | !!! SURGE !!!";
-
-        return d;
-    }
-
-    /**
-     * プロセス報酬 (量子化版)
-     */
-    private void applyV3ProcessRewardsOptimized(LiquidBrain brain, BanditDecision d, float dotProduct, boolean isSurging, float dist) {
-        if (brain.lastStateIdx < 0 || brain.lastActionIdx < 0) return;
-
-        float processReward = 0.0f;
-        StringBuilder debugRwd = new StringBuilder();
-
-        // 1. 【FOVハック報酬】ドット積による死角維持判定
-        if (dotProduct > 0.10f && dotProduct < 0.70f) {
-            processReward += 0.15f;
-            debugRwd.append("VISUAL_SHADOW(+0.15) ");
-        } else if (dotProduct < -0.5f) { // 真後ろ付近
-            processReward += 0.25f;
-            debugRwd.append("BACKSTAB_POS(+0.25) ");
-        }
-
-        // 2. 【サージ最適化】
-        if (isSurging && brain.lastActionIdx == 6 && dist < 4.0f) {
-            processReward += 0.3f;
-            debugRwd.append("SURGE_DRIVE(+0.3) ");
-        }
-
-        // 3. 【スペーシング】
-        if (dist >= 3.0f && dist <= 5.0f) {
-            processReward += 0.05f;
-            debugRwd.append("SPACING(+0.05) ");
-        }
-
-        if (processReward > 0) {
-            //brain.qTable.update(brain.lastStateIdx, brain.lastActionIdx, processReward, brain.lastStateIdx);
-            d.reasoning += " | RWD: " + debugRwd.toString();
-        }
-    }
-
-    /**
-     * v3専用：多角的ターゲット選定ロジック (量子化最適化版)
-     * 距離、HP、視覚、粘着バイアスを総合的に評価して最適な敵を抽出する
-     */
-    private BanditContext.EnemyInfo selectBestTargetV3(List<BanditContext.EnemyInfo> enemies, Entity currentTarget) {
-        BanditContext.EnemyInfo bestTarget = null;
-        float maxScore = -Float.MAX_VALUE;
-
-        // UUIDの取得回数を減らすため、現在のターゲットIDをキャッシュ
-        UUID currentId = (currentTarget != null) ? currentTarget.getUniqueId() : null;
-
-        for (int i = 0; i < enemies.size(); i++) {
-            BanditContext.EnemyInfo enemy = enemies.get(i);
-            if (!(enemy.playerInstance instanceof Player p)) continue;
-
-            float score = 0.0f;
-            float dist = (float) enemy.dist;
-
-            // A. 距離スコア (20m以内。近接戦ほど価値が高い。係数1.5)
-            score += (20.0f - dist) * 1.5f;
-
-            // B. 処刑バイアス (HPが低い敵を執拗に追う)
-            // p.getHealth() / p.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue() を推奨
-            float hpRatio = (float) (p.getHealth() / p.getMaxHealth());
-            score += (1.0f - hpRatio) * 15.0f;
-
-            // C. 視覚情報 (見えている敵を優先)
-            if (enemy.in_sight) score += 5.0f;
-
-            // D. 粘着バイアス (ターゲットが頻繁に変わる「迷い」を防止)
-            if (currentId != null && p.getUniqueId().equals(currentId)) {
-                score += 8.0f;
-            }
-
-            // --- スコア更新 ---
-            if (score > maxScore) {
-                maxScore = score;
-                bestTarget = enemy;
-            }
-        }
-        return bestTarget;
     }
 }

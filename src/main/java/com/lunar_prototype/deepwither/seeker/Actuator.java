@@ -32,7 +32,22 @@ public class Actuator {
         // 2. 移動戦略の実行
         handleMovement(entity, decision.movement, coverLoc);
 
-        // 3. スキル・コミュニケーションの実行
+        // 3. 慣性攻撃チェック (New!)
+        // Velocityがかかっている状態でも、一定距離内に敵がいれば「すれ違いざま」に殴る
+        if (entity.getTarget() != null) {
+            double dist = entity.getLocation().distance(entity.getTarget().getLocation());
+            double reach = 3.5; // 少し広めに設定
+
+            // バックステップ中やダッシュ中、相手が射程内にいれば攻撃トリガー
+            if (dist <= reach) {
+                // 高温(GAS)時は、狂ったように振り回す
+                if (Deepwither.getInstance().getAiEngine().getBrain(activeMob.getUniqueId()).systemTemperature > 1.2f || Math.random() < 0.3) {
+                    entity.attack(entity.getTarget());
+                }
+            }
+        }
+
+        // 4. スキル・コミュニケーションの実行
         handleActions(activeMob, decision);
     }
 
@@ -276,50 +291,69 @@ public class Actuator {
     }
 
     /**
-     * TQH相転移と空間検知を組み合わせた高精度回避
+     * TQH相転移と空間検知を組み合わせた高精度回避 + カウンター
      */
     private void performEvasiveStep(Mob entity, String strategy, LiquidBrain brain) {
         if (entity.getTarget() == null) return;
 
         Location selfLoc = entity.getLocation();
-        Location targetLoc = entity.getTarget().getLocation();
+        Entity target = entity.getTarget();
+        Location targetLoc = target.getLocation();
         Vector awayDir = selfLoc.toVector().subtract(targetLoc.toVector()).setY(0).normalize();
 
         Location bestDest = null;
 
         // 1. 基本戦略の座標計算
         if (strategy.equals("BACKSTEP")) {
-            bestDest = findSafeDestination(selfLoc, awayDir, 3.5); // 少し距離を伸ばす
+            bestDest = findSafeDestination(selfLoc, awayDir, 3.5);
         }
 
-        // バックステップが不可能（壁など）、またはサイドステップ戦略の場合
         if (bestDest == null || strategy.equals("SIDESTEP")) {
-            // 右と左の両方をチェックし、より開けている方を選択
             Vector leftDir = new Vector(-awayDir.getZ(), 0, awayDir.getX());
             Vector rightDir = leftDir.clone().multiply(-1);
-
             Location leftDest = findSafeDestination(selfLoc, leftDir, 4.0);
             Location rightDest = findSafeDestination(selfLoc, rightDir, 4.0);
-
-            // ターゲットの視線（方位）も考慮して、より「死角」に近い方を選ばせるのが理想
             bestDest = (leftDest != null) ? leftDest : rightDest;
         }
 
         if (bestDest != null) {
-            // Pathfinderをリセットして強制移動
+            // --- カウンター処理 (New!) ---
+            // バックステップ時かつ、ターゲットが射程内(4m以内)にいる場合
+            if (strategy.equals("BACKSTEP") && selfLoc.distance(targetLoc) < 4.0) {
+                executeCounterStrike(entity, target, brain);
+            }
+
+            // --- 移動の実行 ---
             entity.getPathfinder().stopPathfinding();
 
-            // 高温(GAS)時は、Pathfinderを待たずVelocityでも補佐（キレを出す）
-            if (brain.systemTemperature > 1.0f) {
-                Vector jumpDir = bestDest.toVector().subtract(selfLoc.toVector()).normalize().multiply(0.5);
-                entity.setVelocity(entity.getVelocity().add(jumpDir.setY(0.2)));
+            if (brain.systemTemperature > 1.0f) { // GAS相: 爆発的な回避
+                Vector jumpDir = bestDest.toVector().subtract(selfLoc.toVector()).normalize().multiply(0.6);
+                entity.setVelocity(entity.getVelocity().add(jumpDir.setY(0.25)));
             }
 
             entity.getPathfinder().moveTo(bestDest, 1.8);
 
-            // [2026-01-12] 回避時のFLASH演出
-            int[] rgb = brain.getTQHFlashColor();
+            // 演出: 回避のクラウドパーティクル
             entity.getWorld().spawnParticle(org.bukkit.Particle.CLOUD, selfLoc, 3, 0.2, 0.1, 0.2, 0.02);
+        }
+    }
+
+    /**
+     * 回避中のカウンター攻撃
+     */
+    private void executeCounterStrike(Mob entity, Entity target, LiquidBrain brain) {
+        // 1. 強制的にターゲットを向かせ、攻撃をトリガー
+        entity.attack(target);
+
+        Location eyeLoc = entity.getEyeLocation();
+
+        // 斬撃エフェクト
+        entity.getWorld().spawnParticle(org.bukkit.Particle.SWEEP_ATTACK, eyeLoc.add(entity.getLocation().getDirection().multiply(1.2)), 1);
+
+        // 3. 高温(GAS)時は、カウンターの衝撃で相手を少しノックバックさせる（追撃阻止）
+        if (brain.systemTemperature > 1.2f) {
+            Vector push = target.getLocation().toVector().subtract(entity.getLocation().toVector()).normalize().multiply(0.5).setY(0.2);
+            target.setVelocity(target.getVelocity().add(push));
         }
     }
 
