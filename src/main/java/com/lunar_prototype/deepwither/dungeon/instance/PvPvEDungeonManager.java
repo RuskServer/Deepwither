@@ -4,6 +4,13 @@ import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.api.DeepwitherPartyAPI;
 import com.lunar_prototype.deepwither.dungeon.DungeonGenerator;
 import com.lunar_prototype.deepwither.util.IManager;
+import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldguard.WorldGuard;
+import com.sk89q.worldguard.protection.flags.Flags;
+import com.sk89q.worldguard.protection.flags.StateFlag;
+import com.sk89q.worldguard.protection.managers.RegionManager;
+import com.sk89q.worldguard.protection.regions.ProtectedRegion;
+import com.sk89q.worldguard.protection.regions.RegionContainer;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
 
@@ -109,6 +116,7 @@ public class PvPvEDungeonManager implements IManager {
         }
 
         // ゲームルールの設定
+        setWorldGuardPvP(world, true);
         world.setGameRule(GameRule.DO_MOB_SPAWNING, false);
         world.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
         world.setGameRule(GameRule.KEEP_INVENTORY, false); // Keep Inventory有効
@@ -142,6 +150,31 @@ public class PvPvEDungeonManager implements IManager {
 
             spawnPlayerInInstance(host, inst);
         });
+    }
+
+    /**
+     * 指定したワールドのWorldGuardグローバルフラグでPvPを許可/拒否する
+     */
+    private void setWorldGuardPvP(World world, boolean allow) {
+        try {
+            RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+            RegionManager regions = container.get(BukkitAdapter.adapt(world));
+
+            if (regions != null) {
+                // グローバルリージョンを取得
+                ProtectedRegion globalRegion = regions.getRegion("__global__");
+                if (globalRegion != null) {
+                    // PvPフラグを設定
+                    globalRegion.setFlag(Flags.PVP, allow ? StateFlag.State.ALLOW : StateFlag.State.DENY);
+                    // 必要であればモブスポーンなどもWorldGuard側で許可する
+                    // globalRegion.setFlag(Flags.MOB_SPAWNING, StateFlag.State.ALLOW);
+
+                    plugin.getLogger().info("[WorldGuard] Set PvP to " + (allow ? "ALLOW" : "DENY") + " in " + world.getName());
+                }
+            }
+        } catch (Exception e) {
+            plugin.getLogger().severe("WorldGuardのフラグ設定中にエラーが発生しました: " + e.getMessage());
+        }
     }
 
     private void spawnPlayerInInstance(Player player, DungeonInstance inst) {

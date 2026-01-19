@@ -572,6 +572,13 @@ public class DamageManager implements Listener {
     }
 
     public void finalizeDamage(LivingEntity target, double damage, LivingEntity source, boolean isMagic) {
+        // 1. PvP チェック (攻撃者とターゲットが両方プレイヤーの場合)
+        if (source instanceof Player attacker && target instanceof Player playerTarget) {
+            if (isPvPPrevented(attacker, playerTarget)) {
+                // PvPが制限されている場合は、ダメージも無敵時間付与も行わずに終了
+                return;
+            }
+        }
         // 無敵時間の付与 (即座に設定して後続のバニライベントを弾く)
         iFrameEndTimes.put(target.getUniqueId(), System.currentTimeMillis() + DAMAGE_I_FRAME_MS);
 
@@ -603,9 +610,6 @@ public class DamageManager implements Listener {
 
     public void applyCustomDamage(LivingEntity target, double damage, Player damager) {
         if (target instanceof Player p) {
-            if (this.isPvPPrevented(damager, target)) {
-                return;
-            }
             processPlayerDamageWithAbsorption(p, damage, damager.getName());
         } else {
             isProcessingDamage.add(damager.getUniqueId());
