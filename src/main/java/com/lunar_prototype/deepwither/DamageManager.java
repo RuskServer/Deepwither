@@ -611,21 +611,39 @@ public class DamageManager implements Listener {
     public void applyCustomDamage(LivingEntity target, double damage, Player damager) {
         if (target instanceof Player p) {
             processPlayerDamageWithAbsorption(p, damage, damager.getName());
-        } else {
-            isProcessingDamage.add(damager.getUniqueId());
-            try {
-                target.damage(damage, damager);
-                if (!target.isDead() && target.getHealth() <= 0.5) {
-                    target.setHealth(0.0);
-                    if (!target.isDead()) {
-                        target.getWorld().spawnParticle(Particle.FLASH, target.getLocation().add(0, 1, 0), 1);
-                        target.getWorld().playSound(target.getLocation(), Sound.ENTITY_GENERIC_DEATH, 1.0f, 1.0f);
+            return;
+        }
+
+        isProcessingDamage.add(damager.getUniqueId());
+        try {
+            double currentHealth = target.getHealth();
+
+            // 1. 今回のダメージで死ぬかどうかを判定
+            if (currentHealth <= damage) {
+                // 1. 無敵時間マップから削除（これをしないと、死亡イベント中のダメージが弾かれて処理が止まることがある）
+                iFrameEndTimes.remove(target.getUniqueId());
+                // トドメを刺す前にHPを最小にして、確実に次のdamage()で死ぬようにする
+                target.setHealth(0.5);
+                // バニラの死亡イベントを発生させる（経験値やドロップ、MythicMobsの死亡スキル用）
+                target.damage(100.0, damager);
+
+                // 2. 数ティック待っても消えていなかったら物理的に消去（保険）
+                // target.isDead() が false のまま残るのが「無敵幽霊」の正体
+                Bukkit.getScheduler().runTaskLater(Deepwither.getInstance(), () -> {
+                    if (target.isValid() && !target.isDead()) {
+                        // まだ残っているなら、ドロップ等を無視して消去
                         target.remove();
                     }
-                }
-            } finally {
-                isProcessingDamage.remove(damager.getUniqueId());
+                }, 3L); // 3ティック(0.15秒)程度待つ
+
+            } else {
+                // 通常のダメージ処理
+                target.damage(damage, damager);
             }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            isProcessingDamage.remove(damager.getUniqueId());
         }
     }
 
