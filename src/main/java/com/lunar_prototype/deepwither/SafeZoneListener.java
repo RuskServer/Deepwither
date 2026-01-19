@@ -106,33 +106,45 @@ public class SafeZoneListener implements Listener {
         Player player = event.getPlayer();
         UUID playerUUID = player.getUniqueId();
 
-        // 永続化データから保存されたリスポーン地点を取得
+        // 永続化データからセーフゾーンのリスポーン地点を取得
         Location safeZoneSpawn = plugin.getSafeZoneSpawn(playerUUID);
 
-        // ★ Dungeon Instance Respawn Check
-        com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager dim = com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager
-                .getInstance();
+        // ダンジョン管理クラスの取得
+        com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager dim =
+                com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager.getInstance();
+
         if (dim != null) {
-            com.lunar_prototype.deepwither.dungeon.instance.DungeonInstance dInstance = dim
-                    .getPlayerInstance(playerUUID);
-            // プレイヤーがダンジョン管理下にあり、かつ現在地もダンジョンワールドである場合
-            // (ワールド名チェックは念のため)
-            if (dInstance != null && player.getWorld().equals(dInstance.getWorld())) {
-                // ダンジョンスタート地点 (0, 64, 0) へリスポーン
-                // 将来的にはチェックポイントがあればそこを使う
-                event.setRespawnLocation(new Location(dInstance.getWorld(), 0.5, 64, 0.5));
-                return; // セーフゾーン処理をスキップ
+            com.lunar_prototype.deepwither.dungeon.instance.DungeonInstance dInstance = dim.getPlayerInstance(playerUUID);
+
+            if (dInstance != null) {
+                // ★ PvPvEダンジョンかどうかをワールド名で判定
+                if (dInstance.getWorld().getName().startsWith("pvpve_")) {
+
+                    // 1. リスポーン地点をセーフゾーンに強制変更
+                    if (safeZoneSpawn != null) {
+                        event.setRespawnLocation(safeZoneSpawn);
+                    }
+
+                    // 2. ダンジョンインスタンスからプレイヤーを脱退させる
+                    // これにより、BossBarの削除やインスタンスの人数カウントが正しく行われます
+                    dInstance.removePlayer(player.getUniqueId());
+                    Deepwither.getInstance().getRoguelikeBuffManager().clearBuffs(player);
+
+                    player.sendMessage("§c§l[Dungeon] §r§c死亡したため、ダンジョンから追放されました。");
+                    return;
+                }
+
+                // ローグライク等、別のダンジョン形式で「その場リスポーン」を許容する場合の既存ロジック
+                if (player.getWorld().equals(dInstance.getWorld())) {
+                    event.setRespawnLocation(new Location(dInstance.getWorld(), 0.5, 64, 0.5));
+                    return;
+                }
             }
         }
 
+        // ダンジョン外、または通常のセーフゾーン処理
         if (safeZoneSpawn != null) {
-            // イベントのリスポーン地点を保存された地点に設定
             event.setRespawnLocation(safeZoneSpawn);
-
-            // 💡 補足: Bukkit 1.9以降では setRespawnLocation を使用すると、
-            // イベント処理後にサーバーが自動でテレポートを実行します。
-            // したがって、手動で player.teleport(safeZoneSpawn) を呼び出す必要はありません。
-            // （ただし、確実性を高めるために、後のティックで手動テレポートを追加することもあります）
         }
     }
 }

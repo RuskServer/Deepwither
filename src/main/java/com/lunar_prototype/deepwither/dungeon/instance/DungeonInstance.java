@@ -63,11 +63,13 @@ public class DungeonInstance {
 
     public void addPlayer(UUID uuid) {
         currentPlayers.add(uuid);
+        timerBar.addPlayer(Bukkit.getPlayer(uuid)); // ここでプレイヤーの画面に表示される
         lastEmptyTime = -1; // プレイヤーがいる状態
     }
 
     public void removePlayer(UUID uuid) {
         currentPlayers.remove(uuid);
+        timerBar.removePlayer(Bukkit.getPlayer(uuid)); // 画面から消す
         if (currentPlayers.isEmpty()) {
             lastEmptyTime = System.currentTimeMillis();
         }
@@ -87,6 +89,7 @@ public class DungeonInstance {
     private int remainingSeconds = MAX_TIME_SECONDS;
 
     private BukkitTask timerTask;
+
     public void startLifeCycle() {
         // 1秒ごとに更新するタスク
         timerTask = new BukkitRunnable() {

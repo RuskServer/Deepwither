@@ -178,11 +178,9 @@ public class DungeonExtractionManager {
         player.sendTitle("§a§lSUCCESS", "§fダンジョンから無事脱出した！", 10, 70, 20);
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
 
-        // ここでインベントリの保存処理などを呼び出す
-        // savePlayerDungeonData(player);
-
         // ロビー等へ転送（DungeonInstanceManagerのleaveを使用）
         DungeonInstanceManager.getInstance().leaveDungeon(player);
+        Deepwither.getInstance().getRoguelikeBuffManager().clearBuffs(player);
 
         Bukkit.broadcastMessage("§7[Deepwither] §b" + player.getName() + " §fがダンジョンから生還しました！");
     }
