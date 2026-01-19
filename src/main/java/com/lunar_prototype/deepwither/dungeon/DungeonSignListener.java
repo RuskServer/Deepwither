@@ -50,6 +50,8 @@ public class DungeonSignListener implements Listener {
             File dungeonFile = new File(Deepwither.getInstance().getDataFolder(), "dungeons/" + dungeonId + ".yml");
             FileConfiguration config = YamlConfiguration.loadConfiguration(dungeonFile);
 
+            event.setCancelled(true);
+
             new DungeonDifficultyGUI(dungeonId, config).open(player);
 
         }
