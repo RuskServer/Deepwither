@@ -232,16 +232,14 @@ class LoreBuilder {
     private static void addTwoColumnLore(List<String> mainLore, List<String> items) {
         if (items.isEmpty()) return;
 
-        // 1. 左側(偶数インデックス)の最大幅を計算
         int maxLeftWidth = 0;
         for (int i = 0; i < items.size(); i += 2) {
             int width = getMinecraftStringWidth(items.get(i));
             if (width > maxLeftWidth) maxLeftWidth = width;
         }
 
-        // 2. 基準幅を決定（最大幅 + 少しの余裕）
-        // 余裕を持たせることで、長い行と短い行の「右側の開始位置」を完全に統一します。
-        int targetWidth = maxLeftWidth + 16;
+        // 余裕を 10px (スペース約2.5個分) に縮小
+        int targetWidth = maxLeftWidth + 10;
 
         for (int i = 0; i < items.size(); i += 2) {
             String left = items.get(i);
@@ -250,7 +248,6 @@ class LoreBuilder {
                 break;
             }
             String right = items.get(i + 1);
-            // パディングを計算して結合
             mainLore.add(" " + padToWidth(left, targetWidth) + "§r" + right);
         }
     }
@@ -318,16 +315,17 @@ class LoreBuilder {
     }
 
     private static int getCharWidth(char c) {
-        // 1. 特殊アイコン (実測値に基づき微調整)
-        if (c == '☆') return 9; // 星アイコンを追加
-        if (c == '➸') return 9;
-        if (c == '✠') return 10; // ✠は10pxの方が安定するケースが多いです
-        if (c == '■') return 7;
-        if (c == '⌛') return 8;
-        if (c == '•') return 8;
-        if (c == '»') return 7;
+        // 1. 特殊アイコン (1pxの隙間を含んだ実測値)
+        if (c == '❤') return 9;  // ハートアイコンを追加
+        if (c == '➸') return 10;
+        if (c == '✠') return 10;
+        if (c == '☆') return 9;
+        if (c == '■') return 8;  // ■は8px程度が最も安定します
+        if (c == '⌛') return 9;
+        if (c == '•') return 5;
+        if (c == '»') return 9;
 
-        // 2. 特殊な幅の半角英数字
+        // 2. 特殊な幅の半角記号
         if ("i.:,;|!".indexOf(c) != -1) return 2;
         if ("l'".indexOf(c) != -1) return 3;
         if ("I[]t".indexOf(c) != -1) return 4;
@@ -335,7 +333,7 @@ class LoreBuilder {
         if (c == ' ') return 4;
 
         // 3. 全角文字 (日本語/全角記号)
-        // Java版Minecraftのデフォルトでは全角は13px（文字12+隙間1）として扱うと安定します
+        // 12px(描画) + 1px(隙間) = 13px。ここが12だと、長い日本語で数pxの誤差が出ます。
         if (c > 255) return 13;
 
         // 4. 標準的な英数字
