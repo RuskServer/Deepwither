@@ -331,7 +331,7 @@ class LoreBuilder {
 
         // 3. 全角文字 (日本語/全角記号)
         // Java版Minecraftのデフォルトでは全角は13px（文字12+隙間1）として扱うと安定します
-        if (c > 255) return 12;
+        if (c > 255) return 13;
 
         // 4. 標準的な英数字
         return 6;
