@@ -232,17 +232,17 @@ class LoreBuilder {
     private static void addTwoColumnLore(List<String> mainLore, List<String> items) {
         if (items.isEmpty()) return;
 
-        // 1. 左側に配置される予定の項目の中で、最大のピクセル幅を計算する
+        // 1. 左側(偶数インデックス)の最大幅を計算
         int maxLeftWidth = 0;
         for (int i = 0; i < items.size(); i += 2) {
             int width = getMinecraftStringWidth(items.get(i));
             if (width > maxLeftWidth) maxLeftWidth = width;
         }
 
-        // 2. 算出した最大幅に、一律で少しの余裕（例: 12px = スペース3個分程度）を加える
-        int targetWidth = maxLeftWidth + 12;
+        // 2. 基準幅を決定（最大幅 + 少しの余裕）
+        // 余裕を持たせることで、長い行と短い行の「右側の開始位置」を完全に統一します。
+        int targetWidth = maxLeftWidth + 16;
 
-        // 3. その幅を基準に2列化する
         for (int i = 0; i < items.size(); i += 2) {
             String left = items.get(i);
             if (i + 1 >= items.size()) {
@@ -250,6 +250,7 @@ class LoreBuilder {
                 break;
             }
             String right = items.get(i + 1);
+            // パディングを計算して結合
             mainLore.add(" " + padToWidth(left, targetWidth) + "§r" + right);
         }
     }
@@ -294,16 +295,20 @@ class LoreBuilder {
                 continue;
             }
             if (nextIsColor) {
-                // 太字(l)ならフラグを立てる。r, 0-9, a-f なら解除（簡易版より厳密化）
-                if (String.valueOf(c).matches("[lL]")) isBold = true;
-                else if (String.valueOf(c).matches("[rR0-9a-fA-F]")) isBold = false;
+                char lower = Character.toLowerCase(c);
+                if (lower == 'l') {
+                    isBold = true;
+                } else if ("0123456789abcdefr".indexOf(lower) != -1) {
+                    // 色コードまたはリセットが来たら太字は強制解除される
+                    isBold = false;
+                }
                 nextIsColor = false;
                 continue;
             }
 
             int charWidth = getCharWidth(c);
-            // 重要：太字は「文字部分」が1px太くなる。スペースは4px→5pxになる。
             if (isBold) {
+                // 太字は文字部分が1px太くなる（スペースは4->5pxになる）
                 length += (c == ' ') ? 5 : (charWidth + 1);
             } else {
                 length += charWidth;
