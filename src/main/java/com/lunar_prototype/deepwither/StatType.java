@@ -213,7 +213,7 @@ class LoreBuilder {
         }
 
         // 基礎ステータス
-        statLines.add("§f§l[基礎ステータス]");
+        lore.add("§f§l[基礎ステータス]"); // 見出しは1列で表示
         statLines.add("");
         for (StatType type : stats.getAllTypes()) {
             double flat = stats.getFlat(type);
@@ -304,6 +304,7 @@ class LoreBuilder {
     private static int getCharWidth(char c) {
         // --- 特殊アイコンの幅 (重要) ---
         if (c == '➸') return 9; // 矢印アイコン
+        if (c == '✠') return 9; // 追加: 十字/紋章アイコン (通常9px)
         if (c == '■') return 8; // 四角アイコン
         if (c == '⌛') return 8; // 砂時計アイコン
         if (c == '•') return 7; // ドットアイコン
