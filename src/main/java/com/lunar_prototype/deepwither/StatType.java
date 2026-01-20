@@ -208,7 +208,7 @@ class LoreBuilder {
                 mods.add(formatModifierStat(entry.getKey(), entry.getValue()));
             }
             // 中身だけを2列化
-            addTwoColumnLore(lore, mods, 180);
+            addTwoColumnLore(lore, mods);
             lore.add(""); // セクション間に少し隙間
         }
 
@@ -223,25 +223,34 @@ class LoreBuilder {
             baseStats.add(formatStat(type, flat, percent, compact));
         }
         // 中身だけを2列化
-        addTwoColumnLore(lore, baseStats, 180);
+        addTwoColumnLore(lore, baseStats);
 
         lore.add("§8§m-----------------------------");
         return lore;
     }
 
-    private static void addTwoColumnLore(List<String> mainLore, List<String> items, int leftWidth) {
+    private static void addTwoColumnLore(List<String> mainLore, List<String> items) {
+        if (items.isEmpty()) return;
+
+        // 1. 左側に配置される予定の項目の中で、最大のピクセル幅を計算する
+        int maxLeftWidth = 0;
+        for (int i = 0; i < items.size(); i += 2) {
+            int width = getMinecraftStringWidth(items.get(i));
+            if (width > maxLeftWidth) maxLeftWidth = width;
+        }
+
+        // 2. 算出した最大幅に、一律で少しの余裕（例: 12px = スペース3個分程度）を加える
+        int targetWidth = maxLeftWidth + 12;
+
+        // 3. その幅を基準に2列化する
         for (int i = 0; i < items.size(); i += 2) {
             String left = items.get(i);
-
             if (i + 1 >= items.size()) {
-                // 奇数個目の最後は1つだけ表示
                 mainLore.add(" " + left);
                 break;
             }
-
             String right = items.get(i + 1);
-            // パディングして結合。必ず §r を挟んで書式をリセットする
-            mainLore.add(" " + padToWidth(left, leftWidth) + "§r" + right);
+            mainLore.add(" " + padToWidth(left, targetWidth) + "§r" + right);
         }
     }
 
@@ -250,18 +259,15 @@ class LoreBuilder {
         int currentPx = getMinecraftStringWidth(text);
         int neededPx = targetPx - currentPx;
 
-        if (neededPx <= 0) return text + "  ";
+        // 余裕を持って計算しているが、念のための安全策
+        if (neededPx < 8) {
+            return text + "  ";
+        }
 
         StringBuilder sb = new StringBuilder(text);
-
-        // 1px単位の調整はMinecraft標準フォントでは「§l 」(5px)と「 」(4px)の組み合わせが限界です。
-        // もしそれでもズレる場合、そもそもgetCharWidthの定義が実際の環境と1pxズレています。
-
-        // neededPx を 4 と 5 の組み合わせで可能な限り埋める
         int n5 = 0;
         int n4 = 0;
 
-        // 数学的解法: 5x + 4y = needed
         switch (neededPx % 4) {
             case 0 -> n4 = neededPx / 4;
             case 1 -> { n5 = 1; n4 = (neededPx - 5) / 4; }
@@ -269,9 +275,7 @@ class LoreBuilder {
             case 3 -> { n5 = 3; n4 = (neededPx - 15) / 4; }
         }
 
-        if (n4 < 0) { n4 = 0; n5 = neededPx / 5; } // 小さすぎる場合の安全策
-
-        sb.append("§r"); // 一旦リセット
+        sb.append("§r");
         if (n5 > 0) sb.append("§l").append(" ".repeat(n5)).append("§r");
         if (n4 > 0) sb.append(" ".repeat(n4));
 
