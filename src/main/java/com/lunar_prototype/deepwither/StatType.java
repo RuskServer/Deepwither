@@ -213,7 +213,7 @@ class LoreBuilder {
         }
 
         // 基礎ステータス
-        lore.add("§f§l[基礎ステータス]"); // 見出しは1列で表示
+        statLines.add("§f§l[基礎ステータス]"); // 見出しは1列で表示
         statLines.add("");
         for (StatType type : stats.getAllTypes()) {
             double flat = stats.getFlat(type);
@@ -247,33 +247,37 @@ class LoreBuilder {
         return lore;
     }
 
+    // padToWidthを以下のように「最小単位2px」まで落とし込んで再構成します
     private static String padToWidth(String text, int targetPx) {
         int currentPx = getMinecraftStringWidth(text);
         int neededPx = targetPx - currentPx;
 
-        if (neededPx <= 0) return text + "  "; // 最低限の隙間
-
-        int boldSpaces = 0;
-        int normalSpaces = 0;
-
-        // 4px と 5px(太字) を使って 1px 単位で隙間を埋める
-        for (int b = 0; b < 5; b++) {
-            int remainder = neededPx - (b * 5);
-            if (remainder >= 0 && remainder % 4 == 0) {
-                boldSpaces = b;
-                normalSpaces = remainder / 4;
-                break;
-            }
-        }
-        // ループで見つからない場合(neededPxが小さい場合)のフォールバック
-        if (boldSpaces == 0 && normalSpaces == 0) {
-            normalSpaces = neededPx / 4;
-        }
+        if (neededPx <= 0) return text + "  ";
 
         StringBuilder sb = new StringBuilder(text);
-        if (boldSpaces > 0) sb.append("§r§l").append(" ".repeat(boldSpaces));
-        if (normalSpaces > 0) sb.append("§r").append(" ".repeat(normalSpaces));
-        return sb.toString() + "§r";
+
+        // 1px単位の調整はMinecraft標準フォントでは「§l 」(5px)と「 」(4px)の組み合わせが限界です。
+        // もしそれでもズレる場合、そもそもgetCharWidthの定義が実際の環境と1pxズレています。
+
+        // neededPx を 4 と 5 の組み合わせで可能な限り埋める
+        int n5 = 0;
+        int n4 = 0;
+
+        // 数学的解法: 5x + 4y = needed
+        switch (neededPx % 4) {
+            case 0 -> n4 = neededPx / 4;
+            case 1 -> { n5 = 1; n4 = (neededPx - 5) / 4; }
+            case 2 -> { n5 = 2; n4 = (neededPx - 10) / 4; }
+            case 3 -> { n5 = 3; n4 = (neededPx - 15) / 4; }
+        }
+
+        if (n4 < 0) { n4 = 0; n5 = neededPx / 5; } // 小さすぎる場合の安全策
+
+        sb.append("§r"); // 一旦リセット
+        if (n5 > 0) sb.append("§l").append(" ".repeat(n5)).append("§r");
+        if (n4 > 0) sb.append(" ".repeat(n4));
+
+        return sb.toString();
     }
 
     private static int getMinecraftStringWidth(String text) {
