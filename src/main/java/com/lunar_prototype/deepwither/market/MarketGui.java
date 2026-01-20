@@ -96,6 +96,8 @@ public class MarketGui implements Listener {
             ItemMeta meta = displayItem.getItemMeta();
             List<Component> lore = meta.hasLore() ? meta.lore() : new ArrayList<>();
 
+            meta.getPersistentDataContainer().set(LISTING_ID_KEY, PersistentDataType.STRING, listing.getId().toString());
+
             lore.add(Component.text("§8----------------"));
             lore.add(Component.text("§7出品者: " + Bukkit.getOfflinePlayer(listing.getSellerId()).getName()));
             lore.add(Component.text("§e価格: " + listing.getPrice() + " G"));
