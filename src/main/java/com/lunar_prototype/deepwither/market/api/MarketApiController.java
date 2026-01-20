@@ -34,8 +34,14 @@ public class MarketApiController {
     public void start(int port) {
         try {
             server = HttpServer.create(new InetSocketAddress(port), 0);
+
+            // 従来の特定プレイヤー検索: /api/market?discordId=...
             server.createContext("/api/market", new MarketHandler());
-            server.setExecutor(null); // デフォルトのエグゼキュータ
+
+            // 追加: 全出品アイテム取得: /api/market/all
+            server.createContext("/api/market/all", new AllListingsHandler());
+
+            server.setExecutor(null);
             server.start();
             plugin.getLogger().info("Market API Server started on port " + port);
         } catch (IOException e) {
@@ -47,13 +53,41 @@ public class MarketApiController {
         if (server != null) server.stop(0);
     }
 
+    /**
+     * 新規追加: 全出品アイテムを返すハンドラー
+     */
+    private class AllListingsHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            setCommonHeaders(exchange);
+
+            // 全出品を取得
+            List<MarketListing> allListings = marketManager.getAllListings();
+            List<MarketListingDTO> dtos = allListings.stream()
+                    .map(MarketListingDTO::new)
+                    .collect(Collectors.toList());
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("total", dtos.size());
+            response.put("listings", dtos);
+
+            sendResponse(exchange, 200, response);
+        }
+    }
+
+    /**
+     * 従来のハンドラー（特定プレイヤー用）
+     */
     private class MarketHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            // CORSヘッダー（必要に応じて）
-            exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-            exchange.getResponseHeaders().add("Content-Type", "application/json; charset=UTF-8");
+            // パスが完全に "/api/market" の場合のみ処理 ( /api/market/all に干渉しないため)
+            if (!exchange.getRequestURI().getPath().equals("/api/market")) {
+                sendResponse(exchange, 404, Map.of("error", "Not Found"));
+                return;
+            }
 
+            setCommonHeaders(exchange);
             Map<String, String> params = queryToMap(exchange.getRequestURI().getQuery());
             String discordId = params.get("discordId");
 
@@ -62,27 +96,25 @@ public class MarketApiController {
                 return;
             }
 
-            // 1. DiscordSRVでUUIDを取得
             UUID uuid = DiscordSRV.getPlugin().getAccountLinkManager().getUuid(discordId);
-
             if (uuid == null) {
                 sendResponse(exchange, 404, Map.of("error", "No Minecraft account linked to this Discord ID"));
                 return;
             }
 
-            // 2. GlobalMarketManagerから情報を取得
             List<MarketListing> listings = marketManager.getListingsByPlayer(uuid);
             List<MarketListingDTO> dtos = listings.stream()
                     .map(MarketListingDTO::new)
                     .collect(Collectors.toList());
 
-            // 3. レスポンス送信
-            Map<String, Object> response = new HashMap<>();
-            response.put("uuid", uuid.toString());
-            response.put("listings", dtos);
-
-            sendResponse(exchange, 200, response);
+            sendResponse(exchange, 200, Map.of("uuid", uuid.toString(), "listings", dtos));
         }
+    }
+
+    // ヘッダー設定の共通化
+    private void setCommonHeaders(HttpExchange exchange) {
+        exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+        exchange.getResponseHeaders().add("Content-Type", "application/json; charset=UTF-8");
     }
 
     private void sendResponse(HttpExchange exchange, int statusCode, Object data) throws IOException {
