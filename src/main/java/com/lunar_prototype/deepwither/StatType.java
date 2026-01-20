@@ -281,23 +281,28 @@ class LoreBuilder {
     }
 
     private static int getMinecraftStringWidth(String text) {
-        if (text == null) return 0;
+        if (text == null || text.isEmpty()) return 0;
         int length = 0;
         boolean isBold = false;
         boolean nextIsColor = false;
 
         for (char c : text.toCharArray()) {
-            if (c == '§') { nextIsColor = true; continue; }
+            if (c == '§') {
+                nextIsColor = true;
+                continue;
+            }
             if (nextIsColor) {
-                if (c == 'l' || c == 'L') isBold = true;
-                else if (c == 'r' || c == 'R') isBold = false;
+                // 太字(l)ならフラグを立てる。r, 0-9, a-f なら解除（簡易版より厳密化）
+                if (String.valueOf(c).matches("[lL]")) isBold = true;
+                else if (String.valueOf(c).matches("[rR0-9a-fA-F]")) isBold = false;
                 nextIsColor = false;
                 continue;
             }
+
             int charWidth = getCharWidth(c);
+            // 重要：太字は「文字部分」が1px太くなる。スペースは4px→5pxになる。
             if (isBold) {
-                if (c == ' ') length += 5;
-                else length += charWidth + 1;
+                length += (c == ' ') ? 5 : (charWidth + 1);
             } else {
                 length += charWidth;
             }
@@ -306,31 +311,32 @@ class LoreBuilder {
     }
 
     private static int getCharWidth(char c) {
-        // --- 特殊アイコンの幅 (重要) ---
-        if (c == '➸') return 9; // 矢印アイコン
-        if (c == '✠') return 9; // 追加: 十字/紋章アイコン (通常9px)
-        if (c == '■') return 8; // 四角アイコン
-        if (c == '⌛') return 8; // 砂時計アイコン
-        if (c == '•') return 7; // ドットアイコン
-        if (c == '»') return 7; // 引用符アイコン
+        // 1. 特殊アイコン (実測値に基づき微調整)
+        if (c == '➸') return 9;
+        if (c == '■') return 7; // ■は意外と狭い(7px)
+        if (c == '✠') return 9;
+        if (c == '⌛') return 8;
+        if (c == '•') return 7; // 中点
+        if (c == '»') return 7;
 
-        // 記号類
-        if ("i.,l|!:;".indexOf(c) != -1) return 2;
-        if ("' ".indexOf(c) != -1) return 4;
-        if ("t[]()".indexOf(c) != -1) return 5;
-        if ("*\"<>".indexOf(c) != -1) return 5;
+        // 2. 特殊な幅の半角英数字
+        if ("i.:,;|!".indexOf(c) != -1) return 2;
+        if ("l'".indexOf(c) != -1) return 3;
+        if ("I[]t".indexOf(c) != -1) return 4;
+        if ("<>\"()*".indexOf(c) != -1) return 5;
+        if (c == ' ') return 4;
 
-        // 日本語 (Unicode)
-        // Minecraftの全角文字はグリッド状に配置され、実質的な幅は12pxです。
-        if (Character.toString(c).matches("[^\\x00-\\x7F]")) return 12;
+        // 3. 全角文字 (日本語/全角記号)
+        // Java版Minecraftのデフォルトでは全角は13px（文字12+隙間1）として扱うと安定します
+        if (c > 255) return 13;
 
-        // 基本英数字
+        // 4. 標準的な英数字
         return 6;
     }
 
     private static String formatModifierStat(StatType type, double value) {
         // アイコンとテキストの間に余計な空白を入れず、padToWidthに計算させる
-        return "§d» " + type.getIcon() + " " + type.getDisplayName() + ": §d+" + String.format("%.1f", value);
+        return "§d• " + type.getIcon() + " " + type.getDisplayName() + ": §d+" + String.format("%.1f", value);
     }
 
     private static String formatStat(StatType type, double flat, double percent, boolean compact) {
