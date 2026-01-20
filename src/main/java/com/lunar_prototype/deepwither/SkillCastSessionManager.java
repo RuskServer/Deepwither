@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither;
 
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Sound;
@@ -96,6 +97,7 @@ public class SkillCastSessionManager implements Listener {
         if (skillModePlayers.contains(uuid)) {
             skillModePlayers.remove(uuid);
             skillSlotOffsetMap.remove(uuid);
+            player.sendActionBar(Component.text(" "));
             player.playSound(player.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 1.0f, 2.0f);
             return;
         }
