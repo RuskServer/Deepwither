@@ -248,6 +248,12 @@ class LoreBuilder {
                 break;
             }
             String right = items.get(i + 1);
+            int leftWidth = getMinecraftStringWidth(left);
+            String padded = padToWidth(left, targetWidth);
+            int finalWidth = getMinecraftStringWidth(padded);
+
+            System.out.println(String.format("[Debug] Line %d: '%s' (Original: %dpx -> Padded: %dpx / Target: %dpx)",
+                    i, left, leftWidth, finalWidth, targetWidth));
             mainLore.add(" " + padToWidth(left, targetWidth) + "§r" + right);
         }
     }
@@ -257,25 +263,38 @@ class LoreBuilder {
         int currentPx = getMinecraftStringWidth(text);
         int neededPx = targetPx - currentPx;
 
-        // 余裕を持って計算しているが、念のための安全策
-        if (neededPx < 8) {
-            return text + "  ";
-        }
+        // targetPxより大きい場合でも、最低1つのスペース(4px)を入れる
+        if (neededPx < 4) return text + "    ";
 
         StringBuilder sb = new StringBuilder(text);
         int n5 = 0;
         int n4 = 0;
 
-        switch (neededPx % 4) {
-            case 0 -> n4 = neededPx / 4;
-            case 1 -> { n5 = 1; n4 = (neededPx - 5) / 4; }
-            case 2 -> { n5 = 2; n4 = (neededPx - 10) / 4; }
-            case 3 -> { n5 = 3; n4 = (neededPx - 15) / 4; }
+        // 4px(通常) と 5px(太字) の組み合わせで、可能な限り targetPx に近づける
+        // 5x + 4y = needed
+        int remainder = neededPx % 4;
+        if (remainder == 0) {
+            n4 = neededPx / 4;
+        } else if (remainder == 1) { // 5*1 + 4*(n-1)
+            n5 = 1; n4 = (neededPx - 5) / 4;
+        } else if (remainder == 2) { // 5*2 + 4*(n-2)
+            n5 = 2; n4 = (neededPx - 10) / 4;
+        } else if (remainder == 3) { // 5*3 + 4*(n-3)
+            n5 = 3; n4 = (neededPx - 15) / 4;
         }
+
+        // 計算ミスでマイナスになった場合の補正
+        if (n4 < 0) { n4 = 0; n5 = neededPx / 5; }
 
         sb.append("§r");
         if (n5 > 0) sb.append("§l").append(" ".repeat(n5)).append("§r");
         if (n4 > 0) sb.append(" ".repeat(n4));
+
+        // 最終チェックログ
+        int diff = targetPx - getMinecraftStringWidth(sb.toString());
+        if (diff != 0) {
+            System.out.println("[Debug] Padding Error: " + diff + "px remaining for text: " + text);
+        }
 
         return sb.toString();
     }
