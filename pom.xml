@@ -96,6 +96,10 @@
             <id>codemc-snapshots</id>
             <url>https://repo.codemc.io/repository/maven-snapshots/</url>
         </repository>
+        <repository>
+            <id>Scarsz-Nexus</id>
+            <url>https://nexus.scarsz.me/content/groups/public/</url>
+        </repository>
     </repositories>
 
     <dependencies>
@@ -172,6 +176,12 @@
             <groupId>io.github.toxicity188</groupId>
             <artifactId>bettermodel</artifactId>
             <version>1.15.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.discordsrv</groupId>
+            <artifactId>discordsrv</artifactId>
+            <version>1.28.0</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

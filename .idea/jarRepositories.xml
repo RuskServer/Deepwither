@@ -2,11 +2,6 @@
 <project version="4">
   <component name="RemoteRepositoriesConfiguration">
     <remote-repository>
-      <option name="id" value="codemc-snapshots" />
-      <option name="name" value="codemc-snapshots" />
-      <option name="url" value="https://repo.codemc.io/repository/maven-snapshots/" />
-    </remote-repository>
-    <remote-repository>
       <option name="id" value="central" />
       <option name="name" value="Central Repository" />
       <option name="url" value="https://repo.maven.apache.org/maven2" />
@@ -22,14 +17,9 @@
       <option name="url" value="https://oss.sonatype.org/content/groups/public/" />
     </remote-repository>
     <remote-repository>
-      <option name="id" value="codemc-releases" />
-      <option name="name" value="codemc-releases" />
-      <option name="url" value="https://repo.codemc.io/repository/maven-releases/" />
-    </remote-repository>
-    <remote-repository>
-      <option name="id" value="codemc-creatorfromhell" />
-      <option name="name" value="codemc-creatorfromhell" />
-      <option name="url" value="https://repo.codemc.io/repository/creatorfromhell/" />
+      <option name="id" value="Scarsz-Nexus" />
+      <option name="name" value="Scarsz-Nexus" />
+      <option name="url" value="https://nexus.scarsz.me/content/groups/public/" />
     </remote-repository>
     <remote-repository>
       <option name="id" value="papermc-repo" />
@@ -47,14 +37,29 @@
       <option name="url" value="https://repo1.maven.org/maven2" />
     </remote-repository>
     <remote-repository>
-      <option name="id" value="jboss.community" />
-      <option name="name" value="JBoss Community repository" />
-      <option name="url" value="https://repository.jboss.org/nexus/content/repositories/public/" />
-    </remote-repository>
-    <remote-repository>
       <option name="id" value="sk89q-repo" />
       <option name="name" value="sk89q-repo" />
       <option name="url" value="https://maven.enginehub.org/repo/" />
+    </remote-repository>
+    <remote-repository>
+      <option name="id" value="codemc-snapshots" />
+      <option name="name" value="codemc-snapshots" />
+      <option name="url" value="https://repo.codemc.io/repository/maven-snapshots/" />
+    </remote-repository>
+    <remote-repository>
+      <option name="id" value="codemc-releases" />
+      <option name="name" value="codemc-releases" />
+      <option name="url" value="https://repo.codemc.io/repository/maven-releases/" />
+    </remote-repository>
+    <remote-repository>
+      <option name="id" value="codemc-creatorfromhell" />
+      <option name="name" value="codemc-creatorfromhell" />
+      <option name="url" value="https://repo.codemc.io/repository/creatorfromhell/" />
+    </remote-repository>
+    <remote-repository>
+      <option name="id" value="jboss.community" />
+      <option name="name" value="JBoss Community repository" />
+      <option name="url" value="https://repository.jboss.org/nexus/content/repositories/public/" />
     </remote-repository>
     <remote-repository>
       <option name="id" value="nexus" />

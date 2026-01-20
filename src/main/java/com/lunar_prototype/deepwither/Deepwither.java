@@ -31,6 +31,7 @@ import com.lunar_prototype.deepwither.loot.LootChestManager;
 import com.lunar_prototype.deepwither.market.GlobalMarketManager;
 import com.lunar_prototype.deepwither.market.MarketGui;
 import com.lunar_prototype.deepwither.market.MarketSearchHandler;
+import com.lunar_prototype.deepwither.market.api.MarketApiController;
 import com.lunar_prototype.deepwither.mythic.ManaShieldMechanic;
 import com.lunar_prototype.deepwither.outpost.OutpostConfig;
 import com.lunar_prototype.deepwither.outpost.OutpostDamageListener;
@@ -51,6 +52,7 @@ import com.lunar_prototype.deepwither.town.TownBurstManager;
 import com.lunar_prototype.deepwither.tutorial.TutorialController;
 import com.lunar_prototype.deepwither.util.IManager;
 import com.lunar_prototype.deepwither.util.MythicMobSafeZoneManager;
+import github.scarsz.discordsrv.DiscordSRV;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import io.lumine.mythic.bukkit.events.MythicMechanicLoadEvent;
 import io.lumine.mythic.core.mobs.ActiveMob;
@@ -87,6 +89,7 @@ public final class Deepwither extends JavaPlugin {
     private Logger log;
 
     private static Deepwither instance;
+    private MarketApiController apiController;
 
     public static Deepwither getInstance() {
         return instance;
@@ -379,6 +382,9 @@ public final class Deepwither extends JavaPlugin {
 
         aiEngine = new SeekerAIEngine();
         Bukkit.getPluginManager().registerEvents(new CombatExperienceListener(aiEngine), this);
+
+        this.apiController = new MarketApiController(this, this.globalMarketManager);
+        this.apiController.start(9093); // ポートは任意
 
         statManager = new StatManager();
         companionManager = new CompanionManager(this);
