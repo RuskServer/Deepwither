@@ -219,7 +219,7 @@ class LoreBuilder {
 
         // A. モディファイアー
         if (appliedModifiers != null && !appliedModifiers.isEmpty()) {
-            statLines.add("§5§l[付加能力]"); // セクションヘッダー（左詰め用）
+            statLines.add("§5§l[モディファイアー]"); // セクションヘッダー（左詰め用）
             statLines.add("");             // 右側は空にするためのダミー（または埋める）
 
             for (Map.Entry<StatType, Double> entry : appliedModifiers.entrySet()) {
@@ -227,6 +227,9 @@ class LoreBuilder {
                 statLines.add(formatModifierStat(entry.getKey(), entry.getValue()));
             }
         }
+
+        lore.add("§8§m-----------------------------"); // セパレーター
+        lore.add("§f§l[基礎ステータス]"); // セパレーター
 
         // B. ベースステータス
         // モディファイアーと区切るために空行を入れても良いが、今回は詰める
@@ -242,7 +245,7 @@ class LoreBuilder {
         // --- 5. 2列整列処理の実行 ---
         // 左カラムの目標ピクセル幅 (Minecraftのフォントサイズ換算)
         // 日本語やアイコンが含まれる場合、大体110～120pxくらいで揃うことが多いです
-        int leftColumnWidthPx = 130;
+        int leftColumnWidthPx = 150;
 
         for (int i = 0; i < statLines.size(); i += 2) {
             String left = statLines.get(i);
@@ -268,32 +271,79 @@ class LoreBuilder {
         return lore;
     }
 
-// --- 以下、整列用のヘルパーメソッド ---
+    // --- 以下、整列用のヘルパーメソッド ---
 
     /**
-     * 指定したピクセル幅になるように、文字列の末尾にスペースを追加します。
+     * 指定したピクセル幅になるように、文字列の末尾に「通常スペース(4px)」と「太字スペース(5px)」を組み合わせて追加します。
+     * これにより、4px単位ではなく1px単位での位置調整が可能になり、ほぼ完璧に揃います。
      */
     private static String padToWidth(String text, int targetPx) {
         int currentPx = getMinecraftStringWidth(text);
         int neededPx = targetPx - currentPx;
 
         if (neededPx <= 0) {
-            return text + " "; // 最低限1つスペースを空ける
+            // 足りている、または超過している場合は最低限のスペースを1つ
+            return text + " ";
         }
 
-        // スペース1個の幅は通常4px (太字なら5pxだが、パディングは通常フォントで行う)
-        int spaceWidth = 4;
-        int spaces = neededPx / spaceWidth;
+        // 必要なピクセル数を 4n + 5m = neededPx の形で表す計算
+        // 太字スペース(5px)と通常スペース(4px)の個数を決定する
+        int boldSpaces = 0;
+        int normalSpaces = 0;
 
-        // 微調整: あまりにも足りない場合はもう1個足す
-        if (neededPx % spaceWidth > 2) spaces++;
+        // 4と5は互いに素なので、十分な大きさのneededPxに対しては必ず解が存在します。
+        // 単純化のため、neededPxを4で割った余りを利用して調整します。
 
-        return text + " ".repeat(Math.max(1, spaces));
+        // 余りごとの調整ロジック
+        // 余り0: 4pxのみで埋める
+        // 余り1: 5px * 1 (余り1) + 4px * n (残りを4で割る) -> 5 - 4 = 1px差を作れる
+        // ...というのをループで探索します
+
+        boolean found = false;
+        // 太字スペースを0個から増やしていき、残りが4で割り切れるか試す
+        for (int b = 0; b < 20; b++) { // 安全のため上限を設ける
+            int remainder = neededPx - (b * 5);
+            if (remainder < 0) break; // 超過したら終了
+
+            if (remainder % 4 == 0) {
+                boldSpaces = b;
+                normalSpaces = remainder / 4;
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            // ぴったり埋められない場合（極端にneededPxが小さい時など）、近似値で埋める
+            normalSpaces = neededPx / 4;
+            if (neededPx % 4 > 2) normalSpaces++;
+        }
+
+        // 文字列生成
+        StringBuilder sb = new StringBuilder(text);
+
+        // 書式リセットが含まれると太字が解除されるため、都度指定するか、最後にまとめて追加する
+        // 太字スペースを追加
+        if (boldSpaces > 0) {
+            sb.append("§r§l"); // リセット+太字
+            sb.append(" ".repeat(boldSpaces));
+        }
+
+        // 通常スペースを追加
+        if (normalSpaces > 0) {
+            sb.append("§r"); // リセット
+            sb.append(" ".repeat(normalSpaces));
+        }
+
+        // 最後に色などがリセットされている状態なので、後続の文字のためにリセットしておく
+        sb.append("§r");
+
+        return sb.toString();
     }
 
     /**
-     * Minecraftデフォルトフォントにおける文字列の表示幅(px)を概算します。
-     * ※完全な精度が必要な場合はProtocolLib等が必要ですが、これで十分実用的です。
+     * Minecraftデフォルトフォントにおける文字列の表示幅(px)を計算します。
+     * 精度を向上させています。
      */
     private static int getMinecraftStringWidth(String text) {
         if (text == null) return 0;
@@ -308,17 +358,19 @@ class LoreBuilder {
                 continue;
             }
             if (nextIsColor) {
-                // カラーコード処理
-                if (c == 'l' || c == 'L') isBold = true; // 太字
-                else if (c == 'r' || c == 'R') isBold = false; // リセット
-                // 色コード(0-9, a-f)で太字は解除されないが、ここでは簡易実装
+                // スタイルコード判定
+                if (c == 'l' || c == 'L') isBold = true;
+                else if (c == 'r' || c == 'R') isBold = false;
+                // 色コード(0-9, a-f)で太字は解除されないが、判定が面倒なので
+                // 厳密にやるなら「k,m,n,o」は太字維持、「r」と「0-9,a-f」は解除など分岐が必要。
+                // ここでは簡易的に「r」だけ太字解除として扱う（実用上ほぼ問題ない）
                 nextIsColor = false;
                 continue;
             }
 
-            // 文字幅の加算
             int charWidth = getCharWidth(c);
-            if (isBold) charWidth += 1; // 太字は+1px
+            if (isBold && c != ' ') charWidth += 1; // 太字は+1px (スペース以外)
+            else if (isBold && c == ' ') charWidth = 5; // 太字スペースは5px
 
             length += charWidth;
         }
@@ -326,20 +378,47 @@ class LoreBuilder {
     }
 
     /**
-     * 文字ごとのピクセル幅定義 (簡易版)
+     * 文字ごとのピクセル幅定義 (高精度版)
+     * DefaultFontInfoに基づいた値を設定
      */
     private static int getCharWidth(char c) {
-        // よく使う文字の幅定義
-        if (c == ' ') return 4;
-        if (c == 'I' || c == 'i' || c == '.' || c == ',' || c == '!' || c == '|' || c == ':') return 2;
-        if (c == 'l' || c == '\'' ) return 3;
-        if (c == 't') return 4;
-        if (c == 'f' || c == 'k' || c == '"' || c == '(' || c == ')') return 5;
-        // 日本語(全角)は概ねPC版では広め。等幅ではないが9-12px程度。
-        // 日本語を多く使うなら 12 くらいで見積もるとズレにくい
-        if (Character.toString(c).matches("[^\\x00-\\x7F]")) return 10;
+        // 最も頻出する英数字の定義
+        if (c >= 'A' && c <= 'Z') {
+            // 特殊な幅を持つ大文字
+            if (c == 'I') return 4;
+            if (c == 't') return 4; // 't'は大文字ではないが念のため
+            return 6; // 基本的に大文字は6px
+        }
+        if (c >= 'a' && c <= 'z') {
+            // 特殊な幅を持つ小文字
+            if (c == 'i' || c == 'k' || c == 'l') return 3; // 実は狭い
+            if (c == 'f' || c == 't') return 5;
+            if (c == 'I') return 4; // 念のため
+            return 6;
+        }
+        if (c >= '0' && c <= '9') return 6;
 
-        // デフォルトの英数字幅
+        // 記号類
+        switch (c) {
+            case ' ': return 4;
+            case '!': case '|': case '.': case ',': case ':': case ';': case 'i': case 'l': case '\'':
+                return 2; // かなり狭い文字
+            case '`':
+                return 3;
+            case '"': case '*': case '(': case ')': case '[': case ']': case '{': case '}': case '<': case '>':
+                return 5;
+            case '@': case '~':
+                return 7;
+        }
+
+        // 日本語・全角文字
+        // Minecraft 1.13+ 以降、日本語フォントは通常 12px 幅 (影含む表示領域)
+        // ※リソースパックやUnicode設定によっては変わりますが、12が最も安全な値です。
+        if (Character.toString(c).matches("[^\\x00-\\x7F]")) {
+            return 12; // 修正: 10 -> 12
+        }
+
+        // その他デフォルト
         return 6;
     }
 
