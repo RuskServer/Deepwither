@@ -169,273 +169,168 @@ class LoreBuilder {
         return newLore;
     }
 
+    /**
+     * 2列レイアウト用のメインビルドロジック（修正版）
+     */
     public static List<String> build(StatMap stats, boolean compact, String itemType, List<String> flavorText,
                                      ItemLoader.RandomStatTracker tracker, String rarity, Map<StatType, Double> appliedModifiers,
                                      FabricationGrade grade) {
         List<String> lore = new ArrayList<>();
 
-        // --- 1. ヘッダーセクション (グレード・名前・レアリティ) ---
-        // 中央揃えや装飾ラインでリッチにする
-        if (grade != null) {
-            lore.add(grade.getDisplayName()); // 例: "§e[ Grade-1 ]" など
-        }
+        // --- ヘッダー ---
+        if (grade != null) lore.add(grade.getDisplayName());
 
-        // タイプとレアリティを1行またはコンパクトにまとめる
         StringBuilder infoLine = new StringBuilder();
-        if (rarity != null && !rarity.isEmpty()) {
-            infoLine.append(rarity.replace("&", "§"));
-        }
-        if (itemType != null && !itemType.isEmpty()) {
-            if (infoLine.length() > 0) infoLine.append(" §f| "); // 区切り
-            infoLine.append("§7").append(itemType.replace("&", "§"));
-        }
-        if (infoLine.length() > 0) {
-            lore.add(infoLine.toString());
-        }
+        if (rarity != null) infoLine.append(rarity.replace("&", "§"));
+        if (itemType != null) infoLine.append(" §f| §7").append(itemType.replace("&", "§"));
+        if (infoLine.length() > 0) lore.add(infoLine.toString());
 
-        // --- 2. 品質 (Tracker) ---
         if (tracker != null) {
             double ratio = tracker.getRatio() * 100.0;
             String color = (ratio >= 90) ? "§6" : (ratio >= 70) ? "§e" : (ratio >= 50) ? "§a" : "§7";
-            // 右寄せっぽく見せるか、シンプルに表示
             lore.add("§f品質: " + color + Math.round(ratio) + "%");
         }
 
-        // --- 3. フレーバーテキスト ---
+        // --- フレーバー ---
         if (flavorText != null && !flavorText.isEmpty()) {
-            lore.add(""); // スペーサー
-            for (String line : flavorText) {
-                lore.add("§8§o" + line.replace("&", "§"));
-            }
-        }
-
-        lore.add("§8§m-----------------------------"); // セパレーター
-
-        // --- 4. ステータス表示 (2列グリッド化) ---
-
-        // 表示用リストの作成 (ここにはフォーマット済みの短い文字列を入れる)
-        // 例: "§c攻撃: +10"
-        List<String> statLines = new ArrayList<>();
-
-        // A. モディファイアー
-        if (appliedModifiers != null && !appliedModifiers.isEmpty()) {
-            statLines.add("§5§l[モディファイアー]"); // セクションヘッダー（左詰め用）
-            statLines.add("");             // 右側は空にするためのダミー（または埋める）
-
-            for (Map.Entry<StatType, Double> entry : appliedModifiers.entrySet()) {
-                // formatModifierStatは「アイコン + 名前 + 数値」を返す想定
-                statLines.add(formatModifierStat(entry.getKey(), entry.getValue()));
-            }
-        }
-
-        lore.add("§8§m-----------------------------"); // セパレーター
-        lore.add("§f§l[基礎ステータス]"); // セパレーター
-
-        // B. ベースステータス
-        // モディファイアーと区切るために空行を入れても良いが、今回は詰める
-        for (StatType type : stats.getAllTypes()) {
-            double flat = stats.getFlat(type);
-            double percent = stats.getPercent(type);
-            if (flat == 0 && percent == 0) continue;
-
-            // formatStatは「アイコン + 名前 + 数値」を返す想定
-            statLines.add(formatStat(type, flat, percent, compact));
-        }
-
-        // --- 5. 2列整列処理の実行 ---
-        // 左カラムの目標ピクセル幅 (Minecraftのフォントサイズ換算)
-        // 日本語やアイコンが含まれる場合、大体110～120pxくらいで揃うことが多いです
-        int leftColumnWidthPx = 150;
-
-        for (int i = 0; i < statLines.size(); i += 2) {
-            String left = statLines.get(i);
-
-            // リストの最後が奇数個だった場合の処理
-            if (i + 1 >= statLines.size()) {
-                lore.add(" " + left); // そのまま追加
-                break;
-            }
-
-            String right = statLines.get(i + 1);
-
-            // 左側のテキストが空文字("")の場合は改行用なのでスキップなどの調整も可能
-            if (left.isEmpty() && right.isEmpty()) continue;
-
-            // パディング処理を行い結合
-            String alignedLine = " " + padToWidth(left, leftColumnWidthPx) + right;
-            lore.add(alignedLine);
+            lore.add("");
+            for (String line : flavorText) lore.add("§8§o" + line.replace("&", "§"));
         }
 
         lore.add("§8§m-----------------------------");
 
+        // --- ステータス集計用リスト ---
+        List<String> statLines = new ArrayList<>();
+
+        // モディファイアー（あれば最上部へ）
+        if (appliedModifiers != null && !appliedModifiers.isEmpty()) {
+            // 見出しを追加し、右側を空けるために空文字とセット
+            statLines.add("§f§l[付加能力]");
+            statLines.add("");
+            for (Map.Entry<StatType, Double> entry : appliedModifiers.entrySet()) {
+                statLines.add(formatModifierStat(entry.getKey(), entry.getValue()));
+            }
+        }
+
+        // 基礎ステータス
+        statLines.add("§f§l[基礎ステータス]");
+        statLines.add("");
+        for (StatType type : stats.getAllTypes()) {
+            double flat = stats.getFlat(type);
+            double percent = stats.getPercent(type);
+            if (flat == 0 && percent == 0) continue;
+            statLines.add(formatStat(type, flat, percent, compact));
+        }
+
+        // --- 2列整列の実行 ---
+        // 日本語が長いので170px程度確保すると安全です
+        int leftColumnWidthPx = 170;
+
+        for (int i = 0; i < statLines.size(); i += 2) {
+            String left = statLines.get(i);
+            if (i + 1 >= statLines.size()) {
+                lore.add(" " + left);
+                break;
+            }
+            String right = statLines.get(i + 1);
+
+            // 片方がセクション見出し、もう片方が空文字の場合の調整
+            if (right.isEmpty()) {
+                lore.add(" " + left);
+            } else {
+                // ここでピクセルパディングを実行
+                lore.add(" " + padToWidth(left, leftColumnWidthPx) + right);
+            }
+        }
+
+        lore.add("§8§m-----------------------------");
         return lore;
     }
 
-    // --- 以下、整列用のヘルパーメソッド ---
-
-    /**
-     * 指定したピクセル幅になるように、文字列の末尾に「通常スペース(4px)」と「太字スペース(5px)」を組み合わせて追加します。
-     * これにより、4px単位ではなく1px単位での位置調整が可能になり、ほぼ完璧に揃います。
-     */
     private static String padToWidth(String text, int targetPx) {
         int currentPx = getMinecraftStringWidth(text);
         int neededPx = targetPx - currentPx;
 
-        if (neededPx <= 0) {
-            // 足りている、または超過している場合は最低限のスペースを1つ
-            return text + " ";
-        }
+        if (neededPx <= 0) return text + "  "; // 最低限の隙間
 
-        // 必要なピクセル数を 4n + 5m = neededPx の形で表す計算
-        // 太字スペース(5px)と通常スペース(4px)の個数を決定する
         int boldSpaces = 0;
         int normalSpaces = 0;
 
-        // 4と5は互いに素なので、十分な大きさのneededPxに対しては必ず解が存在します。
-        // 単純化のため、neededPxを4で割った余りを利用して調整します。
-
-        // 余りごとの調整ロジック
-        // 余り0: 4pxのみで埋める
-        // 余り1: 5px * 1 (余り1) + 4px * n (残りを4で割る) -> 5 - 4 = 1px差を作れる
-        // ...というのをループで探索します
-
-        boolean found = false;
-        // 太字スペースを0個から増やしていき、残りが4で割り切れるか試す
-        for (int b = 0; b < 20; b++) { // 安全のため上限を設ける
+        // 4px と 5px(太字) を使って 1px 単位で隙間を埋める
+        for (int b = 0; b < 5; b++) {
             int remainder = neededPx - (b * 5);
-            if (remainder < 0) break; // 超過したら終了
-
-            if (remainder % 4 == 0) {
+            if (remainder >= 0 && remainder % 4 == 0) {
                 boldSpaces = b;
                 normalSpaces = remainder / 4;
-                found = true;
                 break;
             }
         }
-
-        if (!found) {
-            // ぴったり埋められない場合（極端にneededPxが小さい時など）、近似値で埋める
+        // ループで見つからない場合(neededPxが小さい場合)のフォールバック
+        if (boldSpaces == 0 && normalSpaces == 0) {
             normalSpaces = neededPx / 4;
-            if (neededPx % 4 > 2) normalSpaces++;
         }
 
-        // 文字列生成
         StringBuilder sb = new StringBuilder(text);
-
-        // 書式リセットが含まれると太字が解除されるため、都度指定するか、最後にまとめて追加する
-        // 太字スペースを追加
-        if (boldSpaces > 0) {
-            sb.append("§r§l"); // リセット+太字
-            sb.append(" ".repeat(boldSpaces));
-        }
-
-        // 通常スペースを追加
-        if (normalSpaces > 0) {
-            sb.append("§r"); // リセット
-            sb.append(" ".repeat(normalSpaces));
-        }
-
-        // 最後に色などがリセットされている状態なので、後続の文字のためにリセットしておく
-        sb.append("§r");
-
-        return sb.toString();
+        if (boldSpaces > 0) sb.append("§r§l").append(" ".repeat(boldSpaces));
+        if (normalSpaces > 0) sb.append("§r").append(" ".repeat(normalSpaces));
+        return sb.toString() + "§r";
     }
 
-    /**
-     * Minecraftデフォルトフォントにおける文字列の表示幅(px)を計算します。
-     * 精度を向上させています。
-     */
     private static int getMinecraftStringWidth(String text) {
         if (text == null) return 0;
-
         int length = 0;
         boolean isBold = false;
         boolean nextIsColor = false;
 
         for (char c : text.toCharArray()) {
-            if (c == '§') {
-                nextIsColor = true;
-                continue;
-            }
+            if (c == '§') { nextIsColor = true; continue; }
             if (nextIsColor) {
-                // スタイルコード判定
                 if (c == 'l' || c == 'L') isBold = true;
                 else if (c == 'r' || c == 'R') isBold = false;
-                // 色コード(0-9, a-f)で太字は解除されないが、判定が面倒なので
-                // 厳密にやるなら「k,m,n,o」は太字維持、「r」と「0-9,a-f」は解除など分岐が必要。
-                // ここでは簡易的に「r」だけ太字解除として扱う（実用上ほぼ問題ない）
                 nextIsColor = false;
                 continue;
             }
-
             int charWidth = getCharWidth(c);
-            if (isBold && c != ' ') charWidth += 1; // 太字は+1px (スペース以外)
-            else if (isBold && c == ' ') charWidth = 5; // 太字スペースは5px
-
-            length += charWidth;
+            if (isBold) {
+                if (c == ' ') length += 5;
+                else length += charWidth + 1;
+            } else {
+                length += charWidth;
+            }
         }
         return length;
     }
 
-    /**
-     * 文字ごとのピクセル幅定義 (高精度版)
-     * DefaultFontInfoに基づいた値を設定
-     */
     private static int getCharWidth(char c) {
-        // 最も頻出する英数字の定義
-        if (c >= 'A' && c <= 'Z') {
-            // 特殊な幅を持つ大文字
-            if (c == 'I') return 4;
-            if (c == 't') return 4; // 't'は大文字ではないが念のため
-            return 6; // 基本的に大文字は6px
-        }
-        if (c >= 'a' && c <= 'z') {
-            // 特殊な幅を持つ小文字
-            if (c == 'i' || c == 'k' || c == 'l') return 3; // 実は狭い
-            if (c == 'f' || c == 't') return 5;
-            if (c == 'I') return 4; // 念のため
-            return 6;
-        }
-        if (c >= '0' && c <= '9') return 6;
+        // --- 特殊アイコンの幅 (重要) ---
+        if (c == '➸') return 9; // 矢印アイコン
+        if (c == '■') return 8; // 四角アイコン
+        if (c == '⌛') return 8; // 砂時計アイコン
+        if (c == '•') return 7; // ドットアイコン
+        if (c == '»') return 7; // 引用符アイコン
 
         // 記号類
-        switch (c) {
-            case ' ': return 4;
-            case '!': case '|': case '.': case ',': case ':': case ';': case 'i': case 'l': case '\'':
-                return 2; // かなり狭い文字
-            case '`':
-                return 3;
-            case '"': case '*': case '(': case ')': case '[': case ']': case '{': case '}': case '<': case '>':
-                return 5;
-            case '@': case '~':
-                return 7;
-        }
+        if ("i.,l|!:;".indexOf(c) != -1) return 2;
+        if ("' ".indexOf(c) != -1) return 4;
+        if ("t[]()".indexOf(c) != -1) return 5;
+        if ("*\"<>".indexOf(c) != -1) return 5;
 
-        // 日本語・全角文字
-        // Minecraft 1.13+ 以降、日本語フォントは通常 12px 幅 (影含む表示領域)
-        // ※リソースパックやUnicode設定によっては変わりますが、12が最も安全な値です。
-        if (Character.toString(c).matches("[^\\x00-\\x7F]")) {
-            return 12; // 修正: 10 -> 12
-        }
+        // 日本語 (Unicode)
+        // Minecraftの全角文字はグリッド状に配置され、実質的な幅は12pxです。
+        if (Character.toString(c).matches("[^\\x00-\\x7F]")) return 12;
 
-        // その他デフォルト
+        // 基本英数字
         return 6;
     }
 
     private static String formatModifierStat(StatType type, double value) {
-        String label = type.getIcon() + " " + type.getDisplayName();
-        // モディファイアーは§d（マゼンタ）で表示し、ボーナスであることを強調
-        return " §d» " + label + ": §d+" + String.format("%.1f", value);
+        // アイコンとテキストの間に余計な空白を入れず、padToWidthに計算させる
+        return "§d» " + type.getIcon() + " " + type.getDisplayName() + ": §d+" + String.format("%.1f", value);
     }
 
     private static String formatStat(StatType type, double flat, double percent, boolean compact) {
-        String label = type.getIcon() + " " + type.getDisplayName();
-
-        if (compact) {
-            return " §f• " + label + ": §f" + flat + (percent != 0 ? " (§a+" + percent + "%§f)" : "");
-        } else {
-            return " §f• " + label + ": §f" + flat + (percent != 0 ? "（§a+" + percent + "%§f）" : "");
-        }
+        String valStr = (percent != 0) ? String.format("%.1f", flat) + " (§a+" + Math.round(percent) + "%§f)" : String.valueOf(flat);
+        return "§f• " + type.getIcon() + " " + type.getDisplayName() + ": §f" + valStr;
     }
 }
 
