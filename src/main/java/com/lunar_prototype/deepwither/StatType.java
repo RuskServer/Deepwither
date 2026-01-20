@@ -14,6 +14,7 @@ public enum StatType {
     ATTACK_DAMAGE("攻撃力", "§c", "➸"),
     ATTACK_SPEED("攻撃速度", "&f", "➸"),
     PROJECTILE_DAMAGE("発射体ダメージ", "&f", "➸"),
+    PROJECTILE_SPEED("弾速","&f", "➸"),
     MAGIC_DAMAGE("魔法攻撃力", "§b", "■"),
     MAGIC_AOE_DAMAGE("魔法AoE攻撃力", "§b", "■"),
     MAGIC_BURST_DAMAGE("魔法バースト攻撃力", "§b", "■"),
@@ -169,89 +170,177 @@ class LoreBuilder {
     }
 
     public static List<String> build(StatMap stats, boolean compact, String itemType, List<String> flavorText,
-            ItemLoader.RandomStatTracker tracker, String rarity, Map<StatType, Double> appliedModifiers,
-            FabricationGrade grade) {
+                                     ItemLoader.RandomStatTracker tracker, String rarity, Map<StatType, Double> appliedModifiers,
+                                     FabricationGrade grade) {
         List<String> lore = new ArrayList<>();
 
-        // ★ FG表示を追加 (最上部)
-        // grade が null または STANDARD(FG-1) の場合は表示しない、という仕様も可能ですが
-        // 「別物レベル」のシステムなら FG-1 も表示したほうが統一感が出ます。
+        // --- 1. ヘッダーセクション (グレード・名前・レアリティ) ---
+        // 中央揃えや装飾ラインでリッチにする
         if (grade != null) {
-            lore.add(grade.getDisplayName());
-            // lore.add(""); // 必要なら空行
+            lore.add(grade.getDisplayName()); // 例: "§e[ Grade-1 ]" など
         }
 
-        // 上部: タイプ表示
-        if (itemType != null && !itemType.isEmpty()) {
-            // &6などのコードを§6に変換
-            String formattedItemType = itemType.replace("&", "§");
-            lore.add("§7カテゴリ:§f" + formattedItemType);
-        }
-
+        // タイプとレアリティを1行またはコンパクトにまとめる
+        StringBuilder infoLine = new StringBuilder();
         if (rarity != null && !rarity.isEmpty()) {
-            // 同様にレアリティも変換
-            String formattedRarity = rarity.replace("&", "§");
-            lore.add("§7レアリティ:§f" + formattedRarity);
+            infoLine.append(rarity.replace("&", "§"));
+        }
+        if (itemType != null && !itemType.isEmpty()) {
+            if (infoLine.length() > 0) infoLine.append(" §f| "); // 区切り
+            infoLine.append("§7").append(itemType.replace("&", "§"));
+        }
+        if (infoLine.length() > 0) {
+            lore.add(infoLine.toString());
         }
 
-        // 空行 + フレーバー（存在する場合）
-        if (flavorText != null && !flavorText.isEmpty()) {
-            lore.add(""); // 空行
-            for (String line : flavorText) {
-                // フレーバーも変換
-                String formattedLine = line.replace("&", "§");
-                lore.add("§8" + formattedLine); // フレーバーは薄い灰色で表示
-            }
-            lore.add("");
-        }
-
-        lore.add("§7§m----------------------------");
-
-        // 達成率（RandomStatTrackerがある場合のみ）
+        // --- 2. 品質 (Tracker) ---
         if (tracker != null) {
             double ratio = tracker.getRatio() * 100.0;
-            String color;
-            if (ratio >= 90)
-                color = "§6";
-            else if (ratio >= 70)
-                color = "§e";
-            else if (ratio >= 50)
-                color = "§a";
-            else
-                color = "§7";
-            lore.add(" §f• 品質: " + color + Math.round(ratio) + "%");
+            String color = (ratio >= 90) ? "§6" : (ratio >= 70) ? "§e" : (ratio >= 50) ? "§a" : "§7";
+            // 右寄せっぽく見せるか、シンプルに表示
+            lore.add("§f品質: " + color + Math.round(ratio) + "%");
         }
 
+        // --- 3. フレーバーテキスト ---
+        if (flavorText != null && !flavorText.isEmpty()) {
+            lore.add(""); // スペーサー
+            for (String line : flavorText) {
+                lore.add("§8§o" + line.replace("&", "§"));
+            }
+        }
+
+        lore.add("§8§m-----------------------------"); // セパレーター
+
+        // --- 4. ステータス表示 (2列グリッド化) ---
+
+        // 表示用リストの作成 (ここにはフォーマット済みの短い文字列を入れる)
+        // 例: "§c攻撃: +10"
+        List<String> statLines = new ArrayList<>();
+
+        // A. モディファイアー
         if (appliedModifiers != null && !appliedModifiers.isEmpty()) {
-            lore.add(" §5§l- モディファイアー -"); // モディファイアー専用ヘッダー
+            statLines.add("§5§l[付加能力]"); // セクションヘッダー（左詰め用）
+            statLines.add("");             // 右側は空にするためのダミー（または埋める）
 
             for (Map.Entry<StatType, Double> entry : appliedModifiers.entrySet()) {
-                StatType type = entry.getKey();
-                double value = entry.getValue();
-
-                // モディファイアー専用のフォーマット
-                String label = type.getIcon() + " " + type.getDisplayName();
-
-                // モディファイアーは flat 値として扱われるため、formatStatを流用するか、専用フォーマットを使う
-                String line = formatModifierStat(type, value);
-                lore.add(line);
+                // formatModifierStatは「アイコン + 名前 + 数値」を返す想定
+                statLines.add(formatModifierStat(entry.getKey(), entry.getValue()));
             }
-            lore.add("§7§m----------------------------"); // モディファイアーセクションの区切り
         }
 
+        // B. ベースステータス
+        // モディファイアーと区切るために空行を入れても良いが、今回は詰める
         for (StatType type : stats.getAllTypes()) {
             double flat = stats.getFlat(type);
             double percent = stats.getPercent(type);
+            if (flat == 0 && percent == 0) continue;
 
-            if (flat == 0 && percent == 0)
-                continue;
-
-            String line = formatStat(type, flat, percent, compact);
-            lore.add(line);
+            // formatStatは「アイコン + 名前 + 数値」を返す想定
+            statLines.add(formatStat(type, flat, percent, compact));
         }
 
-        lore.add("§7§m----------------------------");
+        // --- 5. 2列整列処理の実行 ---
+        // 左カラムの目標ピクセル幅 (Minecraftのフォントサイズ換算)
+        // 日本語やアイコンが含まれる場合、大体110～120pxくらいで揃うことが多いです
+        int leftColumnWidthPx = 130;
+
+        for (int i = 0; i < statLines.size(); i += 2) {
+            String left = statLines.get(i);
+
+            // リストの最後が奇数個だった場合の処理
+            if (i + 1 >= statLines.size()) {
+                lore.add(" " + left); // そのまま追加
+                break;
+            }
+
+            String right = statLines.get(i + 1);
+
+            // 左側のテキストが空文字("")の場合は改行用なのでスキップなどの調整も可能
+            if (left.isEmpty() && right.isEmpty()) continue;
+
+            // パディング処理を行い結合
+            String alignedLine = " " + padToWidth(left, leftColumnWidthPx) + right;
+            lore.add(alignedLine);
+        }
+
+        lore.add("§8§m-----------------------------");
+
         return lore;
+    }
+
+// --- 以下、整列用のヘルパーメソッド ---
+
+    /**
+     * 指定したピクセル幅になるように、文字列の末尾にスペースを追加します。
+     */
+    private static String padToWidth(String text, int targetPx) {
+        int currentPx = getMinecraftStringWidth(text);
+        int neededPx = targetPx - currentPx;
+
+        if (neededPx <= 0) {
+            return text + " "; // 最低限1つスペースを空ける
+        }
+
+        // スペース1個の幅は通常4px (太字なら5pxだが、パディングは通常フォントで行う)
+        int spaceWidth = 4;
+        int spaces = neededPx / spaceWidth;
+
+        // 微調整: あまりにも足りない場合はもう1個足す
+        if (neededPx % spaceWidth > 2) spaces++;
+
+        return text + " ".repeat(Math.max(1, spaces));
+    }
+
+    /**
+     * Minecraftデフォルトフォントにおける文字列の表示幅(px)を概算します。
+     * ※完全な精度が必要な場合はProtocolLib等が必要ですが、これで十分実用的です。
+     */
+    private static int getMinecraftStringWidth(String text) {
+        if (text == null) return 0;
+
+        int length = 0;
+        boolean isBold = false;
+        boolean nextIsColor = false;
+
+        for (char c : text.toCharArray()) {
+            if (c == '§') {
+                nextIsColor = true;
+                continue;
+            }
+            if (nextIsColor) {
+                // カラーコード処理
+                if (c == 'l' || c == 'L') isBold = true; // 太字
+                else if (c == 'r' || c == 'R') isBold = false; // リセット
+                // 色コード(0-9, a-f)で太字は解除されないが、ここでは簡易実装
+                nextIsColor = false;
+                continue;
+            }
+
+            // 文字幅の加算
+            int charWidth = getCharWidth(c);
+            if (isBold) charWidth += 1; // 太字は+1px
+
+            length += charWidth;
+        }
+        return length;
+    }
+
+    /**
+     * 文字ごとのピクセル幅定義 (簡易版)
+     */
+    private static int getCharWidth(char c) {
+        // よく使う文字の幅定義
+        if (c == ' ') return 4;
+        if (c == 'I' || c == 'i' || c == '.' || c == ',' || c == '!' || c == '|' || c == ':') return 2;
+        if (c == 'l' || c == '\'' ) return 3;
+        if (c == 't') return 4;
+        if (c == 'f' || c == 'k' || c == '"' || c == '(' || c == ')') return 5;
+        // 日本語(全角)は概ねPC版では広め。等幅ではないが9-12px程度。
+        // 日本語を多く使うなら 12 くらいで見積もるとズレにくい
+        if (Character.toString(c).matches("[^\\x00-\\x7F]")) return 10;
+
+        // デフォルトの英数字幅
+        return 6;
     }
 
     private static String formatModifierStat(StatType type, double value) {
