@@ -199,52 +199,50 @@ class LoreBuilder {
 
         lore.add("§8§m-----------------------------");
 
-        // --- ステータス集計用リスト ---
-        List<String> statLines = new ArrayList<>();
-
-        // モディファイアー（あれば最上部へ）
+        // --- [付加能力] セクション ---
         if (appliedModifiers != null && !appliedModifiers.isEmpty()) {
-            // 見出しを追加し、右側を空けるために空文字とセット
-            statLines.add("§f§l[付加能力]");
-            statLines.add("");
+            lore.add(" §d§l[付加能力]"); // 見出しは単独で1行
+
+            List<String> mods = new ArrayList<>();
             for (Map.Entry<StatType, Double> entry : appliedModifiers.entrySet()) {
-                statLines.add(formatModifierStat(entry.getKey(), entry.getValue()));
+                mods.add(formatModifierStat(entry.getKey(), entry.getValue()));
             }
+            // 中身だけを2列化
+            addTwoColumnLore(lore, mods, 180);
+            lore.add(""); // セクション間に少し隙間
         }
 
-        // 基礎ステータス
-        statLines.add("§f§l[基礎ステータス]"); // 見出しは1列で表示
-        statLines.add("");
+        // --- [基礎ステータス] セクション ---
+        lore.add(" §f§l[基礎ステータス]"); // 見出しは単独で1行
+
+        List<String> baseStats = new ArrayList<>();
         for (StatType type : stats.getAllTypes()) {
             double flat = stats.getFlat(type);
             double percent = stats.getPercent(type);
             if (flat == 0 && percent == 0) continue;
-            statLines.add(formatStat(type, flat, percent, compact));
+            baseStats.add(formatStat(type, flat, percent, compact));
         }
-
-        // --- 2列整列の実行 ---
-        // 日本語が長いので170px程度確保すると安全です
-        int leftColumnWidthPx = 170;
-
-        for (int i = 0; i < statLines.size(); i += 2) {
-            String left = statLines.get(i);
-            if (i + 1 >= statLines.size()) {
-                lore.add(" " + left);
-                break;
-            }
-            String right = statLines.get(i + 1);
-
-            // 片方がセクション見出し、もう片方が空文字の場合の調整
-            if (right.isEmpty()) {
-                lore.add(" " + left);
-            } else {
-                // ここでピクセルパディングを実行
-                lore.add(" " + padToWidth(left, leftColumnWidthPx) + right);
-            }
-        }
+        // 中身だけを2列化
+        addTwoColumnLore(lore, baseStats, 180);
 
         lore.add("§8§m-----------------------------");
         return lore;
+    }
+
+    private static void addTwoColumnLore(List<String> mainLore, List<String> items, int leftWidth) {
+        for (int i = 0; i < items.size(); i += 2) {
+            String left = items.get(i);
+
+            if (i + 1 >= items.size()) {
+                // 奇数個目の最後は1つだけ表示
+                mainLore.add(" " + left);
+                break;
+            }
+
+            String right = items.get(i + 1);
+            // パディングして結合。必ず §r を挟んで書式をリセットする
+            mainLore.add(" " + padToWidth(left, leftWidth) + "§r" + right);
+        }
     }
 
     // padToWidthを以下のように「最小単位2px」まで落とし込んで再構成します
@@ -312,11 +310,12 @@ class LoreBuilder {
 
     private static int getCharWidth(char c) {
         // 1. 特殊アイコン (実測値に基づき微調整)
+        if (c == '☆') return 9; // 星アイコンを追加
         if (c == '➸') return 9;
-        if (c == '■') return 7; // ■は意外と狭い(7px)
-        if (c == '✠') return 9;
+        if (c == '✠') return 10; // ✠は10pxの方が安定するケースが多いです
+        if (c == '■') return 7;
         if (c == '⌛') return 8;
-        if (c == '•') return 7; // 中点
+        if (c == '•') return 8;
         if (c == '»') return 7;
 
         // 2. 特殊な幅の半角英数字
@@ -328,7 +327,7 @@ class LoreBuilder {
 
         // 3. 全角文字 (日本語/全角記号)
         // Java版Minecraftのデフォルトでは全角は13px（文字12+隙間1）として扱うと安定します
-        if (c > 255) return 13;
+        if (c > 255) return 12;
 
         // 4. 標準的な英数字
         return 6;
