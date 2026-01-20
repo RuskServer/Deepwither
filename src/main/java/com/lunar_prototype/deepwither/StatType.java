@@ -21,8 +21,8 @@ public enum StatType {
     DEFENSE("防御力", "§a", "✠"),
     MAGIC_RESIST("魔法耐性", "§9", "✠"),
     MAGIC_PENETRATION("魔法貫通", "§9", "■"),
-    CRIT_CHANCE("クリティカル率", "§e", "■"),
-    CRIT_DAMAGE("クリティカルダメージ", "§e", "■"),
+    CRIT_CHANCE("会心率", "§e", "■"),
+    CRIT_DAMAGE("会心ダメージ", "§e", "■"),
     MAX_HEALTH("最大HP", "§4", "❤"),
     HP_REGEN("HP回復", "§4", "❤"),
     MOVE_SPEED("移動速度", "§d", "■"),
@@ -238,8 +238,7 @@ class LoreBuilder {
             if (width > maxLeftWidth) maxLeftWidth = width;
         }
 
-        // 余裕を 10px (スペース約2.5個分) に縮小
-        int targetWidth = maxLeftWidth + 10;
+        int targetWidth = maxLeftWidth + 12;
 
         for (int i = 0; i < items.size(); i += 2) {
             String left = items.get(i);
