@@ -199,66 +199,47 @@ class LoreBuilder {
 
         lore.add("§8§m-----------------------------");
 
-        // --- 1. 全項目の中から「左側(奇数番目)」にくる可能性のある最大幅を算出 ---
-        List<String> allStatEntries = new ArrayList<>();
+        // --- [付加能力] セクション ---
+        if (appliedModifiers != null && !appliedModifiers.isEmpty()) {
+            lore.add(" §d§l[付加能力]"); // 見出しは単独で1行
 
-// 付加能力の文字列を先に生成してリストに溜める
-        List<String> modifierStrings = new ArrayList<>();
-        if (appliedModifiers != null) {
+            List<String> mods = new ArrayList<>();
             for (Map.Entry<StatType, Double> entry : appliedModifiers.entrySet()) {
-                String s = formatModifierStat(entry.getKey(), entry.getValue());
-                modifierStrings.add(s);
-                allStatEntries.add(s);
+                mods.add(formatModifierStat(entry.getKey(), entry.getValue()));
             }
+            // 中身だけを2列化
+            addTwoColumnLore(lore, mods);
+            lore.add(""); // セクション間に少し隙間
         }
 
-// 基礎ステータスの文字列を生成してリストに溜める
-        List<String> baseStatStrings = new ArrayList<>();
+        // --- [基礎ステータス] セクション ---
+        lore.add(" §f§l[基礎ステータス]"); // 見出しは単独で1行
+
+        List<String> baseStats = new ArrayList<>();
         for (StatType type : stats.getAllTypes()) {
             double flat = stats.getFlat(type);
             double percent = stats.getPercent(type);
             if (flat == 0 && percent == 0) continue;
-
-            String s = formatStat(type, flat, percent, compact);
-            baseStatStrings.add(s);
-            allStatEntries.add(s);
+            baseStats.add(formatStat(type, flat, percent, compact));
         }
-
-// 全ての項目の中で「左列」に来る可能性のある最大幅を計算
-        int maxLeftWidth = 0;
-// 付加能力セクション内での左列
-        for (int i = 0; i < modifierStrings.size(); i += 2) {
-            maxLeftWidth = Math.max(maxLeftWidth, getMinecraftStringWidth(modifierStrings.get(i)));
-        }
-// 基礎ステータスセクション内での左列
-        for (int i = 0; i < baseStatStrings.size(); i += 2) {
-            maxLeftWidth = Math.max(maxLeftWidth, getMinecraftStringWidth(baseStatStrings.get(i)));
-        }
-
-// 全体で統一する右列の開始位置 (12pxの余裕を持たせる)
-        int finalTargetWidth = maxLeftWidth + 12;
-
-// --- 2. 実際の描画処理 ---
-
-// [付加能力] セクション
-        if (!modifierStrings.isEmpty()) {
-            lore.add(" §d§l[付加能力]");
-            addTwoColumnLore(lore, modifierStrings, finalTargetWidth);
-            lore.add(""); // セクション間の空行
-        }
-
-// [基礎ステータス] セクション
-        lore.add(" §f§l[基礎ステータス]");
-        addTwoColumnLore(lore, baseStatStrings, finalTargetWidth);
+        // 中身だけを2列化
+        addTwoColumnLore(lore, baseStats);
 
         lore.add("§8§m-----------------------------");
         return lore;
     }
 
-    /**
-     * 幅指定付きの addTwoColumnLore
-     */
-    private static void addTwoColumnLore(List<String> mainLore, List<String> items, int targetWidth) {
+    private static void addTwoColumnLore(List<String> mainLore, List<String> items) {
+        if (items.isEmpty()) return;
+
+        int maxLeftWidth = 0;
+        for (int i = 0; i < items.size(); i += 2) {
+            int width = getMinecraftStringWidth(items.get(i));
+            if (width > maxLeftWidth) maxLeftWidth = width;
+        }
+
+        int targetWidth = maxLeftWidth + 12;
+
         for (int i = 0; i < items.size(); i += 2) {
             String left = items.get(i);
             if (i + 1 >= items.size()) {
@@ -266,51 +247,53 @@ class LoreBuilder {
                 break;
             }
             String right = items.get(i + 1);
-
-            // --- デバッグログ ---
             int leftWidth = getMinecraftStringWidth(left);
             String padded = padToWidth(left, targetWidth);
             int finalWidth = getMinecraftStringWidth(padded);
 
             System.out.println(String.format("[Debug] Line %d: '%s' (Original: %dpx -> Padded: %dpx / Target: %dpx)",
                     i, left, leftWidth, finalWidth, targetWidth));
-
-            mainLore.add(" " + padded + "§r" + right);
+            mainLore.add(" " + padToWidth(left, targetWidth) + "§r" + right);
         }
     }
 
+    // padToWidthを以下のように「最小単位2px」まで落とし込んで再構成します
     private static String padToWidth(String text, int targetPx) {
         int currentPx = getMinecraftStringWidth(text);
         int neededPx = targetPx - currentPx;
 
-        if (neededPx <= 0) return text + " "; // 最低限のスペース
+        // targetPxより大きい場合でも、最低1つのスペース(4px)を入れる
+        if (neededPx < 4) return text + "    ";
 
         StringBuilder sb = new StringBuilder(text);
-        sb.append("§r"); // 書式リセット
-
-        // 4px(通常スペース)と5px(太字スペース)で可能な限り埋める
         int n5 = 0;
         int n4 = 0;
 
-        // 11px以下で4と5で作れない数値(6, 7, 11)への対策を含む
-        if (neededPx >= 8) {
-            int remainder = neededPx % 4;
-            n5 = remainder;
-            n4 = (neededPx - (n5 * 5)) / 4;
-        } else {
-            // 8px未満の細かい調整
-            if (neededPx == 4) n4 = 1;
-            else if (neededPx == 5) n5 = 1;
-            else if (neededPx >= 1) {
-                // 1, 2, 3, 6, 7px などはどうしてもスペースで作れないため、
-                // 「太字のピリオド(3px)」や「通常のピリオド(2px)」を透明化して使う裏技もありますが、
-                // ここでは最も近いスペースの組み合わせを返します。
-                n4 = neededPx / 4;
-            }
+        // 4px(通常) と 5px(太字) の組み合わせで、可能な限り targetPx に近づける
+        // 5x + 4y = needed
+        int remainder = neededPx % 4;
+        if (remainder == 0) {
+            n4 = neededPx / 4;
+        } else if (remainder == 1) { // 5*1 + 4*(n-1)
+            n5 = 1; n4 = (neededPx - 5) / 4;
+        } else if (remainder == 2) { // 5*2 + 4*(n-2)
+            n5 = 2; n4 = (neededPx - 10) / 4;
+        } else if (remainder == 3) { // 5*3 + 4*(n-3)
+            n5 = 3; n4 = (neededPx - 15) / 4;
         }
 
+        // 計算ミスでマイナスになった場合の補正
+        if (n4 < 0) { n4 = 0; n5 = neededPx / 5; }
+
+        sb.append("§r");
         if (n5 > 0) sb.append("§l").append(" ".repeat(n5)).append("§r");
         if (n4 > 0) sb.append(" ".repeat(n4));
+
+        // 最終チェックログ
+        int diff = targetPx - getMinecraftStringWidth(sb.toString());
+        if (diff != 0) {
+            System.out.println("[Debug] Padding Error: " + diff + "px remaining for text: " + text);
+        }
 
         return sb.toString();
     }
@@ -328,17 +311,20 @@ class LoreBuilder {
             }
             if (nextIsColor) {
                 char lower = Character.toLowerCase(c);
-                if (lower == 'l') isBold = true;
-                else if ("0123456789abcdefr".indexOf(lower) != -1) isBold = false;
+                if (lower == 'l') {
+                    isBold = true;
+                } else if ("0123456789abcdefr".indexOf(lower) != -1) {
+                    // 色コードまたはリセットが来たら太字は強制解除される
+                    isBold = false;
+                }
                 nextIsColor = false;
                 continue;
             }
 
             int charWidth = getCharWidth(c);
             if (isBold) {
-                // 重要：ASCII文字(幅10未満)は太字で+1pxされるが、
-                // 日本語などの全角文字(幅10以上)は太字でも幅が変わらない
-                length += (charWidth < 10) ? (charWidth + 1) : charWidth;
+                // 太字は文字部分が1px太くなる（スペースは4->5pxになる）
+                length += (c == ' ') ? 5 : (charWidth + 1);
             } else {
                 length += charWidth;
             }
@@ -347,21 +333,28 @@ class LoreBuilder {
     }
 
     private static int getCharWidth(char c) {
-        if (c == '❤') return 8;  // 8pxに修正
+        // 1. 特殊アイコン (1pxの隙間を含んだ実測値)
+        if (c == '❤') return 9;  // ハートアイコンを追加
         if (c == '➸') return 10;
         if (c == '✠') return 10;
         if (c == '☆') return 9;
-        if (c == '■') return 8;
+        if (c == '■') return 8;  // ■は8px程度が最も安定します
         if (c == '⌛') return 9;
-        if (c == '•') return 4;  // 4pxに修正
-        if (c == ' ') return 4;
+        if (c == '•') return 5;
+        if (c == '»') return 9;
 
+        // 2. 特殊な幅の半角記号
         if ("i.:,;|!".indexOf(c) != -1) return 2;
         if ("l'".indexOf(c) != -1) return 3;
         if ("I[]t".indexOf(c) != -1) return 4;
         if ("<>\"()*".indexOf(c) != -1) return 5;
+        if (c == ' ') return 4;
 
-        if (c > 255) return 12; // 12pxに修正(Unifont対応)
+        // 3. 全角文字 (日本語/全角記号)
+        // 12px(描画) + 1px(隙間) = 13px。ここが12だと、長い日本語で数pxの誤差が出ます。
+        if (c > 255) return 13;
+
+        // 4. 標準的な英数字
         return 6;
     }
 
