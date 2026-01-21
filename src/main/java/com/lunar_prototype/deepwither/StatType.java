@@ -199,47 +199,66 @@ class LoreBuilder {
 
         lore.add("§8§m-----------------------------");
 
-        // --- [付加能力] セクション ---
-        if (appliedModifiers != null && !appliedModifiers.isEmpty()) {
-            lore.add(" §d§l[付加能力]"); // 見出しは単独で1行
+        // --- 1. 全項目の中から「左側(奇数番目)」にくる可能性のある最大幅を算出 ---
+        List<String> allStatEntries = new ArrayList<>();
 
-            List<String> mods = new ArrayList<>();
+// 付加能力の文字列を先に生成してリストに溜める
+        List<String> modifierStrings = new ArrayList<>();
+        if (appliedModifiers != null) {
             for (Map.Entry<StatType, Double> entry : appliedModifiers.entrySet()) {
-                mods.add(formatModifierStat(entry.getKey(), entry.getValue()));
+                String s = formatModifierStat(entry.getKey(), entry.getValue());
+                modifierStrings.add(s);
+                allStatEntries.add(s);
             }
-            // 中身だけを2列化
-            addTwoColumnLore(lore, mods);
-            lore.add(""); // セクション間に少し隙間
         }
 
-        // --- [基礎ステータス] セクション ---
-        lore.add(" §f§l[基礎ステータス]"); // 見出しは単独で1行
-
-        List<String> baseStats = new ArrayList<>();
+// 基礎ステータスの文字列を生成してリストに溜める
+        List<String> baseStatStrings = new ArrayList<>();
         for (StatType type : stats.getAllTypes()) {
             double flat = stats.getFlat(type);
             double percent = stats.getPercent(type);
             if (flat == 0 && percent == 0) continue;
-            baseStats.add(formatStat(type, flat, percent, compact));
+
+            String s = formatStat(type, flat, percent, compact);
+            baseStatStrings.add(s);
+            allStatEntries.add(s);
         }
-        // 中身だけを2列化
-        addTwoColumnLore(lore, baseStats);
+
+// 全ての項目の中で「左列」に来る可能性のある最大幅を計算
+        int maxLeftWidth = 0;
+// 付加能力セクション内での左列
+        for (int i = 0; i < modifierStrings.size(); i += 2) {
+            maxLeftWidth = Math.max(maxLeftWidth, getMinecraftStringWidth(modifierStrings.get(i)));
+        }
+// 基礎ステータスセクション内での左列
+        for (int i = 0; i < baseStatStrings.size(); i += 2) {
+            maxLeftWidth = Math.max(maxLeftWidth, getMinecraftStringWidth(baseStatStrings.get(i)));
+        }
+
+// 全体で統一する右列の開始位置 (12pxの余裕を持たせる)
+        int finalTargetWidth = maxLeftWidth + 12;
+
+// --- 2. 実際の描画処理 ---
+
+// [付加能力] セクション
+        if (!modifierStrings.isEmpty()) {
+            lore.add(" §d§l[付加能力]");
+            addTwoColumnLore(lore, modifierStrings, finalTargetWidth);
+            lore.add(""); // セクション間の空行
+        }
+
+// [基礎ステータス] セクション
+        lore.add(" §f§l[基礎ステータス]");
+        addTwoColumnLore(lore, baseStatStrings, finalTargetWidth);
 
         lore.add("§8§m-----------------------------");
         return lore;
     }
 
-    private static void addTwoColumnLore(List<String> mainLore, List<String> items) {
-        if (items.isEmpty()) return;
-
-        int maxLeftWidth = 0;
-        for (int i = 0; i < items.size(); i += 2) {
-            int width = getMinecraftStringWidth(items.get(i));
-            if (width > maxLeftWidth) maxLeftWidth = width;
-        }
-
-        int targetWidth = maxLeftWidth + 12;
-
+    /**
+     * 幅指定付きの addTwoColumnLore
+     */
+    private static void addTwoColumnLore(List<String> mainLore, List<String> items, int targetWidth) {
         for (int i = 0; i < items.size(); i += 2) {
             String left = items.get(i);
             if (i + 1 >= items.size()) {
@@ -247,13 +266,16 @@ class LoreBuilder {
                 break;
             }
             String right = items.get(i + 1);
+
+            // --- デバッグログ ---
             int leftWidth = getMinecraftStringWidth(left);
             String padded = padToWidth(left, targetWidth);
             int finalWidth = getMinecraftStringWidth(padded);
 
             System.out.println(String.format("[Debug] Line %d: '%s' (Original: %dpx -> Padded: %dpx / Target: %dpx)",
                     i, left, leftWidth, finalWidth, targetWidth));
-            mainLore.add(" " + padToWidth(left, targetWidth) + "§r" + right);
+
+            mainLore.add(" " + padded + "§r" + right);
         }
     }
 
