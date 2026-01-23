@@ -107,7 +107,7 @@ public class PlayerSettingsManager {
      * Retrieves the rarity filter string associated with the given player.
      *
      * @param player the player whose rarity filter to retrieve
-     * @return the player's rarity filter string; cached if available, otherwise the default "&f&lコモン"
+     * @return the player's rarity filter string; cached if available, otherwise the default {@literal &f&lコモン}
      */
     public String getRarityFilter(Player player) {
         return getRarityFilter(player.getUniqueId());
@@ -117,7 +117,7 @@ public class PlayerSettingsManager {
      * Retrieve the player's rarity filter string, loading it from the settings file and caching it if not already cached.
      *
      * @param uuid the player's UUID whose rarity filter to retrieve
-     * @return the rarity filter string for the player; defaults to "&f&lコモン" when not set
+     * @return the rarity filter string for the player; defaults to {@literal &f&lコモン} when not set
      */
     public String getRarityFilter(UUID uuid) {
         if (rarityFilterCache.containsKey(uuid)) {
