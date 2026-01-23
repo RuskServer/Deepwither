@@ -98,20 +98,26 @@ public class LiquidBrain {
         syncFromNative();
     }
 
+
     /**
      * Rust 側の状態を Java フィールドへコピーする
      */
     private void syncFromNative() {
         if (nativeHandle == 0) return;
+
+        // 1. 基本パラメータの同期
         this.systemTemperature = getSystemTemperature(nativeHandle);
         this.frustration = getFrustration(nativeHandle);
         this.adrenaline = getAdrenaline(nativeHandle);
 
-        // 各ニューロンの活性度も同期
+        // 2. ニューロン状態の同期 (Aggression, Fear, Tactical, Reflex)
         float[] neuronStates = getNeuronStates(nativeHandle);
-        if (neuronStates.length >= 4) {
-            // aggression.set(neuronStates[0]) などのメソッドが必要
-            // 既存の LiquidNeuron に set メソッドがない場合は直接フィールドアクセスor調整
+        if (neuronStates != null && neuronStates.length >= 4) {
+            // Rust 側の Singularity::new() で定義した順番 (0:Agg, 1:Fear, 2:Tact, 3:Ref)
+            this.aggression.setState(neuronStates[0]);
+            this.fear.setState(neuronStates[1]);
+            this.tactical.setState(neuronStates[2]);
+            this.reflex.setState(neuronStates[3]);
         }
     }
 
