@@ -1,262 +1,182 @@
 package com.lunar_prototype.deepwither.seeker;
 
 import org.bukkit.util.Vector;
+
+import java.io.File;
 import java.util.*;
 
+/**
+ * [TQH-Hybrid] LiquidBrain
+ * 構造は Java で維持し、計算負荷の高いニューラルネットワークと学習ロジックを
+ * Rust (DarkSingularity) へ JNI 経由で委譲する。
+ */
 public class LiquidBrain {
-    // ニューロン群
-    public final LiquidNeuron aggression;
-    public final LiquidNeuron fear;
-    public final LiquidNeuron tactical;
+    // --- Rust 連携用 ---
+    private final long nativeHandle;
+
+    static {
+        // 1. まず標準パスを探す
+        try {
+            System.loadLibrary("dark_singularity");
+        } catch (UnsatisfiedLinkError e) {
+            // 2. なければ、plugins/DarkSingularity/libs/ 内を絶対パスで直接ロードしに行く
+            File lib = new File("plugins/deepwither/libdark_singularity.so"); // OS判定が必要
+            if (lib.exists()) {
+                System.load(lib.getAbsolutePath());
+            } else {
+                System.err.println("DarkSingularity Native Library Missing!");
+            }
+        }
+    }
+
+    // --- 既存の互換性維持用フィールド ---
+    public final LiquidNeuron aggression = new LiquidNeuron(0.5);
+    public final LiquidNeuron fear = new LiquidNeuron(0.4);
+    public final LiquidNeuron tactical = new LiquidNeuron(0.3);
     public final LiquidNeuron reflex = new LiquidNeuron(0.3);
 
-    // 既存の動的パラメータ
     public float adrenaline = 0.0f;
-    public float composure;
+    public float composure = 1.0f;
     public double morale = 1.0;
     public double patience = 1.0;
     public float frustration = 0.0f;
+    public float systemTemperature = 0.5f;
 
-    // [TQH] 新たに追加される物理量
-    public float systemTemperature = 0.5f; // 0.0:SOLID, 0.5:LIQUID, 1.2+:GAS
-    private static final float THERMAL_CONDUCTIVITY = 0.25f; // TD誤差 -> 熱への変換
-    private static final float COOLING_COEFFICIENT = 0.45f;   // 報酬 -> 冷却への変換
-
-    // 既存のフィールド群
     public final float[] fatigueMap = new float[8];
-    private static final float FATIGUE_STRESS = 0.15f;
-    private static final float FATIGUE_DECAY = 0.95f;
     public int lastStateIdx = 0, lastActionIdx = 4;
     public float accumulatedReward = 0.0f, accumulatedPenalty = 0.0f;
     public Vector lastPredictedLocation = null;
     public long lastPredictionTick = 0;
-    public float velocityTrust = 0.5f;
+    public float velocityTrust = 1.0f;
 
-    public int secondLastActionIdx = -1; // 前々回の行動
-    public int secondLastStateIdx = -1;  // 前々回の状態
-
-    public float attentionLevel = 0.0f; // 1.0(直視されている) ～ -1.0(背を向けられている)
-    public boolean isVisibleFromEnemy = true; // 相手のFOV内に入っているか
-
-    public int actionRepeatCount = 0;
-
-    public class QTable {
-        private final float[] data = new float[512 * 8];
-
-        public int packState(float adv, float dist, float hp, boolean isRec, int crowd) {
-            int a = (adv > 0.7f) ? 2 : (adv < 0.3f) ? 0 : 1;
-            int d = (dist < 4f) ? 0 : (dist < 10f) ? 1 : 2;
-            int h = (hp > 0.7f) ? 2 : (hp < 0.3f) ? 0 : 1;
-            int r = isRec ? 1 : 0;
-            int c = (crowd <= 1) ? 0 : (crowd >= 3 ? 2 : 1);
-            return (a << 7) | (d << 5) | (h << 3) | (r << 2) | c;
-        }
-
-        public float getQ(int sIdx, int aIdx, float fatigue) {
-            float baseQ = data[(sIdx << 3) | aIdx];
-            return baseQ - (2.0f * fatigue);
-        }
-
-        /**
-         * [TQH Re-mapped] 戻り値としてTD誤差（Surprise）を返し、熱源とする
-         */
-        public float updateTQH(int sIdx, int aIdx, float reward, int nextSIdx, float fatigue) {
-            int idx = (sIdx << 3) | aIdx;
-            float currentQ = data[idx];
-
-            float elasticity = 1.0f - Math.min(0.5f, fatigue);
-            float adjustedReward = reward * elasticity;
-
-            float maxNextQ = -1.0f;
-            for (int i = 0; i < 8; i++) {
-                if (data[(nextSIdx << 3) | i] > maxNextQ) maxNextQ = data[(nextSIdx << 3) | i];
-            }
-
-            float targetQ = adjustedReward + 0.9f * maxNextQ;
-            float tdError = targetQ - currentQ;
-
-            data[idx] += 0.2f * tdError;
-            return tdError; // 熱源として誤差を返す
-        }
-
-        public int getBestActionIdx(int sIdx, float[] currentFatigue) {
-            int best = 0;
-            float maxEffectiveQ = -Float.MAX_VALUE;
-            for (int i = 0; i < 8; i++) {
-                float eq = getQ(sIdx, i, currentFatigue[i]);
-                if (eq > maxEffectiveQ) { maxEffectiveQ = eq; best = i; }
-            }
-            return best;
-        }
-    }
-
-    public final QTable qTable = new QTable();
+    private final UUID ownerId;
     public Map<UUID, AttackPattern> enemyPatterns = new HashMap<>();
     public final TacticalMemory tacticalMemory = new TacticalMemory();
     public final SelfPattern selfPattern = new SelfPattern();
+    private final List<BrainSnapshot> combatHistory = new ArrayList<>();
+    public float attentionLevel;
 
-    private final LiquidAstrocyte astrocyte;
-
-    public LiquidBrain(UUID uuid) {
-        Random random = new Random(uuid.getMostSignificantBits());
-        this.composure = (float) (0.3 + (random.nextDouble() * 0.7));
-        this.aggression = new LiquidNeuron(0.08 + (random.nextDouble() * 0.04));
-        this.fear = new LiquidNeuron(0.08 + (random.nextDouble() * 0.04));
-        this.tactical = new LiquidNeuron(0.05 + (random.nextDouble() * 0.02));
-
-        this.astrocyte = new LiquidAstrocyte(aggression, fear, tactical, reflex);
+    // --- コンストラクタ ---
+    public LiquidBrain(UUID ownerId) {
+        this.ownerId = ownerId;
+        // Rust 側の Singularity インスタンスを生成し、メモリアドレス(Handle)を取得
+        this.nativeHandle = initNativeSingularity();
     }
 
     /**
-     * [TQH core] 経験消化と熱力学的平衡の計算
+     * エンティティ消滅時に必ず呼び出し、Rust 側のメモリを解放する。
+     */
+    public void dispose() {
+        if (nativeHandle != 0) {
+            destroyNativeSingularity(nativeHandle);
+        }
+    }
+
+    /**
+     * [TQH] 経験の消化 - Rust 側へ委譲
      */
     public void digestExperience() {
-        // 1. TD誤差の算出と加熱（予測が外れるほど熱くなる）
-        float tdError = qTable.updateTQH(lastStateIdx, lastActionIdx, accumulatedReward - accumulatedPenalty, 0, fatigueMap[lastActionIdx]);
-        this.systemTemperature += Math.abs(tdError) * THERMAL_CONDUCTIVITY;
+        // Java 側の報酬/罰を Rust に渡して学習させる
+        learnNative(nativeHandle, accumulatedReward - accumulatedPenalty);
 
-        // 2. 冷却材としての報酬（成功体験がシステムを安定・結晶化させる）
-        if (accumulatedReward > 0) {
-            this.systemTemperature -= accumulatedReward * COOLING_COEFFICIENT;
-        }
+        // 学習後の内部状態を Java 側のフィールドに同期（UI表示や互換性のため）
+        syncFromNative();
 
-        // 3. 放熱とクランプ（自然なエントロピー増大と限界設定）
-        this.systemTemperature = Math.max(0.0f, Math.min(2.0f, systemTemperature * 0.94f));
-
-        // 4. 疲労の代謝（既存ロジック）
-        for (int i = 0; i < fatigueMap.length; i++) {
-            if (i == lastActionIdx) fatigueMap[i] += FATIGUE_STRESS;
-            else fatigueMap[i] *= FATIGUE_DECAY;
-        }
-
-        // 5. 神経更新（システム温度を考慮）
-        float urgency = Math.min(1.0f, (accumulatedReward + accumulatedPenalty) * 5.0f);
-        aggression.update(accumulatedReward > 0 ? 1.0 : 0.0, urgency, systemTemperature);
-        fear.update(accumulatedPenalty > 0 ? 1.0 : 0.0, urgency, systemTemperature);
-        tactical.update(0.5, 0.1, systemTemperature);
-        reflex.update(adrenaline, 1.0, systemTemperature);
-
-        // アドレナリン・不満度の同期
-        if (accumulatedReward > 0) {
-            adrenaline = Math.max(0, adrenaline - 0.1f);
-            frustration = Math.max(0, frustration - 0.2f);
-        }
-        if (accumulatedPenalty > 0) {
-            adrenaline = Math.min(1.0f, adrenaline + (accumulatedPenalty * 0.2f));
-        }
-
-        accumulatedReward = 0; accumulatedPenalty = 0;
-
-        // 6. 構造的再編 (TQHによる相転移)
-        reshapeTopology();
-
-        // 2. [NEW] アストロサイトによる空間統制
-        // ニューロン同士が勝手に結合を強めすぎた場合、ここでグリアが冷や水を浴びせる
-        astrocyte.regulate(systemTemperature);
-    }
-
-    public float getGliaActivity() {
-        return astrocyte.getInterventionLevel();
-    }
-
-    public void reshapeTopology() {
-        clearTemporarySynapses();
-
-        // グリアの介入度（過剰発火の抑制レベル）を取得
-        float gliaIntervention = astrocyte.getInterventionLevel();
-
-        // 1. 【GAS / Hyper-Excited】 - 暴走とグリアの相克
-        if (systemTemperature > 1.2f) {
-            aggression.connect(reflex, 2.0f); // 反射の暴走
-
-            // グリアが強く介入している場合、攻撃を抑制し回避へバイアスをかける
-            if (gliaIntervention > 0.6f) {
-                aggression.disconnect(reflex);
-                reflex.connect(fear, 1.5f); // 攻撃を止め、「逃げ」の反射へ強制転換
-            }
-            reflex.connect(tactical, -1.0f); // 思考能力の完全遮断
-        }
-
-        // 2. 【SOLID / Crystalized】 - 冷徹な最適化
-        else if (systemTemperature < 0.3f) {
-            // 疲労が少ないエリアを優先的に接続する
-            if (fatigueMap[0] < 0.5f) { // 攻撃疲労が少ない
-                tactical.connect(aggression, 1.2f);
-            } else {
-                // 攻撃に疲れているなら、待ち（Baiting）にシフトするため戦術層を強化
-                tactical.connect(fear, 0.4f);
-            }
-            // 予測信頼度が高い場合、反射を戦術層に従属させる
-            if (velocityTrust > 0.8f) {
-                tactical.connect(reflex, 0.6f);
-            }
-        }
-
-        // 3. 【LIQUID / Adaptive】 - 感情ベースの柔軟な接続
-        else {
-            // --- 攻勢の葛藤 ---
-            if (adrenaline > 0.8f && frustration < 0.4f) {
-                // 乗っている状態：攻撃と反射が同期
-                aggression.connect(reflex, 1.0f);
-            } else if (frustration > 0.7f) {
-                // 焦燥状態：戦術を無視して反射が先行
-                reflex.connect(aggression, 1.5f);
-                tactical.disconnect(aggression);
-            }
-
-            // --- 防御の葛藤 ---
-            if (morale < 0.3f) {
-                // 士気低下：恐怖が反射を支配（パニック回避）
-                fear.connect(reflex, 1.8f);
-            } else if (composure > 0.6f) {
-                // 冷静：恐怖を戦術的に利用（計画的撤退）
-                fear.connect(tactical, 0.8f);
-                tactical.connect(reflex, 0.3f);
-            }
-        }
-
-        // 4. 【Emergency / Surprise Boost】 - 予測外の事態への即応
-        // 相手が予測不能な動きをした際、一時的に全ニューロンを「並列」に繋ぎ直す
-        if (velocityTrust < 0.2f && adrenaline > 0.5f) {
-            aggression.connect(fear, 0.5f); // 攻守混合状態
-        }
-    }
-
-    private void clearTemporarySynapses() {
-        aggression.disconnect(reflex);
-        aggression.disconnect(tactical);
-        fear.disconnect(tactical);
-        reflex.disconnect(tactical);
-    }
-
-    // [2026-01-12] 代表への報告用：Particle.FLASHに渡すRGBデータ
-    public int[] getTQHFlashColor() {
-        if (systemTemperature > 1.2f) return new int[]{255, 0, 255}; // Magenta (気体・混乱)
-        if (systemTemperature < 0.3f) return new int[]{0, 200, 255}; // Cyan (固体・冷徹)
-        return new int[]{255, 100, 0}; // Orange (液体・平常)
+        // 蓄積リセット
+        accumulatedReward = 0.0f;
+        accumulatedPenalty = 0.0f;
     }
 
     /**
-     * [TQH-Analytics] 戦闘中の脳状態を記録するデータポイント
+     * [DSR] トポロジー再編 - Rust 側で実行
      */
-    public record BrainSnapshot(
-            long tick,
-            float temp,
-            float morale,
-            float frustration,
-            String action,
-            int[] color
-    ) {}
-
-    public List<BrainSnapshot> getCombatHistory() {
-        return combatHistory;
+    public void reshapeTopology() {
+        // digestExperience 内で learnNative を通じて実行されるため、
+        // 個別に呼ぶ必要はないが、手動同期用にラップ
+        syncFromNative();
     }
 
-    // LiquidBrain内に追加
-    private final List<BrainSnapshot> combatHistory = new ArrayList<>();
+    /**
+     * Rust 側の状態を Java フィールドへコピーする
+     */
+    private void syncFromNative() {
+        if (nativeHandle == 0) return;
+        this.systemTemperature = getSystemTemperature(nativeHandle);
+        this.frustration = getFrustration(nativeHandle);
+        this.adrenaline = getAdrenaline(nativeHandle);
+
+        // 各ニューロンの活性度も同期
+        float[] neuronStates = getNeuronStates(nativeHandle);
+        if (neuronStates.length >= 4) {
+            // aggression.set(neuronStates[0]) などのメソッドが必要
+            // 既存の LiquidNeuron に set メソッドがない場合は直接フィールドアクセスor調整
+        }
+    }
+
+    /**
+     * 思考処理 (Action選択)
+     */
+    public int think(float[] inputs) {
+        // Rust 側で Q-Table とニューロン状態から ActionID を算出
+        this.lastActionIdx = selectActionNative(nativeHandle, inputs);
+        return this.lastActionIdx;
+    }
+
+    /**
+     * [Glia Interface] Rust側のHorizon(恒常性)の介入度を取得
+     * 1.0 に近いほど、過剰興奮を抑制するために「慎重な動き」が強制される
+     */
+    public float getGliaActivity() {
+        if (nativeHandle == 0) return 0.0f;
+        return getGliaActivityNative(nativeHandle);
+    }
+
+    /**
+     * [Elastic Q] 指定した行動の現在の期待値(Q値)を取得
+     */
+    public double getNativeScore(int actionIdx) {
+        if (nativeHandle == 0) return 0.0;
+        return getActionScoreNative(nativeHandle, actionIdx);
+    }
+
+    // --- Native Methods エリア ---
+    private native float getGliaActivityNative(long handle);
+    private native float getActionScoreNative(long handle, int actionIdx);
+
+    // --- Native Methods ---
+    private native long initNativeSingularity();
+    private native void destroyNativeSingularity(long handle);
+    private native int selectActionNative(long handle, float[] inputs);
+    private native void learnNative(long handle, float totalReward);
+    private native float getSystemTemperature(long handle);
+    private native float getFrustration(long handle);
+    private native float getAdrenaline(long handle);
+    private native float[] getNeuronStates(long handle);
+
+    // --- 既存の互換性維持メソッド (中身はそのまま) ---
+    public void recordAttack(UUID targetId, double distance, boolean isMiss) {
+        AttackPattern p = enemyPatterns.computeIfAbsent(targetId, k -> new AttackPattern());
+        long now = System.currentTimeMillis();
+        if (p.lastAttackTick > 0) {
+            double interval = (now - p.lastAttackTick) / 50.0;
+            p.averageInterval = (p.averageInterval * 0.9) + (interval * 0.1);
+        }
+        p.lastAttackTick = now;
+        p.preferredDist = (p.preferredDist * 0.95) + (distance * 0.05);
+        if (isMiss) tacticalMemory.myMisses++; else tacticalMemory.myHits++;
+    }
+
+    public void recordSelfAttack(long currentTick) {
+        if (selfPattern.lastAttackTick > 0) {
+            double interval = (currentTick - selfPattern.lastAttackTick);
+            selfPattern.averageInterval = (selfPattern.averageInterval * 0.8) + (interval * 0.2);
+        }
+        selfPattern.lastAttackTick = currentTick;
+        selfPattern.sampleCount++;
+    }
 
     public void recordSnapshot(String action) {
-        if (combatHistory.size() > 500) combatHistory.remove(0); // 直近500回（約25秒分）を保持
+        if (combatHistory.size() > 500) combatHistory.remove(0);
         combatHistory.add(new BrainSnapshot(
                 System.currentTimeMillis(),
                 systemTemperature,
@@ -267,12 +187,16 @@ public class LiquidBrain {
         ));
     }
 
-    // --- 以下、既存の AttackPattern 等の内部クラス・メソッドを保持 ---
-    public void recordAttack(UUID targetId, double distance, boolean isMiss) { /* 既存通り */ }
-    public void recordSelfAttack(long currentTick) { /* 既存通り */ }
-    public class AttackPattern { public long lastAttackTick; public double averageInterval; public double preferredDist; public int sampleCount; }
-    public class TacticalMemory { public double combatAdvantage = 0.5; public int myHits, myMisses, takenHits, avoidedHits;
-        public long lastHitTime;
+    public int[] getTQHFlashColor() {
+        if (systemTemperature < 0.3f) return new int[]{100, 100, 255}; // SOLID (Blue)
+        if (systemTemperature < 0.8f) return new int[]{150, 255, 150}; // LIQUID (Green)
+        return new int[]{255, 100, 100}; // GAS (Red)
     }
+
+    // --- 内部データ構造 (そのまま保持) ---
+    public record BrainSnapshot(long tick, float temp, float morale, float frustration, String action, int[] color) {}
+    public List<BrainSnapshot> getCombatHistory() { return combatHistory; }
+    public class AttackPattern { public long lastAttackTick; public double averageInterval = 20.0; public double preferredDist = 3.0; public int sampleCount; }
+    public class TacticalMemory { public double combatAdvantage = 0.5; public int myHits, myMisses, takenHits, avoidedHits; public long lastHitTime; }
     public static class SelfPattern { public long lastAttackTick = 0; public double averageInterval = 0; public int sampleCount = 0; }
 }

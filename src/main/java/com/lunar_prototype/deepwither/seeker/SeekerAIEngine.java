@@ -101,7 +101,8 @@ public class SeekerAIEngine {
                 if (peerSIdx >= 0 && peerAIdx >= 0) {
                     // オフポリス学習：仲間が成功した行動を統合
                     // TQH版 updateTQH を使用。成功体験の模倣は「小規模な冷却」を伴う。
-                    float tdError = myBrain.qTable.updateTQH(peerSIdx, peerAIdx, 0.05f, peerSIdx, myBrain.fatigueMap[peerAIdx]);
+                    float imitationReward = 0.05f;
+                    myBrain.accumulatedReward += imitationReward;
 
                     // 成功体験を学ぶことで、システムはわずかに安定（冷却）する
                     myBrain.systemTemperature -= 0.02f;
