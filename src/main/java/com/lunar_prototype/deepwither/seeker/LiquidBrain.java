@@ -196,7 +196,7 @@ public class LiquidBrain {
     // --- 内部データ構造 (そのまま保持) ---
     public record BrainSnapshot(long tick, float temp, float morale, float frustration, String action, int[] color) {}
     public List<BrainSnapshot> getCombatHistory() { return combatHistory; }
-    public class AttackPattern { public long lastAttackTick; public double averageInterval = 20.0; public double preferredDist = 3.0; public int sampleCount; }
+    public static class AttackPattern { public long lastAttackTick; public double averageInterval = 20.0; public double preferredDist = 3.0; public int sampleCount; }
     public class TacticalMemory { public double combatAdvantage = 0.5; public int myHits, myMisses, takenHits, avoidedHits; public long lastHitTime; }
     public static class SelfPattern { public long lastAttackTick = 0; public double averageInterval = 0; public int sampleCount = 0; }
 }
