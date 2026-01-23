@@ -292,7 +292,7 @@ public class PlayerInventoryRestrictor implements Listener {
      *
      * @param itemRarity   the item's rarity string (expected to match one of the configured rarity tokens)
      * @param filterRarity the filter rarity string to compare against (expected to match one of the configured rarity tokens)
-     * @return `true` if the item's rarity has a higher rank than the filter rarity, `false` otherwise; unknown rarity strings are treated as lower than any known rarity
+     * `@return` `true` if the message should be shown (when the item has no metadata or rarity tag, or the item's rarity is strictly greater than the player's configured rarity filter), `false` otherwise
      */
     private boolean isRarityGreaterOrEqual(@NotNull String itemRarity, @NotNull String filterRarity) {
         String[] rarityOrder = {"&f&lコモン", "&a&lアンコモン", "&b&lレア", "&d&lエピック", "&6&lレジェンダリー"};
