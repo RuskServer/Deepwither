@@ -1,11 +1,9 @@
 package com.lunar_prototype.deepwither;
 
 import io.lumine.mythic.api.adapters.AbstractItemStack;
-import io.lumine.mythic.api.config.MythicLineConfig;
 import io.lumine.mythic.api.drops.DropMetadata;
 import io.lumine.mythic.api.drops.IItemDrop;
 import io.lumine.mythic.bukkit.BukkitAdapter;
-import io.lumine.mythic.bukkit.adapters.BukkitItemStack;
 import io.lumine.mythic.bukkit.adapters.item.ItemComponentBukkitItemStack;
 import io.lumine.mythic.bukkit.events.MythicDropLoadEvent;
 import org.bukkit.entity.Player;
@@ -51,7 +49,6 @@ public class CustomDropListener implements Listener {
                     return null;
                 }
             });
-            plugin.getLogger().info("Registered custom artifact drop!");
         }
 
         if (event.getDropName().equalsIgnoreCase("DYNAMIC_LOOT_DROP")) {
