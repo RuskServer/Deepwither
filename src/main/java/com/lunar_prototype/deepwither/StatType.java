@@ -229,37 +229,34 @@ class LoreBuilder {
         return lore;
     }
 
-    /**
-     * 2列レイアウト生成メソッド（修正版）
-     * 目標幅を4pxグリッドに合わせることで安定させます
-     */
+    // 2列レイアウト生成メソッドの微調整
     private static void addTwoColumnLore(List<String> mainLore, List<String> items) {
         if (items.isEmpty()) return;
 
         int maxLeftWidth = 0;
-        // 左側に来る要素の最大幅を計算
+        // まず左側にくる要素の中で「最大の幅」を計算
         for (int i = 0; i < items.size(); i += 2) {
             int width = getMinecraftStringWidth(items.get(i));
             if (width > maxLeftWidth) maxLeftWidth = width;
         }
 
-        // 目標幅の決定：最大幅 + 余白(12px)
-        // 【重要】目標幅自体を「4の倍数」に切り上げることで、スペースのみでの調整を綺麗にします
-        int padding = 12;
-        int rawTarget = maxLeftWidth + padding;
+        // 目標幅の設定：
+        // 「最大幅」+「最低限の余白(8px)」に加え、
+        // 全体を4pxの倍数（スペースのグリッド）に揃える補正を行います。
+        // これにより、どの行も「スペースの区切り」で右側の文字が始まるようになります。
+        int rawTarget = maxLeftWidth + 8;
         int targetWidth = (rawTarget % 4 == 0) ? rawTarget : (rawTarget + (4 - (rawTarget % 4)));
 
         for (int i = 0; i < items.size(); i += 2) {
             String left = items.get(i);
-            // 右側の要素がない場合は左だけ追加して終了
             if (i + 1 >= items.size()) {
                 mainLore.add(" " + left);
                 break;
             }
             String right = items.get(i + 1);
 
-            // パディング処理
-            // デバッグ用ログが必要ならここにSystem.out.printlnを挟んでください
+            // 生成
+            // 以前のように debug ログを出しても良いですが、このロジックならほぼズレません
             mainLore.add(" " + padToWidth(left, targetWidth) + "§r" + right);
         }
     }
@@ -271,21 +268,27 @@ class LoreBuilder {
      */
     private static String padToWidth(String text, int targetPx) {
         int currentPx = getMinecraftStringWidth(text);
+
+        // 現在の幅がすでに目標を超えている、または差が小さすぎる場合
+        // 最低でもスペース2つ分(8px)の余白を確保して、右の文字が被らないようにする
+        if (currentPx >= targetPx) {
+            return text + "  ";
+        }
+
         int neededPx = targetPx - currentPx;
 
-        // 既に幅を超えている、または差が小さい場合でも最低1つのスペースを入れる
-        if (neededPx <= 0) return text + "    ";
+        // 必要なピクセル数をスペースの幅(4px)で割り、切り上げる
+        // これにより、必ず targetPx 以上になる最小のスペース数が求まります
+        int spacesNeeded = (int) Math.ceil(neededPx / 4.0);
+
+        // 念のため最低1つは入れる
+        if (spacesNeeded < 1) spacesNeeded = 1;
 
         StringBuilder sb = new StringBuilder(text);
 
-        // 足りないピクセル数を4(スペースの幅)で割って、切り上げで個数を決定
-        // (neededPx + 3) / 4 は Math.ceil(needed / 4.0) と同じ整数のテクニックです
-        int spacesNeeded = (neededPx + 3) / 4;
-
-        // 通常のスペースを追加
-        // §rを入れることで、前のテキストの色や太字設定をリセットしてからスペースを入れます
+        // 色や装飾の影響を受けないようにリセットしてからスペースを入れる
         sb.append("§r");
-        sb.append(" ".repeat(Math.max(0, spacesNeeded)));
+        sb.append(" ".repeat(spacesNeeded));
 
         return sb.toString();
     }
@@ -296,14 +299,13 @@ class LoreBuilder {
      * 一部の数値を安全側に修正しています。
      */
     private static int getCharWidth(char c) {
-        // 1. 特殊アイコン
-        // 矢印などが実際にはもう少し広い可能性があるため、12pxに統一して過小評価を防ぎます
+        // 1. 特殊アイコン (ここがズレの原因になりやすいので少し大きめに見積もる)
         if (c == '❤') return 9;
-        if (c == '➸') return 12; // 10 -> 12 に変更（ここがズレの主因の可能性大）
-        if (c == '✠') return 12; // 10 -> 12 に変更
+        if (c == '➸') return 11; // 10->11
+        if (c == '✠') return 11; // 10->11
         if (c == '☆') return 9;
         if (c == '■') return 8;
-        if (c == '⌛') return 9;
+        if (c == '⌛') return 10; // 9->10 (ここが怪しい)
         if (c == '•') return 5;
         if (c == '»') return 9;
 
@@ -314,13 +316,13 @@ class LoreBuilder {
         if ("<>\"()*".indexOf(c) != -1) return 5;
         if (c == ' ') return 4;
 
-        // 3. 全角文字 (日本語)
-        // Minecraftの標準的な日本語フォントは描画12px+影1pxで13pxとするのが一般的ですが、
-        // ズレる場合は安全策として「12」で見積もるか、逆に広めに取るか調整が必要です。
-        // 現状維持の「13」で、上記のpadToWidth修正と組み合わせれば安定するはずです。
+        // 3. 全角文字
+        // 日本語フォントは12px描画+1px影=13pxが基本ですが、
+        // ズレるなら少し過大評価して「14」にしておくと、パディングが減って左に寄るため安全です。
+        // 現状維持の13でOKですが、もし右に飛び出るならここを14にしてください。
         if (c > 255) return 13;
 
-        // 4. 標準的な英数字
+        // 4. 標準
         return 6;
     }
 
