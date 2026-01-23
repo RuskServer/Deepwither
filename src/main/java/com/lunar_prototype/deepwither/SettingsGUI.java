@@ -118,7 +118,7 @@ public class SettingsGUI implements Listener {
         lore.add("");
         lore.add("§7現在: " + displayRarity + " §7以下を非表示");
         lore.add("");
-        lore.add("§7右クリック: 設定を開く");
+        lore.add("§7クリック: 設定を開く");
         meta.setLore(lore);
 
         item.setItemMeta(meta);
