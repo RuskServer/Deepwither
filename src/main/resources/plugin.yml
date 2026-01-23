@@ -3,7 +3,7 @@ version: '1.0-SNAPSHOT'
 main: com.lunar_prototype.deepwither.Deepwither
 author: ["Lunar_prototype","RS Team"]
 api-version: '1.21'
-depend : ["Votifier","BetterModel"]
+depend : ["Votifier","BetterModel","DiscordSRV"]
 
 commands:
   giveitem:

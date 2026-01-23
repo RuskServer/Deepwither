@@ -185,23 +185,8 @@ public class CombatExperienceListener implements Listener {
                 }
             }
 
-            // 3. 次の状態(Next State)の取得
-            List<BanditContext.EnemyInfo> enemies = new SensorProvider().scanEnemies(mob, mob.getNearbyEntities(32, 32, 32));
-            float dist = (mob.getTarget() != null) ? (float) mob.getLocation().distance(mob.getTarget().getLocation()) : 20.0f;
-            float hp = (float) (mob.getHealth() / mob.getMaxHealth()); // Quantum-optimized access
-
-            int nextStateIdx = brain.qTable.packState(
-                    (float) brain.tacticalMemory.combatAdvantage,
-                    dist, hp, false, enemies.size()
-            );
-
             // 4. [TQH Core] 量子化Q-Update & 熱力学フィードバック
             if (brain.lastStateIdx >= 0 && brain.lastActionIdx >= 0) {
-                // TD誤差（驚き）を算出
-                float tdError = brain.qTable.updateTQH(brain.lastStateIdx, brain.lastActionIdx, rawReward, nextStateIdx, currentFatigue);
-
-                // 【加熱】予測が外れた(tdErrorが大きい) ＋ 横槍(thermalStress) ＝ システム温度上昇
-                brain.systemTemperature += (Math.abs(tdError) * 0.25f) + thermalStress;
 
                 // 【冷却】正の報酬が得られた場合、システムを冷却して構造を固定
                 if (rawReward > 0) {

@@ -70,4 +70,8 @@ public class LiquidNeuron {
     }
 
     public double get() { return state; }
+
+    public void setState(float newState) {
+        this.state = newState;
+    }
 }

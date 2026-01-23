@@ -27,6 +27,19 @@ public class LiquidCombatEngine {
     }
 
     /**
+     * Rust 側の Q-Table (512状態) に適合するように、現在の状況を 0-511 の整数に圧縮する
+     */
+    private int packStateForRust(double advantage, double dist, float hp, boolean recovering, int enemyCount) {
+        int bits = 0;
+        bits |= (advantage > 0.6 ? 2 : (advantage > 0.4 ? 1 : 0)) << 7; // 優位性 (2bit)
+        bits |= (dist < 3 ? 0 : (dist < 7 ? 1 : 2)) << 5;              // 距離 (2bit)
+        bits |= (hp < 0.3 ? 0 : (hp < 0.7 ? 1 : 2)) << 3;              // 体力 (2bit)
+        bits |= (recovering ? 1 : 0) << 2;                             // 回復中 (1bit)
+        bits |= (Math.min(enemyCount, 3)) ;                            // 敵の数 (2bit)
+        return bits & 0x1FF; // 511以下に収める
+    }
+
+    /**
      * [TQH Integrated] thinkV1Optimized
      * 既存の予測・士気計算・疲労系を維持しつつ、システムの熱力学的状態を反映。
      */
@@ -274,8 +287,12 @@ public class LiquidCombatEngine {
 
         // --- 3. Elastic Action Selection & 量子化状態パッキング ---
         boolean isRecovering = (brain.selfPattern.averageInterval > 0 && (bukkitEntity.getTicksLived() - brain.selfPattern.lastAttackTick) < 15);
-        float hpPct = (float) context.entity.hp_pct / 100.0f;
-        int stateIdx = brain.qTable.packState(advantage, enemyDist, hpPct, isRecovering, enemies.size());
+        float[] contextData = new float[5];
+        contextData[0] = (float) advantage;
+        contextData[1] = (float) enemyDist;
+        contextData[2] = (float) context.entity.hp_pct / 100.0f;
+        contextData[3] = isRecovering ? 1.0f : 0.0f;
+        contextData[4] = (float) enemies.size();
 
         int bestAIdx = -1;
         float bestExpectation = -999.0f;
@@ -290,7 +307,7 @@ public class LiquidCombatEngine {
 
             int candidateIdx;
             if (i == 0 && ThreadLocalRandom.current().nextFloat() > currentEpsilon) {
-                candidateIdx = brain.qTable.getBestActionIdx(stateIdx, brain.fatigueMap);
+                candidateIdx = brain.think(contextData);
             } else {
                 candidateIdx = ThreadLocalRandom.current().nextInt(ACTIONS.length);
             }
@@ -377,11 +394,6 @@ public class LiquidCombatEngine {
             if (brain.fatigueMap[bestAIdx] > 0.4f) d.reasoning += " | ELASTIC:FATIGUED";
         }
 
-        // インデックス更新と学習報酬の適用
-        if (bestAIdx == brain.lastActionIdx) brain.actionRepeatCount++;
-        else brain.actionRepeatCount = 0;
-
-        brain.lastStateIdx = stateIdx;
         brain.lastActionIdx = bestAIdx;
 
         // [Surprise Boost] 予測が外れている時は報酬の反映強度を上げる
@@ -401,11 +413,8 @@ public class LiquidCombatEngine {
         float totalProcessReward = 0.0f;
         StringBuilder rewardDebug = new StringBuilder();
 
-        // =========================================================
-        // [相関スケーラー] 信頼度・冷静さ・疲労を統合 (既存仕様)
-        // =========================================================
-        float currentFatigue = brain.fatigueMap[brain.lastActionIdx];
-        float correlationFactor = (brain.velocityTrust * 0.5f + brain.composure * 0.5f) * (1.0f - currentFatigue);
+        // 相関スケーラー（Rustから取得した値を使用）
+        float correlationFactor = (brain.velocityTrust * 0.5f + brain.composure * 0.5f) * (1.0f - brain.fatigueMap[brain.lastActionIdx]);
 
         // 1. 背後・側面奪取 (Flanking)
         Vector toSelf = bukkitEntity.getLocation().toVector().subtract(target.getLocation().toVector()).normalize();
@@ -425,68 +434,20 @@ public class LiquidCombatEngine {
         // 2. リーチ・スペーシング (Spacing)
         String weakness = CollectiveKnowledge.getGlobalWeakness(target.getUniqueId());
         if (weakness.equals("CLOSE_QUARTERS")) {
-            if (currentDist < 2.5) {
-                float rwd = 0.2f * brain.composure;
-                totalProcessReward += rwd;
-                rewardDebug.append(String.format("STICKY(+%.2f) ", rwd));
-            }
+            if (currentDist < 2.5) totalProcessReward += 0.2f * brain.composure;
         } else if (currentDist > 3.0 && currentDist < 5.0) {
-            float rwd = 0.05f + (0.1f * brain.velocityTrust);
-            totalProcessReward += rwd;
-            rewardDebug.append(String.format("DIST(+%.2f) ", rwd));
-        }
-
-        // 3. 視線誘導 (Baiting Success)
-        if (brain.lastActionIdx == 2 && brain.composure > 0.8f) {
-            float rwd = 0.1f + (0.2f * brain.velocityTrust);
-            totalProcessReward += rwd;
-            rewardDebug.append(String.format("BAIT_WIN(+%.2f) ", rwd));
+            totalProcessReward += 0.05f + (0.1f * brain.velocityTrust);
         }
 
         // =========================================================
-        // [Action Linkage] コンボ・チェーン評価 (既存仕様)
-        // =========================================================
-        if (brain.secondLastActionIdx >= 0) {
-            float comboBonus = 0.0f;
-            if (brain.secondLastActionIdx == 6 && brain.lastActionIdx == 0 && currentDist < 3.0) { // BURST -> ATTACK
-                comboBonus += 0.25f * correlationFactor;
-                rewardDebug.append("CHASE_HIT ");
-            }
-            if (brain.secondLastActionIdx == 1 && brain.lastActionIdx == 7) { // EVADE -> COUNTER
-                comboBonus += 0.3f * brain.velocityTrust;
-                rewardDebug.append("EVADE_COUNTER ");
-            }
-            if (brain.secondLastActionIdx == 5 && brain.lastActionIdx == 6) { // ORBITAL -> BURST
-                comboBonus += 0.2f * brain.composure;
-                rewardDebug.append("CHAOS_DASH ");
-            }
-            totalProcessReward += comboBonus;
-        }
-
-        // =========================================================
-        // [TQH Core] 熱力学的Q更新と冷却（結晶化）
+        // [Rust 連携] 蓄積報酬としてセット。digestExperience() で Rust 側へ一括送信される
         // =========================================================
         if (totalProcessReward > 0) {
-            // Q値の更新とTD誤差（驚き）の取得
-            // 良い動きができた＝予測が当たった、あるいは良い発見をした
-            float tdError = brain.qTable.updateTQH(brain.lastStateIdx, brain.lastActionIdx, totalProcessReward, brain.lastStateIdx, currentFatigue);
+            brain.accumulatedReward += totalProcessReward;
 
-            // 【冷却】立ち回りの成功は系を冷却し、現在のトポロジー（脳構造）を「固体」として固定する
-            // 0.45fは冷却係数。報酬が多いほどシステムは冷徹(SOLID)になる。
-            brain.systemTemperature -= (totalProcessReward * 0.45f);
-
-            // 自然放熱とのバランスを取り、最低値をクランプ
-            if (brain.systemTemperature < 0.0f) brain.systemTemperature = 0.0f;
-
+            // デバッグ表示用に現在の温度をシミュレート（実際にはRust側で正確に計算される）
             d.reasoning += String.format(" | RWD:%s | TEMP:%.2f", rewardDebug.toString(), brain.systemTemperature);
-
-            // [2026-01-12] 報酬獲得の瞬間に冷却色のFLASHをトリガーするための相転移チェック
-            brain.reshapeTopology();
         }
-
-        // 履歴シフト
-        brain.secondLastActionIdx = brain.lastActionIdx;
-        brain.secondLastStateIdx = brain.lastStateIdx;
     }
 
     /**
@@ -537,7 +498,7 @@ public class LiquidCombatEngine {
     }
 
     private double evaluateTimeline(int actionIdx, LiquidBrain brain, Player target, Mob self, String globalWeakness) {
-        float qValue = brain.qTable.getQ(brain.lastStateIdx, actionIdx, brain.fatigueMap[brain.lastActionIdx]);
+        float qValue = (float) brain.getNativeScore(actionIdx);
         float score = qValue;
 
         // 現在の座標と時間
