@@ -17,6 +17,7 @@ public class PlayerSettingsManager {
     private final File file;
     private FileConfiguration config;
     private final Map<UUID, Map<SettingType, Boolean>> cache = new HashMap<>();
+    private final Map<UUID, String> rarityFilterCache = new HashMap<>();
 
     public enum SettingType {
         SHOW_GIVEN_DAMAGE("与ダメージログ", true),     // 自分が与えたダメージ
@@ -81,7 +82,14 @@ public class PlayerSettingsManager {
         return val;
     }
 
-    // 設定の切り替え
+    /**
+     * Toggle the specified setting for the given player and persist the change.
+     *
+     * Updates the in-memory cache and writes the new boolean value for the player's setting into the persistent settings file.
+     *
+     * @param player the player whose setting will be toggled
+     * @param type   the SettingType to toggle
+     */
     public void toggle(Player player, SettingType type) {
         UUID uuid = player.getUniqueId();
         boolean current = isEnabled(uuid, type);
@@ -93,5 +101,46 @@ public class PlayerSettingsManager {
 
         // 簡易フィードバック不要なら削除可
         // player.sendMessage("§7[設定] " + type.getDisplayName() + ": " + (currentNew ? "§aON" : "§cOFF"));
+    }
+
+    /**
+     * Retrieves the rarity filter string associated with the given player.
+     *
+     * @param player the player whose rarity filter to retrieve
+     * @return the player's rarity filter string; cached if available, otherwise the default "&f&lコモン"
+     */
+    public String getRarityFilter(Player player) {
+        return getRarityFilter(player.getUniqueId());
+    }
+
+    /**
+     * Retrieve the player's rarity filter string, loading it from the settings file and caching it if not already cached.
+     *
+     * @param uuid the player's UUID whose rarity filter to retrieve
+     * @return the rarity filter string for the player; defaults to "&f&lコモン" when not set
+     */
+    public String getRarityFilter(UUID uuid) {
+        if (rarityFilterCache.containsKey(uuid)) {
+            return rarityFilterCache.get(uuid);
+        }
+
+        String path = uuid.toString() + ".rarity_filter";
+        String rarity = config.getString(path, "&f&lコモン"); // デフォルトはコモン
+
+        rarityFilterCache.put(uuid, rarity);
+        return rarity;
+    }
+
+    /**
+     * Set the player's rarity filter and persist the change to the settings file.
+     *
+     * @param player the player whose rarity filter will be updated
+     * @param rarity the rarity filter string to assign to the player
+     */
+    public void setRarityFilter(Player player, String rarity) {
+        UUID uuid = player.getUniqueId();
+        rarityFilterCache.put(uuid, rarity);
+        config.set(uuid.toString() + ".rarity_filter", rarity);
+        save();
     }
 }

@@ -15,11 +15,13 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static com.lunar_prototype.deepwither.util.InventoryHelper.*;
@@ -229,8 +231,23 @@ public class PlayerInventoryRestrictor implements Listener {
         return false;
     }
 
+    /**
+     * Send a formatted pickup notification to the player when they acquire items.
+     *
+     * The message is emitted only if the player's SHOW_PICKUP_LOG setting is enabled and
+     * the configured rarity filter allows the item; otherwise no message is sent.
+     *
+     * @param player the player to receive the message
+     * @param itemStack the item that was picked up
+     * @param amount the quantity of the item picked up
+     */
     private void sendPickupMessage(@NotNull Player player, @NotNull ItemStack itemStack, int amount) {
         if (!playerSettingsManager.isEnabled(player, PlayerSettingsManager.SettingType.SHOW_PICKUP_LOG)) {
+            return;
+        }
+
+        // レアリティフィルター確認
+        if (!shouldShowPickupMessage(itemStack, player)) {
             return;
         }
 
@@ -242,5 +259,76 @@ public class PlayerInventoryRestrictor implements Listener {
             .append(Component.text(" x").color(TextColor.color(Color.WHITE.asRGB())))
             .append(Component.text(amount))
         );
+    }
+
+    /**
+     * Determines whether a pickup message for the given item should be shown to the player
+     *
+     * @param itemStack the item being picked up to evaluate
+     * @param player the player whose rarity filter is used
+     * @return `true` if the message should be shown (when the item has no metadata or rarity tag, or the item's rarity is greater than or equal to the player's configured rarity filter), `false` otherwise
+     */
+    private boolean shouldShowPickupMessage(@NotNull ItemStack itemStack, @NotNull Player player) {
+        if (!itemStack.hasItemMeta()) {
+            return true;
+        }
+
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) {
+            return true;
+        }
+
+        String itemRarity = meta.getPersistentDataContainer().get(ItemFactory.RARITY_KEY, PersistentDataType.STRING);
+        if (itemRarity == null) {
+            return true;
+        }
+
+        String filterRarity = playerSettingsManager.getRarityFilter(player);
+        return isRarityGreaterOrEqual(itemRarity, filterRarity);
+    }
+
+    /**
+     * Determines whether the item's rarity ranks higher than the configured filter rarity.
+     *
+     * @param itemRarity   the item's rarity string (expected to match one of the configured rarity tokens)
+     * @param filterRarity the filter rarity string to compare against (expected to match one of the configured rarity tokens)
+     * `@return` `true` if the message should be shown (when the item has no metadata or rarity tag, or the item's rarity is strictly greater than the player's configured rarity filter), `false` otherwise
+     */
+    private boolean isRarityGreaterOrEqual(@NotNull String itemRarity, @NotNull String filterRarity) {
+        String[] rarityOrder = {"&f&lコモン", "&a&lアンコモン", "&b&lレア", "&d&lエピック", "&6&lレジェンダリー"};
+        // PDC 側の形式ゆれ対応（§ → &、プレーンテキスト → フォーマット済みへ）
+        itemRarity = normalizeRarityFormat(itemRarity);
+        filterRarity = normalizeRarityFormat(filterRarity);
+        int itemRarityIndex = -1;
+        int filterRarityIndex = -1;
+        for (int i = 0; i < rarityOrder.length; i++) {
+            if (rarityOrder[i].equals(itemRarity)) {
+                itemRarityIndex = i;
+            }
+            if (rarityOrder[i].equals(filterRarity)) {
+                filterRarityIndex = i;
+            }
+        }
+        // インデックス未検出時は安全側（表示側）へ
+        if (itemRarityIndex == -1 || filterRarityIndex == -1) {
+            return true;
+        }
+        return itemRarityIndex > filterRarityIndex;
+    }
+
+    private String normalizeRarityFormat(@NotNull String rarity) {
+        // § → & に統一
+        rarity = rarity.replace('§', '&');
+
+        // プレーンテキスト（"コモン" など）を完全形にマッピング
+        Map<String, String> plainToFormatted = Map.of(
+                "コモン", "&f&lコモン",
+                "アンコモン", "&a&lアンコモン",
+                "レア", "&b&lレア",
+                "エピック", "&d&lエピック",
+                "レジェンダリー", "&6&lレジェンダリー"
+        );
+
+        return plainToFormatted.getOrDefault(rarity, rarity);
     }
 }
