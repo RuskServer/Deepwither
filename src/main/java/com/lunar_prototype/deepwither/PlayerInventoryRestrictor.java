@@ -230,6 +230,16 @@ public class PlayerInventoryRestrictor implements Listener {
         return false;
     }
 
+    /**
+     * Send a formatted pickup notification to the player when they acquire items.
+     *
+     * The message is emitted only if the player's SHOW_PICKUP_LOG setting is enabled and
+     * the configured rarity filter allows the item; otherwise no message is sent.
+     *
+     * @param player the player to receive the message
+     * @param itemStack the item that was picked up
+     * @param amount the quantity of the item picked up
+     */
     private void sendPickupMessage(@NotNull Player player, @NotNull ItemStack itemStack, int amount) {
         if (!playerSettingsManager.isEnabled(player, PlayerSettingsManager.SettingType.SHOW_PICKUP_LOG)) {
             return;
@@ -250,6 +260,13 @@ public class PlayerInventoryRestrictor implements Listener {
         );
     }
 
+    /**
+     * Determines whether a pickup message for the given item should be shown to the player
+     *
+     * @param itemStack the item being picked up to evaluate
+     * @param player the player whose rarity filter is used
+     * @return `true` if the message should be shown (when the item has no metadata or rarity tag, or the item's rarity is greater than or equal to the player's configured rarity filter), `false` otherwise
+     */
     private boolean shouldShowPickupMessage(@NotNull ItemStack itemStack, @NotNull Player player) {
         if (!itemStack.hasItemMeta()) {
             return true;
@@ -269,6 +286,13 @@ public class PlayerInventoryRestrictor implements Listener {
         return isRarityGreaterOrEqual(itemRarity, filterRarity);
     }
 
+    /**
+     * Determines whether the item's rarity ranks higher than the configured filter rarity.
+     *
+     * @param itemRarity   the item's rarity string (expected to match one of the configured rarity tokens)
+     * @param filterRarity the filter rarity string to compare against (expected to match one of the configured rarity tokens)
+     * @return `true` if the item's rarity has a higher rank than the filter rarity, `false` otherwise; unknown rarity strings are treated as lower than any known rarity
+     */
     private boolean isRarityGreaterOrEqual(@NotNull String itemRarity, @NotNull String filterRarity) {
         String[] rarityOrder = {"&f&lコモン", "&a&lアンコモン", "&b&lレア", "&d&lエピック", "&6&lレジェンダリー"};
 

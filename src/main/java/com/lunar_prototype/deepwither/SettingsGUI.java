@@ -23,12 +23,25 @@ public class SettingsGUI implements Listener {
     private final PlayerSettingsManager settingsManager;
     private static final String GUI_TITLE = "§8System Settings";
 
+    /**
+     * Creates a SettingsGUI, stores the plugin and settings manager references, and registers this instance as a Bukkit event listener.
+     *
+     * @param plugin the Deepwither plugin instance used for registration and context
+     * @param settingsManager the PlayerSettingsManager responsible for per-player settings
+     */
     public SettingsGUI(Deepwither plugin, PlayerSettingsManager settingsManager) {
         this.plugin = plugin;
         this.settingsManager = settingsManager;
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
+    /**
+     * Opens the system settings GUI for the given player, presenting toggle controls for various player settings, an item rarity filter, and a back button.
+     *
+     * The GUI is a 36-slot inventory titled "§8System Settings" and includes toggle items for given/taken damage, mitigation, special logs, pickup logs, a rarity filter entry, and a button to return to the main menu.
+     *
+     * @param player the player who will be shown the settings GUI
+     */
     public void open(Player player) {
         Inventory inv = Bukkit.createInventory(null, 36, GUI_TITLE);
 
@@ -53,6 +66,16 @@ public class SettingsGUI implements Listener {
         player.openInventory(inv);
     }
 
+    /**
+     * Creates an inventory item that represents a toggleable player setting with its current state.
+     *
+     * The item's display name includes the setting's display name and a status tag ("§a[ON]" or "§c[OFF]").
+     *
+     * @param player the player whose setting state is shown
+     * @param type the setting type represented by the item
+     * @param mat the material to use for the item icon
+     * @return an ItemStack configured to show the setting name, current state, and a hint that it can be clicked to toggle
+     */
     private ItemStack createToggleItem(Player player, PlayerSettingsManager.SettingType type, Material mat) {
         boolean enabled = settingsManager.isEnabled(player, type);
         String status = enabled ? "§a[ON]" : "§c[OFF]";
@@ -72,6 +95,16 @@ public class SettingsGUI implements Listener {
         return item;
     }
 
+    /**
+     * Create the inventory item that represents the player's item-notification rarity filter.
+     *
+     * The returned ItemStack is a diamond with a display name "アイテム通知フィルター", lore that shows
+     * the player's current rarity filter (formatted for in-game color codes) and a hint to right-click to open
+     * the rarity settings, and item flags hiding attributes and enchantments.
+     *
+     * @param player the player whose current rarity filter is shown on the item
+     * @return an ItemStack configured to display and open the player's rarity filter settings
+     */
     private ItemStack createRarityFilterItem(Player player) {
         String currentRarity = settingsManager.getRarityFilter(player);
         String displayRarity = currentRarity.replace("&", "§");
@@ -92,6 +125,14 @@ public class SettingsGUI implements Listener {
         return item;
     }
 
+    /**
+     * Creates an ItemStack with the given material, display name, and optional lore lines.
+     *
+     * @param mat  the material for the item
+     * @param name the display name to show on the item
+     * @param lore optional lore lines to attach to the item (each element is one line)
+     * @return the ItemStack configured with the specified display name and lore
+     */
     private ItemStack createItem(Material mat, String name, String... lore) {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
@@ -101,6 +142,11 @@ public class SettingsGUI implements Listener {
         return item;
     }
 
+    /**
+     * Routes inventory click events from the settings GUIs to their respective handlers based on the open inventory's title.
+     *
+     * @param e the InventoryClickEvent to inspect and dispatch
+     */
     @EventHandler
     public void onInventoryClick(InventoryClickEvent e) {
         String title = e.getView().getTitle();
@@ -112,6 +158,16 @@ public class SettingsGUI implements Listener {
         }
     }
 
+    /**
+     * Handles clicks inside the main settings GUI.
+     *
+     * Cancels the click and, depending on the clicked slot, performs one of:
+     * - Slot 35: plays a button sound and runs the "menu" command.
+     * - Slot 20: opens the rarity filter submenu.
+     * - Slots 10, 12, 14, 16, 18: toggles the corresponding player setting, plays a button sound, and reopens the settings GUI.
+     *
+     * @param e the InventoryClickEvent originating from the settings GUI
+     */
     private void handleSettingsGUIClick(InventoryClickEvent e) {
         e.setCancelled(true);
 
@@ -148,6 +204,13 @@ public class SettingsGUI implements Listener {
         }
     }
 
+    /**
+     * Handle clicks inside the "§8アイテム通知フィルター" rarity filter GUI.
+     *
+     * Cancels the click and interprets slot 26 as the Back button (plays a button sound and reopens the main settings GUI). Slots 10, 12, 14, 16, and 18 select a rarity: the selected rarity is saved to the player's settings, a button sound is played, and the rarity filter menu is refreshed to reflect the change.
+     *
+     * @param e the InventoryClickEvent from the rarity filter menu
+     */
     private void handleRarityFilterMenuClick(InventoryClickEvent e) {
         e.setCancelled(true);
 
@@ -178,6 +241,13 @@ public class SettingsGUI implements Listener {
         }
     }
 
+    /**
+     * Opens the "§8アイテム通知フィルター" menu for the given player, presenting selectable rarity options and a back button.
+     *
+     * The menu displays five rarity choices with a visual indicator for the currently selected filter and an option to return to the settings menu.
+     *
+     * @param player the player who will be shown the rarity filter menu
+     */
     private void openRarityFilterMenu(Player player) {
         Inventory inv = Bukkit.createInventory(null, 27, "§8アイテム通知フィルター");
 
