@@ -17,6 +17,7 @@ public class PlayerSettingsManager {
     private final File file;
     private FileConfiguration config;
     private final Map<UUID, Map<SettingType, Boolean>> cache = new HashMap<>();
+    private final Map<UUID, String> rarityFilterCache = new HashMap<>();
 
     public enum SettingType {
         SHOW_GIVEN_DAMAGE("与ダメージログ", true),     // 自分が与えたダメージ
@@ -93,5 +94,30 @@ public class PlayerSettingsManager {
 
         // 簡易フィードバック不要なら削除可
         // player.sendMessage("§7[設定] " + type.getDisplayName() + ": " + (currentNew ? "§aON" : "§cOFF"));
+    }
+
+    // レアリティフィルター設定の取得
+    public String getRarityFilter(Player player) {
+        return getRarityFilter(player.getUniqueId());
+    }
+
+    public String getRarityFilter(UUID uuid) {
+        if (rarityFilterCache.containsKey(uuid)) {
+            return rarityFilterCache.get(uuid);
+        }
+
+        String path = uuid.toString() + ".rarity_filter";
+        String rarity = config.getString(path, "&f&lコモン"); // デフォルトはコモン
+
+        rarityFilterCache.put(uuid, rarity);
+        return rarity;
+    }
+
+    // レアリティフィルター設定の変更
+    public void setRarityFilter(Player player, String rarity) {
+        UUID uuid = player.getUniqueId();
+        rarityFilterCache.put(uuid, rarity);
+        config.set(uuid.toString() + ".rarity_filter", rarity);
+        save();
     }
 }

@@ -30,11 +30,11 @@ public class SettingsGUI implements Listener {
     }
 
     public void open(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 27, GUI_TITLE);
+        Inventory inv = Bukkit.createInventory(null, 36, GUI_TITLE);
 
         // 背景
         ItemStack glass = createItem(Material.GRAY_STAINED_GLASS_PANE, " ");
-        for (int i = 0; i < 27; i++) inv.setItem(i, glass);
+        for (int i = 0; i < 36; i++) inv.setItem(i, glass);
 
         // 各設定ボタンの配置
         inv.setItem(10, createToggleItem(player, PlayerSettingsManager.SettingType.SHOW_GIVEN_DAMAGE, Material.IRON_SWORD));
@@ -43,9 +43,12 @@ public class SettingsGUI implements Listener {
         inv.setItem(16, createToggleItem(player, PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, Material.ENCHANTED_BOOK));
         inv.setItem(18, createToggleItem(player, PlayerSettingsManager.SettingType.SHOW_PICKUP_LOG, Material.HOPPER));
 
+        // レアリティフィルター設定
+        inv.setItem(20, createRarityFilterItem(player));
+
         // 戻るボタン
         ItemStack back = createItem(Material.ARROW, "§c戻る", "§7メインメニューへ");
-        inv.setItem(26, back);
+        inv.setItem(35, back);
 
         player.openInventory(inv);
     }
@@ -69,6 +72,26 @@ public class SettingsGUI implements Listener {
         return item;
     }
 
+    private ItemStack createRarityFilterItem(Player player) {
+        String currentRarity = settingsManager.getRarityFilter(player);
+        String displayRarity = currentRarity.replace("&", "§");
+
+        ItemStack item = new ItemStack(Material.DIAMOND);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName("§eアイテム通知フィルター");
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
+
+        List<String> lore = new ArrayList<>();
+        lore.add("");
+        lore.add("§7現在: " + displayRarity + " §7以下を非表示");
+        lore.add("");
+        lore.add("§7右クリック: 設定を開く");
+        meta.setLore(lore);
+
+        item.setItemMeta(meta);
+        return item;
+    }
+
     private ItemStack createItem(Material mat, String name, String... lore) {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
@@ -80,7 +103,52 @@ public class SettingsGUI implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent e) {
-        if (!e.getView().getTitle().equals(GUI_TITLE)) return;
+        String title = e.getView().getTitle();
+
+        if (title.equals(GUI_TITLE)) {
+            handleSettingsGUIClick(e);
+        } else if (title.equals("§8アイテム通知フィルター")) {
+            handleRarityFilterMenuClick(e);
+        }
+    }
+
+    private void handleSettingsGUIClick(InventoryClickEvent e) {
+        e.setCancelled(true);
+
+        if (!(e.getWhoClicked() instanceof Player player)) return;
+        ItemStack clicked = e.getCurrentItem();
+        if (clicked == null || !clicked.hasItemMeta()) return;
+
+        int slot = e.getSlot();
+
+        // 戻るボタン
+        if (slot == 35) {
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+            player.performCommand("menu");
+            return;
+        }
+
+        // レアリティフィルター設定
+        if (slot == 20) {
+            openRarityFilterMenu(player);
+            return;
+        }
+
+        PlayerSettingsManager.SettingType type = null;
+        if (slot == 10) type = PlayerSettingsManager.SettingType.SHOW_GIVEN_DAMAGE;
+        else if (slot == 12) type = PlayerSettingsManager.SettingType.SHOW_TAKEN_DAMAGE;
+        else if (slot == 14) type = PlayerSettingsManager.SettingType.SHOW_MITIGATION;
+        else if (slot == 16) type = PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG;
+        else if (slot == 18) type = PlayerSettingsManager.SettingType.SHOW_PICKUP_LOG;
+
+        if (type != null) {
+            settingsManager.toggle(player, type);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+            open(player);
+        }
+    }
+
+    private void handleRarityFilterMenuClick(InventoryClickEvent e) {
         e.setCancelled(true);
 
         if (!(e.getWhoClicked() instanceof Player player)) return;
@@ -92,23 +160,69 @@ public class SettingsGUI implements Listener {
         // 戻るボタン
         if (slot == 26) {
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
-            // MainMenuへ戻る (Mainクラスから取得するか、簡易的にコマンド実行)
-            player.performCommand("menu");
+            open(player);
             return;
         }
 
-        PlayerSettingsManager.SettingType type = null;
-        if (slot == 10) type = PlayerSettingsManager.SettingType.SHOW_GIVEN_DAMAGE;
-        else if (slot == 12) type = PlayerSettingsManager.SettingType.SHOW_TAKEN_DAMAGE;
-        else if (slot == 14) type = PlayerSettingsManager.SettingType.SHOW_MITIGATION;
-        else if (slot == 16) type = PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG;
-        else if (slot == 18) type = PlayerSettingsManager.SettingType.SHOW_PICKUP_LOG; // 追加
+        // レアリティ選択
+        String[] rarities = {"&f&lコモン", "&a&lアンコモン", "&b&lレア", "&d&lエピック", "&6&lレジェンダリー"};
+        int[] slots = {10, 12, 14, 16, 18};
 
-        if (type != null) {
-            settingsManager.toggle(player, type);
-            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
-            // GUI更新
-            open(player);
+        for (int i = 0; i < slots.length; i++) {
+            if (slot == slots[i]) {
+                settingsManager.setRarityFilter(player, rarities[i]);
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+                openRarityFilterMenu(player);
+                return;
+            }
         }
+    }
+
+    private void openRarityFilterMenu(Player player) {
+        Inventory inv = Bukkit.createInventory(null, 27, "§8アイテム通知フィルター");
+
+        // 背景
+        ItemStack glass = createItem(Material.GRAY_STAINED_GLASS_PANE, " ");
+        for (int i = 0; i < 27; i++) inv.setItem(i, glass);
+
+        // レアリティ選択ボタン
+        String[] rarities = {"&f&lコモン", "&a&lアンコモン", "&b&lレア", "&d&lエピック", "&6&lレジェンダリー"};
+        int[] slots = {10, 12, 14, 16, 18};
+
+        String currentRarity = settingsManager.getRarityFilter(player);
+
+        for (int i = 0; i < rarities.length; i++) {
+            String rarity = rarities[i];
+            String displayRarity = rarity.replace("&", "§");
+            boolean isSelected = rarity.equals(currentRarity);
+
+            Material mat = switch (i) {
+                case 0 -> Material.QUARTZ;
+                case 1 -> Material.EMERALD;
+                case 2 -> Material.LAPIS_LAZULI;
+                case 3 -> Material.AMETHYST_SHARD;
+                case 4 -> Material.GOLD_BLOCK;
+                default -> Material.STONE;
+            };
+
+            ItemStack item = new ItemStack(mat);
+            ItemMeta meta = item.getItemMeta();
+            meta.setDisplayName((isSelected ? "§a✓ " : "  ") + displayRarity + " §7以下を非表示");
+            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+
+            List<String> lore = new ArrayList<>();
+            lore.add("");
+            lore.add("§7クリックして選択");
+            meta.setLore(lore);
+
+            item.setItemMeta(meta);
+            inv.setItem(slots[i], item);
+        }
+
+        // 戻るボタン
+        ItemStack back = createItem(Material.ARROW, "§c戻る", "§7設定に戻る");
+        inv.setItem(26, back);
+
+        player.openInventory(inv);
     }
 }

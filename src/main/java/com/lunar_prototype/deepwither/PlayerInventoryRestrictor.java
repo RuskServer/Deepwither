@@ -15,6 +15,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -234,6 +235,11 @@ public class PlayerInventoryRestrictor implements Listener {
             return;
         }
 
+        // レアリティフィルター確認
+        if (!shouldShowPickupMessage(itemStack, player)) {
+            return;
+        }
+
         player.sendMessage(Component.text()
             .append(Component.text("[+] ").color(TextColor.color(Color.GRAY.asRGB())))
             .append(Optional.ofNullable(itemStack.getItemMeta())
@@ -242,5 +248,43 @@ public class PlayerInventoryRestrictor implements Listener {
             .append(Component.text(" x").color(TextColor.color(Color.WHITE.asRGB())))
             .append(Component.text(amount))
         );
+    }
+
+    private boolean shouldShowPickupMessage(@NotNull ItemStack itemStack, @NotNull Player player) {
+        if (!itemStack.hasItemMeta()) {
+            return true;
+        }
+
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) {
+            return true;
+        }
+
+        String itemRarity = meta.getPersistentDataContainer().get(ItemFactory.RARITY_KEY, PersistentDataType.STRING);
+        if (itemRarity == null) {
+            return true;
+        }
+
+        String filterRarity = playerSettingsManager.getRarityFilter(player);
+        return isRarityGreaterOrEqual(itemRarity, filterRarity);
+    }
+
+    private boolean isRarityGreaterOrEqual(@NotNull String itemRarity, @NotNull String filterRarity) {
+        String[] rarityOrder = {"&f&lコモン", "&a&lアンコモン", "&b&lレア", "&d&lエピック", "&6&lレジェンダリー"};
+
+        int itemRarityIndex = -1;
+        int filterRarityIndex = -1;
+
+        for (int i = 0; i < rarityOrder.length; i++) {
+            if (rarityOrder[i].equals(itemRarity)) {
+                itemRarityIndex = i;
+            }
+            if (rarityOrder[i].equals(filterRarity)) {
+                filterRarityIndex = i;
+            }
+        }
+
+        // itemRarityIndexがfilterRarityIndexより大きければ、より高いレアリティなので表示する
+        return itemRarityIndex > filterRarityIndex;
     }
 }
