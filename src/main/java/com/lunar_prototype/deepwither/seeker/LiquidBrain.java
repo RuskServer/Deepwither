@@ -4,6 +4,7 @@ import org.bukkit.util.Vector;
 
 import java.io.File;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * [TQH-Hybrid] LiquidBrain
@@ -19,12 +20,12 @@ public class LiquidBrain {
         try {
             System.loadLibrary("dark_singularity");
         } catch (UnsatisfiedLinkError e) {
-            // 2. なければ、plugins/DarkSingularity/libs/ 内を絶対パスで直接ロードしに行く
-            File lib = new File("plugins/deepwither/libdark_singularity.so"); // OS判定が必要
+            String libName = System.mapLibraryName("dark_singularity");
+            File lib = new File("plugins/deepwither/" + libName);
             if (lib.exists()) {
                 System.load(lib.getAbsolutePath());
             } else {
-                System.err.println("DarkSingularity Native Library Missing!");
+                throw new IllegalStateException("DarkSingularity Native Library Missing: " + lib.getAbsolutePath(), e);
             }
         }
     }
@@ -48,6 +49,7 @@ public class LiquidBrain {
     public Vector lastPredictedLocation = null;
     public long lastPredictionTick = 0;
     public float velocityTrust = 1.0f;
+    private final AtomicBoolean disposed = new AtomicBoolean(false);
 
     private final UUID ownerId;
     public Map<UUID, AttackPattern> enemyPatterns = new HashMap<>();
@@ -67,7 +69,7 @@ public class LiquidBrain {
      * エンティティ消滅時に必ず呼び出し、Rust 側のメモリを解放する。
      */
     public void dispose() {
-        if (nativeHandle != 0) {
+        if (nativeHandle != 0 && disposed.compareAndSet(false, true)) {
             destroyNativeSingularity(nativeHandle);
         }
     }

@@ -63,6 +63,7 @@ public class SeekerAIEngine {
         if (!bukkitMob.isDead()) {
             actuator.execute(activeMob, decision, nearestCover);
         } else {
+            brain.dispose();
             brainStorage.remove(uuid);
         }
     }
@@ -148,6 +149,7 @@ public class SeekerAIEngine {
     }
 
     public void shutdown() {
+
         brainStorage.clear();
     }
 }
