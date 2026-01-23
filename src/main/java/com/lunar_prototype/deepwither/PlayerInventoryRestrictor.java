@@ -21,6 +21,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static com.lunar_prototype.deepwither.util.InventoryHelper.*;
@@ -295,10 +296,11 @@ public class PlayerInventoryRestrictor implements Listener {
      */
     private boolean isRarityGreaterOrEqual(@NotNull String itemRarity, @NotNull String filterRarity) {
         String[] rarityOrder = {"&f&lコモン", "&a&lアンコモン", "&b&lレア", "&d&lエピック", "&6&lレジェンダリー"};
-
+        // PDC 側の形式ゆれ対応（§ → &、プレーンテキスト → フォーマット済みへ）
+        itemRarity = normalizeRarityFormat(itemRarity);
+        filterRarity = normalizeRarityFormat(filterRarity);
         int itemRarityIndex = -1;
         int filterRarityIndex = -1;
-
         for (int i = 0; i < rarityOrder.length; i++) {
             if (rarityOrder[i].equals(itemRarity)) {
                 itemRarityIndex = i;
@@ -307,8 +309,26 @@ public class PlayerInventoryRestrictor implements Listener {
                 filterRarityIndex = i;
             }
         }
-
-        // itemRarityIndexがfilterRarityIndexより大きければ、より高いレアリティなので表示する
+        // インデックス未検出時は安全側（表示側）へ
+        if (itemRarityIndex == -1 || filterRarityIndex == -1) {
+            return true;
+        }
         return itemRarityIndex > filterRarityIndex;
+    }
+
+    private String normalizeRarityFormat(@NotNull String rarity) {
+        // § → & に統一
+        rarity = rarity.replace('§', '&');
+
+        // プレーンテキスト（"コモン" など）を完全形にマッピング
+        Map<String, String> plainToFormatted = Map.of(
+                "コモン", "&f&lコモン",
+                "アンコモン", "&a&lアンコモン",
+                "レア", "&b&lレア",
+                "エピック", "&d&lエピック",
+                "レジェンダリー", "&6&lレジェンダリー"
+        );
+
+        return plainToFormatted.getOrDefault(rarity, rarity);
     }
 }
