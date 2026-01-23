@@ -149,7 +149,9 @@ public class SeekerAIEngine {
     }
 
     public void shutdown() {
-
+        for (LiquidBrain brain : brainStorage.values()) {
+            brain.dispose();
+        }
         brainStorage.clear();
     }
 }
