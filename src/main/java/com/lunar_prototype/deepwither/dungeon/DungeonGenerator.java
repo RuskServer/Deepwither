@@ -483,8 +483,6 @@ public class DungeonGenerator {
                 }
             }
         }.runTaskTimer(Deepwither.getInstance(), 0L, 1L);
-
-        finalizeLayout();
     }
 
     private void realPaste(World world, PendingPaste task) {
@@ -557,6 +555,7 @@ public class DungeonGenerator {
         if (!pendingSpawners.isEmpty()) {
             startSpawnerMonitor();
         }
+        finalizeLayout();
         callback.accept(validSpawnLocations);
     }
 
