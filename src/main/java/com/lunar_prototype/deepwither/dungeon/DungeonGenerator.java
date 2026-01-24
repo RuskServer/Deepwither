@@ -241,6 +241,7 @@ public class DungeonGenerator {
         pasteQueue.clear();
         validSpawnLocations.clear();
         pendingSpawners.clear();
+        potentialEndpoints.clear();
 
         Deepwither.getInstance().getLogger()
                 .info("=== [Async] Generating Dungeon Layout (MaxDepth:" + maxDepth + ") ===");
@@ -251,6 +252,8 @@ public class DungeonGenerator {
                 try {
                     // レイアウト計算とクリップボード読み込み（重い処理）
                     calculateLayout(startRotation);
+
+                    finalizeLayout();
 
                     Deepwither.getInstance().getLogger()
                             .info("=== [Async] Layout Calculated. Total Parts: " + pasteQueue.size() + " ===");
@@ -555,7 +558,6 @@ public class DungeonGenerator {
         if (!pendingSpawners.isEmpty()) {
             startSpawnerMonitor();
         }
-        finalizeLayout();
         callback.accept(validSpawnLocations);
     }
 
