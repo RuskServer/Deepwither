@@ -425,6 +425,7 @@ public class DungeonGenerator {
             // ボスが既に置かれたか、配置に失敗した場合は通常のCAPを置く
             placeCap(ep.connectionPoint, ep.exitWorldYaw, ep.parentOrigin);
         }
+        potentialEndpoints.clear();
     }
 
     /**
@@ -479,10 +480,11 @@ public class DungeonGenerator {
                         return;
                     }
                     realPaste(world, task);
-                    finalizeLayout();
                 }
             }
         }.runTaskTimer(Deepwither.getInstance(), 0L, 1L);
+
+        finalizeLayout();
     }
 
     private void realPaste(World world, PendingPaste task) {
