@@ -361,7 +361,7 @@ public class DungeonGenerator {
             }
 
             if (!placedInfo) {
-                potentialEndpoints.add(new Endpoint(connectionPoint, exitWorldYaw, currentOrigin));;
+                potentialEndpoints.add(new Endpoint(connectionPoint, exitWorldYaw, currentOrigin));
             }
         }
     }
