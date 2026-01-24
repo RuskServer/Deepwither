@@ -28,6 +28,8 @@ public class DungeonPart {
 
     private final List<BlockVector3> playerSpawnOffsets = new ArrayList<>();
 
+    private final List<BlockVector3> bossSpawnOffsets = new ArrayList<>();
+
     // Bounding Box relative to Origin
     private BlockVector3 minPoint;
     private BlockVector3 maxPoint;
@@ -114,6 +116,17 @@ public class DungeonPart {
                 Deepwither.getInstance().getLogger().info(String.format(
                         "[%s] Found LOOT_MARKER(Emerald). Offset: %s", fileName, spawnVec));
             }
+            // [追加] ダイヤモンドブロック (ボススポナー)
+            if (block.getBlockType().equals(BlockTypes.DIAMOND_BLOCK)) {
+                BlockVector3 bossVec = BlockVector3.at(
+                        pos.getX() - origin.getX(),
+                        pos.getY() - origin.getY(),
+                        pos.getZ() - origin.getZ());
+                this.bossSpawnOffsets.add(bossVec);
+
+                Deepwither.getInstance().getLogger().info(String.format(
+                        "[%s] Found BOSS_MARKER(Diamond). Offset: %s", fileName, bossVec));
+            }
         }
 
         if (!foundEntry) {
@@ -146,6 +159,15 @@ public class DungeonPart {
 
     public List<BlockVector3> getRotatedPlayerSpawnOffsets(int rotation) {
         return playerSpawnOffsets.stream()
+                .map(vec -> transformVector(vec, rotation))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 回転後のボススポナー座標リストを取得
+     */
+    public List<BlockVector3> getRotatedBossSpawnOffsets(int rotation) {
+        return bossSpawnOffsets.stream()
                 .map(vec -> transformVector(vec, rotation))
                 .collect(Collectors.toList());
     }

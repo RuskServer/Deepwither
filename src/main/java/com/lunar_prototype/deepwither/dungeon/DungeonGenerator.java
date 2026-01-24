@@ -45,12 +45,27 @@ public class DungeonGenerator {
     private final List<PendingSpawner> pendingSpawners = new ArrayList<>();
     private boolean isMonitoring = false;
 
+    private final List<Endpoint> potentialEndpoints = new ArrayList<>();
+
     private int maxDepth = 10;
+    private String bossMobId;
     private String lootChestId;
 
     // --- Async Generation Queue ---
     private final Queue<PendingPaste> pasteQueue = new ConcurrentLinkedQueue<>();
     private int totalPartsToPaste = 0;
+
+    private static class Endpoint {
+        final BlockVector3 connectionPoint;
+        final int exitWorldYaw;
+        final BlockVector3 parentOrigin;
+
+        Endpoint(BlockVector3 cp, int yaw, BlockVector3 po) {
+            this.connectionPoint = cp;
+            this.exitWorldYaw = yaw;
+            this.parentOrigin = po;
+        }
+    }
 
     private static class PendingPaste {
         final DungeonPart part;
@@ -71,11 +86,13 @@ public class DungeonGenerator {
         private final Location location;
         private final String mobId;
         private final int level;
+        private final boolean isBoss;
 
-        public PendingSpawner(Location location, String mobId, int level) {
+        public PendingSpawner(Location location, String mobId, int level, boolean isBoss) {
             this.location = location;
             this.mobId = mobId;
             this.level = level;
+            this.isBoss = isBoss;
         }
 
         public Location getLocation() {
@@ -89,6 +106,8 @@ public class DungeonGenerator {
         public int getLevel() {
             return level;
         }
+
+        public boolean isBoss() { return isBoss; }
     }
 
     public List<Location> getValidSpawnLocations() {
@@ -177,6 +196,7 @@ public class DungeonGenerator {
         this.maxDepth = config.getInt("max_depth", 10);
         this.mobLevel = config.getInt("difficulty." + difficulty + ".mob_level", 1);
         this.lootChestId = config.getString("difficulty." + difficulty + ".loot_id", "common_loot_chest");
+        this.bossMobId = config.getString("boss_mob_id", "DUNGEON_BOSS_DEFAULT");
 
         List<Map<?, ?>> maps = config.getMapList("parts");
 
@@ -341,7 +361,7 @@ public class DungeonGenerator {
             }
 
             if (!placedInfo) {
-                placeCap(connectionPoint, exitWorldYaw, currentOrigin);
+                potentialEndpoints.add(new Endpoint(connectionPoint, exitWorldYaw, currentOrigin));;
             }
         }
     }
@@ -355,7 +375,8 @@ public class DungeonGenerator {
             int localExitYaw = currentPart.getExitDirection(originalExit);
             int exitWorldYaw = (localExitYaw - currentRot + 360) % 360;
 
-            placeCap(connectionPoint, exitWorldYaw, currentOrigin);
+            // 【変更】直接配置せず、候補リストに入れる
+            potentialEndpoints.add(new Endpoint(connectionPoint, exitWorldYaw, currentOrigin));
         }
     }
 
@@ -379,6 +400,30 @@ public class DungeonGenerator {
                     return;
                 }
             }
+        }
+    }
+
+    private void finalizeLayout() {
+        Collections.shuffle(potentialEndpoints);
+        boolean bossPlaced = false;
+
+        for (Endpoint ep : potentialEndpoints) {
+            if (!bossPlaced) {
+                // TYPE: BOSS のパーツを配置試行
+                DungeonPart bossPart = findPartByType("BOSS");
+                if (bossPart != null) {
+                    int nextRotation = (bossPart.getIntrinsicYaw() - ep.exitWorldYaw + 360) % 360;
+                    BlockVector3 nextEntryRotated = bossPart.getRotatedEntryOffset(nextRotation);
+                    BlockVector3 nextOrigin = ep.connectionPoint.subtract(nextEntryRotated);
+
+                    if (planPartPlacement(bossPart, nextOrigin, nextRotation, ep.parentOrigin)) {
+                        bossPlaced = true;
+                        continue;
+                    }
+                }
+            }
+            // ボスが既に置かれたか、配置に失敗した場合は通常のCAPを置く
+            placeCap(ep.connectionPoint, ep.exitWorldYaw, ep.parentOrigin);
         }
     }
 
@@ -434,6 +479,7 @@ public class DungeonGenerator {
                         return;
                     }
                     realPaste(world, task);
+                    finalizeLayout();
                 }
             }
         }.runTaskTimer(Deepwither.getInstance(), 0L, 1L);
@@ -474,7 +520,7 @@ public class DungeonGenerator {
 
                 String mobId = dungeonMobList.get(random.nextInt(dungeonMobList.size()));
                 Location loc = new Location(world, spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
-                pendingSpawners.add(new PendingSpawner(loc, mobId, 1));
+                pendingSpawners.add(new PendingSpawner(loc, mobId, 1,false));
             }
         }
 
@@ -491,6 +537,15 @@ public class DungeonGenerator {
             Location loc = new Location(world, realPos.getX() + 0.5, realPos.getY(), realPos.getZ() + 0.5);
             loc.setYaw((float) rotation);
             validSpawnLocations.add(loc);
+        }
+
+        for (BlockVector3 bossOffset : part.getRotatedBossSpawnOffsets(rotation)) {
+            BlockVector3 spawnPos = origin.add(bossOffset);
+            removeMarker(world, spawnPos, Material.DIAMOND_BLOCK); // ダイヤモンドブロックを除去
+
+            // ボス用モブIDを取得 (configで定義するか、専用のロジックで)
+            Location loc = new Location(world, spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
+            pendingSpawners.add(new PendingSpawner(loc, this.bossMobId, this.mobLevel, true)); // isBoss = true
         }
     }
 
