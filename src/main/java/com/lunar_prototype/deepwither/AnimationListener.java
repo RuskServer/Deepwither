@@ -11,6 +11,7 @@ import org.bukkit.event.player.PlayerAnimationEvent;
 import org.bukkit.event.player.PlayerAnimationType;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.Vector;
 
 public class AnimationListener implements Listener {
@@ -89,14 +90,13 @@ public class AnimationListener implements Listener {
     private boolean hasCategory(ItemStack item, String category) {
         if (!item.hasItemMeta()) return false;
         ItemMeta meta = item.getItemMeta();
-        if (!meta.hasLore()) return false;
+        if (!meta.getPersistentDataContainer().has(ItemFactory.ITEM_TYPE_KEY)) return false;
 
-        for (String line : meta.getLore()) {
-            // §7カテゴリ:§f のカラーコードなどは環境に合わせて微調整してください
-            if (line.contains("カテゴリ:" + category) || line.contains("カテゴリ:§f" + category)) {
-                return true;
-            }
+        if (meta.getPersistentDataContainer().get(ItemFactory.ITEM_TYPE_KEY, PersistentDataType.STRING)
+                .equals(category)) {
+            return true;
         }
+
         return false;
     }
 
