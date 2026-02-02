@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither.listeners;
 
+import com.lunar_prototype.deepwither.ItemFactory;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Item;
@@ -10,6 +11,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.ItemSpawnEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
@@ -61,22 +64,24 @@ public class ItemGlowHandler implements Listener {
 
         if (!itemStack.hasItemMeta()) return;
         ItemMeta meta = itemStack.getItemMeta();
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
         if (!meta.hasLore()) return;
 
-        List<String> lore = meta.getLore();
-        ChatColor targetColor = null;
+        // --- PDCからレアリティを取得 ---
+        // ItemFactory.RARITY_KEY ("item_rarity") を使用
+        String rarityTag = pdc.get(ItemFactory.RARITY_KEY, PersistentDataType.STRING);
+        if (rarityTag == null) return;
 
-        for (String line : lore) {
-            String cleanLine = ChatColor.stripColor(line);
-            if (cleanLine.contains("レアリティ")) {
-                for (Map.Entry<String, ChatColor> entry : RARITY_CONFIG.entrySet()) {
-                    if (cleanLine.contains(entry.getKey())) {
-                        targetColor = entry.getValue();
-                        break;
-                    }
-                }
+        ChatColor targetColor = null;
+        // 保存されている文字列（例: "§6§lレジェンダリー"）にキーワードが含まれているか判定
+        // stripColor して純粋なテキストのみで比較
+        String cleanRarity = ChatColor.stripColor(rarityTag.replace("&", "§"));
+
+        for (Map.Entry<String, ChatColor> entry : RARITY_CONFIG.entrySet()) {
+            if (cleanRarity.contains(entry.getKey())) {
+                targetColor = entry.getValue();
+                break;
             }
-            if (targetColor != null) break;
         }
 
         if (targetColor != null) {
