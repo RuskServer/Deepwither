@@ -24,9 +24,9 @@ import java.util.UUID;
 @DependsOn({CraftingManager.class, CraftingGUI.class})
 public class CraftingListener implements Listener, IManager {
 
-    private final JavaPlugin plugin;
+    private final Deepwither plugin;
 
-    public CraftingListener(JavaPlugin plugin) {
+    public CraftingListener(Deepwither plugin) {
         this.plugin = plugin;
     }
 

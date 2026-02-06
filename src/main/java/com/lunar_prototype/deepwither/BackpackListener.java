@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -15,7 +17,8 @@ import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
-public class BackpackListener implements Listener {
+@DependsOn({BackpackManager.class})
+public class BackpackListener implements Listener, IManager {
 
     private final JavaPlugin plugin;
     private final BackpackManager backpackManager;
@@ -23,6 +26,11 @@ public class BackpackListener implements Listener {
     public BackpackListener(JavaPlugin plugin, BackpackManager backpackManager) {
         this.plugin = plugin;
         this.backpackManager = backpackManager;
+    }
+
+    @Override
+    public void init() throws Exception {
+        Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

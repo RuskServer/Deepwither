@@ -1,7 +1,10 @@
 package com.lunar_prototype.deepwither.companion;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -13,7 +16,8 @@ import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
-public class CompanionGuiListener implements Listener {
+@DependsOn({CompanionManager.class})
+public class CompanionGuiListener implements Listener, IManager {
 
     private final CompanionManager manager;
     private final CompanionGui gui;
@@ -21,6 +25,11 @@ public class CompanionGuiListener implements Listener {
     public CompanionGuiListener(CompanionManager manager) {
         this.manager = manager;
         this.gui = new CompanionGui(manager); // 簡易的にここで生成
+    }
+
+    @Override
+    public void init() throws Exception {
+        Bukkit.getPluginManager().registerEvents(this, Deepwither.getInstance());
     }
 
     // 外部からGUIを開く用
