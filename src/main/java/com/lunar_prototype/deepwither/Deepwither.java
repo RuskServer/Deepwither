@@ -4,9 +4,7 @@ import com.lunar_prototype.deepwither.api.DeepwitherPartyAPI;
 import com.lunar_prototype.deepwither.booster.BoosterManager;
 import com.lunar_prototype.deepwither.clan.ClanChatManager;
 import com.lunar_prototype.deepwither.clan.ClanManager;
-import com.lunar_prototype.deepwither.command.*;
-import com.lunar_prototype.deepwither.commands.CommandRegistrar;
-import com.lunar_prototype.deepwither.commands.DebugCommand;
+import com.lunar_prototype.deepwither.commands.DeepwitherRootCommand;
 import com.lunar_prototype.deepwither.companion.CompanionCommand;
 import com.lunar_prototype.deepwither.companion.CompanionGuiListener;
 import com.lunar_prototype.deepwither.companion.CompanionListener;
@@ -59,6 +57,7 @@ import com.lunar_prototype.deepwither.util.ServiceManager;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import io.lumine.mythic.bukkit.events.MythicMechanicLoadEvent;
 import io.lumine.mythic.core.mobs.ActiveMob;
+import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -340,6 +339,24 @@ public final class Deepwither extends JavaPlugin {
         return lootLevelManager;
     }
 
+    public BoosterManager getBoosterManager() {
+        return boosterManager;
+    }
+
+    public ClanManager getClanManager() {
+        return clanManager;
+    }
+
+    public MarketGui getMarketGui() {
+        return marketGui;
+    }
+
+    public GlobalMarketManager getGlobalMarketManager() {
+        return globalMarketManager;
+    }
+
+
+
     @Override
     public void onEnable() {
         // Plugin startup logic
@@ -421,11 +438,6 @@ public final class Deepwither extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new BossKillListener(), this);
         this.getServer().getPluginManager().registerEvents(new CombatAnalyzer(this.companionManager, this), this);
 
-        CommandRegistrar.registerCommands(this.getLifecycleManager(), List.of(new DebugCommand(this)));
-        this.getCommand("artifact").setExecutor(new ArtifactGUICommand(artifactGUI));
-        getCommand("trader").setExecutor(new TraderCommand(traderManager));
-        getCommand("credit").setExecutor(new CreditCommand(creditManager));
-        getCommand("companion").setExecutor(new CompanionCommand(companionManager));
         getServer().getPluginManager().registerEvents(new TraderGUI(), this);
         getServer().getPluginManager().registerEvents(new SellGUI(), this);
         getServer().getPluginManager().registerEvents(new TutorialController(this), this);
@@ -561,24 +573,6 @@ public final class Deepwither extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new MenuItemListener(this, menuGUI), this);
         getServer().getPluginManager().registerEvents(new PlayerInventoryRestrictor(settingsManager), this);
 
-        getCommand("skills").setExecutor(new SkillAssignmentCommand());
-        getCommand("blacksmith").setExecutor(new BlacksmithCommand());
-        getCommand("questnpc").setExecutor(new QuestCommand(this, guildQuestManager));
-        getCommand("task").setExecutor(new TaskCommand(this));
-        PartyCommand partyCommand = new PartyCommand(partyManager);
-        getCommand("party").setExecutor(partyCommand);
-        getCommand("party").setTabCompleter(partyCommand);
-        getCommand("expbooster").setExecutor(new BoosterCommand(boosterManager));
-        ResetGUI resetGUI = new ResetGUI(this);
-        getCommand("resetstatusgui").setExecutor(new ResetGUICommand(resetGUI));
-        getCommand("pvp").setExecutor(new PvPCommand());
-        MarketCommand marketCmd = new MarketCommand(this, globalMarketManager, marketGui);
-        getCommand("market").setExecutor(marketCmd);
-        getCommand("market").setTabCompleter(marketCmd);
-        ClanCommand clanCommand = new ClanCommand(clanManager);
-        getCommand("clan").setExecutor(clanCommand);
-        getCommand("clan").setTabCompleter(clanCommand);
-        getCommand("deepwither").setExecutor(new DeepwitherCommand(this));
         getServer().getPluginManager().registerEvents(new PvPWorldListener(), this);
         getServer().getPluginManager().registerEvents(new ItemGlowHandler(this), this);
         getServer().getPluginManager().registerEvents(new DungeonSignListener(), this);
@@ -788,5 +782,28 @@ public final class Deepwither extends JavaPlugin {
             getLogger().log(Level.SEVERE, "guild_quest_config.yml のロード中に致命的なエラーが発生しました。", e);
             questConfig = null;
         }
+    }
+
+    private void initCommands() {
+        getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
+            var commads = List.of(
+                new DeepwitherRootCommand(this)
+            );
+
+            for (var command : commads) {
+                event.registrar().register(command.node(), command.description(), command.aliases());
+            }
+        });
+
+        getCommand("trader").setExecutor(new TraderCommand(traderManager));
+        getCommand("credit").setExecutor(new CreditCommand(creditManager));
+        getCommand("companion").setExecutor(new CompanionCommand(companionManager));
+        getCommand("skills").setExecutor(new SkillAssignmentCommand());
+        getCommand("blacksmith").setExecutor(new BlacksmithCommand());
+        getCommand("questnpc").setExecutor(new QuestCommand(this, guildQuestManager));
+        getCommand("task").setExecutor(new TaskCommand(this));
+        PartyCommand partyCommand = new PartyCommand(partyManager);
+        getCommand("party").setExecutor(partyCommand);
+        getCommand("party").setTabCompleter(partyCommand);
     }
 }

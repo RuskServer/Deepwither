@@ -27,7 +27,7 @@ public final class DeepwitherRootCommand implements DeepwitherCommand {
         add(new ArtifactGuiCommand());
         add(new MarketCommand(plugin));
         add(new ResetStatGuiCommand(plugin));
-        add(new ClanCommand());
+        add(new ClanCommand(plugin));
     }
 
     @NotNull
