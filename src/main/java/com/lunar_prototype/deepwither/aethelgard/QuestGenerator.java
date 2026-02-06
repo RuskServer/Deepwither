@@ -201,7 +201,11 @@ public class QuestGenerator {
         if (floorMatcher.find()) {
             String token = floorMatcher.group(1);
             if (token.chars().allMatch(Character::isDigit)) {
-                return Integer.parseInt(token);
+                try {
+                    return Integer.parseInt(token);
+                } catch (NumberFormatException e) {
+                    // Fall through to Kanji parsing and other patterns
+                }
             }
 
             int kanjiNumber = parseKanjiNumber(token);
@@ -212,7 +216,12 @@ public class QuestGenerator {
 
         Matcher tierMatcher = TIER_PATTERN.matcher(hierarchyRaw.toLowerCase());
         if (tierMatcher.find()) {
-            return Integer.parseInt(tierMatcher.group(1));
+            String tierToken = tierMatcher.group(1);
+            try {
+                return Integer.parseInt(tierToken);
+            } catch (NumberFormatException e) {
+                // No valid numeric tier, fall through to default
+            }
         }
 
         return 0;
