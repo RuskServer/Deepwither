@@ -29,7 +29,7 @@ public class MarketSearchHandler implements Listener, IManager {
 
     @Override
     public void init() {
-        this.gui = (MarketGui) Deepwither.getInstance().getServiceManager().get(MarketGui.class);
+        this.gui = Deepwither.getInstance().getMarketGui();
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 

@@ -41,6 +41,17 @@ public class ItemGlowHandler implements Listener, IManager {
     @Override
     public void shutdown() {}
 
+    // 順序を維持（長い名前を先に判定）
+    private static final Map<String, ChatColor> RARITY_CONFIG = new LinkedHashMap<>();
+
+    static {
+        RARITY_CONFIG.put("レジェンダリー", ChatColor.GOLD);
+        RARITY_CONFIG.put("アンコモン", ChatColor.GREEN);
+        RARITY_CONFIG.put("エピック", ChatColor.LIGHT_PURPLE);
+        RARITY_CONFIG.put("コモン", ChatColor.WHITE);
+        RARITY_CONFIG.put("レア", ChatColor.AQUA);
+    }
+
     /**
      * 指定したスコアボードに対してレアリティチームをセットアップします
      */

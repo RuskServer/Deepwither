@@ -163,6 +163,15 @@ public final class Deepwither extends JavaPlugin {
     private ProfessionManager professionManager;
     private PartyManager partyManager;
     private DeepwitherPartyAPI partyAPI;
+
+    public BoosterManager getBoosterManager() {
+        return boosterManager;
+    }
+
+    public PartyManager getPartyManager() {
+        return partyManager;
+    }
+
     private BoosterManager boosterManager;
     private ChargeManager chargeManager;
     private BackpackManager backpackManager;
@@ -175,10 +184,20 @@ public final class Deepwither extends JavaPlugin {
     private FishingManager fishingManager;
     private RaidBossManager raidBossManager;
     private LayerMoveManager layerMoveManager;
+
+    public GlobalMarketManager getGlobalMarketManager() {
+        return globalMarketManager;
+    }
+
     private GlobalMarketManager globalMarketManager;
     private MarketSearchHandler marketSearchHandler;
     private LootLevelManager lootLevelManager;
     private LootDropManager lootDropManager;
+
+    public MarketGui getMarketGui() {
+        return marketGui;
+    }
+
     private MarketGui marketGui;
 
     public SeekerAIEngine getAiEngine() {
@@ -186,6 +205,15 @@ public final class Deepwither extends JavaPlugin {
     }
 
     private SeekerAIEngine aiEngine;
+
+    public RaidBossManager getRaidBossManager() {
+        return raidBossManager;
+    }
+
+    public ClanManager getClanManager() {
+        return clanManager;
+    }
+
     private ClanManager clanManager;
     private static Economy econ = null;
     private final java.util.Random random = new java.util.Random();
@@ -628,7 +656,7 @@ public final class Deepwither extends JavaPlugin {
         register(new TaskListener(this));
         register(new LootChestListener(this));
         register(new CompanionListener(this));
-        register(new CompanionGuiListener(this));
+        register(new CompanionGuiListener(companionManager));
         register(new LayerSignListener(this));
         register(new BossKillListener(this));
         register(new PvPWorldListener(this));
@@ -653,7 +681,7 @@ public final class Deepwither extends JavaPlugin {
         register(new CombatAnalyzer(this));
         register(new SafeZoneListener(this));
         register(new AnimationListener(this));
-        register(new BackpackListener(this));
+        register(new BackpackListener(this,backpackManager));
         register(new CombatExperienceListener(this));
         register(new SeekerAIEngine());
         register(new MobSpawnManager(this, playerQuestManager));

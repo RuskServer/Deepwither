@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither.fishing;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.LevelManager;
+import com.lunar_prototype.deepwither.profession.ProfessionManager;
 import com.lunar_prototype.deepwither.profession.ProfessionType;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
@@ -68,7 +70,7 @@ public class FishingListener implements Listener, IManager {
         Item caughtEntity = (Item) event.getCaught();
 
         // カスタム釣果の計算
-        ItemStack customLoot = plugin.getFishingManager().catchFish(player);
+        ItemStack customLoot = Deepwither.getInstance().getFishingManager().catchFish(player);
 
         if (customLoot != null) {
             // ドロップアイテムを置き換え
@@ -84,7 +86,7 @@ public class FishingListener implements Listener, IManager {
         // 経験値の付与 (ProfessionManager)
         // 基礎EXP + ランダム性などはお好みで調整
         int expToGive = 15 + (int)(Math.random() * 10);
-        plugin.getProfessionManager().addExp(player, ProfessionType.FISHING, expToGive);
+        Deepwither.getInstance().getProfessionManager().addExp(player, ProfessionType.FISHING, expToGive);
         Deepwither.getInstance().getLevelManager().addExp(player,expToGive);
     }
 }
