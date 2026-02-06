@@ -178,15 +178,16 @@ public class QuestGenerator {
 
         String hierarchy = hierarchyRaw.toLowerCase();
         double bias = 0.0;
+        int effectiveDifficulty = Math.max(1, difficultyLevel);
 
         if (hierarchy.contains("地下") || hierarchy.contains("深層") || hierarchy.contains("danger")) {
-            bias += 0.6 * difficultyLevel;
+            bias += 0.6 * effectiveDifficulty;
         }
 
         int tier = getTierFromHierarchy(hierarchyRaw);
         if (tier > 0) {
             // 全階層に対応: 階層が深いほど重みを段階的に上げる
-            bias += Math.min(1.5, 0.18 * tier) * difficultyLevel;
+            bias += Math.min(1.5, 0.18 * tier) * effectiveDifficulty;
         }
 
         return bias;
