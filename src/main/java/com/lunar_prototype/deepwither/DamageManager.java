@@ -4,6 +4,7 @@ import com.lunar_prototype.deepwither.api.event.onPlayerRecevingDamageEvent;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import io.lumine.mythic.bukkit.events.MythicDamageEvent;
 import org.bukkit.*;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -17,6 +18,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import com.lunar_prototype.deepwither.PlayerSettingsManager;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.projectiles.ProjectileSource;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
@@ -371,26 +373,43 @@ public class DamageManager implements Listener {
                 return;
 
             // ★★★ 無敵モブ（幽霊）カウンター対策 ★★★
-            // 自分を殴ってきた相手が、HP0以下なのに生きている不整合状態なら
             if (attacker != null && (attacker.getHealth() <= 0 || !attacker.isValid() || attacker.isDead())) {
-                attacker.remove(); // その場で消去
-                iFrameEndTimes.remove(attacker.getUniqueId()); // マップも掃除
-                e.setCancelled(true); // ダメージも無効化
-                // player.sendMessage("§8[System] 幽霊モブの干渉を阻止しました。"); // 必要ならデバッグ用
+                attacker.remove();
+                iFrameEndTimes.remove(attacker.getUniqueId());
+                e.setCancelled(true);
                 return;
             }
         }
 
+        // --- ★ 特性データの取得 ★ ---
+        List<String> traits = getMobTraits(attacker);
+
+        // --- ★ 特性: BERSERK (狂化) ★ ---
+        // HP50%以下ならダメージ1.5倍
+        if (attacker != null && traits.contains("BERSERK")) {
+            double maxHp = attacker.getAttribute(Attribute.MAX_HEALTH).getValue();
+            if (attacker.getHealth() / maxHp <= 0.5) {
+                rawDamage *= 1.5;
+            }
+        }
+
+        // --- ★ 特性: PIERCING (貫通) ★ ---
+        // 貫通持ちなら防御効果を50%カットして計算する
+        double defenseMultiplier = traits.contains("PIERCING") ? 0.5 : 1.0;
+
         // 1. 爆発（魔法）処理
         if (e.getCause() == EntityDamageEvent.DamageCause.ENTITY_EXPLOSION
                 || e.getCause() == EntityDamageEvent.DamageCause.BLOCK_EXPLOSION) {
-            finalDamage = applyDefense(rawDamage, defenderStats.getFinal(StatType.MAGIC_RESIST), 100.0);
+            double res = defenderStats.getFinal(StatType.MAGIC_RESIST) * defenseMultiplier;
+            finalDamage = applyDefense(rawDamage, res, 100.0);
             isMagic = true;
         } else {
             // 2. モブ攻撃と防御計算
             double currentDamage = (attacker instanceof Mob) ? applyMobCritLogic(attacker, rawDamage, player)
                     : rawDamage;
-            finalDamage = applyDefense(currentDamage, defenderStats.getFinal(StatType.DEFENSE), 500.0);
+
+            double def = defenderStats.getFinal(StatType.DEFENSE) * defenseMultiplier;
+            finalDamage = applyDefense(currentDamage, def, 500.0);
 
             // 3. 盾防御
             if (player.isBlocking() && attacker != null) {
@@ -405,8 +424,32 @@ public class DamageManager implements Listener {
             }
         }
 
+        // --- ★ 特性: 状態異常系 (MANA_LEECH / DISRUPTIVE) ★ ---
+        if (attacker != null) {
+            if (traits.contains("MANA_LEECH")) {
+                Deepwither.getInstance().getManaManager().get(player.getUniqueId()).consume(2);
+            }
+            if (traits.contains("DISRUPTIVE")) {
+                player.addPotionEffect(new org.bukkit.potion.PotionEffect(
+                        PotionEffectType.MINING_FATIGUE, 60, 1));
+            }
+        }
+
         e.setDamage(0.0);
         finalizeDamage(player, finalDamage, attacker, isMagic);
+    }
+
+    /**
+     * PDCから特性リストを取得するヘルパー
+     */
+    private List<String> getMobTraits(LivingEntity entity) {
+        if (entity == null) return Collections.emptyList();
+        String data = entity.getPersistentDataContainer().get(
+                new NamespacedKey(Deepwither.getInstance(), "mob_traits"),
+                org.bukkit.persistence.PersistentDataType.STRING
+        );
+        if (data == null || data.isEmpty()) return Collections.emptyList();
+        return Arrays.asList(data.split(","));
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)

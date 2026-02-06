@@ -13,13 +13,14 @@ import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
 import com.sk89q.worldguard.protection.regions.RegionQuery;
 import io.lumine.mythic.bukkit.MythicBukkit;
-import org.bukkit.Bukkit;
-import org.bukkit.GameMode;
-import org.bukkit.Location;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.*;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Transformation;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap; // スレッドセーフなマップを使用
@@ -51,7 +52,7 @@ public class MobSpawnManager {
 
     private final Map<Integer, MobTierConfig> mobTierConfigs = new HashMap<>();
 
-    private final Map<UUID, UUID> traitDisplayMap = new ConcurrentHashMap<>(); // Mob UUID -> TextDisplay UUID
+    private static final NamespacedKey TRAIT_KEY = new NamespacedKey(Deepwither.getInstance(), "mob_traits");
 
     public MobSpawnManager(Deepwither plugin, PlayerQuestManager playerQuestManager) {
         this.plugin = plugin;
@@ -584,7 +585,7 @@ public class MobSpawnManager {
     }
 
     /**
-     * 特性を抽選し、TextDisplay を生成して追従させる
+     * 特性を抽選し、TextDisplay を生成してマウントさせる
      */
     private void applyRandomTraits(LivingEntity entity, int level, String originalName) {
         if (plugin.getRandom().nextDouble() > TRAIT_SPAWN_CHANCE) return;
@@ -592,59 +593,96 @@ public class MobSpawnManager {
         List<MobTrait> selectedTraits = getRandomTraitsForLevel(level);
         if (selectedTraits.isEmpty()) return;
 
+        // 内部処理（ダメージ計算等）で使いやすいように Enum の名前を保存
+        String traitData = selectedTraits.stream()
+                .map(Enum::name)
+                .collect(Collectors.joining(","));
+        entity.getPersistentDataContainer().set(TRAIT_KEY, PersistentDataType.STRING, traitData);
+
         // 1. ビジュアル演出 (発光)
         entity.setGlowing(true);
 
-        // 2. 表示テキストの構築
-        StringBuilder sb = new StringBuilder();
-        for (MobTrait trait : selectedTraits) {
-            sb.append(trait.displayName).append("\n");
-        }
-        String traitText = sb.toString().trim(); // 最後の改行を削除
+        // 2. 表示テキストの構築 (1行にまとめる)
+        String traitText = selectedTraits.stream()
+                .map(t -> t.displayName)
+                .collect(Collectors.joining(" ")); // スペース区切りで1行に
 
         // 3. TextDisplay のスポーン
         TextDisplay display = entity.getWorld().spawn(entity.getLocation(), TextDisplay.class, (td) -> {
             td.setText(traitText);
-            td.setBillboard(Display.Billboard.CENTER); // 常にプレイヤーを向く
-            td.setBackgroundColor(org.bukkit.Color.fromARGB(0, 0, 0, 0)); // 背景透明
+            td.setBillboard(Display.Billboard.CENTER);
+            td.setBackgroundColor(org.bukkit.Color.fromARGB(0, 0, 0, 0));
             td.setShadowed(true);
             td.setAlignment(TextDisplay.TextAlignment.CENTER);
 
-            // 少し高い位置に表示するためのオフセット設定 (必要に応じて調整)
-            // Transformationを使わなくても追従タスクの座標計算で調整可能
+            // 表示位置の微調整 (Transformation)
+            // マウント位置(足元)から、モブの頭上あたりに来るように垂直方向(translation.y)を調整
+            Transformation transformation = td.getTransformation();
+            transformation.getTranslation().set(0, (float) entity.getHeight() + 0.1f, 0);
+            td.setTransformation(transformation);
         });
 
-        // 4. 追従タスクの開始
-        startTrackingTask(entity, display);
+        // 4. モブに乗せる
+        entity.addPassenger(display);
 
-        // クリーンアップ用にマップに保存 (任意)
-        traitDisplayMap.put(entity.getUniqueId(), display.getUniqueId());
+        // 5. クリーンアップ監視タスクのみ開始
+        startCleanupTask(entity, display);
     }
 
-    /**
-     * TextDisplay をモブに追従させるタスク
-     */
-    private void startTrackingTask(LivingEntity mob, TextDisplay display) {
+    public void startGlobalTraitTicker() {
         new BukkitRunnable() {
             @Override
             public void run() {
-                // モブが死んだ、または無効になったら表示を消して終了
+                for (World world : Bukkit.getWorlds()) {
+                    for (LivingEntity entity : world.getLivingEntities()) {
+                        List<String> traits = getTraits(entity); // PDCから取得
+                        if (traits.isEmpty()) continue;
+
+                        // --- SNARING_AURA (周囲5マスのプレイヤーに移動速度低下) ---
+                        if (traits.contains("SNARING_AURA")) {
+                            entity.getNearbyEntities(5, 5, 5).stream()
+                                    .filter(e -> e instanceof Player)
+                                    .forEach(p -> ((Player)p).addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 40, 0)));
+                        }
+
+                        // --- SUMMONER (低確率でシルバーフィッシュなどを召喚) ---
+                        if (traits.contains("SUMMONER") && Math.random() < 0.05) {
+                            entity.getWorld().spawnEntity(entity.getLocation(), EntityType.SILVERFISH);
+                        }
+                    }
+                }
+            }
+        }.runTaskTimer(plugin, 20L, 20L); // 1秒ごとに実行
+    }
+
+    private List<String> getTraits(LivingEntity entity) {
+        String data = entity.getPersistentDataContainer().get(TRAIT_KEY, PersistentDataType.STRING);
+        if (data == null) return List.of();
+        return Arrays.asList(data.split(","));
+    }
+
+    /**
+     * モブが死亡・消滅した際に TextDisplay を削除するだけのタスク
+     */
+    private void startCleanupTask(LivingEntity mob, TextDisplay display) {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
                 if (!mob.isValid() || mob.isDead()) {
                     display.remove();
-                    traitDisplayMap.remove(mob.getUniqueId());
                     this.cancel();
-                    return;
                 }
-
-                // モブの頭上（位置はモブの高さ + 0.5ブロック程度）に移動
-                // ネームタグの下に来るように調整する場合は offset を 0.2 などに小さく設定
-                double offset = mob.getHeight() + 0.2;
-                Location followLoc = mob.getLocation().add(0, offset, 0);
-
-                // スムーズな追従のため、テレポート
-                display.teleport(followLoc);
             }
-        }.runTaskTimer(plugin, 1L, 1L); // 毎ティック追従
+        }.runTaskTimer(plugin, 10L, 10L); // 追従不要なのでチェック頻度を下げてOK
+    }
+
+    /**
+     * 外部（EventListener等）からモブの特性を確認するためのユーティリティ
+     */
+    public List<String> getMobTraits(LivingEntity entity) {
+        String data = entity.getPersistentDataContainer().get(TRAIT_KEY, PersistentDataType.STRING);
+        if (data == null || data.isEmpty()) return Collections.emptyList();
+        return Arrays.asList(data.split(","));
     }
 
     /**
