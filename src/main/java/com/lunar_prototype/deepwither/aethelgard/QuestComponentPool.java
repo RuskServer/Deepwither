@@ -86,6 +86,14 @@ public class QuestComponentPool {
                 LOCATIONS.size(), MOTIVATIONS.size(), REWARD_ITEM_IDS.size()));
     }
 
+
+    /**
+     * 読み込み済みのロケーション一覧を返します。
+     */
+    public static List<LocationDetails> getAllLocationDetails() {
+        return LOCATIONS;
+    }
+
     /**
      * ランダムなLocationDetailsオブジェクトを取得します。
      */
