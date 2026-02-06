@@ -43,6 +43,8 @@ import com.lunar_prototype.deepwither.profession.ProfessionDatabase;
 import com.lunar_prototype.deepwither.profession.ProfessionManager;
 import com.lunar_prototype.deepwither.profiler.CombatAnalyzer;
 import com.lunar_prototype.deepwither.aethelgard.*;
+import com.lunar_prototype.deepwither.api.DeepwitherAPI;
+import com.lunar_prototype.deepwither.api.stat.IStatManager;
 import com.lunar_prototype.deepwither.dungeon.roguelike.*;
 import com.lunar_prototype.deepwither.raidboss.RaidBossListener;
 import com.lunar_prototype.deepwither.raidboss.RaidBossManager;
@@ -85,7 +87,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public final class Deepwither extends JavaPlugin {
+public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
 
     private Logger log;
 
@@ -94,6 +96,11 @@ public final class Deepwither extends JavaPlugin {
 
     public static Deepwither getInstance() {
         return instance;
+    }
+
+    @Override
+    public IStatManager getStatManager() {
+        return (IStatManager) serviceManager.get(StatManager.class);
     }
 
     private Map<UUID, Location> safeZoneSpawns = new HashMap<>();
@@ -283,10 +290,6 @@ public final class Deepwither extends JavaPlugin {
 
     public ItemFactory getItemFactory() {
         return itemFactory;
-    }
-
-    public StatManager getStatManager() {
-        return statManager;
     }
 
     public TraderManager getTraderManager() {
@@ -632,6 +635,7 @@ public final class Deepwither extends JavaPlugin {
         this.playerQuestManager = register(new PlayerQuestManager(this, guildQuestManager, playerQuestDataStore));
         this.professionManager = register(new ProfessionManager(this, professionDatabase));
         this.ai = register(new EMDALanguageAI(this));
+        this.aiEngine = register(new SeekerAIEngine());
         this.outpostManager = register(new OutpostManager(this));
 
         // --- UI & Listeners (Managed) ---

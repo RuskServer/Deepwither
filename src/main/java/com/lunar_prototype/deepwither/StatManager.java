@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.api.stat.IStatManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
@@ -17,7 +18,7 @@ import org.bukkit.persistence.PersistentDataType;
 import java.util.*;
 
 @DependsOn({})
-public class StatManager implements IManager {
+public class StatManager implements IManager, IStatManager {
 
     private final Map<UUID, Double> actualCurrentHealth = new HashMap<>();
     private final Map<UUID, StatMap> temporaryBuffs = new HashMap<>();
@@ -31,20 +32,27 @@ public class StatManager implements IManager {
     @Override
     public void shutdown() {}
 
+    @Override
     public void updatePlayerStats(Player player) {
-        StatMap total = getTotalStatsFromEquipment(player);
+        StatMap total = getTotalStats(player);
         syncAttackDamage(player, total);
         syncAttributes(player,total);
         syncBukkitHealth(player);
         // 必要に応じて今後他ステータスも同期
     }
 
+    @Override
+    public StatMap getTotalStats(Player player) {
+        return getTotalStatsFromEquipment(player);
+    }
+
     /**
      * プレイヤーの実際の最大HPを計算する。（StatMapのMAX_HEALTHのFlat値を使用）
      */
+    @Override
     public double getActualMaxHealth(Player player) {
         // getTotalStatsFromEquipment内の計算結果を使用する
-        StatMap total = getTotalStatsFromEquipment(player);
+        StatMap total = getTotalStats(player);
         // getTotalStatsFromEquipment内で既に baseHp (20.0) が加算されているので、その値をそのまま使用
         return total.getFlat(StatType.MAX_HEALTH);
     }
@@ -52,6 +60,7 @@ public class StatManager implements IManager {
     // ----------------------------------------------------
     // ★ 一時バフの適用
     // ----------------------------------------------------
+    @Override
     public void applyTemporaryBuff(UUID playerUUID, StatMap buff) {
         temporaryBuffs.put(playerUUID, buff);
     }
@@ -59,6 +68,7 @@ public class StatManager implements IManager {
     // ----------------------------------------------------
     // ★ 一時バフの削除
     // ----------------------------------------------------
+    @Override
     public void removeTemporaryBuff(UUID playerUUID) {
         temporaryBuffs.remove(playerUUID);
     }
@@ -98,7 +108,7 @@ public class StatManager implements IManager {
         if (currentHp >= maxHp) return;
 
         // 実際の回復量を計算 (例: 毎秒最大HPの0.5%を回復)
-        StatMap stats = getTotalStatsFromEquipment(player);
+        StatMap stats = getTotalStats(player);
         double regenPercent = stats.getFinal(StatType.HP_REGEN) / 100.0; // HP_REGENステータスを想定
 
         // 毎秒の基本回復量 (MAX HP * 0.5% + StatのRegen量)
@@ -115,9 +125,17 @@ public class StatManager implements IManager {
 
     /**
      * プレイヤーのカスタムHPを回復させます。
-     * @param player 回復させるプレイヤー
-     * @param amount 回復量
      */
+    @Override
+    public void heal(Player player, double amount) {
+        healCustomHealth(player, amount);
+    }
+
+    /**
+     * プレイヤーのカスタムHPを回復させます。
+     * @deprecated Use {@link #heal(Player, double)} instead.
+     */
+    @Deprecated
     public void healCustomHealth(Player player, double amount) {
         // プレイヤーの現在のカスタムHPを取得。ない場合はデフォルトの最大HP（20.0）を初期値とする。
         // StatManagerで最大HPも管理している場合は、そちらの値を参照してください。
@@ -137,6 +155,7 @@ public class StatManager implements IManager {
     /**
      * プレイヤーの現在の実際のHPを取得する。存在しない場合は最大HPで初期化。
      */
+    @Override
     public double getActualCurrentHealth(Player player) {
         // 最初のロード時（マップに存在しない時）は最大HPで初期化する
         return actualCurrentHealth.getOrDefault(player.getUniqueId(), getActualMaxHealth(player));
@@ -145,6 +164,7 @@ public class StatManager implements IManager {
     /**
      * プレイヤーの実際のHPを更新し、BukkitのHPバーと同期する。（ダメージ/回復処理のコア）
      */
+    @Override
     public void setActualCurrentHealth(Player player, double newHealth) {
         double max = getActualMaxHealth(player);
 
@@ -163,7 +183,7 @@ public class StatManager implements IManager {
      * プレイヤーの実際のHPを更新し、BukkitのHPバーと同期する。（ダメージ/回復処理のコア）
      */
     public void setActualCurrenttoMaxHelth(Player player) {
-        double max = StatManager.getTotalStatsFromEquipment(player).getFinal(StatType.MAX_HEALTH);
+        double max = getTotalStats(player).getFinal(StatType.MAX_HEALTH);
 
         // 内部マップを更新
         actualCurrentHealth.put(player.getUniqueId(), max);
@@ -218,6 +238,10 @@ public class StatManager implements IManager {
         player.setHealth(Math.max(0.0, bukkitHealth));
     }
 
+    /**
+     * @deprecated Use {@link #getTotalStats(Player)} instead.
+     */
+    @Deprecated
     public static StatMap getTotalStatsFromEquipment(Player player) {
         StatMap total = new StatMap();
         PlayerLevelData data = Deepwither.getInstance().getLevelManager().get(player);
@@ -295,7 +319,7 @@ public class StatManager implements IManager {
             total.add(skillData.getPassiveStats());
         }
 
-        StatMap tempBuff = Deepwither.getInstance().statManager.temporaryBuffs.get(player.getUniqueId());
+        StatMap tempBuff = Deepwither.getInstance().getStatManager().temporaryBuffs.get(player.getUniqueId());
         if (tempBuff != null) {
             total.add(tempBuff); // StatMapのaddメソッドを使用
         }
@@ -315,7 +339,7 @@ public class StatManager implements IManager {
 
     public static double getEffectiveCooldown(Player player, double baseCooldown) {
         // プレイヤーの合計クールダウン減少率を取得
-        StatMap stats = getTotalStatsFromEquipment(player);
+        StatMap stats = Deepwither.getInstance().getStatManager().getTotalStats(player);
         double cooldownReduction = stats.getFinal(StatType.COOLDOWN_REDUCTION);
 
         // クールダウン減少率を適用
@@ -324,6 +348,10 @@ public class StatManager implements IManager {
     }
 
 
+    /**
+     * @deprecated Internal use only.
+     */
+    @Deprecated
     public static StatMap readStatsFromItem(ItemStack item) {
         StatMap stats = new StatMap();
         if (item == null || !item.hasItemMeta()) return stats;
