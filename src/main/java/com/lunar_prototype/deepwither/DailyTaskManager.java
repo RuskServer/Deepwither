@@ -2,6 +2,9 @@ package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.data.DailyTaskData;
 import com.lunar_prototype.deepwither.data.DailyTaskDataStore;
+import com.lunar_prototype.deepwither.data.FileDailyTaskDataStore;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.protection.ApplicableRegionSet;
@@ -21,7 +24,8 @@ import java.io.File;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class DailyTaskManager {
+@DependsOn({FileDailyTaskDataStore.class})
+public class DailyTaskManager implements IManager {
 
     private final Deepwither plugin;
     private final DailyTaskDataStore dataStore;
@@ -37,6 +41,16 @@ public class DailyTaskManager {
         this.plugin = plugin;
         this.dataStore = dataStore;
         this.playerTaskData = new ConcurrentHashMap<>();
+    }
+
+    @Override
+    public void init() {
+        loadTaskConfig();
+    }
+
+    @Override
+    public void shutdown() {
+        saveAllData();
     }
 
     // コンストラクタ等でタスク設定をロードするメソッド

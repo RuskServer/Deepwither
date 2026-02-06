@@ -1,6 +1,9 @@
 package com.lunar_prototype.deepwither.loot;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.ItemFactory;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.protection.ApplicableRegionSet;
@@ -24,7 +27,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
-public class LootChestManager {
+@DependsOn({ItemFactory.class})
+public class LootChestManager implements IManager {
 
     private final Deepwither plugin;
     private final Random random = ThreadLocalRandom.current();
@@ -44,8 +48,17 @@ public class LootChestManager {
 
     public LootChestManager(Deepwither plugin) {
         this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
         loadConfigs();
         startScheduler();
+    }
+
+    @Override
+    public void shutdown() {
+        removeAllLootChests();
     }
 
     // WeightedTemplateクラスを内部クラスとして定義

@@ -1,7 +1,10 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.io.BukkitObjectInputStream;
 import org.bukkit.util.io.BukkitObjectOutputStream;
 
@@ -11,15 +14,27 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.*;
 
-public class ArtifactManager {
-    private final File dataFile;
+@DependsOn({})
+public class ArtifactManager implements IManager {
+    private File dataFile;
     private Map<UUID, List<ItemStack>> playerArtifacts = new HashMap<>();
     // ★ 背中装備保存用のマップを追加
     private Map<UUID, ItemStack> playerBackpacks = new HashMap<>();
+    private final JavaPlugin plugin;
 
-    public ArtifactManager(Deepwither plugin) {
+    public ArtifactManager(JavaPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
         this.dataFile = new File(plugin.getDataFolder(), "artifacts.dat");
         loadData();
+    }
+
+    @Override
+    public void shutdown() {
+        saveData();
     }
 
     public List<ItemStack> getPlayerArtifacts(Player player) {

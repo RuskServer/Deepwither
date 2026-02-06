@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither.util;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.protection.ApplicableRegionSet;
@@ -21,7 +23,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class MythicMobSafeZoneManager {
+@DependsOn({})
+public class MythicMobSafeZoneManager implements IManager {
 
     private final Deepwither plugin;
     private BukkitTask checkTask;
@@ -36,6 +39,16 @@ public class MythicMobSafeZoneManager {
 
     public MythicMobSafeZoneManager(Deepwither plugin) {
         this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
+        startCheckTask();
+    }
+
+    @Override
+    public void shutdown() {
+        stopCheckTask();
     }
 
     /**

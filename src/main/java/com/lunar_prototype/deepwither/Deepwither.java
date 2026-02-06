@@ -53,6 +53,7 @@ import com.lunar_prototype.deepwither.town.TownBurstManager;
 import com.lunar_prototype.deepwither.tutorial.TutorialController;
 import com.lunar_prototype.deepwither.util.IManager;
 import com.lunar_prototype.deepwither.util.MythicMobSafeZoneManager;
+import com.lunar_prototype.deepwither.util.ServiceManager;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import io.lumine.mythic.bukkit.events.MythicMechanicLoadEvent;
 import io.lumine.mythic.core.mobs.ActiveMob;
@@ -96,7 +97,7 @@ public final class Deepwither extends JavaPlugin {
     }
 
     private Map<UUID, Location> safeZoneSpawns = new HashMap<>();
-    private final Map<Class<? extends IManager>, IManager> managers = new LinkedHashMap<>();
+    private ServiceManager serviceManager;
     private File safeZoneSpawnsFile;
     private FileConfiguration safeZoneSpawnsConfig;
     private FileConfiguration questConfig;
@@ -358,26 +359,23 @@ public final class Deepwither extends JavaPlugin {
         this.asyncExecutor = Executors.newFixedThreadPool(
                 Runtime.getRuntime().availableProcessors());
 
+        this.serviceManager = new ServiceManager(this);
+
         try {
-            // 1. 基盤（Database）の初期化
-            this.databaseManager = new DatabaseManager(this);
+            // 1. 基盤の登録
+            this.databaseManager = register(new DatabaseManager(this));
 
             // 2. マネージャーの登録とインスタンス化
             setupManagers();
 
-            // 3. 一括初期化実行
-            for (IManager manager : managers.values()) {
-                try {
-                    manager.init();
-                } catch (Exception e) {
-                    // どのマネージャーが失敗したか明確にする
-                    getLogger().severe(manager.getClass().getSimpleName() + " の初期化中にエラーが発生しました。");
-                    throw e; // 上の try-catch に飛ばして onEnable 全体を失敗させる
-                }
-            }
+            // 3. 依存関係を解決して一括初期化
+            this.serviceManager.startAll();
+
         } catch (Exception e) {
-            getLogger().severe("Database initialization failed!");
+            getLogger().severe("Service initialization failed!");
+            e.printStackTrace();
             getServer().getPluginManager().disablePlugin(this);
+            return;
         }
 
         aiEngine = new SeekerAIEngine();
@@ -386,35 +384,13 @@ public final class Deepwither extends JavaPlugin {
         this.apiController = new MarketApiController(this, this.globalMarketManager);
         this.apiController.start(9093); // ポートは任意
 
-        statManager = new StatManager();
-        companionManager = new CompanionManager(this);
-        itemFactory = new ItemFactory(this);
         getServer().getPluginManager().registerEvents(new ArmorSetListener(itemFactory), this);
         getServer().getPluginManager().registerEvents(new ItemUpgradeListener(itemFactory),this);
-        chargeManager = new ChargeManager();
-        backpackManager = new BackpackManager(this);
-        getServer().getPluginManager().registerEvents(chargeManager, this);
         getServer().getPluginManager().registerEvents(new PlayerStatListener(statManager), this);
-        this.settingsManager = new PlayerSettingsManager(this);
         this.settingsGUI = new SettingsGUI(this, settingsManager);
-        damageManager = new DamageManager(statManager, settingsManager);
-        Bukkit.getPluginManager().registerEvents(damageManager, this);
         Bukkit.getPluginManager().registerEvents(new SkillCastSessionManager(), this);
-        raidBossManager = new RaidBossManager(this);
         getServer().getPluginManager().registerEvents(new RaidBossListener(this, raidBossManager), this);
-        manaManager = new ManaManager();
-        skillLoader = new SkillLoader();
-        File skillsFolder = new File(getDataFolder(), "skills");
-        skillLoader.loadAllSkills(skillsFolder);
-        skillSlotManager = new SkillSlotManager(getDataFolder());
-        skillCastManager = new SkillCastManager();
-        cooldownManager = new CooldownManager();
-        lootLevelManager = new LootLevelManager();
-        lootDropManager = new LootDropManager(itemFactory);
-        layerMoveManager = new LayerMoveManager();
-        layerMoveManager.load(getDataFolder());
-        dungeonExtractionManager = new DungeonExtractionManager(this);
-        Bukkit.getPluginManager().registerEvents(new SkillAssignmentGUI(), this);
+
         // クエスト設定のロード
         loadGuildQuestConfig();
 
@@ -427,27 +403,10 @@ public final class Deepwither extends JavaPlugin {
                 getLogger().severe("guild_quest_config.yml に 'quest_components' セクションが見つかりません！");
             }
         }
-        questDataStore = new QuestDataStore(this);
-        guildQuestManager = new GuildQuestManager(this, questDataStore);
-        itemNameResolver = new ItemNameResolver(this);
-        townBurstManager = new TownBurstManager(this);
-        this.creditManager = new CreditManager(this);
-        this.traderManager = new TraderManager(this, itemFactory);
-        this.dailyTaskManager = new DailyTaskManager(this, fileDailyTaskDataStore);
-        playerQuestManager = new PlayerQuestManager(this, guildQuestManager, playerQuestDataStore);
-        artifactManager = new ArtifactManager(this);
-        lootChestManager = new LootChestManager(this);
-        artifactGUI = new ArtifactGUI();
-        mythicMobSafeZoneManager = new MythicMobSafeZoneManager(this);
-        professionManager = new ProfessionManager(this, professionDatabase);
-        ai = new EMDALanguageAI(this.getDataFolder());
-        partyManager = new PartyManager();
+
         this.partyAPI = new DeepwitherPartyAPI(partyManager); // ★ 初期化
-        this.craftingManager = new CraftingManager(this);
-        this.craftingGUI = new CraftingGUI(this);
         getServer().getPluginManager().registerEvents(new CraftingListener(this), this);
         artifactGUIListener = new ArtifactGUIListener(artifactGUI, statManager);
-        this.skillAssignmentGUI = new SkillAssignmentGUI(); // 必ず enable 時に初期化
         getServer().getPluginManager().registerEvents(skillAssignmentGUI, this);
         getServer().getPluginManager().registerEvents(artifactGUIListener, this);
         getServer().getPluginManager().registerEvents(artifactGUI, this);
@@ -474,13 +433,8 @@ public final class Deepwither extends JavaPlugin {
         getServer().getPluginManager().registerEvents(marketSearchHandler, this);
 
         new RegenTask(statManager).start(this);
-        guildQuestManager.startup();
 
         saveDefaultConfig(); // MobExpConfig.yml
-
-        OutpostConfig outpostConfig = new OutpostConfig(this, "outpost.yml");
-
-        OutpostManager.initialize(this, outpostConfig);
 
         mobKillListener = new MobKillListener(levelManager, getConfig(), OutpostManager.getInstance(), partyManager,
                 boosterManager);
@@ -556,8 +510,6 @@ public final class Deepwither extends JavaPlugin {
         }, 1L, 1L); // 毎秒実行
 
         this.mobSpawnManager = new MobSpawnManager(this, playerQuestManager);
-        townBurstManager.startBurstTask();
-        mythicMobSafeZoneManager.startCheckTask();
 
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
             new LevelPlaceholderExpansion(levelManager, manaManager, statManager).register();
@@ -597,9 +549,6 @@ public final class Deepwither extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new GUIListener(playerQuestManager), this);
         getServer().getPluginManager().registerEvents(new CustomOreListener(this), this);
         getServer().getPluginManager().registerEvents(new WandManager(), this);
-
-        // マネージャーの初期化
-        this.fishingManager = new FishingManager(this);
 
         // リスナーの登録
         getServer().getPluginManager().registerEvents(new FishingListener(this), this);
@@ -644,49 +593,78 @@ public final class Deepwither extends JavaPlugin {
             levelManager.unload(p.getUniqueId());
             attributeManager.unload(p.getUniqueId());
         }
-        professionManager.shutdown();
-        townBurstManager.stopBurstTask();
-        mythicMobSafeZoneManager.stopCheckTask();
-        lootChestManager.removeAllLootChests();
-        dailyTaskManager.saveAllData();
-        skillSlotManager.saveAll();
-        artifactManager.saveData();
-        guildQuestManager.shutdown();
+        
         saveSafeZoneSpawns();
-        List<IManager> managerList = new ArrayList<>(managers.values());
-        Collections.reverse(managerList);
-        managerList.forEach(IManager::shutdown);
-        databaseManager.close();
+
+        if (serviceManager != null) {
+            serviceManager.stopAll();
+        }
+
         shutdownExecutor();
     }
 
     private void setupManagers() {
-        // ここでインスタンスを作成し、同時にフィールドにも代入（既存コード壊し防止）
-        this.attributeManager = register(AttributeManager.class, new AttributeManager(databaseManager));
-        this.levelManager = register(LevelManager.class, new LevelManager(databaseManager));
-        this.skilltreeManager = register(SkilltreeManager.class, new SkilltreeManager(databaseManager, this));
-        this.professionDatabase = register(ProfessionDatabase.class, new ProfessionDatabase(this, databaseManager));
-        this.boosterManager = register(BoosterManager.class, new BoosterManager(databaseManager));
-        this.globalMarketManager = register(GlobalMarketManager.class, new GlobalMarketManager(this, databaseManager));
-        this.clanManager = register(ClanManager.class, new ClanManager(databaseManager));
-        this.traderQuestManager = register(TraderQuestManager.class, new TraderQuestManager(this, databaseManager));
-        // 新しくSQLite対応させたデータストア (引数にdatabaseManagerを渡す)
-        this.fileDailyTaskDataStore = register(FileDailyTaskDataStore.class,
-                new FileDailyTaskDataStore(this, databaseManager));
+        // --- Group A & B & Base ---
+        this.attributeManager = register(new AttributeManager(databaseManager));
+        this.levelManager = register(new LevelManager(databaseManager));
+        this.skilltreeManager = register(new SkilltreeManager(databaseManager, this));
+        this.professionDatabase = register(new ProfessionDatabase(this, databaseManager));
+        this.boosterManager = register(new BoosterManager(databaseManager));
+        this.globalMarketManager = register(new GlobalMarketManager(this, databaseManager));
+        this.clanManager = register(new ClanManager(databaseManager));
+        this.traderQuestManager = register(new TraderQuestManager(this, databaseManager));
+        
+        this.statManager = register(new StatManager());
+        this.manaManager = register(new ManaManager());
+        this.cooldownManager = register(new CooldownManager());
+        this.itemFactory = register(new ItemFactory(this));
+        this.itemNameResolver = register(new ItemNameResolver(this));
+        
+        this.skillLoader = register(new SkillLoader(this));
+        this.skillSlotManager = register(new SkillSlotManager(this));
+        this.skillCastManager = register(new SkillCastManager());
+        this.chargeManager = register(new ChargeManager(this));
+        this.settingsManager = register(new PlayerSettingsManager(this));
+        this.damageManager = register(new DamageManager(this, statManager, settingsManager));
 
-        this.playerQuestDataStore = (PlayerQuestDataStore) register(FilePlayerQuestDataStore.class,
-                new FilePlayerQuestDataStore(databaseManager));
+        // --- Group C & D ---
+        this.artifactManager = register(new ArtifactManager(this));
+        this.backpackManager = register(new BackpackManager(this));
+        this.creditManager = register(new CreditManager(this));
+        this.traderManager = register(new TraderManager(this, itemFactory));
+        this.lootChestManager = register(new LootChestManager(this));
+        this.lootLevelManager = register(new LootLevelManager(this));
+        this.lootDropManager = register(new LootDropManager(itemFactory));
+        this.craftingManager = register(new CraftingManager(this));
 
-        this.pvPvEDungeonManager = register(PvPvEDungeonManager.class, new PvPvEDungeonManager(this));
+        this.companionManager = register(new CompanionManager(this));
+        this.raidBossManager = register(new RaidBossManager(this));
+        this.layerMoveManager = register(new LayerMoveManager(this));
+        this.pvPvEDungeonManager = register(new PvPvEDungeonManager(this));
+        
+        register(new com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager(this));
+        this.dungeonExtractionManager = register(new DungeonExtractionManager(this));
+        this.fishingManager = register(new FishingManager(this));
+        this.townBurstManager = register(new TownBurstManager(this));
+        this.mythicMobSafeZoneManager = register(new MythicMobSafeZoneManager(this));
+        this.partyManager = register(new PartyManager(this));
+        this.roguelikeBuffManager = register(new RoguelikeBuffManager(this));
 
-        register(com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager.class,
-                new com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager(this));
-
-        this.roguelikeBuffManager = register(RoguelikeBuffManager.class, new RoguelikeBuffManager(this));
+        // --- Group E ---
+        this.fileDailyTaskDataStore = register(new FileDailyTaskDataStore(this, databaseManager));
+        this.dailyTaskManager = register(new DailyTaskManager(this, fileDailyTaskDataStore));
+        this.questDataStore = register(new QuestDataStore(this));
+        this.guildQuestManager = register(new GuildQuestManager(this, questDataStore));
+        this.playerQuestDataStore = (PlayerQuestDataStore) register(new FilePlayerQuestDataStore(databaseManager));
+        this.playerQuestManager = register(new PlayerQuestManager(this, guildQuestManager, playerQuestDataStore));
+        this.professionManager = register(new ProfessionManager(this, professionDatabase));
+        this.ai = register(new EMDALanguageAI(this));
+        this.outpostManager = register(new OutpostManager(this));
     }
 
-    private <T extends IManager> T register(Class<T> clazz, T manager) {
-        managers.put(clazz, manager);
+
+    private <T extends IManager> T register(T manager) {
+        serviceManager.register(manager);
         return manager;
     }
 

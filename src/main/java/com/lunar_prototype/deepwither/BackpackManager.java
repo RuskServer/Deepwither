@@ -11,6 +11,8 @@ import com.github.retrooper.packetevents.protocol.player.Equipment;
 import com.github.retrooper.packetevents.protocol.player.EquipmentSlot;
 import com.github.retrooper.packetevents.util.Vector3d;
 import com.github.retrooper.packetevents.wrapper.play.server.*;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -20,7 +22,8 @@ import org.bukkit.scheduler.BukkitTask;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
-public class BackpackManager {
+@DependsOn({})
+public class BackpackManager implements IManager {
 
     private final JavaPlugin plugin;
     private final Map<UUID, BackpackSession> activeSessions = new HashMap<>();
@@ -40,6 +43,20 @@ public class BackpackManager {
 
     public BackpackManager(JavaPlugin plugin) {
         this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {}
+
+    @Override
+    public void shutdown() {
+        for (UUID uuid : new HashSet<>(activeSessions.keySet())) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null) {
+                unequipBackpack(p);
+            }
+        }
+        activeSessions.clear();
     }
 
     public boolean hasBackpack(Player player) {

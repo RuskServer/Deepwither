@@ -2,6 +2,7 @@ package com.lunar_prototype.deepwither.data;
 
 import com.lunar_prototype.deepwither.DatabaseManager;
 import com.lunar_prototype.deepwither.aethelgard.PlayerQuestData;
+import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 
 import java.sql.PreparedStatement;
@@ -10,6 +11,7 @@ import java.sql.SQLException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
+@DependsOn({DatabaseManager.class})
 public class FilePlayerQuestDataStore implements PlayerQuestDataStore, IManager {
 
     private final DatabaseManager db;

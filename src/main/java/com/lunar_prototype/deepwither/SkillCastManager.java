@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.api.event.SkillCastEvent;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import io.lumine.mythic.api.MythicPlugin;
 import io.lumine.mythic.api.mobs.MythicMob;
 import io.lumine.mythic.bukkit.BukkitAPIHelper;
@@ -16,9 +18,16 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-public class SkillCastManager {
+@DependsOn({ManaManager.class, CooldownManager.class})
+public class SkillCastManager implements IManager {
 
     private final Map<UUID, Map<String, Long>> cooldowns = new HashMap<>();
+
+    @Override
+    public void init() {}
+
+    @Override
+    public void shutdown() {}
 
     public boolean canCast(Player player, SkillDefinition def) {
         ManaData mana = Deepwither.getInstance().getManaManager().get(player.getUniqueId());

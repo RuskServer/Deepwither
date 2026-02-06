@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither.town;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldguard.WorldGuard;
@@ -25,7 +27,8 @@ import java.util.Random;
  * 街（SafeZoneリージョン）に一時的なMob（NPC）をスポーンさせ、
  * 一定時間後に自動的に消滅させることで賑わいを創出するマネージャー。
  */
-public class TownBurstManager {
+@DependsOn({})
+public class TownBurstManager implements IManager {
 
     private final Deepwither plugin;
     private final Random random = new Random();
@@ -61,6 +64,16 @@ public class TownBurstManager {
 
             loadEntityWeights(settings.getList("burst_entities"));
         }
+    }
+
+    @Override
+    public void init() {
+        startBurstTask();
+    }
+
+    @Override
+    public void shutdown() {
+        stopBurstTask();
     }
 
     /**

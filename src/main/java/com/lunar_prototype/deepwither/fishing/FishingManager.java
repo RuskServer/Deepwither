@@ -4,6 +4,8 @@ import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.ItemFactory;
 import com.lunar_prototype.deepwither.profession.ProfessionManager;
 import com.lunar_prototype.deepwither.profession.ProfessionType;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.ChatColor;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -14,7 +16,8 @@ import java.io.File;
 import java.util.*;
 import java.util.logging.Level;
 
-public class FishingManager {
+@DependsOn({ProfessionManager.class, ItemFactory.class})
+public class FishingManager implements IManager {
 
     private final Deepwither plugin;
     private final Map<String, RaritySettings> rarityMap = new LinkedHashMap<>(); // 順序保持のためLinkedHashMap
@@ -26,8 +29,15 @@ public class FishingManager {
 
     public FishingManager(Deepwither plugin) {
         this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
         loadConfig();
     }
+
+    @Override
+    public void shutdown() {}
 
     public void loadConfig() {
         rarityMap.clear();

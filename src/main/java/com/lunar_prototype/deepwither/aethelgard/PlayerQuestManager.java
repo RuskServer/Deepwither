@@ -1,10 +1,14 @@
 package com.lunar_prototype.deepwither.aethelgard;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.data.FilePlayerQuestDataStore;
 import com.lunar_prototype.deepwither.data.PlayerQuestDataStore;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.HashSet;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,7 +17,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * プレイヤー個人の進行中のクエストを一元管理するクラス。
  * オンラインプレイヤーのデータをメモリにキャッシュします。
  */
-public class PlayerQuestManager {
+@DependsOn({GuildQuestManager.class, FilePlayerQuestDataStore.class})
+public class PlayerQuestManager implements IManager {
 
     private final JavaPlugin plugin;
     private final GuildQuestManager guildQuestManager;
@@ -29,6 +34,19 @@ public class PlayerQuestManager {
         this.guildQuestManager = guildQuestManager;
         this.dataStore = dataStore;
         this.playerQuestCache = new ConcurrentHashMap<>();
+    }
+
+    @Override
+    public void init() {}
+
+    @Override
+    public void shutdown() {
+        for (UUID uuid : new HashSet<>(playerQuestCache.keySet())) {
+            Player p = plugin.getServer().getPlayer(uuid);
+            if (p != null) {
+                unloadPlayer(p);
+            }
+        }
     }
 
     /**

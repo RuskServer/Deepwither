@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -10,10 +12,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-public class CreditManager {
+@DependsOn({})
+public class CreditManager implements IManager {
 
     private final JavaPlugin plugin;
-    private final File creditFile;
+    private File creditFile;
     private YamlConfiguration creditConfig;
 
     // [PlayerUUID] -> [TraderID] -> [CreditValue]
@@ -21,8 +24,17 @@ public class CreditManager {
 
     public CreditManager(JavaPlugin plugin) {
         this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
         this.creditFile = new File(plugin.getDataFolder(), "player_credits.yml");
         loadCredits();
+    }
+
+    @Override
+    public void shutdown() {
+        saveCredits();
     }
 
     private void loadCredits() {

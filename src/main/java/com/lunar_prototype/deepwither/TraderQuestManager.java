@@ -3,6 +3,7 @@ package com.lunar_prototype.deepwither;
 import com.google.gson.Gson;
 import com.lunar_prototype.deepwither.data.PlayerQuestData;
 import com.lunar_prototype.deepwither.TraderManager.QuestData;
+import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import io.lumine.mythic.bukkit.events.MythicMobDeathEvent;
 import org.bukkit.Bukkit;
@@ -21,6 +22,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 
+@DependsOn({DatabaseManager.class})
 /**
  * トレーダークエストの進行状況管理、イベント監視、データ保存を担当するマネージャー
  */

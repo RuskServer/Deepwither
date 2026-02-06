@@ -5,6 +5,8 @@ import com.lunar_prototype.deepwither.aethelgard.GeneratedQuest;
 import com.lunar_prototype.deepwither.aethelgard.LocationDetails;
 import com.lunar_prototype.deepwither.aethelgard.QuestLocation;
 import com.lunar_prototype.deepwither.aethelgard.RewardDetails;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -21,17 +23,25 @@ import java.util.concurrent.ExecutorService;
 /**
  * プラグインのデータフォルダ内にあるYAMLファイルを使用してクエストデータの永続化と読み込みを管理するクラス。
  */
-public class QuestDataStore {
+@DependsOn({})
+public class QuestDataStore implements IManager {
 
     private final JavaPlugin plugin;
-    private final File dataFile;
-    private final YamlConfiguration dataConfig;
+    private File dataFile;
+    private YamlConfiguration dataConfig;
 
     public QuestDataStore(JavaPlugin plugin) {
         this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
         this.dataFile = new File(plugin.getDataFolder(), "quests.yml");
         this.dataConfig = YamlConfiguration.loadConfiguration(dataFile);
     }
+
+    @Override
+    public void shutdown() {}
 
     /**
      * 全てのギルドロケーションのクエストをYAMLファイルに保存します。

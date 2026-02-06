@@ -2,6 +2,9 @@ package com.lunar_prototype.deepwither.crafting;
 
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.FabricationGrade;
+import com.lunar_prototype.deepwither.ItemFactory;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -18,23 +21,35 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-public class CraftingManager {
+@DependsOn({ItemFactory.class})
+public class CraftingManager implements IManager {
 
     private final Deepwither plugin;
-    private final CraftingDataStore dataStore;
-    private final PlayerRecipeJsonStore recipeStore; // JSONストア
+    private CraftingDataStore dataStore;
+    private PlayerRecipeJsonStore recipeStore; // JSONストア
     private final Map<String, CraftingRecipe> recipes = new HashMap<>();
     private final Map<UUID, CraftingData> sessionCache = new ConcurrentHashMap<>();
 
-    private final NamespacedKey customIdKey;
+    private NamespacedKey customIdKey;
     public static final NamespacedKey BLUEPRINT_KEY = new NamespacedKey(Deepwither.getInstance(), "blueprint_recipe_id");
 
     public CraftingManager(Deepwither plugin) {
         this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
         this.dataStore = new CraftingDataStore(plugin);
         this.recipeStore = new PlayerRecipeJsonStore(plugin);
         this.customIdKey = new NamespacedKey(plugin, "custom_id");
         loadRecipes();
+    }
+
+    @Override
+    public void shutdown() {
+        for (UUID uuid : new HashSet<>(sessionCache.keySet())) {
+            saveAndUnloadPlayer(uuid);
+        }
     }
 
     public void loadRecipes() {

@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -11,10 +13,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-public class PlayerSettingsManager {
+@DependsOn({})
+public class PlayerSettingsManager implements IManager {
 
     private final JavaPlugin plugin;
-    private final File file;
+    private File file;
     private FileConfiguration config;
     private final Map<UUID, Map<SettingType, Boolean>> cache = new HashMap<>();
     private final Map<UUID, String> rarityFilterCache = new HashMap<>();
@@ -40,8 +43,17 @@ public class PlayerSettingsManager {
 
     public PlayerSettingsManager(JavaPlugin plugin) {
         this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
         this.file = new File(plugin.getDataFolder(), "settings.yml");
         load();
+    }
+
+    @Override
+    public void shutdown() {
+        save();
     }
 
     public void load() {

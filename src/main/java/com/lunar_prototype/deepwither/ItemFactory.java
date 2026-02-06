@@ -3,6 +3,8 @@ package com.lunar_prototype.deepwither;
 import com.lunar_prototype.deepwither.outpost.OutpostManager;
 import com.lunar_prototype.deepwither.aethelgard.GeneratedQuest;
 import com.lunar_prototype.deepwither.aethelgard.QuestGenerator;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import io.papermc.paper.block.BlockPredicate;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.datacomponent.item.*;
@@ -37,7 +39,8 @@ import java.net.URL;
 import java.util.*;
 import java.util.logging.Level;
 
-public class ItemFactory implements CommandExecutor, TabCompleter {
+@DependsOn({})
+public class ItemFactory implements CommandExecutor, TabCompleter, IManager {
     private final Plugin plugin;
     private final Map<String, ItemStack> itemMap = new HashMap<>();
     private final NamespacedKey statKey = new NamespacedKey("rpgstats", "statmap");
@@ -57,12 +60,21 @@ public class ItemFactory implements CommandExecutor, TabCompleter {
 
     public ItemFactory(JavaPlugin plugin) {
         this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
         loadAllItems();
-        PluginCommand command = plugin.getCommand("giveitem");
+        PluginCommand command = plugin.getServer().getPluginCommand("giveitem");
         if (command != null) {
             command.setExecutor(this);
             command.setTabCompleter(this);
         }
+    }
+
+    @Override
+    public void shutdown() {
+        // 必要に応じてクリーンアップ
     }
 
     private void loadAllItems() {

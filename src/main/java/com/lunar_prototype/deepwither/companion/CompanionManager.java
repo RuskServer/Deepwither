@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither.companion;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import kr.toxicity.model.api.BetterModel;
 import kr.toxicity.model.api.tracker.EntityTracker;
@@ -23,7 +25,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
-public class CompanionManager {
+@DependsOn({})
+public class CompanionManager implements IManager {
 
     private final Deepwither plugin;
     private final Map<String, CompanionData> companionTypes = new HashMap<>();
@@ -32,13 +35,16 @@ public class CompanionManager {
     private final Map<UUID, ActiveCompanion> activeCompanions = new HashMap<>();
 
     public final NamespacedKey COMPANION_ID_KEY;
-    private final File storageFile;
-    private final YamlConfiguration storageConfig;
+    private File storageFile;
+    private YamlConfiguration storageConfig;
 
     public CompanionManager(Deepwither plugin) {
         this.plugin = plugin;
         this.COMPANION_ID_KEY = new NamespacedKey(plugin, "companion_id");
+    }
 
+    @Override
+    public void init() {
         // アイテム保存用のファイル
         this.storageFile = new File(plugin.getDataFolder(), "companion_storage.yml");
         if (!storageFile.exists()) {
@@ -48,6 +54,9 @@ public class CompanionManager {
         loadConfig();
         startCompanionTask();
     }
+
+    @Override
+    public void shutdown() {}
 
     // プレイヤーがセットしているコンパニオンアイテムを取得
     public ItemStack getStoredItem(UUID playerUUID) {

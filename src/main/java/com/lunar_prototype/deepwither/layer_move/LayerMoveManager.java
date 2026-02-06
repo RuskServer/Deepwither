@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither.layer_move;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -16,17 +18,31 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-public class LayerMoveManager {
+@DependsOn({})
+public class LayerMoveManager implements IManager {
 
     private final Map<String, WarpData> warps = new HashMap<>();
     private File file;
     private YamlConfiguration config;
+    private final Deepwither plugin;
+
+    public LayerMoveManager(Deepwither plugin) {
+        this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
+        load(plugin.getDataFolder());
+    }
+
+    @Override
+    public void shutdown() {}
 
     public void load(File dataFolder) {
         warps.clear();
         file = new File(dataFolder, "layer_move.yml");
         if (!file.exists()) {
-            Deepwither.getInstance().saveResource("layer_move.yml", false);
+            plugin.saveResource("layer_move.yml", false);
         }
         config = YamlConfiguration.loadConfiguration(file);
 

@@ -1,12 +1,22 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-public class ManaManager {
+@DependsOn({})
+public class ManaManager implements IManager {
 
     private final Map<UUID, ManaData> manaMap = new HashMap<>();
+
+    @Override
+    public void init() {}
+
+    @Override
+    public void shutdown() {}
 
     public ManaData get(UUID uuid) {
         return manaMap.computeIfAbsent(uuid, k -> new ManaData(100.0)); // デフォルト100など

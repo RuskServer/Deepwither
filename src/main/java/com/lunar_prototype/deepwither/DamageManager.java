@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.api.event.onPlayerRecevingDamageEvent;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import io.lumine.mythic.bukkit.events.MythicDamageEvent;
 import org.bukkit.*;
@@ -18,6 +20,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import com.lunar_prototype.deepwither.PlayerSettingsManager;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.projectiles.ProjectileSource;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -27,11 +30,13 @@ import java.util.*;
 
 import static com.lunar_prototype.deepwither.PlayerSettingsManager.SettingType.SHOW_GIVEN_DAMAGE;
 
-public class DamageManager implements Listener {
+@DependsOn({StatManager.class, PlayerSettingsManager.class, ChargeManager.class, ManaManager.class})
+public class DamageManager implements Listener, IManager {
 
     private final Set<UUID> isProcessingDamage = new HashSet<>();
     private final StatManager statManager;
     private final Map<UUID, Long> onHitCooldowns = new HashMap<>();
+    private final JavaPlugin plugin;
 
     // 定数定義
     private static final Set<String> UNDEAD_MOB_IDS = Set.of("melee_skeleton", "ranged_skeleton", "melee_zombi");
@@ -50,10 +55,19 @@ public class DamageManager implements Listener {
     // 盾のクールダウン (ms) - 連続ブロック防止用など
     private final PlayerSettingsManager settingsManager; // ★追加
 
-    public DamageManager(StatManager statManager, PlayerSettingsManager settingsManager) {
+    public DamageManager(JavaPlugin plugin, StatManager statManager, PlayerSettingsManager settingsManager) {
+        this.plugin = plugin;
         this.statManager = statManager;
         this.settingsManager = settingsManager; // ★追加
     }
+
+    @Override
+    public void init() {
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     private final Map<UUID, Map<UUID, MagicHitInfo>> magicHitMap = new HashMap<>();
 

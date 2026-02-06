@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import com.lunar_prototype.deepwither.StatType; // StatTypeへのパスが正しいことを確認
 
@@ -7,9 +9,16 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-public class CooldownManager {
+@DependsOn({})
+public class CooldownManager implements IManager {
 
     private final Map<UUID, Map<String, Long>> cooldowns = new HashMap<>();
+
+    @Override
+    public void init() {}
+
+    @Override
+    public void shutdown() {}
 
     // ★ 修正: minCooldown を引数に追加
     public boolean isOnCooldown(UUID uuid, String skillId, double baseCooldown, double minCooldown) {

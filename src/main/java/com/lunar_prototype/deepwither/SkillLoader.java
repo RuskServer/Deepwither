@@ -1,17 +1,34 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.util.*;
 
-public class SkillLoader {
+@DependsOn({})
+public class SkillLoader implements IManager {
     private final Map<String, SkillDefinition> skills = new HashMap<>();
     private File skillfolder;
+    private final JavaPlugin plugin;
+
+    public SkillLoader(JavaPlugin plugin) {
+        this.plugin = plugin;
+    }
+    @Override
+    public void init() {
+        File folder = new File(plugin.getDataFolder(), "skills");
+        loadAllSkills(folder);
+    }
+
+    @Override
+    public void shutdown() {}
 
     public void loadAllSkills(File skillFolder) {
-        skills.clear();
+
         if (!skillFolder.exists()) skillFolder.mkdirs();
         skillfolder = skillFolder;
 

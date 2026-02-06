@@ -1,13 +1,22 @@
 package com.lunar_prototype.deepwither.dynamic_loot;
 
 import com.lunar_prototype.deepwither.ItemFactory;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class LootDropManager {
+@DependsOn({ItemFactory.class})
+public class LootDropManager implements IManager {
     private final ItemFactory factory;
+
+    @Override
+    public void init() {}
+
+    @Override
+    public void shutdown() {}
 
     // レアリティ定義（ItemFactoryのMAX_MODIFIERS_BY_RARITYのキーと一致させる）
     private final String[] RARITIES = {"&f&lコモン", "&a&lアンコモン", "&b&lレア", "&d&lエピック", "&6&lレジェンダリー"};

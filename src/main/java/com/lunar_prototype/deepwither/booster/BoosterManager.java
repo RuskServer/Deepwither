@@ -1,6 +1,7 @@
 package com.lunar_prototype.deepwither.booster;
 
 import com.lunar_prototype.deepwither.DatabaseManager;
+import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.entity.Player;
 import java.sql.PreparedStatement;
@@ -9,6 +10,7 @@ import java.sql.SQLException;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+@DependsOn({DatabaseManager.class})
 public class BoosterManager implements IManager {
     private final DatabaseManager db;
     private final ConcurrentHashMap<UUID, BoosterData> activeBoosters = new ConcurrentHashMap<>();

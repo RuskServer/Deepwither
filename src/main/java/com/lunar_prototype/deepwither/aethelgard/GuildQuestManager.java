@@ -2,6 +2,8 @@ package com.lunar_prototype.deepwither.aethelgard;
 
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.data.QuestDataStore;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -13,7 +15,8 @@ import java.util.logging.Level;
  * ギルドクエストの中央管理クラス。
  * クエストの永続化、生成、周期的な更新を処理します。
  */
-public class GuildQuestManager implements Runnable {
+@DependsOn({QuestDataStore.class})
+public class GuildQuestManager implements Runnable, IManager {
 
     private final JavaPlugin plugin;
     private final QuestGenerator questGenerator;
@@ -34,6 +37,11 @@ public class GuildQuestManager implements Runnable {
         // 初期ギルドロケーションの設定 (ハードコードまたはConfigからロード)
         // ここで設定されるのは受付NPCの場所ではなく、クエストリストのIDと名前
         initializeGuildLocations();
+    }
+
+    @Override
+    public void init() {
+        startup();
     }
 
     /**

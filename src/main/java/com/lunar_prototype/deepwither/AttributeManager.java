@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 
 import java.sql.*;
@@ -8,6 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+@DependsOn({DatabaseManager.class})
 public class AttributeManager implements IManager {
 
     private static final int MAX_PER_STAT = 50;

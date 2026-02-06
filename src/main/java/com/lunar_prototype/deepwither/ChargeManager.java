@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
@@ -10,6 +12,7 @@ import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.event.player.PlayerQuitEvent; // 追加: 退出時の処理用
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask; // 追加
 
@@ -17,11 +20,32 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-public class ChargeManager implements Listener {
+@DependsOn({})
+public class ChargeManager implements Listener, IManager {
     private final Map<UUID, Long> chargeStartTimes = new HashMap<>();
     private final Map<UUID, String> fullyChargedType = new HashMap<>();
     // 追加: 実行中のタスクを管理するMap
     private final Map<UUID, BukkitTask> activeTasks = new HashMap<>();
+    private final JavaPlugin plugin;
+
+    public ChargeManager(JavaPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {
+        for (BukkitTask task : activeTasks.values()) {
+            if (task != null && !task.isCancelled()) {
+                task.cancel();
+            }
+        }
+        activeTasks.clear();
+    }
 
     @EventHandler
     public void onSneak(PlayerToggleSneakEvent e) {
@@ -88,7 +112,7 @@ public class ChargeManager implements Listener {
                         p.getWorld().spawnParticle(Particle.CRIT, p.getLocation().add(0, 1, 0), 1, 0.3, 0.3, 0.3, 0.01);
                     }
                 }
-            }.runTaskTimer(Deepwither.getInstance(), 0L, 2L);
+            }.runTaskTimer(plugin, 0L, 2L);
 
             activeTasks.put(uuid, task);
 

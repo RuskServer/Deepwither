@@ -3,6 +3,7 @@ package com.lunar_prototype.deepwither.dungeon.instance;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.api.DeepwitherPartyAPI;
 import com.lunar_prototype.deepwither.dungeon.DungeonGenerator;
+import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;
@@ -17,6 +18,7 @@ import org.bukkit.entity.Player;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@DependsOn({DungeonInstanceManager.class})
 public class PvPvEDungeonManager implements IManager {
 
     private final Deepwither plugin;

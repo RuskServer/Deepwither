@@ -1,6 +1,7 @@
 package com.lunar_prototype.deepwither.clan;
 
 import com.lunar_prototype.deepwither.DatabaseManager;
+import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.entity.Player;
 
@@ -9,6 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+@DependsOn({DatabaseManager.class})
 public class ClanManager implements IManager {
     private final Map<String, Clan> clans = new HashMap<>();
     private final Map<UUID, String> playerClanMap = new HashMap<>();

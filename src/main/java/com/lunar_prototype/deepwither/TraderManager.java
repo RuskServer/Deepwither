@@ -2,6 +2,8 @@ package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.data.TraderOffer;
 import com.lunar_prototype.deepwither.data.TraderOffer.ItemType;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -11,7 +13,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.io.File;
 import java.util.*;
 
-public class TraderManager {
+@DependsOn({ItemFactory.class})
+public class TraderManager implements IManager {
 
     private final JavaPlugin plugin;
     private final ItemFactory itemFactory; // ItemFactoryの依存性
@@ -20,8 +23,8 @@ public class TraderManager {
     private final Map<String, Integer> dailyTaskLimits = new HashMap<>();
     private final Map<String, String> traderNames = new HashMap<>();
 
-    private final File tradersFolder;
-    private final File sellFile;
+    private File tradersFolder;
+    private File sellFile;
 
     // クエスト情報を保持するマップ [TraderID -> [QuestID -> QuestData]]
     private final Map<String, Map<String, QuestData>> traderQuests = new HashMap<>();
@@ -31,13 +34,22 @@ public class TraderManager {
     public TraderManager(JavaPlugin plugin, ItemFactory itemFactory) {
         this.plugin = plugin;
         this.itemFactory = itemFactory;
+    }
+
+    @Override
+    public void init() {
         this.tradersFolder = new File(plugin.getDataFolder(), "traders");
         this.sellFile = new File(plugin.getDataFolder(), "trader_sell.yml");
 
-        this.tradersFolder.mkdirs();
+        if (!this.tradersFolder.exists()) {
+            this.tradersFolder.mkdirs();
+        }
         loadAllTraders();
         loadSellOffers();
     }
+
+    @Override
+    public void shutdown() {}
 
     public static class QuestData {
         private final String id;

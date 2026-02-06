@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
@@ -14,13 +16,20 @@ import org.bukkit.persistence.PersistentDataType;
 
 import java.util.*;
 
-public class StatManager {
+@DependsOn({})
+public class StatManager implements IManager {
 
     private final Map<UUID, Double> actualCurrentHealth = new HashMap<>();
     private final Map<UUID, StatMap> temporaryBuffs = new HashMap<>();
 
     private static final UUID ATTACK_DAMAGE_MODIFIER_ID = UUID.fromString("a3bb7af7-3c5b-4df1-a17e-cdeae1db1d32");
     private static final UUID MAX_HEALTH_MODIFIER_ID = UUID.fromString("ff5dd7e3-d781-4fee-b3d4-bfe3a5fda85d");
+
+    @Override
+    public void init() {}
+
+    @Override
+    public void shutdown() {}
 
     public void updatePlayerStats(Player player) {
         StatMap total = getTotalStatsFromEquipment(player);

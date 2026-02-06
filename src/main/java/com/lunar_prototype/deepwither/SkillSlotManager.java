@@ -1,21 +1,36 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
-public class SkillSlotManager {
+@DependsOn({})
+public class SkillSlotManager implements IManager {
 
     private final Map<UUID, SkillSlotData> slotDataMap = new HashMap<>();
-    private final File slotFile;
-    private final YamlConfiguration config;
+    private File slotFile;
+    private YamlConfiguration config;
+    private final JavaPlugin plugin;
 
-    public SkillSlotManager(File dataFolder) {
-        this.slotFile = new File(dataFolder, "skill_slots.yml");
+    public SkillSlotManager(JavaPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
+        this.slotFile = new File(plugin.getDataFolder(), "skill_slots.yml");
         this.config = YamlConfiguration.loadConfiguration(slotFile);
         loadAll();
+    }
+
+    @Override
+    public void shutdown() {
+        saveAll();
     }
 
     public void loadAll() {

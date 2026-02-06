@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.ChatColor;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -7,11 +9,12 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 
+@DependsOn({ItemFactory.class})
 /**
  * カスタムアイテムIDから実際のItemStackをロードし、その表示名を取得する責務を持つクラス。
  * QuestGeneratorが直接プラグインやファイル構造に依存するのを避けるためのDependency Injection。
  */
-public class ItemNameResolver {
+public class ItemNameResolver implements IManager {
 
     private final JavaPlugin plugin;
     private final File itemFolder;
@@ -25,6 +28,12 @@ public class ItemNameResolver {
         this.itemFolder = new File(plugin.getDataFolder(), "items");
         // フォルダが存在しない場合、作成するロジックは本来必要ですが、ここでは省略
     }
+
+    @Override
+    public void init() {}
+
+    @Override
+    public void shutdown() {}
 
     /**
      * カスタムアイテムIDに基づいてItemStackをロードし、その表示名を取得します。

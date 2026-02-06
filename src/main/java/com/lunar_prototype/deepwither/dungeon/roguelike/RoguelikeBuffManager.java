@@ -2,6 +2,7 @@ package com.lunar_prototype.deepwither.dungeon.roguelike;
 
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.StatMap;
+import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
@@ -20,6 +21,7 @@ import org.bukkit.event.entity.EntityDamageEvent;
 
 import java.util.*;
 
+@DependsOn({})
 public class RoguelikeBuffManager implements IManager, Listener {
 
     private final Deepwither plugin;

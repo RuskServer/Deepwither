@@ -6,10 +6,12 @@ import java.sql.*;
 import java.util.*;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
+@DependsOn({DatabaseManager.class})
 public class SkilltreeManager implements IManager {
     
     private final Gson gson = new Gson();

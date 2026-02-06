@@ -1,21 +1,36 @@
 package com.lunar_prototype.deepwither.party;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-public class PartyManager {
+@DependsOn({})
+public class PartyManager implements IManager {
     // プレイヤーUUID -> その人が所属するPartyインスタンス
     private final Map<UUID, Party> playerPartyMap = new HashMap<>();
 
     // 招待リスト: 招待された人(UUID) -> 招待したリーダー(UUID)
     private final Map<UUID, UUID> pendingInvites = new HashMap<>();
+    private final JavaPlugin plugin;
+
+    public PartyManager(JavaPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {}
+
+    @Override
+    public void shutdown() {}
 
     /**
      * パーティーを作成する（既存パーティーがない場合）
@@ -51,11 +66,11 @@ public class PartyManager {
                         target.sendMessage(ChatColor.YELLOW + leader.getName() + " からの招待の有効期限が切れました。");
                     }
                     if (leader.isOnline()) {
-                        leader.sendMessage(ChatColor.YELLOW + target.getName() + " への招待の有効期限が切れました。");
+                        target.sendMessage(ChatColor.YELLOW + target.getName() + " への招待の有効期限が切れました。");
                     }
                 }
             }
-        }.runTaskLater(Deepwither.getInstance(), 20L * 60); // 60秒
+        }.runTaskLater(plugin, 20L * 60); // 60秒
     }
 
     /**

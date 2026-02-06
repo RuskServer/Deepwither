@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither.raidboss;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.protection.ApplicableRegionSet;
@@ -17,15 +19,23 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.HashMap;
 import java.util.Map;
 
-public class RaidBossManager {
+@DependsOn({})
+public class RaidBossManager implements IManager {
 
     private final JavaPlugin plugin;
     private final Map<String, RaidBossData> bossDataMap = new HashMap<>();
 
     public RaidBossManager(JavaPlugin plugin) {
         this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
         loadConfig();
     }
+
+    @Override
+    public void shutdown() {}
 
     public void loadConfig() {
         bossDataMap.clear();

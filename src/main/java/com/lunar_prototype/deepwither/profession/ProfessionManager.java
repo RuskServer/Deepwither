@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither.profession;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -9,7 +11,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class ProfessionManager {
+@DependsOn({ProfessionDatabase.class})
+public class ProfessionManager implements IManager {
 
     private final Deepwither plugin;
     private final ProfessionDatabase database; // DBクラス
@@ -24,7 +27,11 @@ public class ProfessionManager {
         this.database = db;
     }
 
+    @Override
+    public void init() {}
+
     // --- サーバー停止時の処理 ---
+    @Override
     public void shutdown() {
         // 全員のデータを保存
         for (UUID uuid : cache.keySet()) {

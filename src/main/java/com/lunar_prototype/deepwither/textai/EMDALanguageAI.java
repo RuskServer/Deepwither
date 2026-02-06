@@ -4,6 +4,10 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.lunar_prototype.deepwither.seeker.LiquidNeuron;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
+import org.bukkit.plugin.java.JavaPlugin;
+
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,7 +17,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * TQH（熱力学的Q恒常性）を言語生成に適用。
  * システム温度(systemTemperature)により、語彙の「流動性」と「相転移」を制御する。
  */
-public class EMDALanguageAI {
+@DependsOn({})
+public class EMDALanguageAI implements IManager {
     private final LiquidNeuron logic = new LiquidNeuron(0.1);
     private final LiquidNeuron emotion = new LiquidNeuron(0.15);
     private final LiquidNeuron context = new LiquidNeuron(0.08);
@@ -35,13 +40,25 @@ public class EMDALanguageAI {
 
     private Map<Long, List<WordNode>> vDictionary = new ConcurrentHashMap<>();
     private final Map<String, Float> wordFatigueMap = new HashMap<>();
-    private final File dictionaryFile;
+    private File dictionaryFile;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+    private final JavaPlugin plugin;
 
-    public EMDALanguageAI(File dataFolder) {
+    public EMDALanguageAI(JavaPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
+        File dataFolder = plugin.getDataFolder();
         if (!dataFolder.exists()) dataFolder.mkdirs();
         this.dictionaryFile = new File(dataFolder, "dictionary.json");
         loadDictionary();
+    }
+
+    @Override
+    public void shutdown() {
+        saveDictionary();
     }
 
     /**

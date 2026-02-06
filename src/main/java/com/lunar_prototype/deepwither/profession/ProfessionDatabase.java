@@ -1,6 +1,7 @@
 package com.lunar_prototype.deepwither.profession;
 
 import com.lunar_prototype.deepwither.DatabaseManager;
+import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import java.sql.*;
 import java.util.Map;
@@ -8,6 +9,7 @@ import java.util.UUID;
 import java.util.logging.Level;
 import org.bukkit.plugin.java.JavaPlugin;
 
+@DependsOn({DatabaseManager.class})
 public class ProfessionDatabase implements IManager {
 
     private final JavaPlugin plugin;

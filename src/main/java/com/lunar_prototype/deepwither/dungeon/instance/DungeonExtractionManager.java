@@ -3,6 +3,9 @@ package com.lunar_prototype.deepwither.dungeon.instance;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.dungeon.instance.DungeonInstance;
 import com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager;
+import com.lunar_prototype.deepwither.dungeon.roguelike.RoguelikeBuffManager;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -11,7 +14,8 @@ import org.bukkit.util.Vector;
 
 import java.util.*;
 
-public class DungeonExtractionManager {
+@DependsOn({DungeonInstanceManager.class, RoguelikeBuffManager.class})
+public class DungeonExtractionManager implements IManager {
 
     private final Deepwither plugin;
     // インスタンスごとの脱出候補地点（まだ出ていない場所）
@@ -26,8 +30,15 @@ public class DungeonExtractionManager {
 
     public DungeonExtractionManager(Deepwither plugin) {
         this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
         startDetectionTask();
     }
+
+    @Override
+    public void shutdown() {}
 
     /**
      * ダンジョン生成完了時に呼び出す。3分おきに脱出地点を増やすタイマーを開始
