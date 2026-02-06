@@ -5,7 +5,10 @@ import com.lunar_prototype.deepwither.MobSpawnManager;
 import com.lunar_prototype.deepwither.llm.LlmClient;
 
 import java.util.ArrayDeque;
+<<<<<<< codex/improve-dynamic-request-generation-in-aethelgard-package-pc0byg
 import java.util.Collections;
+=======
+>>>>>>> master
 import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -19,6 +22,7 @@ public class QuestGenerator {
     private final LlmClient llmClient;
     private final Random random;
 
+<<<<<<< codex/improve-dynamic-request-generation-in-aethelgard-package-pc0byg
     private final Deque<String> recentTargetMobIds = Collections.synchronizedDeque(new ArrayDeque<>());
     private final Deque<String> recentLocations = Collections.synchronizedDeque(new ArrayDeque<>());
     private static final int RECENT_HISTORY_LIMIT = 3;
@@ -27,6 +31,16 @@ public class QuestGenerator {
     private static final long MIN_DURATION_MILLIS = 1000L * 60 * 60 * 1;
     private static final long MAX_DURATION_MILLIS = 1000L * 60 * 60 * 6;
 
+=======
+    private final Deque<String> recentTargetMobIds = new ArrayDeque<>();
+    private final Deque<String> recentLocations = new ArrayDeque<>();
+    private static final int RECENT_HISTORY_LIMIT = 3;
+    private static final double RECENT_REPEAT_PENALTY = 0.35;
+
+    private static final long MIN_DURATION_MILLIS = 1000L * 60 * 60 * 1;
+    private static final long MAX_DURATION_MILLIS = 1000L * 60 * 60 * 6;
+
+>>>>>>> master
     private static final Pattern FLOOR_PATTERN = Pattern.compile("第([0-9一二三四五六七八九十百千]+)階層");
     private static final Pattern TIER_PATTERN = Pattern.compile("(?:^|[^a-zA-Z])t([0-9]+)(?:[^a-zA-Z]|$)");
 
@@ -115,7 +129,11 @@ public class QuestGenerator {
                 for (int i = 0; i < candidateMobIds.size(); i++) {
                     String mobId = candidateMobIds.get(i);
                     double baseWeight = 1.0 + (i * 0.15 * Math.max(1, difficultyLevel));
+<<<<<<< codex/improve-dynamic-request-generation-in-aethelgard-package-pc0byg
                     if (isRecentlySelected(recentTargetMobIds, mobId)) {
+=======
+                    if (recentTargetMobIds.contains(mobId)) {
+>>>>>>> master
                         baseWeight *= RECENT_REPEAT_PENALTY;
                     }
                     weights.put(mobId, Math.max(0.05, baseWeight));
@@ -139,7 +157,11 @@ public class QuestGenerator {
         for (int i = 0; i < values.length; i++) {
             ExterminationType type = values[i];
             double baseWeight = 1.0 + (i * 0.5 * Math.max(1, difficultyLevel));
+<<<<<<< codex/improve-dynamic-request-generation-in-aethelgard-package-pc0byg
             if (isRecentlySelected(recentTargetMobIds, type.getMobId())) {
+=======
+            if (recentTargetMobIds.contains(type.getMobId())) {
+>>>>>>> master
                 baseWeight *= RECENT_REPEAT_PENALTY;
             }
             weights.put(type, Math.max(0.05, baseWeight));
@@ -161,7 +183,11 @@ public class QuestGenerator {
 
             baseWeight += getHierarchyDifficultyBias(hierarchy, difficultyLevel);
 
+<<<<<<< codex/improve-dynamic-request-generation-in-aethelgard-package-pc0byg
             if (isRecentlySelected(recentLocations, location.getName())) {
+=======
+            if (recentLocations.contains(location.getName())) {
+>>>>>>> master
                 baseWeight *= RECENT_REPEAT_PENALTY;
             }
             weights.put(location, Math.max(0.05, baseWeight));
@@ -179,15 +205,26 @@ public class QuestGenerator {
 
         String hierarchy = hierarchyRaw.toLowerCase();
         double bias = 0.0;
+<<<<<<< codex/improve-dynamic-request-generation-in-aethelgard-package-pc0byg
 
         if (hierarchy.contains("地下") || hierarchy.contains("深層") || hierarchy.contains("danger")) {
             bias += 0.6 * difficultyLevel;
+=======
+        int effectiveDifficulty = Math.max(1, difficultyLevel);
+
+        if (hierarchy.contains("地下") || hierarchy.contains("深層") || hierarchy.contains("danger")) {
+            bias += 0.6 * effectiveDifficulty;
+>>>>>>> master
         }
 
         int tier = getTierFromHierarchy(hierarchyRaw);
         if (tier > 0) {
             // 全階層に対応: 階層が深いほど重みを段階的に上げる
+<<<<<<< codex/improve-dynamic-request-generation-in-aethelgard-package-pc0byg
             bias += Math.min(1.5, 0.18 * tier) * difficultyLevel;
+=======
+            bias += Math.min(1.5, 0.18 * tier) * effectiveDifficulty;
+>>>>>>> master
         }
 
         return bias;
@@ -202,7 +239,15 @@ public class QuestGenerator {
         if (floorMatcher.find()) {
             String token = floorMatcher.group(1);
             if (token.chars().allMatch(Character::isDigit)) {
+<<<<<<< codex/improve-dynamic-request-generation-in-aethelgard-package-pc0byg
                 return Integer.parseInt(token);
+=======
+                try {
+                    return Integer.parseInt(token);
+                } catch (NumberFormatException e) {
+                    // Fall through to Kanji parsing and other patterns
+                }
+>>>>>>> master
             }
 
             int kanjiNumber = parseKanjiNumber(token);
@@ -213,7 +258,16 @@ public class QuestGenerator {
 
         Matcher tierMatcher = TIER_PATTERN.matcher(hierarchyRaw.toLowerCase());
         if (tierMatcher.find()) {
+<<<<<<< codex/improve-dynamic-request-generation-in-aethelgard-package-pc0byg
             return Integer.parseInt(tierMatcher.group(1));
+=======
+            String tierToken = tierMatcher.group(1);
+            try {
+                return Integer.parseInt(tierToken);
+            } catch (NumberFormatException e) {
+                // No valid numeric tier, fall through to default
+            }
+>>>>>>> master
         }
 
         return 0;
@@ -284,6 +338,7 @@ public class QuestGenerator {
         return fallback;
     }
 
+<<<<<<< codex/improve-dynamic-request-generation-in-aethelgard-package-pc0byg
     private <T> boolean isRecentlySelected(Deque<T> deque, T item) {
         synchronized (deque) {
             return deque.contains(item);
@@ -296,6 +351,12 @@ public class QuestGenerator {
             while (deque.size() > RECENT_HISTORY_LIMIT) {
                 deque.removeFirst();
             }
+=======
+    private <T> void pushRecent(Deque<T> deque, T item) {
+        deque.addLast(item);
+        while (deque.size() > RECENT_HISTORY_LIMIT) {
+            deque.removeFirst();
+>>>>>>> master
         }
     }
 
