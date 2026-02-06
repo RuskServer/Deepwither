@@ -62,6 +62,7 @@ public class MobSpawnManager {
 
         loadMobTierConfigs();
         startSpawnScheduler();
+        startGlobalTraitTicker();
     }
 
     private enum MobTrait {
