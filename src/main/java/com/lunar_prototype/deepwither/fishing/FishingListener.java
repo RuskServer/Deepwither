@@ -3,6 +3,7 @@ package com.lunar_prototype.deepwither.fishing;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.profession.ProfessionType;
 import org.bukkit.ChatColor;
+import org.bukkit.entity.FishHook;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -10,12 +11,39 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 public class FishingListener implements Listener {
 
     private final Deepwither plugin;
 
     public FishingListener(Deepwither plugin) {
         this.plugin = plugin;
+    }
+
+    @EventHandler
+    public void onFishStart(PlayerFishEvent event) {
+        // 浮きを投げた瞬間
+        if (event.getState() == PlayerFishEvent.State.FISHING) {
+            FishHook hook = event.getHook();
+
+            // マイクラのデフォルト設定（日光あり）での待機時間は 100~600 ticks
+            // 日光がない場合、このタイマーの減算が著しく遅くなるのが仕様。
+
+            // 対処法: 自分で待機時間を再設定して上書きする
+            // Lure（入れ食い）エンチャントのレベルを取得
+            int lureLevel = event.getPlayer().getInventory().getItemInMainHand().getEnchantmentLevel(org.bukkit.enchantments.Enchantment.LURE);
+
+            // 独自の計算式（例：5秒〜20秒の間でランダム）
+            // マイクラ標準の待機時間をシミュレートしつつ、日光条件を無視した値をセット
+            int minWait = Math.max(20, 100 - (lureLevel * 100)); // 最短1秒
+            int maxWait = Math.max(100, 600 - (lureLevel * 100)); // 最長30秒
+
+            int customWait = ThreadLocalRandom.current().nextInt(minWait, maxWait);
+
+            // hook.setWaitTime(ticks) で強制設定。これで空が見えなくても爆速になります。
+            hook.setWaitTime(customWait);
+        }
     }
 
     @EventHandler

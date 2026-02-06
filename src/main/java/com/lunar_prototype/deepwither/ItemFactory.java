@@ -47,6 +47,7 @@ public class ItemFactory implements CommandExecutor, TabCompleter {
     public static final NamespacedKey ITEM_TYPE_KEY = new NamespacedKey(Deepwither.getInstance(), "item_type_name");
     public static final NamespacedKey FLAVOR_TEXT_KEY = new NamespacedKey(Deepwither.getInstance(), "item_flavor_text"); // 文字列結合で保存
     public static final NamespacedKey SET_PARTNER_KEY = new NamespacedKey(Deepwither.getInstance(), "set_partner_id");
+    public static final NamespacedKey SPECIAL_ACTION_KEY = new NamespacedKey(Deepwither.getInstance(), "special_action_type");
     public final Map<String, List<String>> rarityPools = new HashMap<>(); // <Rarity, List<ItemID>>
     private static final String KEY_PREFIX = "rpgstats";
 
@@ -247,6 +248,28 @@ public class ItemFactory implements CommandExecutor, TabCompleter {
 
         // 再適用
         return applyStatsToItem(item, baseStats, modifiers, itemType, flavorText, tracker, rarity, gradeToUse);
+    }
+
+    /**
+     * アイテムの製造グレードを1段階上昇させる
+     */
+    public ItemStack upgradeItemGrade(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return item;
+
+        // 現在のグレードIDを取得 (デフォルトは1: STANDARD)
+        int currentGid = item.getItemMeta().getPersistentDataContainer()
+                .getOrDefault(GRADE_KEY, PersistentDataType.INTEGER, 1);
+
+        // 次のグレードを取得 (ID + 1)
+        FabricationGrade nextGrade = FabricationGrade.fromId(currentGid + 1);
+
+        // もし次のグレードが現在のグレードと同じなら、既に最大等級なのでそのまま返す
+        if (nextGrade.getId() == currentGid) {
+            return item;
+        }
+
+        // 既存の updateItem を利用して新しいグレードを適用
+        return updateItem(item, nextGrade);
     }
 
     // 既存コード互換用のオーバーロード
@@ -692,6 +715,7 @@ class ItemLoader {
     public static final NamespacedKey SKILL_COOLDOWN_KEY = new NamespacedKey(Deepwither.getInstance(), "onhit_cooldown");
     public static final NamespacedKey SKILL_ID_KEY = new NamespacedKey(Deepwither.getInstance(), "onhit_skillid");
     public static final NamespacedKey CHARGE_ATTACK_KEY = new NamespacedKey(Deepwither.getInstance(), "charge_attack");
+    public static final NamespacedKey SPECIAL_ACTION_KEY = new NamespacedKey(Deepwither.getInstance(), "special_action_type");
     public static final NamespacedKey IS_WAND = new NamespacedKey(Deepwither.getInstance(), "is_wand");
 
     // 品質判定用Enum
@@ -1011,6 +1035,11 @@ class ItemLoader {
                 if (raid_boss_id != null){
                     NamespacedKey raid_boss_id_key = new NamespacedKey(Deepwither.getInstance(), "raid_boss_id");
                     meta.getPersistentDataContainer().set(raid_boss_id_key,PersistentDataType.STRING, raid_boss_id);
+                }
+
+                String specialAction = config.getString(key + ".special_action");
+                if (specialAction != null) {
+                    meta.getPersistentDataContainer().set(SPECIAL_ACTION_KEY, PersistentDataType.STRING, specialAction.toUpperCase());
                 }
 
                 String itemType = config.getString(key + ".type", null);
