@@ -617,7 +617,7 @@ public class MobSpawnManager {
             // 表示位置の微調整 (Transformation)
             // マウント位置(足元)から、モブの頭上あたりに来るように垂直方向(translation.y)を調整
             Transformation transformation = td.getTransformation();
-            transformation.getTranslation().set(0, (float) entity.getHeight(), 0);
+            transformation.getTranslation().set(0,0, 0);
             td.setTransformation(transformation);
         });
 
