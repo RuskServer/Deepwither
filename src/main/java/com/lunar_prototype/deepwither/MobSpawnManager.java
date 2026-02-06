@@ -562,8 +562,6 @@ public class MobSpawnManager {
         return livingEntity.getUniqueId();
     }
 
-    // ... getRandomSpawnLocation, MobTierConfig は変更なし ...
-
     private Location getRandomSpawnLocation(Location center, int radius) {
         // ... (元の getRandomSpawnLocation の実装) ...
         Random random = plugin.getRandom();
@@ -619,7 +617,7 @@ public class MobSpawnManager {
             // 表示位置の微調整 (Transformation)
             // マウント位置(足元)から、モブの頭上あたりに来るように垂直方向(translation.y)を調整
             Transformation transformation = td.getTransformation();
-            transformation.getTranslation().set(0, (float) entity.getHeight() + 0.1f, 0);
+            transformation.getTranslation().set(0, (float) entity.getHeight(), 0);
             td.setTransformation(transformation);
         });
 

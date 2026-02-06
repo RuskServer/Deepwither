@@ -17,7 +17,7 @@ import java.util.Map;
 public class LlmClient {
 
     // LLMサーバーのAPIエンドポイント (llama.cppなどを想定)
-    private final String apiEndpoint = "http://172.17.0.1:9090/completion";
+    private final String apiEndpoint = "http://172.18.0.1:9090/completion";
     private final HttpClient httpClient;
     private static final Gson GSON = new Gson();
 
