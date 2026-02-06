@@ -681,6 +681,37 @@ public class MobSpawnManager {
         return false;
     }
 
+    /**
+     * 指定ティアで通常スポーン候補になるMob IDを返します。
+     * regular_mobs 内の "bandit" は bandit_mobs に展開されます。
+     */
+    public List<String> getQuestCandidateMobIdsByTier(int tier) {
+        MobTierConfig config = mobTierConfigs.get(tier);
+        if (config == null) {
+            return Collections.emptyList();
+        }
+
+        LinkedHashSet<String> candidates = new LinkedHashSet<>();
+
+        for (String mobId : config.getRegularMobs()) {
+            if (mobId == null || mobId.isEmpty()) {
+                continue;
+            }
+
+            if (mobId.equalsIgnoreCase("bandit")) {
+                candidates.addAll(config.getBanditMobs());
+            } else {
+                candidates.add(mobId);
+            }
+        }
+
+        if (candidates.isEmpty()) {
+            candidates.addAll(config.getBanditMobs());
+        }
+
+        return new ArrayList<>(candidates);
+    }
+
     public int getTierFromLocation(Location loc) {
         RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
         RegionQuery query = container.createQuery();
