@@ -5,13 +5,13 @@ public class QuestPromptAssembler {
     /**
      * LLMへ渡すプロンプトを生成します。
      * 外部で決定された構成要素を受け取り、プロンプトをアセンブルします。
-     * @param targetType 討伐対象のMobタイプ
+     * @param targetDescription 討伐対象のMob説明
      * @param locationDetails クエスト発生場所
      * @param motivation クエストの動機
      * @param quantity 討伐目標数
      * @return LLM推論用のプロンプト文字列
      */
-    public static String assemblePrompt(ExterminationType targetType, LocationDetails locationDetails, String motivation, int quantity,String llmrewardtext) {
+    public static String assemblePrompt(String targetDescription, LocationDetails locationDetails, String motivation, int quantity, String llmrewardtext) {
 
         String llmLocationText = locationDetails.getLlmLocationText();
 
@@ -42,7 +42,7 @@ public class QuestPromptAssembler {
                         "タイトル：「%s周辺の警戒レベル引き下げ任務」\n" + // タイトルに「警戒レベル引き下げ」を使うことが多いので固定
                         "本文：「",
                 llmLocationText, // 階層情報を含む
-                targetType.getDescription(),
+                targetDescription,
                 quantity,
                 motivation,
                 llmrewardtext,

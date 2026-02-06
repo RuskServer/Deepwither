@@ -1,6 +1,7 @@
 package com.lunar_prototype.deepwither.aethelgard;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.MobSpawnManager;
 import com.lunar_prototype.deepwither.llm.LlmClient;
 
 import java.util.ArrayDeque;
@@ -9,14 +10,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class QuestGenerator {
 
     private final LlmClient llmClient;
     private final Random random;
 
-    // 直近の抽選結果を記録し、同一構成の連続出現を抑える
-    private final Deque<ExterminationType> recentTargets = new ArrayDeque<>();
+    private final Deque<String> recentTargetMobIds = new ArrayDeque<>();
     private final Deque<String> recentLocations = new ArrayDeque<>();
     private static final int RECENT_HISTORY_LIMIT = 3;
     private static final double RECENT_REPEAT_PENALTY = 0.35;
@@ -24,19 +26,17 @@ public class QuestGenerator {
     private static final long MIN_DURATION_MILLIS = 1000L * 60 * 60 * 1;
     private static final long MAX_DURATION_MILLIS = 1000L * 60 * 60 * 6;
 
+    private static final Pattern FLOOR_PATTERN = Pattern.compile("第([0-9一二三四五六七八九十百千]+)階層");
+    private static final Pattern TIER_PATTERN = Pattern.compile("(?:^|[^a-zA-Z])t([0-9]+)(?:[^a-zA-Z]|$)");
+
     public QuestGenerator() {
         this.llmClient = new LlmClient();
         this.random = new Random();
     }
 
-    /**
-     * LLMを使用して駆除クエストを生成するメインメソッド。
-     * @param difficultyLevel クエストの難易度
-     * @return 生成されたGeneratedQuestオブジェクト
-     */
     public GeneratedQuest generateQuest(int difficultyLevel) {
-        ExterminationType targetType = pickWeightedTargetType(difficultyLevel);
         LocationDetails locationDetails = pickWeightedLocation(difficultyLevel);
+        TargetMob targetMob = pickWeightedTargetMob(locationDetails, difficultyLevel);
         String motivation = QuestComponentPool.getRandomMotivation();
         int quantity = QuestComponentPool.calculateRandomQuantity(difficultyLevel);
 
@@ -54,14 +54,20 @@ public class QuestGenerator {
                 rewardItemQuantity
         );
 
-        String prompt = QuestPromptAssembler.assemblePrompt(targetType, locationDetails, motivation, quantity, rewardDetails.getLlmRewardText());
+        String prompt = QuestPromptAssembler.assemblePrompt(
+                targetMob.description(),
+                locationDetails,
+                motivation,
+                quantity,
+                rewardDetails.getLlmRewardText()
+        );
 
         String generatedText = llmClient.generateText(prompt);
 
         if (generatedText == null || generatedText.trim().isEmpty()) {
             System.err.println("LLM応答が不正または通信失敗。フォールバック処理を実行します。");
             generatedText = llmClient.fallbackTextGenerator(
-                    locationDetails, targetType.getDescription(), motivation
+                    locationDetails, targetMob.description(), motivation
             );
         }
 
@@ -88,7 +94,7 @@ public class QuestGenerator {
         return new GeneratedQuest(
                 title,
                 body,
-                targetType.getMobId(),
+                targetMob.mobId(),
                 quantity,
                 locationDetails,
                 rewardDetails,
@@ -96,23 +102,49 @@ public class QuestGenerator {
         );
     }
 
-    private ExterminationType pickWeightedTargetType(int difficultyLevel) {
+    private TargetMob pickWeightedTargetMob(LocationDetails locationDetails, int difficultyLevel) {
+        int tier = getTierFromHierarchy(locationDetails.getHierarchy());
+
+        Deepwither plugin = Deepwither.getInstance();
+        MobSpawnManager spawnManager = plugin.getMobSpawnManager();
+        if (spawnManager != null && tier > 0) {
+            List<String> candidateMobIds = spawnManager.getQuestCandidateMobIdsByTier(tier);
+            if (!candidateMobIds.isEmpty()) {
+                Map<String, Double> weights = new LinkedHashMap<>();
+                for (int i = 0; i < candidateMobIds.size(); i++) {
+                    String mobId = candidateMobIds.get(i);
+                    double baseWeight = 1.0 + (i * 0.15 * Math.max(1, difficultyLevel));
+                    if (recentTargetMobIds.contains(mobId)) {
+                        baseWeight *= RECENT_REPEAT_PENALTY;
+                    }
+                    weights.put(mobId, Math.max(0.05, baseWeight));
+                }
+
+                String selectedMobId = weightedRandom(weights, candidateMobIds.get(0));
+                pushRecent(recentTargetMobIds, selectedMobId);
+                return new TargetMob(selectedMobId, toDisplayName(selectedMobId));
+            }
+        }
+
+        ExterminationType fallback = pickFallbackTargetType(difficultyLevel);
+        pushRecent(recentTargetMobIds, fallback.getMobId());
+        return new TargetMob(fallback.getMobId(), fallback.getDescription());
+    }
+
+    private ExterminationType pickFallbackTargetType(int difficultyLevel) {
         Map<ExterminationType, Double> weights = new LinkedHashMap<>();
         ExterminationType[] values = ExterminationType.values();
 
         for (int i = 0; i < values.length; i++) {
             ExterminationType type = values[i];
-            // 高難易度ほど後ろのMobを引きやすくする
             double baseWeight = 1.0 + (i * 0.5 * Math.max(1, difficultyLevel));
-            if (recentTargets.contains(type)) {
+            if (recentTargetMobIds.contains(type.getMobId())) {
                 baseWeight *= RECENT_REPEAT_PENALTY;
             }
             weights.put(type, Math.max(0.05, baseWeight));
         }
 
-        ExterminationType selected = weightedRandom(weights, ExterminationType.ZOMBIE_GUARD);
-        pushRecent(recentTargets, selected);
-        return selected;
+        return weightedRandom(weights, ExterminationType.ZOMBIE_GUARD);
     }
 
     private LocationDetails pickWeightedLocation(int difficultyLevel) {
@@ -139,7 +171,6 @@ public class QuestGenerator {
         return selected;
     }
 
-
     private double getHierarchyDifficultyBias(String hierarchyRaw, int difficultyLevel) {
         if (hierarchyRaw == null || hierarchyRaw.isEmpty()) {
             return 0.0;
@@ -148,29 +179,86 @@ public class QuestGenerator {
         String hierarchy = hierarchyRaw.toLowerCase();
         double bias = 0.0;
 
-        // 既存ワードとの互換
         if (hierarchy.contains("地下") || hierarchy.contains("深層") || hierarchy.contains("danger")) {
             bias += 0.6 * difficultyLevel;
         }
 
-        // 「第二階層」「第三階層」想定の段階バイアス
-        if (hierarchy.contains("第一階層") || hierarchy.contains("第1階層")) {
-            bias += 0.1 * difficultyLevel;
-        }
-        if (hierarchy.contains("第二階層") || hierarchy.contains("第2階層")) {
-            bias += 0.35 * difficultyLevel;
-        }
-        if (hierarchy.contains("第三階層") || hierarchy.contains("第3階層")) {
-            bias += 0.6 * difficultyLevel;
-        }
-        if (hierarchy.contains("第四階層") || hierarchy.contains("第4階層")) {
-            bias += 0.85 * difficultyLevel;
-        }
-        if (hierarchy.contains("第五階層") || hierarchy.contains("第5階層")) {
-            bias += 1.1 * difficultyLevel;
+        int tier = getTierFromHierarchy(hierarchyRaw);
+        if (tier > 0) {
+            // 全階層に対応: 階層が深いほど重みを段階的に上げる
+            bias += Math.min(1.5, 0.18 * tier) * difficultyLevel;
         }
 
         return bias;
+    }
+
+    private int getTierFromHierarchy(String hierarchyRaw) {
+        if (hierarchyRaw == null || hierarchyRaw.isEmpty()) {
+            return 0;
+        }
+
+        Matcher floorMatcher = FLOOR_PATTERN.matcher(hierarchyRaw);
+        if (floorMatcher.find()) {
+            String token = floorMatcher.group(1);
+            if (token.chars().allMatch(Character::isDigit)) {
+                return Integer.parseInt(token);
+            }
+
+            int kanjiNumber = parseKanjiNumber(token);
+            if (kanjiNumber > 0) {
+                return kanjiNumber;
+            }
+        }
+
+        Matcher tierMatcher = TIER_PATTERN.matcher(hierarchyRaw.toLowerCase());
+        if (tierMatcher.find()) {
+            return Integer.parseInt(tierMatcher.group(1));
+        }
+
+        return 0;
+    }
+
+    private int parseKanjiNumber(String text) {
+        int total = 0;
+        int current = 0;
+
+        for (char c : text.toCharArray()) {
+            if (c == '千') {
+                total += Math.max(1, current) * 1000;
+                current = 0;
+            } else if (c == '百') {
+                total += Math.max(1, current) * 100;
+                current = 0;
+            } else if (c == '十') {
+                total += Math.max(1, current) * 10;
+                current = 0;
+            } else {
+                int digit = switch (c) {
+                    case '一' -> 1;
+                    case '二' -> 2;
+                    case '三' -> 3;
+                    case '四' -> 4;
+                    case '五' -> 5;
+                    case '六' -> 6;
+                    case '七' -> 7;
+                    case '八' -> 8;
+                    case '九' -> 9;
+                    case '零', '〇' -> 0;
+                    default -> -1;
+                };
+
+                if (digit < 0) {
+                    return 0;
+                }
+                current = digit;
+            }
+        }
+
+        return total + current;
+    }
+
+    private String toDisplayName(String mobId) {
+        return mobId.replace('_', ' ').replace('-', ' ').trim();
     }
 
     private <T> T weightedRandom(Map<T, Double> weights, T fallback) {
@@ -200,5 +288,8 @@ public class QuestGenerator {
         while (deque.size() > RECENT_HISTORY_LIMIT) {
             deque.removeFirst();
         }
+    }
+
+    private record TargetMob(String mobId, String description) {
     }
 }
