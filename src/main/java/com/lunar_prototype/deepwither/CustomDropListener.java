@@ -50,28 +50,5 @@ public class CustomDropListener implements Listener {
                 }
             });
         }
-
-        if (event.getDropName().equalsIgnoreCase("DYNAMIC_LOOT_DROP")) {
-            event.register(new IItemDrop() {
-                @Override
-                public AbstractItemStack getDrop(DropMetadata data, double amount) {
-                    // 1. 倒したプレイヤーを取得
-                    if (data.getTrigger().asPlayer() == null) return null;
-                    Player killer = (Player) BukkitAdapter.adapt(data.getTrigger().asPlayer());
-
-                    // 2. ルートレベルを取得してアイテムを抽選
-                    int level = Deepwither.getInstance().getLootLevelManager().getLootLevel(killer);
-                    String itemId = Deepwither.getInstance().getLootDropManager().rollDrop(level);
-
-                    if (itemId != null) {
-                        // 3. アイテム生成 (FabricationGradeはドロップに関係ないのでSTANDARD固定)
-                        ItemStack item = Deepwither.getInstance().getItemFactory().getCustomItemStack(itemId, FabricationGrade.STANDARD);
-
-                        return new ItemComponentBukkitItemStack(item);
-                    }
-                    return null;
-                }
-            });
-        }
     }
 }

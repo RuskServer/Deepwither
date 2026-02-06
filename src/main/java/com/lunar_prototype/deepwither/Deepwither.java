@@ -398,7 +398,6 @@ public final class Deepwither extends JavaPlugin {
         damageManager = new DamageManager(statManager, settingsManager);
         Bukkit.getPluginManager().registerEvents(damageManager, this);
         Bukkit.getPluginManager().registerEvents(new SkillCastSessionManager(), this);
-        Bukkit.getPluginManager().registerEvents(new SkillAssignmentGUI(), this);
         raidBossManager = new RaidBossManager(this);
         getServer().getPluginManager().registerEvents(new RaidBossListener(this, raidBossManager), this);
         manaManager = new ManaManager();
@@ -413,6 +412,7 @@ public final class Deepwither extends JavaPlugin {
         layerMoveManager = new LayerMoveManager();
         layerMoveManager.load(getDataFolder());
         dungeonExtractionManager = new DungeonExtractionManager(this);
+        Bukkit.getPluginManager().registerEvents(new SkillAssignmentGUI(), this);
         // クエスト設定のロード
         loadGuildQuestConfig();
 
