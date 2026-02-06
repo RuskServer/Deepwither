@@ -124,11 +124,9 @@ public class QuestGenerator {
         Map<LocationDetails, Double> weights = new LinkedHashMap<>();
         for (LocationDetails location : locations) {
             double baseWeight = 1.0;
-            String hierarchy = location.getHierarchy().toLowerCase();
+            String hierarchy = location.getHierarchy();
 
-            if (hierarchy.contains("地下") || hierarchy.contains("深層") || hierarchy.contains("danger")) {
-                baseWeight += 0.6 * difficultyLevel;
-            }
+            baseWeight += getHierarchyDifficultyBias(hierarchy, difficultyLevel);
 
             if (recentLocations.contains(location.getName())) {
                 baseWeight *= RECENT_REPEAT_PENALTY;
@@ -139,6 +137,40 @@ public class QuestGenerator {
         LocationDetails selected = weightedRandom(weights, locations.get(0));
         pushRecent(recentLocations, selected.getName());
         return selected;
+    }
+
+
+    private double getHierarchyDifficultyBias(String hierarchyRaw, int difficultyLevel) {
+        if (hierarchyRaw == null || hierarchyRaw.isEmpty()) {
+            return 0.0;
+        }
+
+        String hierarchy = hierarchyRaw.toLowerCase();
+        double bias = 0.0;
+
+        // 既存ワードとの互換
+        if (hierarchy.contains("地下") || hierarchy.contains("深層") || hierarchy.contains("danger")) {
+            bias += 0.6 * difficultyLevel;
+        }
+
+        // 「第二階層」「第三階層」想定の段階バイアス
+        if (hierarchy.contains("第一階層") || hierarchy.contains("第1階層")) {
+            bias += 0.1 * difficultyLevel;
+        }
+        if (hierarchy.contains("第二階層") || hierarchy.contains("第2階層")) {
+            bias += 0.35 * difficultyLevel;
+        }
+        if (hierarchy.contains("第三階層") || hierarchy.contains("第3階層")) {
+            bias += 0.6 * difficultyLevel;
+        }
+        if (hierarchy.contains("第四階層") || hierarchy.contains("第4階層")) {
+            bias += 0.85 * difficultyLevel;
+        }
+        if (hierarchy.contains("第五階層") || hierarchy.contains("第5階層")) {
+            bias += 1.1 * difficultyLevel;
+        }
+
+        return bias;
     }
 
     private <T> T weightedRandom(Map<T, Double> weights, T fallback) {
