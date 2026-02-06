@@ -18,12 +18,12 @@ import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.Player;
+import org.bukkit.entity.*;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap; // スレッドセーフなマップを使用
+import java.util.stream.Collectors;
 
 public class MobSpawnManager {
 
@@ -51,6 +51,8 @@ public class MobSpawnManager {
 
     private final Map<Integer, MobTierConfig> mobTierConfigs = new HashMap<>();
 
+    private final Map<UUID, UUID> traitDisplayMap = new ConcurrentHashMap<>(); // Mob UUID -> TextDisplay UUID
+
     public MobSpawnManager(Deepwither plugin, PlayerQuestManager playerQuestManager) {
         this.plugin = plugin;
         this.playerQuestManager = playerQuestManager;
@@ -61,7 +63,30 @@ public class MobSpawnManager {
         startSpawnScheduler();
     }
 
-    // ... loadMobTierConfigs, startSpawnScheduler の部分は変更なし ...
+    private enum MobTrait {
+        // 初級特性 (Basic)
+        BERSERK("§c[狂化]", "Basic"),
+        HARDENED("§7[硬化]", "Basic"),
+        PIERCING("§e[貫通]", "Basic"),
+        SNARING_AURA("§9[鈍足]", "Basic"),
+
+        // 中級特性 (Intermediate)
+        MANA_LEECH("§d[魔食]", "Intermediate"),
+        DISRUPTIVE("§5[妨害]", "Intermediate"),
+        BLINKING("§b[瞬身]", "Intermediate"),
+        SUMMONER("§2[召喚]", "Intermediate");
+
+        private final String displayName;
+        private final String category;
+
+        MobTrait(String displayName, String category) {
+            this.displayName = displayName;
+            this.category = category;
+        }
+    }
+
+    // 特性スポーン確率 (デバッグ用 15%)
+    private static final double TRAIT_SPAWN_CHANCE = 0.15;
 
     private void loadMobTierConfigs() {
         mobTierConfigs.clear(); // 既存データをクリア
@@ -530,6 +555,8 @@ public class MobSpawnManager {
 
         levelManager.applyLevel(livingEntity, mobDisplayName, spawnLevel);
 
+        applyRandomTraits(livingEntity, spawnLevel, mobDisplayName);
+
         return livingEntity.getUniqueId();
     }
 
@@ -554,6 +581,103 @@ public class MobSpawnManager {
             }
         }
         return null;
+    }
+
+    /**
+     * 特性を抽選し、TextDisplay を生成して追従させる
+     */
+    private void applyRandomTraits(LivingEntity entity, int level, String originalName) {
+        if (plugin.getRandom().nextDouble() > TRAIT_SPAWN_CHANCE) return;
+
+        List<MobTrait> selectedTraits = getRandomTraitsForLevel(level);
+        if (selectedTraits.isEmpty()) return;
+
+        // 1. ビジュアル演出 (発光)
+        entity.setGlowing(true);
+
+        // 2. 表示テキストの構築
+        StringBuilder sb = new StringBuilder();
+        for (MobTrait trait : selectedTraits) {
+            sb.append(trait.displayName).append("\n");
+        }
+        String traitText = sb.toString().trim(); // 最後の改行を削除
+
+        // 3. TextDisplay のスポーン
+        TextDisplay display = entity.getWorld().spawn(entity.getLocation(), TextDisplay.class, (td) -> {
+            td.setText(traitText);
+            td.setBillboard(Display.Billboard.CENTER); // 常にプレイヤーを向く
+            td.setBackgroundColor(org.bukkit.Color.fromARGB(0, 0, 0, 0)); // 背景透明
+            td.setShadowed(true);
+            td.setAlignment(TextDisplay.TextAlignment.CENTER);
+
+            // 少し高い位置に表示するためのオフセット設定 (必要に応じて調整)
+            // Transformationを使わなくても追従タスクの座標計算で調整可能
+        });
+
+        // 4. 追従タスクの開始
+        startTrackingTask(entity, display);
+
+        // クリーンアップ用にマップに保存 (任意)
+        traitDisplayMap.put(entity.getUniqueId(), display.getUniqueId());
+    }
+
+    /**
+     * TextDisplay をモブに追従させるタスク
+     */
+    private void startTrackingTask(LivingEntity mob, TextDisplay display) {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                // モブが死んだ、または無効になったら表示を消して終了
+                if (!mob.isValid() || mob.isDead()) {
+                    display.remove();
+                    traitDisplayMap.remove(mob.getUniqueId());
+                    this.cancel();
+                    return;
+                }
+
+                // モブの頭上（位置はモブの高さ + 0.5ブロック程度）に移動
+                // ネームタグの下に来るように調整する場合は offset を 0.2 などに小さく設定
+                double offset = mob.getHeight() + 0.2;
+                Location followLoc = mob.getLocation().add(0, offset, 0);
+
+                // スムーズな追従のため、テレポート
+                display.teleport(followLoc);
+            }
+        }.runTaskTimer(plugin, 1L, 1L); // 毎ティック追従
+    }
+
+    /**
+     * レベル帯に応じた特性リストの抽選
+     */
+    private List<MobTrait> getRandomTraitsForLevel(int level) {
+        List<MobTrait> available = new ArrayList<>();
+        int count = 0;
+
+        if (level >= 10 && level < 15) {
+            count = 1;
+            available = getTraitsByCategory("Basic");
+        } else if (level >= 15 && level < 25) {
+            count = plugin.getRandom().nextInt(3) + 1; // 1-3
+            available = getTraitsByCategory("Basic");
+        } else if (level >= 25 && level <= 35) {
+            count = plugin.getRandom().nextInt(2) + 1; // 1-2
+            available = getTraitsByCategory("Intermediate");
+        }
+
+        if (available.isEmpty()) return Collections.emptyList();
+
+        Collections.shuffle(available);
+        return available.stream().limit(count).collect(Collectors.toList());
+    }
+
+    /**
+     * カテゴリに応じた特性リストを取得
+     */
+    private List<MobTrait> getTraitsByCategory(String category) {
+        return Arrays.stream(MobTrait.values())
+                .filter(t -> t.category.equals(category))
+                .collect(Collectors.toList());
     }
 
     /**
