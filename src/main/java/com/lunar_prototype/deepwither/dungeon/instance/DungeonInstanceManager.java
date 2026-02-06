@@ -271,4 +271,8 @@ public class DungeonInstanceManager implements IManager {
             throw new IOException("Failed to delete " + file);
         }
     }
+
+    public Set<String> instanceIdSet() {
+        return Collections.unmodifiableSet(this.activeInstances.keySet());
+    }
 }
