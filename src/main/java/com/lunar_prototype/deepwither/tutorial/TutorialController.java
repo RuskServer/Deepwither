@@ -2,6 +2,10 @@ package com.lunar_prototype.deepwither.tutorial;
 
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.api.event.*;
+import com.lunar_prototype.deepwither.StatManager;
+import com.lunar_prototype.deepwither.ItemFactory;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import com.lunar_prototype.eqf.EQFPlugin;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.KeybindComponent;
@@ -19,24 +23,37 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
 
 import static io.lumine.mythic.bukkit.commands.CommandHelper.send;
 
-public class TutorialController implements Listener {
+@DependsOn({StatManager.class, ItemFactory.class})
+public class TutorialController implements Listener, IManager {
 
     private final JavaPlugin plugin;
     // プレイヤーごとの進行状況
     private final Map<UUID, TutorialStage> stageMap = new HashMap<>();
     private final Set<UUID> loadingPlayers = new HashSet<>();
+    private BukkitTask titleTask;
 
     public TutorialController(JavaPlugin plugin) {
         this.plugin = plugin;
-        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
 
+    @Override
+    public void init() {
+        Bukkit.getPluginManager().registerEvents(this, plugin);
         // ★ タイトル常時表示タスクの開始
         startTitleTask();
+    }
+
+    @Override
+    public void shutdown() {
+        if (titleTask != null && !titleTask.isCancelled()) {
+            titleTask.cancel();
+        }
     }
 
     /* -----------------------------
@@ -60,7 +77,7 @@ public class TutorialController implements Listener {
      * ★ 常時タイトル表示タスク
      * ----------------------------- */
     private void startTitleTask() {
-        new BukkitRunnable() {
+        this.titleTask = new BukkitRunnable() {
             @Override
             public void run() {
                 for (UUID uuid : stageMap.keySet()) {

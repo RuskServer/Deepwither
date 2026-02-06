@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import io.lumine.mythic.api.adapters.AbstractItemStack;
 import io.lumine.mythic.api.drops.DropMetadata;
 import io.lumine.mythic.api.drops.IItemDrop;
@@ -10,16 +12,26 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 
-public class CustomDropListener implements Listener {
+@DependsOn({ItemFactory.class})
+public class CustomDropListener implements Listener, IManager {
 
-    private final Deepwither plugin;
+    private final JavaPlugin plugin;
 
-    public CustomDropListener(Deepwither plugin) {
+    public CustomDropListener(JavaPlugin plugin) {
         this.plugin = plugin;
     }
+
+    @Override
+    public void init() {
+        org.bukkit.Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     @EventHandler
     public void onMythicDropLoad(MythicDropLoadEvent event) {

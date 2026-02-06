@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -11,14 +13,26 @@ import org.bukkit.entity.Player;
 import org.bukkit.Bukkit;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.plugin.java.JavaPlugin;
 
-public class PlayerStatListener implements Listener {
+@DependsOn({StatManager.class})
+public class PlayerStatListener implements Listener, IManager {
 
     private StatManager statManager;
+    private final JavaPlugin plugin;
 
-    public PlayerStatListener(StatManager statManager) {
-        this.statManager = statManager;
+    public PlayerStatListener(JavaPlugin plugin) {
+        this.plugin = plugin;
     }
+
+    @Override
+    public void init() {
+        this.statManager = Deepwither.getInstance().getStatManager();
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {

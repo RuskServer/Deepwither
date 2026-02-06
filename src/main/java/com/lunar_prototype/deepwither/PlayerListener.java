@@ -27,13 +27,16 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-public class PlayerListener implements Listener { // 以前のPlayerListenerをメインリスナーとして維持
+@DependsOn({PlayerQuestManager.class})
+public class PlayerListener implements Listener, IManager { // 以前のPlayerListenerをメインリスナーとして維持
 
     private final JavaPlugin plugin;
     private final PlayerQuestManager questManager;
@@ -46,6 +49,14 @@ public class PlayerListener implements Listener { // 以前のPlayerListenerを�
         this.plugin = plugin;
         this.questManager = questManager;
     }
+
+    @Override
+    public void init() {
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     /**
      * MythicMobが死亡した際に、討伐クエストの進捗を更新します。

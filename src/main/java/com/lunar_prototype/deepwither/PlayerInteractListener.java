@@ -1,5 +1,8 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -11,6 +14,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import javax.management.Attribute;
 import java.util.EventListener;
@@ -20,7 +24,22 @@ import java.util.UUID;
 
 import static com.lunar_prototype.deepwither.StatManager.getTotalStatsFromEquipment;
 
-public class PlayerInteractListener implements Listener {
+@DependsOn({StatManager.class})
+public class PlayerInteractListener implements Listener, IManager {
+
+    private final JavaPlugin plugin;
+
+    public PlayerInteractListener(JavaPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     private final Map<UUID, Long> cooldowns = new HashMap<>();
 

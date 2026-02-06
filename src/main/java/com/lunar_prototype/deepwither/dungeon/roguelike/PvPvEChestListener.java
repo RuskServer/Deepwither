@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither.dungeon.roguelike;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -9,14 +11,24 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.plugin.java.JavaPlugin;
 
-public class PvPvEChestListener implements Listener {
+@DependsOn({RoguelikeBuffManager.class})
+public class PvPvEChestListener implements Listener, IManager {
 
-    private final Deepwither plugin;
+    private final JavaPlugin plugin;
 
-    public PvPvEChestListener(Deepwither plugin) {
+    public PvPvEChestListener(JavaPlugin plugin) {
         this.plugin = plugin;
     }
+
+    @Override
+    public void init() {
+        org.bukkit.Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     @EventHandler
     public void onChestInteract(PlayerInteractEvent e) {

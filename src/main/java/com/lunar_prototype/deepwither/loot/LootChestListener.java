@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither.loot;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.Chest;
@@ -12,17 +14,27 @@ import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.java.JavaPlugin;
 // PDC関連のインポート (NamespacedKey, PersistentDataType) は不要になりました。
 
-public class LootChestListener implements Listener {
+@DependsOn({LootChestManager.class})
+public class LootChestListener implements Listener, IManager {
 
-    private final Deepwither plugin;
-    private final LootChestManager manager;
+    private final JavaPlugin plugin;
+    private LootChestManager manager;
 
-    public LootChestListener(Deepwither plugin, LootChestManager manager) {
+    public LootChestListener(JavaPlugin plugin) {
         this.plugin = plugin;
-        this.manager = manager;
     }
+
+    @Override
+    public void init() {
+        this.manager = Deepwither.getInstance().getLootChestManager();
+        org.bukkit.Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     // -----------------------------------------------------------------
     // 1. チェストが破壊されたときの処理

@@ -3,6 +3,8 @@ package com.lunar_prototype.deepwither.listeners;
 import com.destroystokyo.paper.event.player.PlayerArmorChangeEvent;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.ItemFactory;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -11,14 +13,26 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.java.JavaPlugin;
 
-public class ArmorSetListener implements Listener {
+@DependsOn({ItemFactory.class})
+public class ArmorSetListener implements Listener, IManager {
 
-    private final ItemFactory itemFactory;
+    private ItemFactory itemFactory;
+    private final JavaPlugin plugin;
 
-    public ArmorSetListener(ItemFactory itemFactory) {
-        this.itemFactory = itemFactory;
+    public ArmorSetListener(JavaPlugin plugin) {
+        this.plugin = plugin;
     }
+
+    @Override
+    public void init() {
+        this.itemFactory = Deepwither.getInstance().getItemFactory();
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     @EventHandler
     public void onArmorChange(PlayerArmorChangeEvent event) {

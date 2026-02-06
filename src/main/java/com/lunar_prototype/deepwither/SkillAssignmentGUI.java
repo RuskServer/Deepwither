@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither;
 
 import io.lumine.mythic.api.skills.Skill;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -11,19 +13,31 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
 
-public class SkillAssignmentGUI implements Listener {
+@DependsOn({SkillSlotManager.class, SkillLoader.class})
+public class SkillAssignmentGUI implements Listener, IManager {
 
     private final Map<UUID, String> selectedSkillMap = new HashMap<>();
-    private final SkillSlotManager slotManager;
-    private final SkillLoader skillLoader;
+    private SkillSlotManager slotManager;
+    private SkillLoader skillLoader;
+    private final JavaPlugin plugin;
 
-    public SkillAssignmentGUI() {
+    public SkillAssignmentGUI(JavaPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
         this.slotManager = Deepwither.getInstance().getSkillSlotManager();
         this.skillLoader = Deepwither.getInstance().getSkillLoader();
+        Bukkit.getPluginManager().registerEvents(this, plugin);
     }
+
+    @Override
+    public void shutdown() {}
 
     public void open(Player player) {
         Inventory gui = Bukkit.createInventory(null, 54, ChatColor.DARK_GREEN + "スキル割り当て");

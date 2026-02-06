@@ -2,6 +2,8 @@ package com.lunar_prototype.deepwither.fishing;
 
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.profession.ProfessionType;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.FishHook;
 import org.bukkit.entity.Item;
@@ -10,16 +12,26 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-public class FishingListener implements Listener {
+@DependsOn({FishingManager.class, ProfessionManager.class, LevelManager.class})
+public class FishingListener implements Listener, IManager {
 
-    private final Deepwither plugin;
+    private final JavaPlugin plugin;
 
-    public FishingListener(Deepwither plugin) {
+    public FishingListener(JavaPlugin plugin) {
         this.plugin = plugin;
     }
+
+    @Override
+    public void init() {
+        org.bukkit.Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     @EventHandler
     public void onFishStart(PlayerFishEvent event) {

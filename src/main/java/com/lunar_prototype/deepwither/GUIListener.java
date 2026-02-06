@@ -1,6 +1,9 @@
 package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.aethelgard.PlayerQuestManager;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -17,7 +20,8 @@ import java.util.regex.Pattern;
 /**
  * QuestGUIのインベントリクリックイベントを処理します。
  */
-public class GUIListener implements Listener {
+@DependsOn({PlayerQuestManager.class})
+public class GUIListener implements Listener, IManager {
 
     private final PlayerQuestManager questManager;
     private static final Pattern QUEST_ID_PATTERN = Pattern.compile("QUEST_ID:([a-fA-F0-9\\-]+)");
@@ -25,6 +29,14 @@ public class GUIListener implements Listener {
     public GUIListener(PlayerQuestManager questManager) {
         this.questManager = questManager;
     }
+
+    @Override
+    public void init() {
+        Bukkit.getPluginManager().registerEvents(this, Deepwither.getInstance());
+    }
+
+    @Override
+    public void shutdown() {}
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {

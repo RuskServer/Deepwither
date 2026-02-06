@@ -1,19 +1,20 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.List;
 
-public class ArtifactGUI implements Listener {
+@DependsOn({})
+public class ArtifactGUI implements Listener, IManager {
 
     private Inventory artifactGUI;
     public static final int[] ARTIFACT_SLOTS = {3, 4, 5};
@@ -22,7 +23,10 @@ public class ArtifactGUI implements Listener {
 
     public static final int BACKPACK_SLOT = 13;
 
-    public ArtifactGUI() {
+    public ArtifactGUI() {}
+
+    @Override
+    public void init() {
         // GUIの作成 (9スロット)
         artifactGUI = Bukkit.createInventory(null, 18, "§8[GUI] §6アーティファクト"); // タイトルを見やすく修正
 
@@ -53,7 +57,13 @@ public class ArtifactGUI implements Listener {
         bpMeta.setDisplayName("§d【背中装備スロット】");
         bpPlaceholder.setItemMeta(bpMeta);
         artifactGUI.setItem(BACKPACK_SLOT, bpPlaceholder);
+
+        // リスナー登録
+        Bukkit.getPluginManager().registerEvents(this, Deepwither.getInstance());
     }
+
+    @Override
+    public void shutdown() {}
 
     public void openArtifactGUI(Player player) {
         // GUIを開く前に、保存されたデータを読み込んでGUIを更新

@@ -1,5 +1,8 @@
 package com.lunar_prototype.deepwither.companion;
 
+import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Location;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -10,15 +13,27 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerInputEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
-public class CompanionListener implements Listener {
+@DependsOn({CompanionManager.class})
+public class CompanionListener implements Listener, IManager {
 
-    private final CompanionManager manager;
+    private CompanionManager manager;
+    private final JavaPlugin plugin;
 
-    public CompanionListener(CompanionManager manager) {
-        this.manager = manager;
+    public CompanionListener(JavaPlugin plugin) {
+        this.plugin = plugin;
     }
+
+    @Override
+    public void init() {
+        this.manager = Deepwither.getInstance().getCompanionManager();
+        org.bukkit.Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     // 右クリックで騎乗
     @EventHandler

@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Material;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -10,20 +12,32 @@ import org.bukkit.Bukkit;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class ArtifactGUIListener implements Listener {
+@DependsOn({ArtifactGUI.class, StatManager.class})
+public class ArtifactGUIListener implements Listener, IManager {
 
     // GUIのインスタンスを共有するために、ArtifactGUIクラスのインスタンスを渡す
     private ArtifactGUI artifactGUI;
     private StatManager statManager;
+    private final JavaPlugin plugin;
 
-    public ArtifactGUIListener(ArtifactGUI gui,StatManager statManager) {
-        this.artifactGUI = gui;
-        this.statManager = statManager;
+    public ArtifactGUIListener(JavaPlugin plugin) {
+        this.plugin = plugin;
     }
+
+    @Override
+    public void init() {
+        this.artifactGUI = Deepwither.getInstance().getArtifactGUI();
+        this.statManager = Deepwither.getInstance().getStatManager();
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {

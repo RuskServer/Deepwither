@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither.market;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -15,23 +17,35 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public class MarketGui implements Listener {
+@DependsOn({GlobalMarketManager.class})
+public class MarketGui implements Listener, IManager {
 
-    private final GlobalMarketManager manager;
+    private GlobalMarketManager manager;
     private static final String TITLE_MAIN = "Global Market: Sellers";
     private static final String TITLE_SHOP = "Shop: ";
     private static final String TITLE_SEARCH = "Market Search Results";
     private final NamespacedKey LISTING_ID_KEY = new NamespacedKey(Deepwither.getInstance(), "listing_id");
+    private final JavaPlugin plugin;
 
-    public MarketGui(GlobalMarketManager manager) {
-        this.manager = manager;
+    public MarketGui(JavaPlugin plugin) {
+        this.plugin = plugin;
     }
+
+    @Override
+    public void init() {
+        this.manager = Deepwither.getInstance().getGlobalMarketManager();
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     // 1. メインメニュー: アクティブな出品者一覧
     public void openMainMenu(Player player) {

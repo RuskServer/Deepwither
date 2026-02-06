@@ -1,20 +1,35 @@
 package com.lunar_prototype.deepwither.clan;
 
+import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.clan.Clan;
 import com.lunar_prototype.deepwither.clan.ClanManager;
+import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.GoogleImeConverter;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.plugin.java.JavaPlugin;
 
-public class ClanChatManager implements Listener {
-    private final ClanManager clanManager;
+@DependsOn({ClanManager.class})
+public class ClanChatManager implements Listener, IManager {
+    private ClanManager clanManager;
+    private final JavaPlugin plugin;
 
-    public ClanChatManager(ClanManager clanManager) {
-        this.clanManager = clanManager;
+    public ClanChatManager(JavaPlugin plugin) {
+        this.plugin = plugin;
     }
+
+    @Override
+    public void init() {
+        this.clanManager = Deepwither.getInstance().getClanManager();
+        org.bukkit.Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onChat(AsyncPlayerChatEvent event) {

@@ -3,6 +3,8 @@ package com.lunar_prototype.deepwither.crafting;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.FabricationGrade;
 import com.lunar_prototype.deepwither.ItemFactory;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -15,16 +17,26 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.UUID;
 
-public class CraftingListener implements Listener {
+@DependsOn({CraftingManager.class, CraftingGUI.class})
+public class CraftingListener implements Listener, IManager {
 
-    private final Deepwither plugin;
+    private final JavaPlugin plugin;
 
-    public CraftingListener(Deepwither plugin) {
+    public CraftingListener(JavaPlugin plugin) {
         this.plugin = plugin;
     }
+
+    @Override
+    public void init() {
+        org.bukkit.Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent e) {

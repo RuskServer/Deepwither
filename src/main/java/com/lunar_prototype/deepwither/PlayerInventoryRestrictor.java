@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -16,6 +18,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -26,7 +29,8 @@ import java.util.Optional;
 
 import static com.lunar_prototype.deepwither.util.InventoryHelper.*;
 
-public class PlayerInventoryRestrictor implements Listener {
+@DependsOn({PlayerSettingsManager.class})
+public class PlayerInventoryRestrictor implements Listener, IManager {
     private static final List<InventoryStrategy> WEAPON = List.of(MERGE_MAINHAND, MERGE_OFFHAND, MERGE_STORAGE, PLACE_STORAGE);
     private static final List<InventoryStrategy> REVERSE = List.of(MERGE_MAINHAND, MERGE_OFFHAND, MERGE_STORAGE, MERGE_HOTBAR, PLACE_STORAGE, PLACE_HOTBAR);
     private static final List<InventoryStrategy> QUICKMOVE = List.of(MERGE_HOTBAR, PLACE_HOTBAR);
@@ -35,11 +39,21 @@ public class PlayerInventoryRestrictor implements Listener {
     private static final Component MULTIPLE_WEAPONS = Component.translatable("message.deepwither.restrictor.multiple_weapons", "ホットバーに武器は1つしか置けません。", TextColor.color(0xFF5555));
     private static final Component OVERFLOW_WEAPONS = Component.translatable("message.deepwither.restrictor.overflow_weapons", "これ以上持てない！", TextColor.color(0xFF5555));
 
-    private final PlayerSettingsManager playerSettingsManager;
+    private PlayerSettingsManager playerSettingsManager;
+    private final JavaPlugin plugin;
 
-    public PlayerInventoryRestrictor(@NotNull PlayerSettingsManager playerSettingsManager) {
-        this.playerSettingsManager = playerSettingsManager;
+    public PlayerInventoryRestrictor(JavaPlugin plugin) {
+        this.plugin = plugin;
     }
+
+    @Override
+    public void init() {
+        this.playerSettingsManager = Deepwither.getInstance().getSettingsManager();
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onClick(@NotNull InventoryClickEvent event) {

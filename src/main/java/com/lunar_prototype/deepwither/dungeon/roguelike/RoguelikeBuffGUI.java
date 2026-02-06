@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither.dungeon.roguelike;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -15,15 +17,23 @@ import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.*;
 
-public class RoguelikeBuffGUI implements Listener {
+@DependsOn({RoguelikeBuffManager.class})
+public class RoguelikeBuffGUI implements Listener, IManager {
 
     private final Deepwither plugin;
     private static final String GUI_TITLE = "§8Choose a Buff";
 
     public RoguelikeBuffGUI(Deepwither plugin) {
         this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
+
+    @Override
+    public void shutdown() {}
 
     // アニメーション中のプレイヤーを保持（クリック防止用）
     private final Set<UUID> animatingPlayers = new HashSet<>();

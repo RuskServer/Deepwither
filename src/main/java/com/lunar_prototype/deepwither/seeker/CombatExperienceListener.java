@@ -1,9 +1,12 @@
 package com.lunar_prototype.deepwither.seeker;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import io.lumine.mythic.core.mobs.ActiveMob;
 import io.papermc.paper.event.player.PlayerArmSwingEvent;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Entity;
@@ -16,6 +19,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerAnimationEvent;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
 import java.util.List;
@@ -23,12 +27,23 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
-public class CombatExperienceListener implements Listener {
-    private final SeekerAIEngine aiEngine;
+@DependsOn({SeekerAIEngine.class})
+public class CombatExperienceListener implements Listener, IManager {
+    private SeekerAIEngine aiEngine;
+    private final JavaPlugin plugin;
 
-    public CombatExperienceListener(SeekerAIEngine aiEngine) {
-        this.aiEngine = aiEngine;
+    public CombatExperienceListener(JavaPlugin plugin) {
+        this.plugin = plugin;
     }
+
+    @Override
+    public void init() {
+        this.aiEngine = Deepwither.getInstance().getAiEngine();
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     @EventHandler
     public void onCombat(EntityDamageByEntityEvent event) {

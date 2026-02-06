@@ -1,11 +1,15 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.protection.ApplicableRegionSet;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
 import com.sk89q.worldguard.protection.regions.RegionQuery;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -16,7 +20,8 @@ import org.bukkit.event.player.PlayerRespawnEvent;
 
 import java.util.UUID;
 
-public class SafeZoneListener implements Listener {
+@DependsOn({DungeonInstanceManager.class})
+public class SafeZoneListener implements Listener, IManager {
 
     private final Deepwither plugin; // メインクラスの参照を追加
 
@@ -24,6 +29,14 @@ public class SafeZoneListener implements Listener {
     public SafeZoneListener(Deepwither plugin) {
         this.plugin = plugin;
     }
+
+    @Override
+    public void init() {
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     // プレイヤーがブロックを跨いでいない移動は無視する
     @EventHandler

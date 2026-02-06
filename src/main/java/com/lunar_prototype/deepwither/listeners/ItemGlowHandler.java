@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither.listeners;
 
 import com.lunar_prototype.deepwither.ItemFactory;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Item;
@@ -21,25 +23,23 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class ItemGlowHandler implements Listener {
+@DependsOn({})
+public class ItemGlowHandler implements Listener, IManager {
 
     private final JavaPlugin plugin;
     private static final String TEAM_PREFIX = "dw_glow_";
 
-    // 順序を維持（長い名前を先に判定）
-    private static final Map<String, ChatColor> RARITY_CONFIG = new LinkedHashMap<>();
-
-    static {
-        RARITY_CONFIG.put("レジェンダリー", ChatColor.GOLD);
-        RARITY_CONFIG.put("アンコモン", ChatColor.GREEN);
-        RARITY_CONFIG.put("エピック", ChatColor.LIGHT_PURPLE);
-        RARITY_CONFIG.put("コモン", ChatColor.WHITE);
-        RARITY_CONFIG.put("レア", ChatColor.AQUA);
-    }
-
     public ItemGlowHandler(JavaPlugin plugin) {
         this.plugin = plugin;
     }
+
+    @Override
+    public void init() {
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     /**
      * 指定したスコアボードに対してレアリティチームをセットアップします

@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.profession.ProfessionManager;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -16,15 +18,23 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-public class ResetGUI implements Listener {
+@DependsOn({AttributeManager.class, SkilltreeManager.class})
+public class ResetGUI implements Listener, IManager {
 
     private final Deepwither plugin;
     private final String GUI_TITLE = "§8§l【 魂の浄化祭壇 】"; // 教会風タイトル
 
     public ResetGUI(Deepwither plugin) {
         this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
+
+    @Override
+    public void shutdown() {}
 
     public void open(Player player) {
         Inventory inv = Bukkit.createInventory(null, 27, GUI_TITLE);

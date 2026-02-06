@@ -8,6 +8,8 @@ import com.lunar_prototype.deepwither.profession.ProfessionType;
 import com.lunar_prototype.deepwither.aethelgard.PlayerQuestData;
 import com.lunar_prototype.deepwither.aethelgard.PlayerQuestManager;
 import com.lunar_prototype.deepwither.aethelgard.QuestProgress;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -24,16 +26,17 @@ import org.bukkit.inventory.meta.SkullMeta;
 
 import java.util.*;
 
-public class MenuGUI implements Listener {
+@DependsOn({LevelManager.class, StatManager.class, ProfessionManager.class, PlayerQuestManager.class, DailyTaskManager.class})
+public class MenuGUI implements Listener, IManager {
 
     private final Deepwither plugin;
 
     // 依存マネージャー
-    private final LevelManager levelManager;
-    private final StatManager statManager;
-    private final ProfessionManager professionManager;
-    private final PlayerQuestManager questManager;
-    private final DailyTaskManager dailyTaskManager;
+    private LevelManager levelManager;
+    private StatManager statManager;
+    private ProfessionManager professionManager;
+    private PlayerQuestManager questManager;
+    private DailyTaskManager dailyTaskManager;
 
     // GUI設定
     private static final String GUI_TITLE = "§8Main Menu";
@@ -41,7 +44,11 @@ public class MenuGUI implements Listener {
 
     public MenuGUI(Deepwither plugin) {
         this.plugin = plugin;
-        this.levelManager = plugin.getLevelManager(); // Mainクラスにgetterがあると仮定
+    }
+
+    @Override
+    public void init() {
+        this.levelManager = plugin.getLevelManager();
         this.statManager = plugin.getStatManager();
         this.professionManager = plugin.getProfessionManager();
         this.questManager = plugin.getPlayerQuestManager();
@@ -49,6 +56,10 @@ public class MenuGUI implements Listener {
 
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
+
+    @Override
+    public void shutdown() {}
+
 
     public void open(Player player) {
         Inventory inv = Bukkit.createInventory(null, GUI_SIZE, GUI_TITLE);

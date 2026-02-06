@@ -1,9 +1,12 @@
 package com.lunar_prototype.deepwither.listeners;
 
+import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.FabricationGrade;
 import com.lunar_prototype.deepwither.ItemFactory;
 import com.lunar_prototype.deepwither.StatType;
 import com.lunar_prototype.deepwither.StatMap;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -13,17 +16,29 @@ import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
-public class ItemUpgradeListener implements Listener {
+@DependsOn({ItemFactory.class})
+public class ItemUpgradeListener implements Listener, IManager {
 
-    private final ItemFactory factory;
+    private ItemFactory factory;
+    private final JavaPlugin plugin;
 
-    public ItemUpgradeListener(ItemFactory factory) {
-        this.factory = factory;
+    public ItemUpgradeListener(JavaPlugin plugin) {
+        this.plugin = plugin;
     }
+
+    @Override
+    public void init() {
+        this.factory = Deepwither.getInstance().getItemFactory();
+        org.bukkit.Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {

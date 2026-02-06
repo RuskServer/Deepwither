@@ -1,15 +1,33 @@
 package com.lunar_prototype.deepwither.listeners;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
+import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.plugin.java.JavaPlugin;
 
-public class PvPWorldListener implements Listener {
+@DependsOn({})
+public class PvPWorldListener implements Listener, IManager {
 
     private final String PVP_WORLD_NAME = "pvp";
+    private final JavaPlugin plugin;
+
+    public PvPWorldListener(JavaPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     // ブロック破壊
     @EventHandler

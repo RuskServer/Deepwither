@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.data.DailyTaskData;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import io.lumine.mythic.bukkit.events.MythicMobDeathEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -12,15 +14,27 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.plugin.java.JavaPlugin;
 
-public class TaskListener implements Listener {
+@DependsOn({DailyTaskManager.class})
+public class TaskListener implements Listener, IManager {
 
-    private final DailyTaskManager taskManager;
+    private DailyTaskManager taskManager;
+    private final JavaPlugin plugin;
     private static final String DEFAULT_TASK_TRADER = "DailyTask";
 
-    public TaskListener(DailyTaskManager taskManager) {
-        this.taskManager = taskManager;
+    public TaskListener(JavaPlugin plugin) {
+        this.plugin = plugin;
     }
+
+    @Override
+    public void init() {
+        this.taskManager = Deepwither.getInstance().getDailyTaskManager();
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onEntityDeath(EntityDeathEvent e) {

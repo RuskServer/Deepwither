@@ -19,7 +19,7 @@ public class ArtifactGUICommand implements CommandExecutor {
             return true;
         }
 
-        new ArtifactGUI().openArtifactGUI(((Player) commandSender).getPlayer());
+        artifactGUI.openArtifactGUI(player);
         return true;
     }
 }

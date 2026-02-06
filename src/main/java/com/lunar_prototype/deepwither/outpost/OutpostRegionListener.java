@@ -1,7 +1,10 @@
 package com.lunar_prototype.deepwither.outpost;
 
+import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.outpost.OutpostEvent;
 import com.lunar_prototype.deepwither.outpost.OutpostManager;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.protection.ApplicableRegionSet;
@@ -13,15 +16,28 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.plugin.java.JavaPlugin;
+
 import java.util.Set;
 
-public class OutpostRegionListener implements Listener {
+@DependsOn({OutpostManager.class})
+public class OutpostRegionListener implements Listener, IManager {
 
-    private final OutpostManager manager;
+    private OutpostManager manager;
+    private final JavaPlugin plugin;
 
-    public OutpostRegionListener(OutpostManager manager) {
-        this.manager = manager;
+    public OutpostRegionListener(JavaPlugin plugin) {
+        this.plugin = plugin;
     }
+
+    @Override
+    public void init() {
+        this.manager = OutpostManager.getInstance();
+        org.bukkit.Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {

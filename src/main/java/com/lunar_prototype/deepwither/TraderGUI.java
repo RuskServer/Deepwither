@@ -3,6 +3,8 @@ package com.lunar_prototype.deepwither;
 import com.lunar_prototype.deepwither.data.DailyTaskData;
 import com.lunar_prototype.deepwither.data.PlayerQuestData;
 import com.lunar_prototype.deepwither.data.TraderOffer;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -16,13 +18,29 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class TraderGUI implements Listener {
+@DependsOn({TraderManager.class, DailyTaskManager.class, TraderQuestManager.class})
+public class TraderGUI implements Listener, IManager {
+
+    private final JavaPlugin plugin;
+
+    public TraderGUI(JavaPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     public static final String BUY_GUI_TITLE = "§8[購入] §f%s"; // %sにトレーダー名が入る
     public static final String SELL_GUI_TITLE = "§8[売却] §f総合売却所"; // 全体共通の売却タイトル

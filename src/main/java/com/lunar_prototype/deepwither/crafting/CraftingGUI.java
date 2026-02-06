@@ -2,6 +2,9 @@ package com.lunar_prototype.deepwither.crafting;
 
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.FabricationGrade;
+import com.lunar_prototype.deepwither.ItemFactory;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -17,7 +20,8 @@ import org.bukkit.persistence.PersistentDataType;
 import java.util.ArrayList;
 import java.util.List;
 
-public class CraftingGUI {
+@DependsOn({CraftingManager.class, ItemFactory.class})
+public class CraftingGUI implements IManager {
 
     public static final String TITLE_PREFIX = ChatColor.DARK_GRAY + "Craft - ";
 
@@ -31,6 +35,12 @@ public class CraftingGUI {
     public CraftingGUI(Deepwither plugin) {
         this.plugin = plugin;
     }
+
+    @Override
+    public void init() {}
+
+    @Override
+    public void shutdown() {}
 
     // レシピ一覧を開く (デフォルト: Standard, Page 0)
     public void openRecipeList(Player player) {

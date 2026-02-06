@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -13,16 +15,25 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.Collections;
 
-public class MenuItemListener implements Listener {
+@DependsOn({MenuGUI.class})
+public class MenuItemListener implements Listener, IManager {
 
     private final Deepwither plugin;
-    private final MenuGUI menuGUI;
+    private MenuGUI menuGUI;
     private final String ITEM_NAME = "§6§lメニュー §7(右クリック)";
 
-    public MenuItemListener(Deepwither plugin,MenuGUI menuGUI) {
+    public MenuItemListener(Deepwither plugin) {
         this.plugin = plugin;
-        this.menuGUI = menuGUI;
     }
+
+    @Override
+    public void init() {
+        this.menuGUI = Deepwither.getInstance().getMenuGUI();
+        org.bukkit.Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     // プレイヤーが参加した時にアイテムを配布
     @EventHandler

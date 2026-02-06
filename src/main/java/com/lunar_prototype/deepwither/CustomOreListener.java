@@ -2,6 +2,9 @@ package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.profession.ProfessionManager; // 追加
 import com.lunar_prototype.deepwither.profession.ProfessionType;    // 追加
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.attribute.Attribute;
@@ -14,6 +17,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockDamageEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.File;
@@ -21,14 +25,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-public class CustomOreListener implements Listener {
+@DependsOn({LevelManager.class, ProfessionManager.class, ItemFactory.class})
+public class CustomOreListener implements Listener, IManager {
 
-    private final Deepwither plugin;
+    private final JavaPlugin plugin;
     private final Random random = new Random();
 
-    public CustomOreListener(Deepwither plugin) {
+    public CustomOreListener(JavaPlugin plugin) {
         this.plugin = plugin;
     }
+
+    @Override
+    public void init() {
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     /**
      * ブロックを叩き始めた時にノックバック耐性を付与

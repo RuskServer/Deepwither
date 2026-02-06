@@ -4,6 +4,8 @@ import com.google.gson.Gson;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.market.GlobalMarketManager;
 import com.lunar_prototype.deepwither.market.MarketListing;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
@@ -19,16 +21,27 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-public class MarketApiController {
+@DependsOn({GlobalMarketManager.class})
+public class MarketApiController implements IManager {
 
     private final Deepwither plugin;
-    private final GlobalMarketManager marketManager;
+    private GlobalMarketManager marketManager;
     private HttpServer server;
     private final Gson gson = new Gson();
 
-    public MarketApiController(Deepwither plugin, GlobalMarketManager marketManager) {
+    public MarketApiController(Deepwither plugin) {
         this.plugin = plugin;
-        this.marketManager = marketManager;
+    }
+
+    @Override
+    public void init() {
+        this.marketManager = plugin.getGlobalMarketManager();
+        start(9093);
+    }
+
+    @Override
+    public void shutdown() {
+        stop();
     }
 
     public void start(int port) {

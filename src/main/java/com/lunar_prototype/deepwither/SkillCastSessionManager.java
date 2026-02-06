@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -9,17 +11,27 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
 
-public class SkillCastSessionManager implements Listener {
+@DependsOn({SkillLoader.class, SkillSlotManager.class, CooldownManager.class, ManaManager.class, SkillCastManager.class})
+public class SkillCastSessionManager implements Listener, IManager {
     private final Set<UUID> skillModePlayers = new HashSet<>();
     private final Map<UUID, Integer> previousSlotMap = new HashMap<>();
     private final Map<UUID, Integer> skillSlotOffsetMap = new HashMap<>();
+    private final JavaPlugin plugin;
+    private BukkitTask actionBarTask;
 
-    public SkillCastSessionManager() {
-        new BukkitRunnable() {
+    public SkillCastSessionManager(JavaPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
+        this.actionBarTask = new BukkitRunnable() {
             @Override
             public void run() {
                 SkillLoader skillLoader = Deepwither.getInstance().getSkillLoader();
@@ -83,7 +95,15 @@ public class SkillCastSessionManager implements Listener {
                     player.sendActionBar(sb.toString().trim());
                 }
             }
-        }.runTaskTimer(Deepwither.getInstance(), 0L, 10L); // 0.5秒ごと更新
+        }.runTaskTimer(plugin, 0L, 10L); // 0.5秒ごと更新
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {
+        if (actionBarTask != null && !actionBarTask.isCancelled()) {
+            actionBarTask.cancel();
+        }
     }
 
     @EventHandler

@@ -4,6 +4,8 @@ import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.outpost.OutpostManager;
 import com.lunar_prototype.deepwither.outpost.OutpostEvent;
 import com.lunar_prototype.deepwither.MobSpawnManager;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
@@ -12,14 +14,26 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.EventPriority;
+import org.bukkit.plugin.java.JavaPlugin;
 
-public class OutpostDamageListener implements Listener {
+@DependsOn({OutpostManager.class, MobSpawnManager.class})
+public class OutpostDamageListener implements Listener, IManager {
 
-    private final OutpostManager manager;
+    private OutpostManager manager;
+    private final JavaPlugin plugin;
 
-    public OutpostDamageListener(OutpostManager manager) {
-        this.manager = manager;
+    public OutpostDamageListener(JavaPlugin plugin) {
+        this.plugin = plugin;
     }
+
+    @Override
+    public void init() {
+        this.manager = OutpostManager.getInstance();
+        org.bukkit.Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     /**
      * Outpost Mobに与えたダメージを貢献度に記録します。

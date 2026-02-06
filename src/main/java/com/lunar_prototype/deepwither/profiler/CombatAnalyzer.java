@@ -10,6 +10,8 @@ import com.lunar_prototype.deepwither.StatManager;
 import com.lunar_prototype.deepwither.StatType;
 import com.lunar_prototype.deepwither.api.event.onPlayerRecevingDamageEvent;
 import com.lunar_prototype.deepwither.companion.CompanionManager;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,17 +29,26 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.util.Vector;
 
-public class CombatAnalyzer implements Listener {
+@DependsOn({CompanionManager.class, StatManager.class})
+public class CombatAnalyzer implements Listener, IManager {
     private final Map<UUID, CombatProfile> activeProfiles = new HashMap();
-    private final CompanionManager companionManager;
+    private CompanionManager companionManager;
     private final CombatLogger logger;
     private final Deepwither plugin;
 
-    public CombatAnalyzer(CompanionManager companionManager, Deepwither plugin) {
-        this.companionManager = companionManager;
-        this.logger = new CombatLogger(plugin);
+    public CombatAnalyzer(Deepwither plugin) {
         this.plugin = plugin;
+        this.logger = new CombatLogger(plugin);
     }
+
+    @Override
+    public void init() {
+        this.companionManager = plugin.getCompanionManager();
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     @EventHandler(
             priority = EventPriority.MONITOR,

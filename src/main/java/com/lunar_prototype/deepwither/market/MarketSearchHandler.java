@@ -1,28 +1,40 @@
 package com.lunar_prototype.deepwither.market;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
-public class MarketSearchHandler implements Listener {
+@DependsOn({MarketGui.class})
+public class MarketSearchHandler implements Listener, IManager {
 
-    private final Deepwither plugin;
-    private final MarketGui gui;
+    private final JavaPlugin plugin;
+    private MarketGui gui;
     // 検索入力待ちのプレイヤーリスト
     private final Set<UUID> searchingPlayers = new HashSet<>();
 
-    public MarketSearchHandler(Deepwither plugin, MarketGui gui) {
+    public MarketSearchHandler(JavaPlugin plugin) {
         this.plugin = plugin;
-        this.gui = gui;
     }
+
+    @Override
+    public void init() {
+        this.gui = (MarketGui) Deepwither.getInstance().getServiceManager().get(MarketGui.class);
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     /**
      * プレイヤーを検索待機状態にする

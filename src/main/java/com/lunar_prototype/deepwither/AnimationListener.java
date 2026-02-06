@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither;
 
 import io.lumine.mythic.bukkit.MythicBukkit;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.*;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -12,9 +14,25 @@ import org.bukkit.event.player.PlayerAnimationType;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
-public class AnimationListener implements Listener {
+@DependsOn({ItemFactory.class})
+public class AnimationListener implements Listener, IManager {
+
+    private final JavaPlugin plugin;
+
+    public AnimationListener(JavaPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
+        org.bukkit.Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     // ---------------------------------------------------------
     // プレイヤー用: クリックした瞬間（空振りでも発動）

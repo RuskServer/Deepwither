@@ -5,32 +5,46 @@ import com.lunar_prototype.deepwither.outpost.OutpostEvent;
 import com.lunar_prototype.deepwither.outpost.OutpostManager;
 import com.lunar_prototype.deepwither.party.Party;          // ★追加
 import com.lunar_prototype.deepwither.party.PartyManager;   // ★追加
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import io.lumine.mythic.bukkit.events.MythicMobDeathEvent;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerExpChangeEvent;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class MobKillListener implements Listener {
-    private final LevelManager levelManager;
+@DependsOn({LevelManager.class, OutpostManager.class, PartyManager.class, BoosterManager.class})
+public class MobKillListener implements Listener, IManager {
+    private LevelManager levelManager;
     private final FileConfiguration mobExpConfig;
-    private final OutpostManager outpostManager;
-    private final PartyManager partyManager; // ★追加
-    private final BoosterManager boosterManager; // ★追加
+    private OutpostManager outpostManager;
+    private PartyManager partyManager; // ★追加
+    private BoosterManager boosterManager; // ★追加
+    private final JavaPlugin plugin;
 
-    // ★ コンストラクタにBoosterManagerを追加
-    public MobKillListener(LevelManager levelManager, FileConfiguration config, OutpostManager outpostManager, PartyManager partyManager, BoosterManager boosterManager) {
-        this.levelManager = levelManager;
-        this.mobExpConfig = config;
-        this.outpostManager = outpostManager;
-        this.partyManager = partyManager;
-        this.boosterManager = boosterManager; // ★初期化
+    public MobKillListener(JavaPlugin plugin) {
+        this.plugin = plugin;
+        this.mobExpConfig = plugin.getConfig();
     }
+
+    @Override
+    public void init() {
+        this.levelManager = Deepwither.getInstance().getLevelManager();
+        this.outpostManager = OutpostManager.getInstance();
+        this.partyManager = Deepwither.getInstance().getPartyManager();
+        this.boosterManager = Deepwither.getInstance().getBoosterManager();
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     @EventHandler
     public void onMythicMobDeath(MythicMobDeathEvent e) {

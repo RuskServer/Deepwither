@@ -12,11 +12,14 @@ import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
 import com.sk89q.worldguard.protection.regions.RegionQuery;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import org.bukkit.*;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.*;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -26,11 +29,12 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap; // スレッドセーフなマップを使用
 import java.util.stream.Collectors;
 
-public class MobSpawnManager {
+@DependsOn({PlayerQuestManager.class})
+public class MobSpawnManager implements IManager {
 
     private final Deepwither plugin;
     private final PlayerQuestManager playerQuestManager;
-    private final MobLevelManager levelManager;
+    private MobLevelManager levelManager;
 
     // 設定値
     private final String targetWorldName = "Aether";
@@ -57,6 +61,10 @@ public class MobSpawnManager {
     public MobSpawnManager(Deepwither plugin, PlayerQuestManager playerQuestManager) {
         this.plugin = plugin;
         this.playerQuestManager = playerQuestManager;
+    }
+
+    @Override
+    public void init() {
         this.levelManager = new MobLevelManager(plugin);
         plugin.getServer().getPluginManager().registerEvents(levelManager, plugin); // イベント登録
 
@@ -64,6 +72,9 @@ public class MobSpawnManager {
         startSpawnScheduler();
         startGlobalTraitTicker();
     }
+
+    @Override
+    public void shutdown() {}
 
     private enum MobTrait {
         // 初級特性 (Basic)

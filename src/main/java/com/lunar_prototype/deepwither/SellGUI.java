@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -12,12 +14,28 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.Map;
 
-public class SellGUI implements Listener {
+@DependsOn({TraderManager.class, StatManager.class})
+public class SellGUI implements Listener, IManager {
+
+    private final JavaPlugin plugin;
+
+    public SellGUI(JavaPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    @Override
+    public void init() {
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     public static final String SELL_GUI_TITLE = "§8[売却] §f総合売却所";
     // 識別用のキー（DeepWither.javaでNamespacedKeyとして定義すべき）

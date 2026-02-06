@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -17,14 +19,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class SettingsGUI implements Listener {
+@DependsOn({PlayerSettingsManager.class})
+public class SettingsGUI implements Listener, IManager {
 
     private final Deepwither plugin;
     private final PlayerSettingsManager settingsManager;
     private static final String GUI_TITLE = "§8System Settings";
 
     /**
-     * Creates a SettingsGUI, stores the plugin and settings manager references, and registers this instance as a Bukkit event listener.
+     * Creates a SettingsGUI, stores the plugin and settings manager references.
      *
      * @param plugin the Deepwither plugin instance used for registration and context
      * @param settingsManager the PlayerSettingsManager responsible for per-player settings
@@ -32,8 +35,15 @@ public class SettingsGUI implements Listener {
     public SettingsGUI(Deepwither plugin, PlayerSettingsManager settingsManager) {
         this.plugin = plugin;
         this.settingsManager = settingsManager;
+    }
+
+    @Override
+    public void init() {
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
+
+    @Override
+    public void shutdown() {}
 
     /**
      * Opens the system settings GUI for the given player, presenting toggle controls for various player settings, an item rarity filter, and a back button.
