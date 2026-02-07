@@ -33,6 +33,24 @@ public class StatManager implements IManager, IStatManager {
     public void shutdown() {}
 
     @Override
+    public PlayerStat of(Player player) {
+        return new PlayerStat() {
+            @Override
+            public double getHP() { return getActualCurrentHealth(player); }
+            @Override
+            public void setHP(double health) { setActualCurrentHealth(player, health); }
+            @Override
+            public double getMaxHP() { return getActualMaxHealth(player); }
+            @Override
+            public void heal(double amount) { StatManager.this.heal(player, amount); }
+            @Override
+            public StatMap getAll() { return getTotalStats(player); }
+            @Override
+            public void update() { updatePlayerStats(player); }
+        };
+    }
+
+    @Override
     public void updatePlayerStats(Player player) {
         StatMap total = getTotalStats(player);
         syncAttackDamage(player, total);

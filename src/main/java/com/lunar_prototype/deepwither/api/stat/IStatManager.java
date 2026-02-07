@@ -11,6 +11,23 @@ import java.util.UUID;
 public interface IStatManager {
 
     /**
+     * 特定のプレイヤーに対する操作コンテキストを取得します。
+     */
+    PlayerStat of(Player player);
+
+    /**
+     * プレイヤー専用のステータス操作インターフェース。
+     */
+    interface PlayerStat {
+        double getHP();
+        void setHP(double health);
+        double getMaxHP();
+        void heal(double amount);
+        StatMap getAll();
+        void update();
+    }
+
+    /**
      * プレイヤーのステータスを最新の装備やバフの状態に基づいて更新します。
      * @param player 対象プレイヤー
      */
