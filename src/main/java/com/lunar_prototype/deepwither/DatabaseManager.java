@@ -187,6 +187,58 @@ public class DatabaseManager implements IManager, IDatabaseManager {
         return dataSource.getConnection();
     }
 
+    // --- 高レベル API 実装 ---
+
+    @Override
+    public int execute(String sql, Object... params) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            setParameters(ps, params);
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().severe("SQL Execution Error: " + e.getMessage());
+            return -1;
+        }
+    }
+
+    @Override
+    public <T> java.util.Optional<T> querySingle(String sql, com.lunar_prototype.deepwither.api.database.RowMapper<T> mapper, Object... params) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            setParameters(ps, params);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return java.util.Optional.ofNullable(mapper.map(rs));
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().severe("SQL Query Error: " + e.getMessage());
+        }
+        return java.util.Optional.empty();
+    }
+
+    @Override
+    public <T> java.util.List<T> queryList(String sql, com.lunar_prototype.deepwither.api.database.RowMapper<T> mapper, Object... params) {
+        java.util.List<T> result = new java.util.ArrayList<>();
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            setParameters(ps, params);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    T obj = mapper.map(rs);
+                    if (obj != null) result.add(obj);
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().severe("SQL List Query Error: " + e.getMessage());
+        }
+        return result;
+    }
+
+    private void setParameters(PreparedStatement ps, Object... params) throws SQLException {
+        for (int i = 0; i < params.length; i++) {
+            ps.setObject(i + 1, params[i]);
+        }
+    }
+
     @Override
     public CompletableFuture<Void> runAsync(Consumer<Connection> task) {
         return CompletableFuture.runAsync(() -> {
