@@ -27,21 +27,23 @@ public class AttributeManager implements IManager {
     }
 
     public void load(UUID uuid) {
-        try (PreparedStatement ps = db.getConnection().prepareStatement("SELECT * FROM player_attributes WHERE uuid = ?")) {
+        try (Connection conn = db.getConnection();
+             PreparedStatement ps = conn.prepareStatement("SELECT * FROM player_attributes WHERE uuid = ?")) {
             ps.setString(1, uuid.toString());
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                int total = rs.getInt("total_points");
-                EnumMap<StatType, Integer> map = new EnumMap<>(StatType.class);
-                map.put(StatType.STR, rs.getInt("str"));
-                map.put(StatType.VIT, rs.getInt("vit"));
-                map.put(StatType.MND, rs.getInt("mnd"));
-                map.put(StatType.INT, rs.getInt("int"));
-                map.put(StatType.AGI, rs.getInt("agi"));
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    int total = rs.getInt("total_points");
+                    EnumMap<StatType, Integer> map = new EnumMap<>(StatType.class);
+                    map.put(StatType.STR, rs.getInt("str"));
+                    map.put(StatType.VIT, rs.getInt("vit"));
+                    map.put(StatType.MND, rs.getInt("mnd"));
+                    map.put(StatType.INT, rs.getInt("int"));
+                    map.put(StatType.AGI, rs.getInt("agi"));
 
-                dataMap.put(uuid, new PlayerAttributeData(total, map));
-            } else {
-                dataMap.put(uuid, new PlayerAttributeData(0)); // 初期値
+                    dataMap.put(uuid, new PlayerAttributeData(total, map));
+                } else {
+                    dataMap.put(uuid, new PlayerAttributeData(0)); // 初期値
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -52,7 +54,8 @@ public class AttributeManager implements IManager {
         PlayerAttributeData data = dataMap.get(uuid);
         if (data == null) return;
 
-        try (PreparedStatement ps = db.getConnection().prepareStatement("""
+        try (Connection conn = db.getConnection();
+             PreparedStatement ps = conn.prepareStatement("""
             INSERT INTO player_attributes (
                 uuid, total_points, str, vit, mnd, int, agi
             ) VALUES (?, ?, ?, ?, ?, ?, ?)

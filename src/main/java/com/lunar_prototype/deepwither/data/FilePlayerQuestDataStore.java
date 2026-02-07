@@ -26,12 +26,14 @@ public class FilePlayerQuestDataStore implements PlayerQuestDataStore, IManager 
     @Override
     public CompletableFuture<PlayerQuestData> loadQuestData(UUID playerId) {
         return CompletableFuture.supplyAsync(() -> {
-            try (PreparedStatement ps = db.getConnection().prepareStatement(
+            try (java.sql.Connection conn = db.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(
                     "SELECT data_json FROM player_quests WHERE uuid = ?")) {
                 ps.setString(1, playerId.toString());
-                ResultSet rs = ps.executeQuery();
-                if (rs.next()) {
-                    return db.getGson().fromJson(rs.getString("data_json"), PlayerQuestData.class);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        return db.getGson().fromJson(rs.getString("data_json"), PlayerQuestData.class);
+                    }
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
@@ -44,7 +46,8 @@ public class FilePlayerQuestDataStore implements PlayerQuestDataStore, IManager 
     public CompletableFuture<Void> saveQuestData(PlayerQuestData data) {
         return CompletableFuture.runAsync(() -> {
             String json = db.getGson().toJson(data);
-            try (PreparedStatement ps = db.getConnection().prepareStatement(
+            try (java.sql.Connection conn = db.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(
                     "INSERT INTO player_quests (uuid, data_json) VALUES (?, ?) " +
                             "ON CONFLICT(uuid) DO UPDATE SET data_json = excluded.data_json")) {
                 ps.setString(1, data.getPlayerId().toString());

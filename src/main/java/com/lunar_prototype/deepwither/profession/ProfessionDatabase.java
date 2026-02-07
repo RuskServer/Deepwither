@@ -34,7 +34,8 @@ public class ProfessionDatabase implements IManager {
         String query = "SELECT profession_type, experience FROM player_professions WHERE player_id = ?";
 
         // connection ではなく db.getConnection() を使用
-        try (PreparedStatement ps = db.getConnection().prepareStatement(query)) {
+        try (Connection conn = db.getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
             ps.setString(1, playerId.toString());
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {

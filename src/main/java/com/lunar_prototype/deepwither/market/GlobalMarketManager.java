@@ -101,7 +101,8 @@ public class GlobalMarketManager implements IManager {
         // 2. データベースの更新 (非同期)
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             String sql = "UPDATE market_earnings SET amount = 0 WHERE uuid = ?";
-            try (PreparedStatement ps = databaseManager.getConnection().prepareStatement(sql)) {
+            try (java.sql.Connection conn = databaseManager.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, uuid.toString());
                 ps.executeUpdate();
             } catch (SQLException e) {
@@ -162,7 +163,8 @@ public class GlobalMarketManager implements IManager {
 
     private void saveListingToDB(MarketListing listing) {
         String sql = "INSERT INTO market_listings (id, seller_uuid, item_stack, price, listed_date) VALUES (?, ?, ?, ?, ?)";
-        try (PreparedStatement ps = databaseManager.getConnection().prepareStatement(sql)) {
+        try (java.sql.Connection conn = databaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, listing.getId().toString());
             ps.setString(2, listing.getSellerId().toString());
             ps.setString(3, serializeItem(listing.getItem())); // Base64シリアライズ
@@ -174,7 +176,8 @@ public class GlobalMarketManager implements IManager {
 
     private void deleteListingFromDB(UUID listingId) {
         String sql = "DELETE FROM market_listings WHERE id = ?";
-        try (PreparedStatement ps = databaseManager.getConnection().prepareStatement(sql)) {
+        try (java.sql.Connection conn = databaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, listingId.toString());
             ps.executeUpdate();
         } catch (SQLException e) { e.printStackTrace(); }
@@ -186,7 +189,8 @@ public class GlobalMarketManager implements IManager {
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             String sql = "INSERT INTO market_earnings (uuid, amount) VALUES (?, ?) ON CONFLICT(uuid) DO UPDATE SET amount = excluded.amount";
-            try (PreparedStatement ps = databaseManager.getConnection().prepareStatement(sql)) {
+            try (java.sql.Connection conn = databaseManager.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, sellerId.toString());
                 ps.setDouble(2, newTotal);
                 ps.executeUpdate();
@@ -197,7 +201,8 @@ public class GlobalMarketManager implements IManager {
     private void loadAllData() throws SQLException {
         allListings.clear();
         String sql = "SELECT * FROM market_listings";
-        try (PreparedStatement ps = databaseManager.getConnection().prepareStatement(sql);
+        try (java.sql.Connection conn = databaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 MarketListing listing = new MarketListing(
@@ -215,7 +220,8 @@ public class GlobalMarketManager implements IManager {
     private void loadEarnings() throws SQLException {
         earnings.clear();
         String sql = "SELECT * FROM market_earnings";
-        try (PreparedStatement ps = databaseManager.getConnection().prepareStatement(sql);
+        try (java.sql.Connection conn = databaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 earnings.put(UUID.fromString(rs.getString("uuid")), rs.getDouble("amount"));

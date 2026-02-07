@@ -33,7 +33,8 @@ public class BoosterManager implements IManager {
     public void init() throws SQLException {
         // データベースから有効なブースターをすべてロード
         String query = "SELECT * FROM player_boosters";
-        try (PreparedStatement ps = db.getConnection().prepareStatement(query);
+        try (java.sql.Connection conn = db.getConnection();
+             PreparedStatement ps = conn.prepareStatement(query);
              ResultSet rs = ps.executeQuery()) {
             long now = System.currentTimeMillis();
             while (rs.next()) {
@@ -55,7 +56,8 @@ public class BoosterManager implements IManager {
 
     private void save(UUID uuid, BoosterData data) {
         String query = "INSERT OR REPLACE INTO player_boosters (uuid, multiplier, end_time) VALUES (?, ?, ?)";
-        try (PreparedStatement ps = db.getConnection().prepareStatement(query)) {
+        try (java.sql.Connection conn = db.getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
             ps.setString(1, uuid.toString());
             ps.setDouble(2, data.multiplier);
             ps.setLong(3, data.endTime);
@@ -88,7 +90,8 @@ public class BoosterManager implements IManager {
     }
 
     private void removeFromDb(UUID uuid) {
-        try (PreparedStatement ps = db.getConnection().prepareStatement("DELETE FROM player_boosters WHERE uuid = ?")) {
+        try (java.sql.Connection conn = db.getConnection();
+             PreparedStatement ps = conn.prepareStatement("DELETE FROM player_boosters WHERE uuid = ?")) {
             ps.setString(1, uuid.toString());
             ps.executeUpdate();
         } catch (SQLException e) {

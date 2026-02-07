@@ -40,25 +40,27 @@ public class SkilltreeManager implements IManager {
     }
 
     public SkillData load(UUID uuid) {
-        try (PreparedStatement ps = db.getConnection().prepareStatement(
+        try (Connection conn = db.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
                 "SELECT skill_point, skills FROM player_skilltree WHERE uuid = ?")) {
             ps.setString(1, uuid.toString());
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                int skillPoint = rs.getInt("skill_point");
-                String skillsJson = rs.getString("skills");
-                Map<String, Integer> skillsMap = new HashMap<>();
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    int skillPoint = rs.getInt("skill_point");
+                    String skillsJson = rs.getString("skills");
+                    Map<String, Integer> skillsMap = new HashMap<>();
 
-                if (skillsJson != null && !skillsJson.isEmpty()) {
-                    // JSONをMap<String,Integer>に変換
-                    skillsMap = gson.fromJson(skillsJson, new TypeToken<Map<String, Integer>>(){}.getType());
+                    if (skillsJson != null && !skillsJson.isEmpty()) {
+                        // JSONをMap<String,Integer>に変換
+                        skillsMap = gson.fromJson(skillsJson, new TypeToken<Map<String, Integer>>(){}.getType());
+                    }
+
+                    SkillData data = new SkillData(skillPoint,skillsMap);
+
+                    // 【✅ 追加】ロード直後に再計算
+                    data.recalculatePassiveStats(treeConfig);
+                    return data;
                 }
-
-                SkillData data = new SkillData(skillPoint,skillsMap);
-
-                // 【✅ 追加】ロード直後に再計算
-                data.recalculatePassiveStats(treeConfig);
-                return data;
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -74,7 +76,8 @@ public class SkilltreeManager implements IManager {
     public void save(UUID uuid, SkillData data) {
         data.recalculatePassiveStats(treeConfig);
         String skillsJson = gson.toJson(data.getSkills());
-        try (PreparedStatement ps = db.getConnection().prepareStatement("""
+        try (Connection conn = db.getConnection();
+             PreparedStatement ps = conn.prepareStatement("""
             INSERT INTO player_skilltree (uuid, skill_point, skills)
             VALUES (?, ?, ?)
             ON CONFLICT(uuid) DO UPDATE SET

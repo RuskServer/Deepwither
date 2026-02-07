@@ -17,6 +17,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -236,15 +237,17 @@ public class TraderQuestManager implements IManager, Listener {
     }
 
     private void loadPlayerData(UUID uuid) {
-        try (PreparedStatement ps = db.getConnection().prepareStatement(
+        try (Connection conn = db.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
                 "SELECT data_json FROM player_quests WHERE uuid = ?")) {
             ps.setString(1, uuid.toString());
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                String json = rs.getString("data_json");
-                playerDataMap.put(uuid, gson.fromJson(json, PlayerQuestData.class));
-            } else {
-                playerDataMap.put(uuid, new PlayerQuestData());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String json = rs.getString("data_json");
+                    playerDataMap.put(uuid, gson.fromJson(json, PlayerQuestData.class));
+                } else {
+                    playerDataMap.put(uuid, new PlayerQuestData());
+                }
             }
         } catch (SQLException e) {
             plugin.getLogger().severe("PlayerQuestDataのロードに失敗: " + uuid);
@@ -256,7 +259,8 @@ public class TraderQuestManager implements IManager, Listener {
         if (data == null) return;
 
         String json = gson.toJson(data);
-        try (PreparedStatement ps = db.getConnection().prepareStatement(
+        try (Connection conn = db.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
                 "INSERT INTO player_quests (uuid, data_json) VALUES (?, ?) " +
                         "ON CONFLICT(uuid) DO UPDATE SET data_json = excluded.data_json")) {
             ps.setString(1, uuid.toString());

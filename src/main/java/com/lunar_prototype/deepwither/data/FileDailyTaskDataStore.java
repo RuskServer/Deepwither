@@ -31,12 +31,14 @@ public class FileDailyTaskDataStore implements DailyTaskDataStore, IManager {
     @Override
     public CompletableFuture<DailyTaskData> loadTaskData(UUID playerId) {
         return CompletableFuture.supplyAsync(() -> {
-            try (PreparedStatement ps = db.getConnection().prepareStatement(
+            try (java.sql.Connection conn = db.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(
                     "SELECT data_json FROM player_daily_tasks WHERE uuid = ?")) {
                 ps.setString(1, playerId.toString());
-                ResultSet rs = ps.executeQuery();
-                if (rs.next()) {
-                    return db.getGson().fromJson(rs.getString("data_json"), DailyTaskData.class);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        return db.getGson().fromJson(rs.getString("data_json"), DailyTaskData.class);
+                    }
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
@@ -50,9 +52,10 @@ public class FileDailyTaskDataStore implements DailyTaskDataStore, IManager {
         String json = db.getGson().toJson(data);
         // plugin.isEnabled() チェックを含めた非同期/同期の振り分け
         Runnable saveTask = () -> {
-            try (PreparedStatement ps = db.getConnection().prepareStatement(
-                    "INSERT INTO player_daily_tasks (uuid, data_json) VALUES (?, ?) " +
-                            "ON CONFLICT(uuid) DO UPDATE SET data_json = excluded.data_json")) {
+            try (java.sql.Connection conn = db.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(
+                         "INSERT INTO player_daily_tasks (uuid, data_json) VALUES (?, ?) " +
+                                 "ON CONFLICT(uuid) DO UPDATE SET data_json = excluded.data_json")) {
                 ps.setString(1, data.getPlayerId().toString());
                 ps.setString(2, json);
                 ps.executeUpdate();
@@ -60,11 +63,5 @@ public class FileDailyTaskDataStore implements DailyTaskDataStore, IManager {
                 e.printStackTrace();
             }
         };
-
-        if (plugin.isEnabled()) {
-            Bukkit.getScheduler().runTaskAsynchronously(plugin, saveTask);
-        } else {
-            saveTask.run();
-        }
     }
 }

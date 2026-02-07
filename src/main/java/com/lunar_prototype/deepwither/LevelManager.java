@@ -30,20 +30,22 @@ public class LevelManager implements IManager {
     }
 
     public void load(UUID uuid) {
-        try (PreparedStatement ps = db.getConnection().prepareStatement("SELECT level, exp FROM player_levels WHERE uuid = ?")) {
+        try (Connection conn = db.getConnection();
+             PreparedStatement ps = conn.prepareStatement("SELECT level, exp FROM player_levels WHERE uuid = ?")) {
             ps.setString(1, uuid.toString());
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                int level = Math.min(rs.getInt("level"), MAX_LEVEL);
-                double exp = rs.getDouble("exp");
-                dataMap.put(uuid, new PlayerLevelData(level, exp));
-            } else {
-                dataMap.put(uuid, new PlayerLevelData(1, 0));
-                Deepwither.getInstance().getAttributeManager().givePoints(uuid, 2);
-                SkilltreeManager.SkillData skilldata = Deepwither.getInstance().getSkilltreeManager().load(uuid);
-                if (skilldata != null) {
-                    skilldata.setSkillPoint(skilldata.getSkillPoint() + 2);
-                    Deepwither.getInstance().getSkilltreeManager().save(uuid, skilldata);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    int level = Math.min(rs.getInt("level"), MAX_LEVEL);
+                    double exp = rs.getDouble("exp");
+                    dataMap.put(uuid, new PlayerLevelData(level, exp));
+                } else {
+                    dataMap.put(uuid, new PlayerLevelData(1, 0));
+                    Deepwither.getInstance().getAttributeManager().givePoints(uuid, 2);
+                    SkilltreeManager.SkillData skilldata = Deepwither.getInstance().getSkilltreeManager().load(uuid);
+                    if (skilldata != null) {
+                        skilldata.setSkillPoint(skilldata.getSkillPoint() + 2);
+                        Deepwither.getInstance().getSkilltreeManager().save(uuid, skilldata);
+                    }
                 }
             }
         } catch (SQLException e) {
@@ -58,7 +60,8 @@ public class LevelManager implements IManager {
         int level = Math.min(data.getLevel(), MAX_LEVEL);
         double exp = (level >= MAX_LEVEL) ? 0 : data.getExp(); // 上限ならEXPを0に
 
-        try (PreparedStatement ps = db.getConnection().prepareStatement("""
+        try (Connection conn = db.getConnection();
+             PreparedStatement ps = conn.prepareStatement("""
             INSERT INTO player_levels (uuid, level, exp) VALUES (?, ?, ?)
             ON CONFLICT(uuid) DO UPDATE SET level = excluded.level, exp = excluded.exp
         """)) {

@@ -27,28 +27,28 @@ public class ClanManager implements IManager {
     }
 
     private void loadClansFromDatabase() throws SQLException {
-        Connection conn = db.getConnection();
-
-        // クラン本体のロード
-        try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM clans")) {
-            ResultSet rs = ps.executeQuery();
-            while (rs.next()) {
-                String id = rs.getString("id");
-                String name = rs.getString("name");
-                UUID owner = UUID.fromString(rs.getString("owner"));
-                clans.put(id, new Clan(id, name, owner));
+        try (Connection conn = db.getConnection()) {
+            // クラン本体のロード
+            try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM clans")) {
+                ResultSet rs = ps.executeQuery();
+                while (rs.next()) {
+                    String id = rs.getString("id");
+                    String name = rs.getString("name");
+                    UUID owner = UUID.fromString(rs.getString("owner"));
+                    clans.put(id, new Clan(id, name, owner));
+                }
             }
-        } // ここで ps は閉じられるが、conn は閉じられない
 
-        // メンバーのロード
-        try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM clan_members")) {
-            ResultSet rs = ps.executeQuery();
-            while (rs.next()) {
-                UUID uuid = UUID.fromString(rs.getString("player_uuid"));
-                String clanId = rs.getString("clan_id");
-                if (clans.containsKey(clanId)) {
-                    clans.get(clanId).addMember(uuid);
-                    playerClanMap.put(uuid, clanId);
+            // メンバーのロード
+            try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM clan_members")) {
+                ResultSet rs = ps.executeQuery();
+                while (rs.next()) {
+                    UUID uuid = UUID.fromString(rs.getString("player_uuid"));
+                    String clanId = rs.getString("clan_id");
+                    if (clans.containsKey(clanId)) {
+                        clans.get(clanId).addMember(uuid);
+                        playerClanMap.put(uuid, clanId);
+                    }
                 }
             }
         }
@@ -180,7 +180,8 @@ public class ClanManager implements IManager {
     // --- データベース保存用ヘルパー ---
 
     private void saveClanToDatabase(Clan clan) {
-        try (PreparedStatement ps = db.getConnection().prepareStatement(
+        try (Connection conn = db.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
                 "INSERT INTO clans (id, name, tag, owner) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET owner=excluded.owner")) {
             ps.setString(1, clan.getId());
             ps.setString(2, clan.getName());
@@ -191,7 +192,8 @@ public class ClanManager implements IManager {
     }
 
     private void saveMemberToDatabase(UUID uuid, String clanId) {
-        try (PreparedStatement ps = db.getConnection().prepareStatement(
+        try (Connection conn = db.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
                 "INSERT INTO clan_members (player_uuid, clan_id) VALUES (?, ?) ON CONFLICT(player_uuid) DO UPDATE SET clan_id=excluded.clan_id")) {
             ps.setString(1, uuid.toString());
             ps.setString(2, clanId);
@@ -200,7 +202,8 @@ public class ClanManager implements IManager {
     }
 
     private void deleteMemberFromDatabase(UUID uuid) {
-        try (PreparedStatement ps = db.getConnection().prepareStatement(
+        try (Connection conn = db.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
                 "DELETE FROM clan_members WHERE player_uuid = ?")) {
             ps.setString(1, uuid.toString());
             ps.executeUpdate();
@@ -208,19 +211,23 @@ public class ClanManager implements IManager {
     }
 
     private void deleteClanFromDatabase(String clanId) {
-        try (PreparedStatement ps = db.getConnection().prepareStatement(
-                "DELETE FROM clans WHERE id = ?")) {
-            ps.setString(1, clanId);
-            ps.executeUpdate();
-        } catch (SQLException e) { e.printStackTrace(); }
+        try (Connection conn = db.getConnection()) {
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "DELETE FROM clans WHERE id = ?")) {
+                ps.setString(1, clanId);
+                ps.executeUpdate();
+            }
 
-        // SQLiteの外部キー制約 (ON DELETE CASCADE) が設定されている場合、
-        // clan_members も自動で消えますが、念のため明示的に消すことも可能です。
-        try (PreparedStatement ps = db.getConnection().prepareStatement(
-                "DELETE FROM clan_members WHERE clan_id = ?")) {
-            ps.setString(1, clanId);
-            ps.executeUpdate();
-        } catch (SQLException e) { e.printStackTrace(); }
+            // SQLiteの外部キー制約 (ON DELETE CASCADE) が設定されている場合、
+            // clan_members も自動で消えますが、念のため明示的に消すことも可能です。
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "DELETE FROM clan_members WHERE clan_id = ?")) {
+                ps.setString(1, clanId);
+                ps.executeUpdate();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     public Clan getClanByPlayer(UUID uuid) {
