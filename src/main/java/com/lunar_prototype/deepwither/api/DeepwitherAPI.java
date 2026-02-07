@@ -8,6 +8,13 @@ import com.lunar_prototype.deepwither.api.stat.IStatManager;
 public interface DeepwitherAPI {
 
     /**
+     * クラスまたはインターフェースを指定してマネージャーを取得します。
+     * @param clazz マネージャーのクラス
+     * @return マネージャーのインスタンス
+     */
+    <T> T get(Class<T> clazz);
+
+    /**
      * ステータス管理マネージャーを取得します。
      * @return IStatManager
      */

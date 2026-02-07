@@ -21,23 +21,26 @@ public class ServiceManager {
 
     /**
      * サービス（マネージャー）を登録します。
-     * まだ初期化は行われません。
-     *
-     * @param service 登録するサービスのインスタンス
+     * 自動的に実装しているインターフェースでも引けるようにインデックスされます。
      */
+    @SuppressWarnings("unchecked")
     public <T extends IManager> void register(T service) {
-        services.put(service.getClass(), service);
+        Class<? extends IManager> clazz = (Class<? extends IManager>) service.getClass();
+        services.put(clazz, service);
+
+        // 実装しているすべてのインターフェースでも引けるようにする
+        for (Class<?> iface : clazz.getInterfaces()) {
+            if (IManager.class.isAssignableFrom(iface) && iface != IManager.class) {
+                services.putIfAbsent((Class<? extends IManager>) iface, service);
+            }
+        }
     }
 
     /**
-     * 登録されたサービスを指定されたクラスで取得します。
-     *
-     * @param clazz 取得したいサービスクラス
-     * @return サービスインスタンス
-     * @throws IllegalArgumentException サービスが見つからない場合
+     * 登録されたサービスを取得します（インターフェース指定可）。
      */
     @SuppressWarnings("unchecked")
-    public <T extends IManager> T get(Class<T> clazz) {
+    public <T> T get(Class<T> clazz) {
         IManager service = services.get(clazz);
         if (service == null) {
             throw new IllegalArgumentException("Service not found: " + clazz.getName());

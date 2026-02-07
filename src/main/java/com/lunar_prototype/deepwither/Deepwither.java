@@ -99,6 +99,11 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     }
 
     @Override
+    public <T> T get(Class<T> clazz) {
+        return serviceManager.get(clazz);
+    }
+
+    @Override
     public IStatManager getStatManager() {
         return (IStatManager) serviceManager.get(StatManager.class);
     }
@@ -406,6 +411,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
                 Runtime.getRuntime().availableProcessors());
 
         this.serviceManager = new ServiceManager(this);
+        com.lunar_prototype.deepwither.api.DW._setApi(this);
 
         try {
             // 1. 基盤の登録
