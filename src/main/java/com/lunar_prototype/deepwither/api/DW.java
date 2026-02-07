@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither.api;
 
+import com.lunar_prototype.deepwither.api.database.IDatabaseManager;
 import com.lunar_prototype.deepwither.api.stat.IStatManager;
 import org.bukkit.entity.Player;
 
@@ -16,6 +17,13 @@ public final class DW {
      */
     public static void _setApi(DeepwitherAPI apiInstance) {
         api = apiInstance;
+    }
+
+    /**
+     * データベース管理APIへアクセスします。
+     */
+    public static IDatabaseManager db() {
+        return api.getDatabaseManager();
     }
 
     /**

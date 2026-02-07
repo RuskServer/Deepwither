@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither.api;
 
+import com.lunar_prototype.deepwither.api.database.IDatabaseManager;
 import com.lunar_prototype.deepwither.api.stat.IStatManager;
 
 /**
@@ -19,6 +20,12 @@ public interface DeepwitherAPI {
      * @return IStatManager
      */
     IStatManager getStatManager();
+
+    /**
+     * データベース管理マネージャーを取得します。
+     * @return IDatabaseManager
+     */
+    IDatabaseManager getDatabaseManager();
 
     // 他のマネージャーのインターフェースも今後ここに追加
 }

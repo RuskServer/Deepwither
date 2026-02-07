@@ -51,30 +51,62 @@ public class ProfessionDatabase implements IManager {
         return data;
     }
 
-    /**
-     * プレイヤーのデータを保存
-     */
-    public void savePlayer(PlayerProfessionData data) {
-        String query = "INSERT OR REPLACE INTO player_professions (player_id, profession_type, experience) VALUES (?, ?, ?)";
-        Connection conn = db.getConnection();
+        /**
 
-        try (PreparedStatement ps = conn.prepareStatement(query)) {
-            conn.setAutoCommit(false); // トランザクション開始
+         * プレイヤーのデータを保存
 
-            for (Map.Entry<ProfessionType, Long> entry : data.getAllExperience().entrySet()) {
-                ps.setString(1, data.getPlayerId().toString());
-                ps.setString(2, entry.getKey().name());
-                ps.setLong(3, entry.getValue());
-                ps.addBatch();
+         */
+
+        public void savePlayer(PlayerProfessionData data) {
+
+            String query = "INSERT OR REPLACE INTO player_professions (player_id, profession_type, experience) VALUES (?, ?, ?)";
+
+    
+
+            try (Connection conn = db.getConnection()) {
+
+                try (PreparedStatement ps = conn.prepareStatement(query)) {
+
+                    conn.setAutoCommit(false); // トランザクション開始
+
+    
+
+                    for (Map.Entry<ProfessionType, Long> entry : data.getAllExperience().entrySet()) {
+
+                        ps.setString(1, data.getPlayerId().toString());
+
+                        ps.setString(2, entry.getKey().name());
+
+                        ps.setLong(3, entry.getValue());
+
+                        ps.addBatch();
+
+                    }
+
+    
+
+                    ps.executeBatch();
+
+                    conn.commit();
+
+                    conn.setAutoCommit(true);
+
+                } catch (SQLException e) {
+
+                    conn.rollback();
+
+                    throw e;
+
+                }
+
+            } catch (SQLException e) {
+
+                plugin.getLogger().log(Level.SEVERE, "Failed to save profession data for " + data.getPlayerId(), e);
+
             }
 
-            ps.executeBatch();
-            conn.commit();
-            conn.setAutoCommit(true);
-
-        } catch (SQLException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to save profession data for " + data.getPlayerId(), e);
-            try { conn.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
         }
+
     }
-}
+
+    

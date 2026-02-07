@@ -1,2 +1,23 @@
-# config.yml
-setting-example: true
+# Deepwither Configuration
+
+# データベース設定
+# type: "sqlite" または "mysql" (将来対応)
+database:
+  type: "sqlite"
+  
+  # MySQLを使用する場合の設定
+  mysql:
+    host: "localhost"
+    port: 3306
+    database: "deepwither"
+    username: "root"
+    password: "password"
+    use-ssl: false
+  
+  # 接続プール設定 (上級者向け)
+  pool:
+    maximum-pool-size: 10
+    minimum-idle: 2
+    connection-timeout: 30000 # 30秒
+    idle-timeout: 600000 # 10分
+    max-lifetime: 1800000 # 30分

@@ -44,6 +44,7 @@ import com.lunar_prototype.deepwither.profession.ProfessionManager;
 import com.lunar_prototype.deepwither.profiler.CombatAnalyzer;
 import com.lunar_prototype.deepwither.aethelgard.*;
 import com.lunar_prototype.deepwither.api.DeepwitherAPI;
+import com.lunar_prototype.deepwither.api.database.IDatabaseManager;
 import com.lunar_prototype.deepwither.api.stat.IStatManager;
 import com.lunar_prototype.deepwither.dungeon.roguelike.*;
 import com.lunar_prototype.deepwither.raidboss.RaidBossListener;
@@ -106,6 +107,11 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     @Override
     public IStatManager getStatManager() {
         return (IStatManager) serviceManager.get(StatManager.class);
+    }
+
+    @Override
+    public IDatabaseManager getDatabaseManager() {
+        return (IDatabaseManager) serviceManager.get(DatabaseManager.class);
     }
 
     private Map<UUID, Location> safeZoneSpawns = new HashMap<>();
