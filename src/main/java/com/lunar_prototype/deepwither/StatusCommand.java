@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.api.stat.IStatManager;
 import com.lunar_prototype.deepwither.profession.PlayerProfessionData;
 import com.lunar_prototype.deepwither.profession.ProfessionManager;
 import com.lunar_prototype.deepwither.profession.ProfessionType;
@@ -18,11 +19,11 @@ import java.util.Set;
 public class StatusCommand implements CommandExecutor {
 
     private final LevelManager levelManager;
-    private final StatManager statManager;
+    private final IStatManager statManager;
     private final CreditManager creditManager;
     private final ProfessionManager professionManager; // ★追加
 
-    public StatusCommand(LevelManager levelManager, StatManager statManager, CreditManager creditManager, ProfessionManager professionManager) {
+    public StatusCommand(LevelManager levelManager, IStatManager statManager, CreditManager creditManager, ProfessionManager professionManager) {
         this.levelManager = levelManager;
         this.statManager = statManager;
         this.creditManager = creditManager;
@@ -44,7 +45,7 @@ public class StatusCommand implements CommandExecutor {
         }
 
         Economy econ = Deepwither.getEconomy();
-        StatMap finalStats = statManager.getTotalStatsFromEquipment(player);
+        StatMap finalStats = statManager.getTotalStats(player);
 
         // --- レイアウト開始 ---
         player.sendMessage("§8§m---------------------------------------");

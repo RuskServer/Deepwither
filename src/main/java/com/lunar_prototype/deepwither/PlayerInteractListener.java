@@ -77,7 +77,7 @@ public class PlayerInteractListener implements Listener, IManager {
             }
 
             // 3. 回復処理の実行
-            Deepwither.getInstance().getStatManager().healCustomHealth(player,recoveryAmount);
+            Deepwither.getInstance().getStatManager().heal(player,recoveryAmount);
 
             // 回復エフェクト（任意）
             player.getWorld().spawnParticle(org.bukkit.Particle.HEART, player.getLocation().add(0, 2, 0), 1, 0.5, 0.5, 0.5, 0);

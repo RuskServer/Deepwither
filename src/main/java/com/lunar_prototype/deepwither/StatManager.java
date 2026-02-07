@@ -119,6 +119,7 @@ public class StatManager implements IManager, IStatManager {
      * @param player 回復対象
      * @param seconds 経過秒数 (タスク間隔)
      */
+    @Override
     public void naturalRegeneration(Player player, double seconds) {
         double currentHp = getActualCurrentHealth(player);
         double maxHp = getActualMaxHealth(player);
@@ -200,6 +201,16 @@ public class StatManager implements IManager, IStatManager {
     /**
      * プレイヤーの実際のHPを更新し、BukkitのHPバーと同期する。（ダメージ/回復処理のコア）
      */
+    @Override
+    public void setActualCurrenttoMaxHealth(Player player) {
+        setActualCurrenttoMaxHelth(player);
+    }
+
+    /**
+     * @deprecated Use {@link #setActualCurrenttoMaxHealth(Player)} instead.
+     */
+    @Deprecated
+    @Override
     public void setActualCurrenttoMaxHelth(Player player) {
         double max = getTotalStats(player).getFinal(StatType.MAX_HEALTH);
 
@@ -337,7 +348,9 @@ public class StatManager implements IManager, IStatManager {
             total.add(skillData.getPassiveStats());
         }
 
-        StatMap tempBuff = Deepwither.getInstance().getStatManager().temporaryBuffs.get(player.getUniqueId());
+        // 内部的にStatManagerのインスタンスを取得してtemporaryBuffsにアクセス
+        StatManager instance = (StatManager) Deepwither.getInstance().getStatManager();
+        StatMap tempBuff = instance.temporaryBuffs.get(player.getUniqueId());
         if (tempBuff != null) {
             total.add(tempBuff); // StatMapのaddメソッドを使用
         }

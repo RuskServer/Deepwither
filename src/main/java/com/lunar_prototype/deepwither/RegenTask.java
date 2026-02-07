@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.api.stat.IStatManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.entity.Player;
@@ -10,7 +11,7 @@ import org.bukkit.scheduler.BukkitTask;
 @DependsOn({StatManager.class})
 public class RegenTask extends BukkitRunnable implements IManager {
 
-    private StatManager statManager;
+    private IStatManager statManager;
     private final JavaPlugin plugin;
     private BukkitTask task;
     // タスクが実行される間隔（秒）

@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.PlayerSettingsManager;
 import com.lunar_prototype.deepwither.api.event.onPlayerRecevingDamageEvent;
+import com.lunar_prototype.deepwither.api.stat.IStatManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import io.lumine.mythic.bukkit.MythicBukkit;
@@ -19,7 +21,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
-import com.lunar_prototype.deepwither.PlayerSettingsManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.projectiles.ProjectileSource;
@@ -34,7 +35,7 @@ import static com.lunar_prototype.deepwither.PlayerSettingsManager.SettingType.S
 public class DamageManager implements Listener, IManager {
 
     private final Set<UUID> isProcessingDamage = new HashSet<>();
-    private final StatManager statManager;
+    private final IStatManager statManager;
     private final Map<UUID, Long> onHitCooldowns = new HashMap<>();
     private final JavaPlugin plugin;
 
@@ -55,7 +56,7 @@ public class DamageManager implements Listener, IManager {
     // 盾のクールダウン (ms) - 連続ブロック防止用など
     private final PlayerSettingsManager settingsManager; // ★追加
 
-    public DamageManager(JavaPlugin plugin, StatManager statManager, PlayerSettingsManager settingsManager) {
+    public DamageManager(JavaPlugin plugin, IStatManager statManager, PlayerSettingsManager settingsManager) {
         this.plugin = plugin;
         this.statManager = statManager;
         this.settingsManager = settingsManager; // ★追加
@@ -146,7 +147,7 @@ public class DamageManager implements Listener, IManager {
             return;
         }
 
-        StatMap attackerStats = StatManager.getTotalStatsFromEquipment(attacker);
+        StatMap attackerStats = statManager.getTotalStats(attacker);
         StatMap defenderStats = getDefenderStats(targetLiving);
 
         // 1. 武器カテゴリの特定
@@ -333,7 +334,7 @@ public class DamageManager implements Listener, IManager {
         if (lifeSteal > 0) {
             double healAmount = finalDamage * (lifeSteal / 100.0);
             if (healAmount > 0) {
-                statManager.healCustomHealth(attacker, healAmount);
+                statManager.heal(attacker, healAmount);
                 attacker.playSound(attacker.getLocation(), Sound.ENTITY_WITCH_DRINK, 0.5f, 1.2f);
             }
         }
@@ -370,7 +371,7 @@ public class DamageManager implements Listener, IManager {
             return;
         }
 
-        StatMap defenderStats = StatManager.getTotalStatsFromEquipment(player);
+        StatMap defenderStats = statManager.getTotalStats(player);
         double rawDamage = e.getDamage();
         double finalDamage;
         boolean isMagic = false;
@@ -495,7 +496,7 @@ public class DamageManager implements Listener, IManager {
 
     public StatMap getDefenderStats(LivingEntity entity) {
         if (entity instanceof Player p) {
-            return StatManager.getTotalStatsFromEquipment(p);
+            return statManager.getTotalStats(p);
         }
         return new StatMap();
     }
@@ -933,7 +934,7 @@ public class DamageManager implements Listener, IManager {
         if (e.getEntity() instanceof Player p && !e.isCancelled()) {
             double amount = e.getAmount();
             e.setCancelled(true);
-            statManager.healCustomHealth(p, amount);
+            statManager.heal(p, amount);
         }
     }
 

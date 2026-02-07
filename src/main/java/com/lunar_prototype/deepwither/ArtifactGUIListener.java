@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.api.stat.IStatManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Material;
@@ -22,7 +23,7 @@ public class ArtifactGUIListener implements Listener, IManager {
 
     // GUIのインスタンスを共有するために、ArtifactGUIクラスのインスタンスを渡す
     private ArtifactGUI artifactGUI;
-    private StatManager statManager;
+    private IStatManager statManager;
     private final JavaPlugin plugin;
 
     public ArtifactGUIListener(JavaPlugin plugin) {
@@ -219,7 +220,7 @@ public class ArtifactGUIListener implements Listener, IManager {
 
         // 全ての装備とアーティファクトの合計統計情報を再計算
         statManager.updatePlayerStats(player);
-        double maxMana = StatManager.getTotalStatsFromEquipment(player).getFlat(StatType.MAX_MANA);
+        double maxMana = statManager.getTotalStats(player).getFlat(StatType.MAX_MANA);
         Deepwither.getInstance().getManaManager().get(player.getUniqueId()).setMaxMana(maxMana);
     }
 }

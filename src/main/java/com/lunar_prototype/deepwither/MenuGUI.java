@@ -8,6 +8,7 @@ import com.lunar_prototype.deepwither.profession.ProfessionType;
 import com.lunar_prototype.deepwither.aethelgard.PlayerQuestData;
 import com.lunar_prototype.deepwither.aethelgard.PlayerQuestManager;
 import com.lunar_prototype.deepwither.aethelgard.QuestProgress;
+import com.lunar_prototype.deepwither.api.stat.IStatManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import net.milkbowl.vault.economy.Economy;
@@ -33,7 +34,7 @@ public class MenuGUI implements Listener, IManager {
 
     // 依存マネージャー
     private LevelManager levelManager;
-    private StatManager statManager;
+    private IStatManager statManager;
     private ProfessionManager professionManager;
     private PlayerQuestManager questManager;
     private DailyTaskManager dailyTaskManager;
@@ -138,7 +139,7 @@ public class MenuGUI implements Listener, IManager {
     }
 
     private ItemStack createCombatStatsIcon(Player player) {
-        StatMap stats = statManager.getTotalStatsFromEquipment(player);
+        StatMap stats = statManager.getTotalStats(player);
         double curHp = statManager.getActualCurrentHealth(player);
         double maxHp = statManager.getActualMaxHealth(player);
 

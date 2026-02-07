@@ -80,4 +80,29 @@ public interface IStatManager {
      * @param playerUUID 対象プレイヤーのUUID
      */
     void removeTemporaryBuff(UUID playerUUID);
+
+    /**
+     * プレイヤーの現在のHPを最大値まで回復させます。
+     */
+    void setActualCurrenttoMaxHealth(Player player);
+
+    /**
+     * @deprecated Use {@link #setActualCurrenttoMaxHealth(Player)} instead.
+     */
+    @Deprecated
+    void setActualCurrenttoMaxHelth(Player player);
+
+    /**
+     * ログイン時やリスポーン時に呼ばれ、HPをリセットします。
+     * @param player 対象プレイヤー
+     * @param isLogin ログイン時ならtrue
+     */
+    void resetHealthOnEvent(Player player, boolean isLogin);
+
+    /**
+     * プレイヤーのHPを自然回復させます。
+     * @param player 回復対象
+     * @param seconds 経過秒数
+     */
+    void naturalRegeneration(Player player, double seconds);
 }

@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.api.stat.IStatManager;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -8,9 +9,9 @@ public class LevelPlaceholderExpansion extends PlaceholderExpansion {
 
     private final LevelManager levelManager;
     private final ManaManager manaManager;
-    private final StatManager statManager;
+    private final IStatManager statManager;
 
-    public LevelPlaceholderExpansion(LevelManager levelManager,ManaManager manaManager, StatManager statManager) {
+    public LevelPlaceholderExpansion(LevelManager levelManager,ManaManager manaManager, IStatManager statManager) {
         this.levelManager = levelManager;
         this.manaManager = manaManager;
         this.statManager = statManager;

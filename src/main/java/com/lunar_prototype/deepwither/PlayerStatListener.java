@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.api.stat.IStatManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.event.EventHandler;
@@ -18,7 +19,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 @DependsOn({StatManager.class})
 public class PlayerStatListener implements Listener, IManager {
 
-    private StatManager statManager;
+    private IStatManager statManager;
     private final JavaPlugin plugin;
 
     public PlayerStatListener(JavaPlugin plugin) {
@@ -38,7 +39,7 @@ public class PlayerStatListener implements Listener, IManager {
     public void onJoin(PlayerJoinEvent e) {
         Bukkit.getScheduler().runTaskLater(Deepwither.getInstance(), () -> {
             statManager.updatePlayerStats(e.getPlayer());
-            double maxMana = StatManager.getTotalStatsFromEquipment(e.getPlayer()).getFlat(StatType.MAX_MANA);
+            double maxMana = statManager.getTotalStats(e.getPlayer()).getFlat(StatType.MAX_MANA);
             Deepwither.getInstance().getManaManager().get(e.getPlayer().getUniqueId()).setMaxMana(maxMana);
 
             // HPを最大値でリセット（isLogin = true）
@@ -51,7 +52,7 @@ public class PlayerStatListener implements Listener, IManager {
         Bukkit.getScheduler().runTaskLater(Deepwither.getInstance(), () -> {
             statManager.resetHealthOnEvent(e.getPlayer(), true);
             statManager.updatePlayerStats(e.getPlayer());
-            double maxMana = StatManager.getTotalStatsFromEquipment(e.getPlayer()).getFlat(StatType.MAX_MANA);
+            double maxMana = statManager.getTotalStats(e.getPlayer()).getFlat(StatType.MAX_MANA);
             Deepwither.getInstance().getManaManager().get(e.getPlayer().getUniqueId()).setMaxMana(maxMana);
         }, 5L);
     }
@@ -60,7 +61,7 @@ public class PlayerStatListener implements Listener, IManager {
     public void onHeldChange(PlayerItemHeldEvent e) {
         Bukkit.getScheduler().runTaskLater(Deepwither.getInstance(), () -> {
             statManager.updatePlayerStats(e.getPlayer());
-            double maxMana = StatManager.getTotalStatsFromEquipment(e.getPlayer()).getFlat(StatType.MAX_MANA);
+            double maxMana = statManager.getTotalStats(e.getPlayer()).getFlat(StatType.MAX_MANA);
             Deepwither.getInstance().getManaManager().get(e.getPlayer().getUniqueId()).setMaxMana(maxMana);
         }, 3L);
     }
@@ -69,7 +70,7 @@ public class PlayerStatListener implements Listener, IManager {
     public void onSwapHand(PlayerSwapHandItemsEvent e) {
         Bukkit.getScheduler().runTaskLater(Deepwither.getInstance(), () -> {
             statManager.updatePlayerStats(e.getPlayer());
-            double maxMana = StatManager.getTotalStatsFromEquipment(e.getPlayer()).getFlat(StatType.MAX_MANA);
+            double maxMana = statManager.getTotalStats(e.getPlayer()).getFlat(StatType.MAX_MANA);
             Deepwither.getInstance().getManaManager().get(e.getPlayer().getUniqueId()).setMaxMana(maxMana);
         }, 3L);
     }
@@ -84,7 +85,7 @@ public class PlayerStatListener implements Listener, IManager {
 
             Bukkit.getScheduler().runTaskLater(Deepwither.getInstance(), () -> {
                 statManager.updatePlayerStats(player);
-                double maxMana = StatManager.getTotalStatsFromEquipment(player).getFlat(StatType.MAX_MANA);
+                double maxMana = statManager.getTotalStats(player).getFlat(StatType.MAX_MANA);
                 Deepwither.getInstance().getManaManager().get(player.getUniqueId()).setMaxMana(maxMana);
             }, 3L);
         }

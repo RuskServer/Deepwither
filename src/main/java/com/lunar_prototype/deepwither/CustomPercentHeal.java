@@ -49,7 +49,7 @@ public class CustomPercentHeal implements ITargetedEntitySkill {
 
         // 5. カスタムHPシステムに回復を適用
 
-        Deepwither.getInstance().getStatManager().healCustomHealth(player,healAmount);
+        Deepwither.getInstance().getStatManager().heal(player,healAmount);
 
         // 便宜上のメッセージとエフェクト（実際にはカスタムHPシステム内で実行すべき）
         player.sendMessage(String.format("§a§l割合回復！ §2%.1f §aHPを回復しました。", healAmount));
