@@ -138,11 +138,51 @@ public static IManaManager.PlayerMana mana(Player player) {
 
 ## 💾 データベースアクセス (Database Access)
 
-データ永続化には `DatabaseManager` (SQLite) を使用します。
-各マネージャーで個別にコネクションを作成せず、必ず `DatabaseManager` インスタンスを注入して使用してください。
+データ永続化には `IDatabaseManager` を使用します。
+本プロジェクトでは、開発者がSQLの定型文（接続取得、例外処理、クローズ漏れ）に悩まされないよう、**高レベルの抽象化API**を提供しています。
 
+### 基本的な使い方
+`DW.db()` を介して、以下のメソッドを利用できます。
+
+#### 1. データの更新・挿入 (execute)
+`INSERT`, `UPDATE`, `DELETE` クエリを実行します。パラメータは可変長引数で渡せます。
+
+```java
+// データの更新例
+DW.db().execute(
+    "UPDATE player_levels SET level = ? WHERE uuid = ?",
+    newLevel, player.getUniqueId().toString()
+);
+```
+
+#### 2. 単一データの取得 (querySingle)
+1行だけ結果を取得する場合に使用します。結果は `Optional` で返されます。
+
+```java
+// 単一データの取得例
+Optional<Integer> level = DW.db().querySingle(
+    "SELECT level FROM player_levels WHERE uuid = ?",
+    rs -> rs.getInt("level"),
+    player.getUniqueId().toString()
+);
+```
+
+#### 3. 複数データの取得 (queryList)
+複数行の結果をリストとして取得する場合に使用します。
+
+```java
+// 複数データの取得例
+List<String> clanNames = DW.db().queryList(
+    "SELECT name FROM clans WHERE owner = ?",
+    rs -> rs.getString("name"),
+    player.getUniqueId().toString()
+);
+```
+
+### 注意事項
+*   **インターフェースの使用**: 各マネージャーで個別にコネクションを作成せず、必ず `DW.db()` または注入された `IDatabaseManager` を使用してください。
 *   **依存関係**: データベースを使用するクラスには必ず `@DependsOn({DatabaseManager.class})` を付与してください。
-*   **非同期処理**: 重いクエリは `Bukkit.getScheduler().runTaskAsynchronously` 等を使用してメインスレッドをブロックしないようにしてください。
+*   **非同期処理**: 重いクエリや大量のバッチ処理を行う場合は、`runAsync` や `supplyAsync` を使用してメインスレッドをブロックしないようにしてください。
 
 ## 🚫 禁止事項
 
