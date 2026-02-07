@@ -35,40 +35,106 @@ IStatManager statAPI = DW.get(IStatManager.class);
 
 ## 📝 新しい機能の追加手順 (How to Add a New Manager)
 
-例として、`ManaManager` を追加し、APIとして公開する手順を示します。
+Deepwitherに新しい機能（例：マナ管理システム）を追加する際の標準的な手順です。
 
-### 1. インターフェースの定義 (API層)
-`api` パッケージの下にインターフェースを作成します。
+### 1. APIインターフェースの定義
+まず、`com.lunar_prototype.deepwither.api` 配下の適切なパッケージにインターフェースを作成します。これが外部（リスナーや他のプラグイン）から見える「窓口」になります。
 
 ```java
 package com.lunar_prototype.deepwither.api.mana;
 
-public interface IManaManager extends IManager {
+import org.bukkit.entity.Player;
+
+public interface IManaManager {
+    /** プレイヤーのマナを取得 */
     double getMana(Player player);
+    
+    /** マナを消費 */
     void consume(Player player, double amount);
+
+    /** プレイヤー専用の操作コンテキストを返す（推奨） */
+    PlayerMana of(Player player);
+
+    interface PlayerMana {
+        double get();
+        void consume(double amount);
+    }
 }
 ```
 
-### 2. マネージャークラスの実装 (内部層)
-インターフェースを実装します。
+### 2. マネージャークラスの実装
+次に、`src/main/java/com/lunar_prototype/deepwither` 配下の内部パッケージで実装クラスを作成します。
 
 ```java
+package com.lunar_prototype.deepwither.mana;
+
+import com.lunar_prototype.deepwither.DatabaseManager;
+import com.lunar_prototype.deepwither.api.mana.IManaManager;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
+
+// 1. IManager と定義したAPIインターフェースを実装
+// 2. 依存関係を宣言（この場合 DatabaseManager が初期化された後に init が呼ばれる）
 @DependsOn({DatabaseManager.class})
-public class ManaManager implements IManaManager {
-    // ... 実装 ...
+public class ManaManager implements IManaManager, IManager {
+
+    private final DatabaseManager db;
+
+    // 3. コンストラクタで依存オブジェクトを受け取る
+    public ManaManager(DatabaseManager db) {
+        this.db = db;
+    }
+
+    @Override
+    public void init() throws Exception {
+        // 4. 初期化処理 (リスナー登録、テーブル準備など)
+    }
+
+    @Override
+    public void shutdown() {
+        // 5. 終了処理 (データの保存など)
+    }
+
+    // --- APIインターフェースの実装 ---
+    @Override
+    public double getMana(Player player) { /* ... */ return 0; }
+
+    @Override
+    public PlayerMana of(Player player) {
+        return new PlayerMana() {
+            @Override public double get() { return getMana(player); }
+            @Override public void consume(double amount) { /* ... */ }
+        };
+    }
 }
 ```
 
 ### 3. Deepwither.java への登録
-インターフェースを実装したクラスを登録すると、`ServiceManager` が自動的にインターフェースでも引けるようにインデックスを作成します。
+`setupManagers()` メソッド内で登録を行います。
 
 ```java
 private void setupManagers() {
+    // ...
     this.manaManager = register(new ManaManager(databaseManager));
 }
 ```
+※ `register()` メソッドを使うことで、`ServiceManager` が自動的に `IManaManager` インターフェースでも検索できるようにインデックスを張ります。
 
-これで、即座に `DW.get(IManaManager.class)` で呼び出し可能になります。
+### 4. DW クラスへのショートカット追加（オプション）
+頻繁に使用する機能であれば、`DW` クラスに短いアクセス用メソッドを追加します。
+
+```java
+// DW.java
+public static IManaManager mana() {
+    return get(IManaManager.class);
+}
+
+public static IManaManager.PlayerMana mana(Player player) {
+    return mana().of(player);
+}
+```
+
+これにより、開発者は `DW.mana(player).consume(10)` といった極めて簡潔なコードで新機能を利用できるようになります。
 
 ## 💾 データベースアクセス (Database Access)
 
