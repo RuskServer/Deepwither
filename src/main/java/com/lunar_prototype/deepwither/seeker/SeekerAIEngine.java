@@ -49,7 +49,7 @@ public class SeekerAIEngine implements IManager {
         // 2. 脳の取得と学習
         LiquidBrain brain = brainStorage.computeIfAbsent(uuid, k -> new LiquidBrain(uuid));
         observeAndLearn(activeMob, brain);
-        brain.digestExperience();
+        // [Refactored] digestExperience call removed; integrated into think -> cycle
 
         // 3. バージョン選択
         String version = (activeMob.getLevel() >= 20) ? "v3" : (activeMob.getLevel() >= 10 ? "v2" : "v1");

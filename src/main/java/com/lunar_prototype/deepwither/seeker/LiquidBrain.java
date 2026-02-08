@@ -1,34 +1,19 @@
 package com.lunar_prototype.deepwither.seeker;
 
+import com.lunar_prototype.dark_singularity_api.Singularity;
 import org.bukkit.util.Vector;
 
-import java.io.File;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * [TQH-Hybrid] LiquidBrain
  * 構造は Java で維持し、計算負荷の高いニューラルネットワークと学習ロジックを
- * Rust (DarkSingularity) へ JNI 経由で委譲する。
+ * Rust (DarkSingularity) へ API 経由で委譲する。
  */
 public class LiquidBrain {
-    // --- Rust 連携用 ---
-    private final long nativeHandle;
-
-    static {
-        // 1. まず標準パスを探す
-        try {
-            System.loadLibrary("dark_singularity");
-        } catch (UnsatisfiedLinkError e) {
-            String libName = System.mapLibraryName("dark_singularity");
-            File lib = new File("plugins/deepwither/" + libName);
-            if (lib.exists()) {
-                System.load(lib.getAbsolutePath());
-            } else {
-                throw new IllegalStateException("DarkSingularity Native Library Missing: " + lib.getAbsolutePath(), e);
-            }
-        }
-    }
+    // --- Rust API 連携用 ---
+    private final Singularity singularity;
 
     // --- 既存の互換性維持用フィールド ---
     public final LiquidNeuron aggression = new LiquidNeuron(0.5);
@@ -61,59 +46,65 @@ public class LiquidBrain {
     // --- コンストラクタ ---
     public LiquidBrain(UUID ownerId) {
         this.ownerId = ownerId;
-        // Rust 側の Singularity インスタンスを生成し、メモリアドレス(Handle)を取得
-        this.nativeHandle = initNativeSingularity();
+        // Singularity インスタンスを生成 (入力5次元, 出力8アクション)
+        this.singularity = new Singularity(5, 8);
     }
 
     /**
      * エンティティ消滅時に必ず呼び出し、Rust 側のメモリを解放する。
      */
     public void dispose() {
-        if (nativeHandle != 0 && disposed.compareAndSet(false, true)) {
-            destroyNativeSingularity(nativeHandle);
+        if (disposed.compareAndSet(false, true)) {
+            singularity.close();
         }
     }
 
     /**
-     * [TQH] 経験の消化 - Rust 側へ委譲
+     * [Refactored] 思考サイクル (学習 + 行動選択)
+     * API の learn() と selectAction() を組み合わせて使用する。
      */
-    public void digestExperience() {
-        // Java 側の報酬/罰を Rust に渡して学習させる
-        learnNative(nativeHandle, accumulatedReward - accumulatedPenalty);
+    public int cycle(float[] inputs) {
+        if (disposed.get()) return 4; // Default fallback
 
-        // 学習後の内部状態を Java 側のフィールドに同期（UI表示や互換性のため）
-        syncFromNative();
+        // 1. 蓄積された報酬/罰を適用 (前回の行動に対する評価)
+        float netReward = accumulatedReward - accumulatedPenalty;
+        singularity.learn(netReward);
 
-        // 蓄積リセット
+        // 2. 次の状態(inputs)に基づいて行動を選択
+        this.lastActionIdx = singularity.selectAction(inputs);
+
+        // 報酬をリセット
         accumulatedReward = 0.0f;
         accumulatedPenalty = 0.0f;
+
+        // 内部状態をAPIから同期
+        syncFromAPI();
+
+        return this.lastActionIdx;
     }
 
     /**
-     * [DSR] トポロジー再編 - Rust 側で実行
+     * [DSR] トポロジー再編
      */
     public void reshapeTopology() {
-        // digestExperience 内で learnNative を通じて実行されるため、
-        // 個別に呼ぶ必要はないが、手動同期用にラップ
-        syncFromNative();
+        // API側で自動管理されるため、ここでは状態同期のみ行う
+        syncFromAPI();
     }
 
-
     /**
-     * Rust 側の状態を Java フィールドへコピーする
+     * API 側の状態を Java フィールドへコピーする
      */
-    private void syncFromNative() {
-        if (nativeHandle == 0) return;
+    private void syncFromAPI() {
+        if (disposed.get()) return;
 
         // 1. 基本パラメータの同期
-        this.systemTemperature = getSystemTemperature(nativeHandle);
-        this.frustration = getFrustration(nativeHandle);
-        this.adrenaline = getAdrenaline(nativeHandle);
+        this.systemTemperature = singularity.getSystemTemperature();
+        this.frustration = singularity.getFrustration();
+        this.adrenaline = singularity.getAdrenaline();
 
-        // 2. ニューロン状態の同期 (Aggression, Fear, Tactical, Reflex)
-        float[] neuronStates = getNeuronStates(nativeHandle);
+        // 2. ニューロン状態の同期
+        float[] neuronStates = singularity.getNeuronStates();
         if (neuronStates != null && neuronStates.length >= 4) {
-            // Rust 側の Singularity::new() で定義した順番 (0:Agg, 1:Fear, 2:Tact, 3:Ref)
             this.aggression.setState(neuronStates[0]);
             this.fear.setState(neuronStates[1]);
             this.tactical.setState(neuronStates[2]);
@@ -122,44 +113,35 @@ public class LiquidBrain {
     }
 
     /**
-     * 思考処理 (Action選択)
+     * 思考処理 (Legacy Support)
+     * 新しい実装では cycle() を使用することを推奨。
      */
     public int think(float[] inputs) {
-        // Rust 側で Q-Table とニューロン状態から ActionID を算出
-        this.lastActionIdx = selectActionNative(nativeHandle, inputs);
-        return this.lastActionIdx;
+        return cycle(inputs);
     }
 
     /**
      * [Glia Interface] Rust側のHorizon(恒常性)の介入度を取得
-     * 1.0 に近いほど、過剰興奮を抑制するために「慎重な動き」が強制される
      */
     public float getGliaActivity() {
-        if (nativeHandle == 0) return 0.0f;
-        return getGliaActivityNative(nativeHandle);
+        if (disposed.get()) return 0.0f;
+        return singularity.getGliaActivity();
     }
 
     /**
      * [Elastic Q] 指定した行動の現在の期待値(Q値)を取得
      */
     public double getNativeScore(int actionIdx) {
-        if (nativeHandle == 0) return 0.0;
-        return getActionScoreNative(nativeHandle, actionIdx);
+        if (disposed.get()) return 0.0;
+        return singularity.getActionScore(actionIdx);
     }
-
-    // --- Native Methods エリア ---
-    private native float getGliaActivityNative(long handle);
-    private native float getActionScoreNative(long handle, int actionIdx);
-
-    // --- Native Methods ---
-    private native long initNativeSingularity();
-    private native void destroyNativeSingularity(long handle);
-    private native int selectActionNative(long handle, float[] inputs);
-    private native void learnNative(long handle, float totalReward);
-    private native float getSystemTemperature(long handle);
-    private native float getFrustration(long handle);
-    private native float getAdrenaline(long handle);
-    private native float[] getNeuronStates(long handle);
+    
+    // --- 経験の消化 (Legacy Wrapper for manual calls) ---
+    public void digestExperience() {
+        // cycle() に統合されたため、単独では何もしないか、syncのみ行う
+        syncFromAPI();
+        // 報酬リセットは行わない（次のcycleで適用するため）
+    }
 
     // --- 既存の互換性維持メソッド (中身はそのまま) ---
     public void recordAttack(UUID targetId, double distance, boolean isMiss) {

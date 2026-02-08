@@ -42,6 +42,11 @@
       <option name="url" value="https://maven.enginehub.org/repo/" />
     </remote-repository>
     <remote-repository>
+      <option name="id" value="ruskserver-releases" />
+      <option name="name" value="ruskserver-releases" />
+      <option name="url" value="https://repo.ruskserver.com/repository/maven-public/" />
+    </remote-repository>
+    <remote-repository>
       <option name="id" value="codemc-snapshots" />
       <option name="name" value="codemc-snapshots" />
       <option name="url" value="https://repo.codemc.io/repository/maven-snapshots/" />
