@@ -61,6 +61,10 @@ public class LiquidCombatEngine {
         inputs[3] = isRecovering ? 1.0f : 0.0f;                     // クールダウン中か
         inputs[4] = Math.min(enemies.size(), 5);                    // 敵の数
 
+        // [TQH-Bootstrap] 現在の状態を量子化し、APIのハミルトニアン規則を有効化する
+        int stateId = packState(advantage, enemyDist, inputs[2], isRecovering, enemies.size());
+        brain.setCondition(stateId);
+
         // 4. Singularity API による思考サイクル (学習 + 推論)
         int actionIdx = brain.cycle(inputs);
         String actionName = ACTIONS[actionIdx];
@@ -82,13 +86,26 @@ public class LiquidCombatEngine {
         }
 
         // 6. メタデータの付与 (デバッグ・演出用)
-        d.reasoning = String.format("A:%s | T:%.2f | F:%.2f | Adv:%.2f", 
-                actionName, brain.systemTemperature, brain.frustration, advantage);
+        d.reasoning = String.format("A:%s | S:%d | T:%.2f | F:%.2f | Adv:%.2f", 
+                actionName, stateId, brain.systemTemperature, brain.frustration, advantage);
         
         // 脳の状態スナップショット保存
         brain.recordSnapshot(d.movement.strategy);
 
         return d;
+    }
+    
+    /**
+     * [BanditKnowledgeBase Consistent] 状態空間の量子化 (0-511)
+     */
+    private int packState(double advantage, double dist, float hp, boolean recovering, int enemyCount) {
+        int bits = 0;
+        bits |= (advantage > 0.6 ? 2 : (advantage > 0.4 ? 1 : 0)) << 7; // Advantage (2bit)
+        bits |= (dist < 3.0 ? 0 : (dist < 7.0 ? 1 : 2)) << 5;           // Distance (2bit)
+        bits |= (hp < 0.3 ? 0 : (hp < 0.7 ? 1 : 2)) << 3;               // HP (2bit)
+        bits |= (recovering ? 1 : 0) << 2;                              // Recovering (1bit)
+        bits |= (Math.min(enemyCount, 3));                              // Enemies (2bit)
+        return bits & 0x1FF;
     }
 
     private void applyMobilityRewards(Mob bukkitEntity, LiquidBrain brain, BanditDecision d, double currentDist) {

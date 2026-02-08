@@ -48,6 +48,10 @@ public class LiquidBrain {
         this.ownerId = ownerId;
         // Singularity インスタンスを生成 (入力5次元, 出力8アクション)
         this.singularity = new Singularity(5, 8);
+        
+        // [TQH-Bootstrap] 初期知識（ハミルトニアン規則）の注入
+        // モデル生成直後に、生物学的制約としての「本能」を定義する
+        BanditKnowledgeBase.inject(this.singularity);
     }
 
     /**
@@ -56,6 +60,16 @@ public class LiquidBrain {
     public void dispose() {
         if (disposed.compareAndSet(false, true)) {
             singularity.close();
+        }
+    }
+
+    /**
+     * [TQH-Bootstrap] 現在の環境条件をAPIに通知し、関連するハミルトニアン規則を有効化する。
+     * @param conditionId 状態空間ID (0-511)
+     */
+    public void setCondition(int conditionId) {
+        if (!disposed.get()) {
+            singularity.setActiveConditions(conditionId);
         }
     }
 
