@@ -54,7 +54,7 @@ public interface IItemFactory {
      * @param newGrade 新しいグレード
      * @return 更新されたItemStack
      */
-    @NotNull
+    @Nullable
     ItemStack updateGrade(ItemStack item, FabricationGrade newGrade);
 
     /**
@@ -62,7 +62,7 @@ public interface IItemFactory {
      * @param item 対象アイテム
      * @return 更新されたItemStack
      */
-    @NotNull
+    @Nullable
     ItemStack upgradeGrade(ItemStack item);
 
     /**
@@ -70,7 +70,7 @@ public interface IItemFactory {
      * @param item 対象アイテム
      * @return 更新されたItemStack
      */
-    @NotNull
+    @Nullable
     ItemStack rerollModifiers(ItemStack item);
 
     /**
@@ -81,7 +81,7 @@ public interface IItemFactory {
      * @param isPercent パーセント値かどうか
      * @return 更新されたItemStack
      */
-    @NotNull
+    @Nullable
     ItemStack updateStat(ItemStack item, StatType type, double value, boolean isPercent);
 
     /**

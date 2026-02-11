@@ -85,19 +85,19 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IIt
     }
 
     @Override
-    @NotNull
+    @Nullable
     public ItemStack updateGrade(ItemStack item, FabricationGrade newGrade) {
         return updateItem(item, newGrade);
     }
 
     @Override
-    @NotNull
+    @Nullable
     public ItemStack upgradeGrade(ItemStack item) {
         return upgradeItemGrade(item);
     }
 
     @Override
-    @NotNull
+    @Nullable
     public ItemStack updateStat(ItemStack item, StatType type, double value, boolean isPercent) {
         return updateSpecificStat(item, type, value, isPercent);
     }
