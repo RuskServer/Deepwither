@@ -49,6 +49,21 @@ public final class DW {
         return stats().of(player);
     }
 
+    /**
+     * アイテム管理APIへアクセスします。
+     */
+    public static IItemFactory items() {
+        return api.getItemFactory();
+    }
+
+    /**
+     * 指定したプレイヤーへのアイテム付与などの操作を直接行います。
+     * 例: DW.items(player).give("iron_sword");
+     */
+    public static IItemFactory.PlayerItem items(Player player) {
+        return items().of(player);
+    }
+
     // 今後、他の機能も以下のように追加していけます
     // public static IManaManager mana() { return api.getManaManager(); }
 }
