@@ -663,8 +663,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.menuGUI = register(new MenuGUI(this));
         this.resetGUI = register(new ResetGUI(this));
         this.menuItemListener = register(new MenuItemListener(this));
-        this.marketGui = register(new MarketGui(this));
-        this.marketSearchHandler = register(new MarketSearchHandler(this));
         this.craftingGUI = register(new CraftingGUI(this));
 
         // --- Standalone Listeners (Managed) ---

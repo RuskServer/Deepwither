@@ -776,7 +776,9 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IIt
     public ItemStack getCustomCountItemStack(String customitemid,Integer count){
         File itemFolder = new File(plugin.getDataFolder(), "items");
         ItemStack item = ItemLoader.loadSingleItem(customitemid, this, itemFolder);
-        item.setAmount(count);
+        if (item != null) {
+            item.setAmount(count);
+        }
         return item;
     }
 }
@@ -941,9 +943,11 @@ class ItemLoader {
         return null;
     }
 
-    // ★ 変更: グレードを受け取る loadSingleItem
     public static ItemStack loadSingleItem(String id, ItemFactory factory, File itemFolder, @Nullable FabricationGrade grade) {
-        for (File file : Objects.requireNonNull(itemFolder.listFiles())) {
+        File[] files = itemFolder.listFiles();
+        if (files == null) return null;
+
+        for (File file : files) {
             if (!file.getName().endsWith(".yml")) continue;
 
             YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
@@ -1092,7 +1096,7 @@ class ItemLoader {
                 meta.getPersistentDataContainer().set(pdc_key,PersistentDataType.STRING,key);
 
                 String unbreaking = config.getString(key + ".unbreaking","false");
-                if (unbreaking == "true"){
+                if ("true".equalsIgnoreCase(unbreaking)){
                     meta.setUnbreakable(true);
                 }
 
