@@ -27,5 +27,11 @@ public interface DeepwitherAPI {
      */
     IDatabaseManager getDatabaseManager();
 
+    /**
+     * アイテム管理マネージャーを取得します。
+     * @return IItemFactory
+     */
+    IItemFactory getItemFactory();
+
     // 他のマネージャーのインターフェースも今後ここに追加
 }

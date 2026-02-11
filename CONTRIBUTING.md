@@ -3,6 +3,8 @@
 Deepwitherプロジェクトへの貢献を検討していただきありがとうございます。
 このドキュメントでは、開発者がコードベースに貢献する際の技術的なガイドラインとアーキテクチャについて説明します。
 
+[📖 Javadocs (API Reference)](https://ruskserver.github.io/Deepwither/)
+
 ## 🏗 アーキテクチャガイドライン (Architecture Guidelines)
 
 本プロジェクトでは、`onEnable` の肥大化を防ぎ、依存関係を安全に管理するために、独自の**依存関係解決システム**と**モダンなAPIアクセス層**を採用しています。

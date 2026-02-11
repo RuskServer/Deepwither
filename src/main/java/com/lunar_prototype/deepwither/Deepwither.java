@@ -1,6 +1,7 @@
 package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.api.DeepwitherPartyAPI;
+import com.lunar_prototype.deepwither.api.IItemFactory;
 import com.lunar_prototype.deepwither.booster.BoosterManager;
 import com.lunar_prototype.deepwither.clan.ClanChatManager;
 import com.lunar_prototype.deepwither.clan.ClanManager;
@@ -112,6 +113,10 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     @Override
     public IDatabaseManager getDatabaseManager() {
         return (IDatabaseManager) serviceManager.get(DatabaseManager.class);
+    }
+
+    public IItemFactory getItemFactoryAPI() {
+        return (IItemFactory) serviceManager.get(ItemFactory.class);
     }
 
     private Map<UUID, Location> safeZoneSpawns = new HashMap<>();

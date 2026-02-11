@@ -3,6 +3,7 @@ package com.lunar_prototype.deepwither;
 import com.lunar_prototype.deepwither.outpost.OutpostManager;
 import com.lunar_prototype.deepwither.aethelgard.GeneratedQuest;
 import com.lunar_prototype.deepwither.aethelgard.QuestGenerator;
+import com.lunar_prototype.deepwither.api.IItemFactory;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import io.papermc.paper.block.BlockPredicate;
@@ -32,6 +33,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.profile.PlayerProfile;
 import org.bukkit.profile.PlayerTextures;
+import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
 import java.io.File;
@@ -40,7 +42,7 @@ import java.util.*;
 import java.util.logging.Level;
 
 @DependsOn({})
-public class ItemFactory implements CommandExecutor, TabCompleter, IManager {
+public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IItemFactory {
     private final Plugin plugin;
     private final Map<String, ItemStack> itemMap = new HashMap<>();
     private final NamespacedKey statKey = new NamespacedKey("rpgstats", "statmap");
@@ -54,8 +56,74 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager {
     public final Map<String, List<String>> rarityPools = new HashMap<>(); // <Rarity, List<ItemID>>
     private static final String KEY_PREFIX = "rpgstats";
 
+    @Override
     public List<String> getItemsByRarity(String rarity) {
         return rarityPools.getOrDefault(rarity, Collections.emptyList());
+    }
+
+    @Override
+    @Nullable
+    public ItemStack getItem(String id) {
+        return getCustomItemStack(id);
+    }
+
+    @Override
+    @Nullable
+    public ItemStack getItem(String id, FabricationGrade grade) {
+        return getCustomItemStack(id, grade);
+    }
+
+    @Override
+    @Nullable
+    public ItemStack getItem(String id, int amount) {
+        return getCustomCountItemStack(id, amount);
+    }
+
+    @Override
+    public void giveItem(Player player, String id) {
+        getCustomItem(player, id);
+    }
+
+    @Override
+    @NotNull
+    public ItemStack updateGrade(ItemStack item, FabricationGrade newGrade) {
+        return updateItem(item, newGrade);
+    }
+
+    @Override
+    @NotNull
+    public ItemStack upgradeGrade(ItemStack item) {
+        return upgradeItemGrade(item);
+    }
+
+    @Override
+    @NotNull
+    public ItemStack updateStat(ItemStack item, StatType type, double value, boolean isPercent) {
+        return updateSpecificStat(item, type, value, isPercent);
+    }
+
+    @Override
+    @NotNull
+    public StatMap getStats(ItemStack item) {
+        return readStatsFromItem(item);
+    }
+
+    @Override
+    public PlayerItem of(Player player) {
+        return new PlayerItem() {
+            @Override
+            public void give(String id) {
+                giveItem(player, id);
+            }
+
+            @Override
+            public void give(String id, FabricationGrade grade) {
+                ItemStack item = getItem(id, grade);
+                if (item != null) {
+                    player.getInventory().addItem(item);
+                }
+            }
+        };
     }
 
     public ItemFactory(JavaPlugin plugin) {
@@ -205,9 +273,9 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager {
     }
 
     /**
-     * 既存のアイテムを読み込み、新しいグレード等を適用して再構築します。
-     * PDCに保存されたBase値とModifier値を使用するため、情報の欠落がありません。
+     * @deprecated Use {@link #updateGrade(ItemStack, FabricationGrade)} instead.
      */
+    @Deprecated
     public ItemStack updateItem(ItemStack item, @Nullable FabricationGrade newGrade) {
         if (item == null || !item.hasItemMeta()) return item;
         ItemMeta meta = item.getItemMeta();
@@ -263,8 +331,9 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager {
     }
 
     /**
-     * アイテムの製造グレードを1段階上昇させる
+     * @deprecated Use {@link #upgradeGrade(ItemStack)} instead.
      */
+    @Deprecated
     public ItemStack upgradeItemGrade(ItemStack item) {
         if (item == null || !item.hasItemMeta()) return item;
 
@@ -334,15 +403,9 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager {
     }
 
     /**
-     * 指定したアイテムの特定のBaseステータス（等級倍率がかかる前の値）を更新します。
-     * 例: 強化呪文書で攻撃力を+5する場合など。
-     *
-     * @param item 対象のItemStack
-     * @param type 更新するStatType (例: ATTACK_DAMAGE)
-     * @param value 加算（または減算）する値
-     * @param isPercent trueならPercent値を、falseならFlat値を更新
-     * @return 更新されたItemStack
+     * @deprecated Use {@link #updateStat(ItemStack, StatType, double, boolean)} instead.
      */
+    @Deprecated
     public ItemStack updateSpecificStat(ItemStack item, StatType type, double value, boolean isPercent) {
         if (item == null || !item.hasItemMeta()) return item;
 
