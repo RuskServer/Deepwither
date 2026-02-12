@@ -149,12 +149,31 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IIt
         File itemFolder = new File(plugin.getDataFolder(), "items");
         if (!itemFolder.exists()) itemFolder.mkdirs();
 
-        for (File file : Objects.requireNonNull(itemFolder.listFiles())) {
-            if (!file.getName().endsWith(".yml")) continue;
-            YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-            Map<String, ItemStack> loaded = ItemLoader.loadItems(config,this);
-            itemMap.putAll(loaded);
+        // 初期化（リロード時などを考慮して一度クリアする場合）
+        itemMap.clear();
+        int fileCount = 0;
+
+        File[] files = itemFolder.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (!file.getName().endsWith(".yml")) continue;
+
+                YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+                Map<String, ItemStack> loaded = ItemLoader.loadItems(config, this);
+
+                if (!loaded.isEmpty()) {
+                    itemMap.putAll(loaded);
+                    fileCount++;
+                }
+            }
         }
+
+        // --- ここでコンソールに表示 ---
+        Bukkit.getConsoleSender().sendMessage(String.format(
+                "§a[Deepwither] §fアイテムのロードが完了しました: §b%d個 §7(%d個のファイルを走査)",
+                itemMap.size(),
+                fileCount
+        ));
     }
 
     /**

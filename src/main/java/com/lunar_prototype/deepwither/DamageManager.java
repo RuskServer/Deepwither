@@ -674,6 +674,7 @@ public class DamageManager implements Listener, IManager {
         sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_GIVEN_DAMAGE, "§e拡散ヒット！");
     }
 
+    @Deprecated
     public void finalizeDamage(LivingEntity target, double damage, LivingEntity source, boolean isMagic) {
         finalizeDamage(target, damage, source, isMagic ? DeepwitherDamageEvent.DamageType.MAGIC : DeepwitherDamageEvent.DamageType.PHYSICAL);
     }
