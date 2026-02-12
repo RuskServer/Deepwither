@@ -130,7 +130,17 @@ public class CustomDamageMechanics implements ITargetedEntitySkill {
 
         // 5. 最終ダメージ適用 (ここですべての処理を完結させる)
         finalDamage = Math.max(0.1, finalDamage);
-        damageManager.finalizeDamage(bukkitTarget, finalDamage, caster, isMagic);
+        
+        com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent.DamageType damageType;
+        if (isMagic) {
+            damageType = com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent.DamageType.MAGIC;
+        } else if (isProjectile) {
+            damageType = com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent.DamageType.PROJECTILE;
+        } else {
+            damageType = com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent.DamageType.PHYSICAL;
+        }
+        
+        damageManager.finalizeDamage(bukkitTarget, finalDamage, caster, damageType);
 
         return SkillResult.SUCCESS;
     }

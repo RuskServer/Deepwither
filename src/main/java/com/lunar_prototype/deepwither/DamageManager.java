@@ -1,6 +1,7 @@
 package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.PlayerSettingsManager;
+import com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent;
 import com.lunar_prototype.deepwither.api.event.onPlayerRecevingDamageEvent;
 import com.lunar_prototype.deepwither.api.stat.IStatManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
@@ -319,7 +320,7 @@ public class DamageManager implements Listener, IManager {
                     "§7遠距離命中 §c+" + Math.round(finalDamage) + " §e[" + String.format("%.0f%%", distMult * 100) + "]");
         }
 
-        finalizeDamage(targetLiving, finalDamage, attacker, false);
+        finalizeDamage(targetLiving, finalDamage, attacker, isProjectile ? DeepwitherDamageEvent.DamageType.PROJECTILE : DeepwitherDamageEvent.DamageType.PHYSICAL);
         tryTriggerOnHitSkill(attacker, targetLiving, attacker.getInventory().getItemInMainHand());
 
         if (!isProjectile && isSpearWeapon(attacker.getInventory().getItemInMainHand())) {
@@ -451,7 +452,12 @@ public class DamageManager implements Listener, IManager {
         }
 
         e.setDamage(0.0);
-        finalizeDamage(player, finalDamage, attacker, isMagic);
+        DeepwitherDamageEvent.DamageType damageType = isMagic ? DeepwitherDamageEvent.DamageType.MAGIC : DeepwitherDamageEvent.DamageType.PHYSICAL;
+        if (attacker == null) {
+            damageType = DeepwitherDamageEvent.DamageType.ENVIRONMENTAL;
+        }
+        
+        finalizeDamage(player, finalDamage, attacker, damageType);
     }
 
     /**
@@ -669,6 +675,10 @@ public class DamageManager implements Listener, IManager {
     }
 
     public void finalizeDamage(LivingEntity target, double damage, LivingEntity source, boolean isMagic) {
+        finalizeDamage(target, damage, source, isMagic ? DeepwitherDamageEvent.DamageType.MAGIC : DeepwitherDamageEvent.DamageType.PHYSICAL);
+    }
+
+    public void finalizeDamage(LivingEntity target, double damage, LivingEntity source, DeepwitherDamageEvent.DamageType type) {
         // 1. PvP チェック (攻撃者とターゲットが両方プレイヤーの場合)
         if (source instanceof Player attacker && target instanceof Player playerTarget) {
             if (isPvPPrevented(attacker, playerTarget)) {
@@ -676,6 +686,13 @@ public class DamageManager implements Listener, IManager {
                 return;
             }
         }
+
+        // --- カスタムイベントの呼び出し ---
+        DeepwitherDamageEvent dwEvent = new DeepwitherDamageEvent(target, source, damage, type);
+        Bukkit.getPluginManager().callEvent(dwEvent);
+        if (dwEvent.isCancelled()) return;
+        damage = dwEvent.getDamage();
+
         // 無敵時間の付与 (即座に設定して後続のバニライベントを弾く)
         iFrameEndTimes.put(target.getUniqueId(), System.currentTimeMillis() + DAMAGE_I_FRAME_MS);
 
@@ -684,10 +701,10 @@ public class DamageManager implements Listener, IManager {
             processPlayerDamageWithAbsorption(player, damage, source != null ? source.getName() : "魔法/環境");
 
             // ログ送信
-            String prefix = isMagic ? "§5§l魔法被弾！" : "§c§l物理被弾！";
+            String prefix = type == DeepwitherDamageEvent.DamageType.MAGIC ? "§5§l魔法被弾！" : "§c§l物理被弾！";
             sendLog(player, PlayerSettingsManager.SettingType.SHOW_TAKEN_DAMAGE, prefix + " §c" + Math.round(damage));
 
-            // カスタムイベント呼び出し
+            // 旧カスタムイベント呼び出し (互換性維持)
             if (source != null) {
                 Bukkit.getPluginManager().callEvent(new onPlayerRecevingDamageEvent(player, source, damage));
             }
