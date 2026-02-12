@@ -470,10 +470,8 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
 
         // --- 修正: skillEffectId の取得 ---
         // effectフィールドがあればそれを、なければidを使用
-        String skillEffectId = id;
-        if (node.get("effect") != null) {
-            skillEffectId = (String) node.get("effect");
-        }
+        Object effectObj = node.get("effect");
+        String skillEffectId = (effectObj instanceof String) ? (String) effectObj : id;
 
         // --- 修正: maxLevel の取得 ---
         int maxLevel = 1;
