@@ -23,7 +23,6 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
-import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.util.*;
@@ -31,7 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @DependsOn({LevelManager.class, ProfessionManager.class, ItemFactory.class})
 public class CustomOreListener implements Listener, IManager {
-    private static final NamespacedKey KB_RESIST_BACKUP = NamespacedKey.fromString("mining_kb_backup", Deepwither.getInstance()); // PersistentDataType.DOUBLE
+    private static final NamespacedKey KB_RESIST_BACKUP = NamespacedKey.fromString("mining_kb_backup", Deepwither.getInstance()); //
 
     private final JavaPlugin plugin;
     private final Random random = new Random();
@@ -79,6 +78,7 @@ public class CustomOreListener implements Listener, IManager {
                 // 抑制: 順序的にsetされていることが保証されているはず
                 //noinspection DataFlowIssue
                 attribute.setBaseValue(container.get(KB_RESIST_BACKUP, PersistentDataType.DOUBLE));
+                container.remove(KB_RESIST_BACKUP);
             }
         }, 5 * 20L));
 
@@ -89,9 +89,18 @@ public class CustomOreListener implements Listener, IManager {
 
     @EventHandler
     public void onLeavePlayer(PlayerQuitEvent event) {
-        var task = taskmap.remove(event.getPlayer().getUniqueId());
-        if (task != null) {
-            task.cancel();
+        var player = event.getPlayer();
+        var container = player.getPersistentDataContainer();
+        var attribute = player.getAttribute(Attribute.KNOCKBACK_RESISTANCE);
+        if (container.has(KB_RESIST_BACKUP, PersistentDataType.DOUBLE)) {
+            var task = taskmap.remove(event.getPlayer().getUniqueId());
+            if (task != null) {
+                task.cancel();
+            }
+
+            // noinspection DataFlowIssue
+            attribute.setBaseValue(container.get(KB_RESIST_BACKUP, PersistentDataType.DOUBLE));
+            container.remove(KB_RESIST_BACKUP);
         }
     }
 
