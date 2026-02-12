@@ -19,6 +19,7 @@ public class SkilltreeManager implements IManager {
     private final JavaPlugin plugin;
     private YamlConfiguration treeConfig;
     private final DatabaseManager db;
+    private final Map<UUID, SkillData> cache = new HashMap<>();
 
     public SkilltreeManager(DatabaseManager db, JavaPlugin plugin) {
         this.db = db;
@@ -39,7 +40,15 @@ public class SkilltreeManager implements IManager {
         treeConfig = YamlConfiguration.loadConfiguration(treeFile);
     }
 
+    public void unload(UUID uuid) {
+        cache.remove(uuid);
+    }
+
     public SkillData load(UUID uuid) {
+        if (cache.containsKey(uuid)) {
+            return cache.get(uuid);
+        }
+
         try (Connection conn = db.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                 "SELECT skill_point, skills FROM player_skilltree WHERE uuid = ?")) {
@@ -51,25 +60,22 @@ public class SkilltreeManager implements IManager {
                     Map<String, Integer> skillsMap = new HashMap<>();
 
                     if (skillsJson != null && !skillsJson.isEmpty()) {
-                        // JSONをMap<String,Integer>に変換
                         skillsMap = gson.fromJson(skillsJson, new TypeToken<Map<String, Integer>>(){}.getType());
                     }
 
-                    SkillData data = new SkillData(skillPoint,skillsMap);
-
-                    // 【✅ 追加】ロード直後に再計算
+                    SkillData data = new SkillData(skillPoint, skillsMap);
                     data.recalculatePassiveStats(treeConfig);
+                    cache.put(uuid, data);
                     return data;
                 }
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        // データがない場合は空のSkillDataを返す
-        // 新規データの場合
+        
         SkillData newData = new SkillData(1, new HashMap<>());
-        // 【✅ 追加】新規作成時にも再計算（StatMapを初期化するため）
         newData.recalculatePassiveStats(treeConfig);
+        cache.put(uuid, newData);
         return newData;
     }
 
@@ -180,11 +186,11 @@ public class SkilltreeManager implements IManager {
         return null;
     }
 
-    // SkillData クラスの例
     public static class SkillData {
         private int skillPoint;
         private Map<String, Integer> skills;
-        private StatMap passiveStats = new StatMap(); // ← 追加: バフ合計保持
+        private StatMap passiveStats = new StatMap();
+        private Map<String, Double> specialEffects = new HashMap<>();
 
         public SkillData(int skillPoint, Map<String, Integer> skills) {
             this.skillPoint = skillPoint;
@@ -227,52 +233,60 @@ public class SkilltreeManager implements IManager {
             return passiveStats;
         }
 
+        public double getSpecialEffectValue(String effectId) {
+            return specialEffects.getOrDefault(effectId, 0.0);
+        }
+
+        public boolean hasSpecialEffect(String effectId) {
+            return specialEffects.containsKey(effectId);
+        }
+
         /**
-         * スキルから得られるバフ（passiveStats）を再計算
-         *
-         * @param treeConfig スキルツリーのYAML設定（YamlConfiguration）
+         * スキルから得られるバフ（passiveStats）と特殊効果（specialEffects）を再計算
          */
         public void recalculatePassiveStats(YamlConfiguration treeConfig) {
-            // StatMapの初期化
             passiveStats = new StatMap();
+            specialEffects = new HashMap<>();
 
-            // 全ツリーを走査
             List<Map<?, ?>> trees = treeConfig.getMapList("trees");
             for (Map<?, ?> tree : trees) {
                 List<Map<String, Object>> nodes = (List<Map<String, Object>>) tree.get("nodes");
                 if (nodes == null) continue;
 
-                // 全ノードを走査
                 for (Map<String, Object> node : nodes) {
                     String nodeId = (String) node.get("id");
-                    if (nodeId == null || !hasSkill(nodeId)) continue; // 習得していないノードはスキップ
+                    if (nodeId == null || !hasSkill(nodeId)) continue;
 
-                    // バフノードのみを処理
+                    int level = getSkillLevel(nodeId);
+
+                    // バフノードの処理
                     if ("buff".equals(node.get("type"))) {
-                        int level = getSkillLevel(nodeId);
-
-                        // 【✅ 変更点】: 新しい "stats" フィールドを取得
                         List<Map<?, ?>> buffStats = (List<Map<?, ?>>) node.get("stats");
-                        if (buffStats == null) continue;
+                        if (buffStats != null) {
+                            for (Map<?, ?> statEntry : buffStats) {
+                                String statKey = (String) statEntry.get("stat");
+                                if (statKey == null) continue;
+                                double baseValue = ((Number) statEntry.get("value")).doubleValue();
+                                double totalValue = baseValue * level;
 
-                        // ノードが持つ複数のステータスをループ処理
-                        for (Map<?, ?> statEntry : buffStats) {
-                            String statKey = (String) statEntry.get("stat");
-                            if (statKey == null) continue;
+                                try {
+                                    StatType statType = StatType.valueOf(statKey.toUpperCase());
+                                    passiveStats.addFlat(statType, totalValue);
+                                } catch (IllegalArgumentException e) {
+                                    Deepwither.getInstance().getLogger().warning("Invalid StatType '" + statKey + "' in skill node: " + nodeId);
+                                }
+                            }
+                        }
+                    }
 
-                            // 値を取得し、levelに応じて計算 (ここでは単純に level * value とします)
-                            double baseValue = 0;
-                            baseValue = ((Number) statEntry.get("value")).doubleValue();
-                            double totalValue = baseValue * level;
-
-                            try {
-                                StatType statType = StatType.valueOf(statKey.toUpperCase());
-
-                                // passiveStats に値を加算
-                                passiveStats.addFlat(statType, totalValue); // addFlat を使用して加算
-                            } catch (IllegalArgumentException e) {
-                                // StatType.valueOfに失敗した場合の処理（statKeyが不正）
-                                Deepwither.getInstance().getLogger().warning("Invalid StatType '" + statKey + "' in skill node: " + nodeId);
+                    // 特殊パッシブノードの処理
+                    if ("special_passive".equals(node.get("type"))) {
+                        Map<?, ?> effect = (Map<?, ?>) node.get("effect");
+                        if (effect != null) {
+                            String effectId = (String) effect.get("id");
+                            if (effectId != null) {
+                                double baseValue = ((Number) effect.get("value")).doubleValue();
+                                specialEffects.put(effectId, baseValue * level);
                             }
                         }
                     }

@@ -50,6 +50,11 @@ public class DamageManager implements Listener, IManager {
     private final Map<UUID, Long> iFrameEndTimes = new HashMap<>();
     private static final long DAMAGE_I_FRAME_MS = 300; // 0.3秒 = 300ミリ秒
 
+    // ★ コンボシステム
+    private final Map<UUID, Integer> comboCounts = new HashMap<>();
+    private final Map<UUID, Long> lastComboHitTimes = new HashMap<>();
+    private static final long COMBO_TIMEOUT_MS = 2000; // 2秒でコンボリセット
+
     // ★ 攻撃クールダウン減衰無視 関連
     private static final long COOLDOWN_IGNORE_MS = 300; // 0.3秒 = 300ミリ秒
     private final Map<UUID, Long> lastSpecialAttackTime = new HashMap<>(); // Key: Attacker UUID
@@ -181,6 +186,30 @@ public class DamageManager implements Listener, IManager {
         }
 
         double finalDamage = applyDefense(baseDamage, defenderStats.getFinal(StatType.DEFENSE), DEFENSE_DIVISOR);
+
+        // --- コンボパッシブの処理 ---
+        SkilltreeManager.SkillData skillData = Deepwither.getInstance().getSkilltreeManager().load(attacker.getUniqueId());
+        if (skillData.hasSpecialEffect("COMBO_DAMAGE")) {
+            double comboValue = skillData.getSpecialEffectValue("COMBO_DAMAGE"); // 1スタックあたりの上昇量(%)
+            long lastHit = lastComboHitTimes.getOrDefault(attacker.getUniqueId(), 0L);
+            int currentCombo = comboCounts.getOrDefault(attacker.getUniqueId(), 0);
+
+            if (currentTime - lastHit > COMBO_TIMEOUT_MS) {
+                currentCombo = 0;
+            }
+
+            double comboMultiplier = 1.0 + (currentCombo * (comboValue / 100.0));
+            finalDamage *= comboMultiplier;
+
+            if (currentCombo > 0) {
+                sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG,
+                        "§eコンボ継続中! x" + currentCombo + " §6(+" + Math.round((comboMultiplier - 1.0) * 100) + "%)");
+            }
+
+            // コンボ加算 (最大5スタックとする。本来はYAMLから取得すべきだが一旦固定)
+            comboCounts.put(attacker.getUniqueId(), Math.min(currentCombo + 1, 5));
+            lastComboHitTimes.put(attacker.getUniqueId(), currentTime);
+        }
 
         boolean ignoreAttackCooldown = false;
 

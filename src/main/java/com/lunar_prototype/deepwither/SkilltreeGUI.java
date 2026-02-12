@@ -531,33 +531,36 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
 
         // ★ type: skill の場合の処理
         if ("skill".equals(type)) {
-            // SkillLoaderからスキル定義を取得
+            // ... (既存のskill処理)
             SkillDefinition skill = skillLoader.get(skillEffectId);
 
             if (skill != null) {
-                // スキル定義が見つかった場合
-                mat = skill.material; // アイコンをスキルのものに変更
-                name = skill.name;    // 名前をスキルのものに変更
-
-                // スキル本来の説明文(lore)を追加
+                mat = skill.material;
+                name = skill.name;
                 if (skill.lore != null) {
                     for (String loreLine : skill.lore) {
                         String translatedLine = ChatColor.translateAlternateColorCodes('&', loreLine);
-
-                        // プレースホルダー置換
                         double effectiveCooldown = StatManager.getEffectiveCooldown(player, skill.cooldown);
                         double manaCost = skill.manaCost;
-
                         translatedLine = translatedLine.replace("{cooldown}", String.format("%.1f", effectiveCooldown));
                         translatedLine = translatedLine.replace("{mana}", String.format("%.1f", manaCost));
-
                         lore.add(ChatColor.GRAY + translatedLine);
                     }
                 }
             } else {
-                // スキル定義が見つからない場合のフォールバック
                 mat = Material.RED_STAINED_GLASS_PANE;
                 lore.add(ChatColor.RED + "Error: Skill definition not found for '" + skillEffectId + "'");
+            }
+        } else if ("special_passive".equals(type)) {
+            // ★ 特殊パッシブの表示
+            mat = Material.ENCHANTED_BOOK;
+            if (learned) mat = Material.ENCHANTED_BOOK; // 習得済みでもブック
+            lore.add(ChatColor.GRAY + desc);
+            
+            Map<?, ?> effect = (Map<?, ?>) node.get("effect");
+            if (effect != null) {
+                lore.add("");
+                lore.add(ChatColor.DARK_PURPLE + "特殊効果: " + effect.get("id"));
             }
         } else {
             // --- 従来の表示処理 (buff, starterなど) ---
