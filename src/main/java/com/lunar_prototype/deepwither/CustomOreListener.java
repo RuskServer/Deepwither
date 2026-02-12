@@ -7,6 +7,7 @@ import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.block.Block;
@@ -16,20 +17,24 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockDamageEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @DependsOn({LevelManager.class, ProfessionManager.class, ItemFactory.class})
 public class CustomOreListener implements Listener, IManager {
+    private static final NamespacedKey KB_RESIST_BACKUP = NamespacedKey.fromString("mining_kb_backup", Deepwither.getInstance()); //
 
     private final JavaPlugin plugin;
     private final Random random = new Random();
+    private final Map<UUID, BukkitTask> taskmap = new ConcurrentHashMap<>(); // 同期かどうか確認するやる気はないのだ...
 
     public CustomOreListener(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -50,18 +55,52 @@ public class CustomOreListener implements Listener, IManager {
     public void onBlockDamage(BlockDamageEvent event) {
         Material type = event.getBlock().getType();
         // カスタム鉱石の設定があるか確認
-        if (plugin.getConfig().contains("ore_setting." + type.name())) {
-            setKnockbackResistance(event.getPlayer(), 1.0);
+        if (!plugin.getConfig().contains("ore_setting." + type.name())) {
+            return;
+        }
 
-            // 採掘が中断されることも考慮し、数秒後(例: 5秒後)に自動で元に戻すセーフティ
-            new BukkitRunnable() {
-                @Override
-                public void run() {
-                    if (event.getPlayer().isOnline()) {
-                        setKnockbackResistance(event.getPlayer(), 0.0);
-                    }
-                }
-            }.runTaskLater(plugin, 100L); // 5秒
+        var source = event.getPlayer();
+        var container = source.getPersistentDataContainer();
+        var attribute = source.getAttribute(Attribute.KNOCKBACK_RESISTANCE);
+
+        if (attribute == null) {
+            return;
+        }
+
+        if (!taskmap.containsKey(source.getUniqueId())) {
+            container.set(KB_RESIST_BACKUP, PersistentDataType.DOUBLE, attribute.getBaseValue());
+        }
+
+        attribute.setBaseValue(1.0);
+
+        var task = taskmap.put(source.getUniqueId(), Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (source.isOnline()) {
+                // 抑制: 順序的にsetされていることが保証されているはず
+                //noinspection DataFlowIssue
+                attribute.setBaseValue(container.get(KB_RESIST_BACKUP, PersistentDataType.DOUBLE));
+                container.remove(KB_RESIST_BACKUP);
+            }
+        }, 5 * 20L));
+
+        if (task != null) {
+            task.cancel();
+        }
+    }
+
+    @EventHandler
+    public void onLeavePlayer(PlayerQuitEvent event) {
+        var player = event.getPlayer();
+        var container = player.getPersistentDataContainer();
+        var attribute = player.getAttribute(Attribute.KNOCKBACK_RESISTANCE);
+        if (container.has(KB_RESIST_BACKUP, PersistentDataType.DOUBLE)) {
+            var task = taskmap.remove(event.getPlayer().getUniqueId());
+            if (task != null) {
+                task.cancel();
+            }
+
+            // noinspection DataFlowIssue
+            attribute.setBaseValue(container.get(KB_RESIST_BACKUP, PersistentDataType.DOUBLE));
+            container.remove(KB_RESIST_BACKUP);
         }
     }
 
