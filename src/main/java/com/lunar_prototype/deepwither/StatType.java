@@ -30,6 +30,7 @@ public enum StatType {
     WEAR("損耗率", "§b", "■"),
     REACH("リーチ増加", "§b", "■"),
     REDUCES_MOVEMENT_SPEED_DECREASE("移動速度低下軽減", "§b", "■"),
+    DROP_RESISTANCE("落下耐性", "§b", "■"),
     MASTERY("マスタリー", "§6", "■"),
     MAX_MANA("最大マナ", "§b", "☆"),
     COOLDOWN_REDUCTION("クールダウン短縮", "§8", "⌛"),

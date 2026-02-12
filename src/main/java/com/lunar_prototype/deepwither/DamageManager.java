@@ -448,6 +448,17 @@ public class DamageManager implements Listener, IManager {
             double res = defenderStats.getFinal(StatType.MAGIC_RESIST) * defenseMultiplier;
             finalDamage = applyDefense(rawDamage, res, 100.0);
             isMagic = true;
+        } else if (e.getCause() == EntityDamageEvent.DamageCause.FALL) {
+            // --- 落下耐性の処理 ---
+            double fallRes = defenderStats.getFinal(StatType.DROP_RESISTANCE);
+            double reduction = Math.max(0, Math.min(fallRes / 100.0, 1.0)); // 最大100%軽減
+            double blocked = rawDamage * reduction;
+            finalDamage = rawDamage - blocked;
+            
+            if (blocked > 0) {
+                sendLog(player, PlayerSettingsManager.SettingType.SHOW_MITIGATION, 
+                        "§b落下耐性！ §7軽減: §a" + Math.round(blocked) + " §c(" + Math.round(finalDamage) + "被弾)");
+            }
         } else {
             // 2. モブ攻撃と防御計算
             double currentDamage = (attacker instanceof Mob) ? applyMobCritLogic(attacker, rawDamage, player)
