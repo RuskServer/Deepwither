@@ -10,10 +10,10 @@ import org.jspecify.annotations.NonNull;
  *
  * @implNote 実装方法 (is-a, has-a, etc...) は指定しません。
  * <br> 継承したインターフェースを作るなり、パラメータ用DTOをぶちこむなりして扱って。
- * <br> 意味を無視した使い方も許容するされるけども、{@link java.util.function.Function} の方がおすすめですよ。
+ * <br> 意味を無視した使い方も許容されるけど、{@link java.util.function.Function} の方がおすすめですよ。
  *
  * @param <Recipe> 入力(材料, 要求, コンテキストなど; 要するになんでも！)
- * @param <Result> {@code nya?}
+ * @param <Result> {@code nya? nya? nyo! nya??}
  */
 public interface Fabricator<Recipe, Result> {
     FabricationResult<Result> fabricate(@NonNull Recipe recipe);
