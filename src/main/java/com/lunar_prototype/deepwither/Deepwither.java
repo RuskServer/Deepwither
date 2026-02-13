@@ -135,6 +135,12 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     private SkillAssignmentGUI skillAssignmentGUI;
     private CooldownManager cooldownManager;
     private ArtifactManager artifactManager;
+
+    public SellGUI getSellGUI() {
+        return sellGUI;
+    }
+
+    private SellGUI sellGUI;
     public ArtifactGUIListener artifactGUIListener;
 
     public TraderGUI getTraderGUI() {
@@ -671,6 +677,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.menuItemListener = register(new MenuItemListener(this));
         this.craftingGUI = register(new CraftingGUI(this));
         this.traderGUI = register(new TraderGUI(this));
+        this.sellGUI = register(new SellGUI(this));
 
         // --- Standalone Listeners (Managed) ---
         register(new ArmorSetListener(this));
