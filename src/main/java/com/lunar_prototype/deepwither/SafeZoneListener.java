@@ -18,25 +18,86 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
+import java.io.File;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @DependsOn({DungeonInstanceManager.class})
 public class SafeZoneListener implements Listener, IManager {
 
-    private final Deepwither plugin; // メインクラスの参照を追加
+    private final Deepwither plugin;
+    private final Map<UUID, Location> safeZoneSpawns = new HashMap<>();
+    private File safeZoneSpawnsFile;
+    private FileConfiguration safeZoneSpawnsConfig;
 
-    // コンストラクタを追加
     public SafeZoneListener(Deepwither plugin) {
         this.plugin = plugin;
     }
 
     @Override
     public void init() {
+        loadSafeZoneSpawns();
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
     @Override
-    public void shutdown() {}
+    public void shutdown() {
+        saveSafeZoneSpawns();
+    }
+
+    // --- Data Management Methods ---
+
+    public Location getSafeZoneSpawn(UUID playerUUID) {
+        return safeZoneSpawns.get(playerUUID);
+    }
+
+    public void setSafeZoneSpawn(UUID playerUUID, Location location) {
+        safeZoneSpawns.put(playerUUID, location);
+    }
+
+    private void loadSafeZoneSpawns() {
+        safeZoneSpawnsFile = new File(plugin.getDataFolder(), "safeZoneSpawns.yml");
+        if (!safeZoneSpawnsFile.exists()) {
+            safeZoneSpawnsFile.getParentFile().mkdirs();
+            try {
+                safeZoneSpawnsFile.createNewFile();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        safeZoneSpawnsConfig = YamlConfiguration.loadConfiguration(safeZoneSpawnsFile);
+
+        for (String key : safeZoneSpawnsConfig.getKeys(false)) {
+            try {
+                UUID uuid = UUID.fromString(key);
+                Location loc = safeZoneSpawnsConfig.getLocation(key);
+                if (loc != null) {
+                    safeZoneSpawns.put(uuid, loc);
+                }
+            } catch (IllegalArgumentException e) {
+                plugin.getLogger().warning("Invalid UUID in safeZoneSpawns.yml: " + key);
+            }
+        }
+    }
+
+    public void saveSafeZoneSpawns() {
+        if (safeZoneSpawnsConfig == null || safeZoneSpawnsFile == null) return;
+
+        for (Map.Entry<UUID, Location> entry : safeZoneSpawns.entrySet()) {
+            safeZoneSpawnsConfig.set(entry.getKey().toString(), entry.getValue());
+        }
+
+        try {
+            safeZoneSpawnsConfig.save(safeZoneSpawnsFile);
+        } catch (IOException e) {
+            plugin.getLogger().severe("Could not save safeZoneSpawns.yml!");
+            e.printStackTrace();
+        }
+    }
 
     // プレイヤーがブロックを跨いでいない移動は無視する
     @EventHandler
@@ -45,15 +106,13 @@ public class SafeZoneListener implements Listener, IManager {
         Location from = event.getFrom();
         Location to = event.getTo();
 
-        // ブロック座標が同じであれば処理しない（パフォーマンス対策）
         if (from.getBlockX() == to.getBlockX() &&
                 from.getBlockY() == to.getBlockY() &&
                 from.getBlockZ() == to.getBlockZ()) {
             return;
         }
 
-        // WorldGuardが有効でなければ何もしない
-        if (!org.bukkit.Bukkit.getPluginManager().isPluginEnabled("WorldGuard")) {
+        if (!Bukkit.getPluginManager().isPluginEnabled("WorldGuard")) {
             return;
         }
 
@@ -64,27 +123,20 @@ public class SafeZoneListener implements Listener, IManager {
         // ★ 1. セーフゾーンへの侵入をチェック
         // ----------------------------------------------------
         if (isNewInSafeZone && !isOldInSafeZone) {
-            // セーフゾーンに侵入
             player.sendTitle(
                     ChatColor.AQUA + "セーフゾーン",
-                    ChatColor.GRAY + "リスポーン地点を更新しました", // メッセージを更新
-                    10, // フェードイン (0.5秒)
-                    70, // 滞在時間 (3.5秒)
-                    20 // フェードアウト (1.0秒)
+                    ChatColor.GRAY + "リスポーン地点を更新しました",
+                    10, 70, 20
             );
             player.sendMessage(ChatColor.AQUA + ">> セーフゾーンに侵入しました。**リスポーン地点が現在地に設定されました。**");
 
-            plugin.setSafeZoneSpawn(player.getUniqueId(), to);
-            plugin.saveSafeZoneSpawns(); // 即座にファイルに保存
-            // -------------------------------------------------
-
+            setSafeZoneSpawn(player.getUniqueId(), to);
+            saveSafeZoneSpawns(); // 即座にファイルに保存
         }
-
         // ----------------------------------------------------
         // ★ 2. セーフゾーンからの退出をチェック (オプション)
         // ----------------------------------------------------
         else if (!isNewInSafeZone && isOldInSafeZone) {
-            // セーフゾーンから退出
             player.sendTitle(
                     ChatColor.RED + "危険区域",
                     ChatColor.GRAY + "",
@@ -97,16 +149,11 @@ public class SafeZoneListener implements Listener, IManager {
      * 指定されたLocationが、名前に「safezone」を含むリージョン内にあるかを判定します。
      */
     private boolean isSafeZone(Location loc) {
-        // WorldGuardのAPI経由でリージョンコンテナを取得
         RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
-
-        // クエリを作成し、現在の場所がどのリージョンに含まれるかを取得
         RegionQuery query = container.createQuery();
         ApplicableRegionSet set = query.getApplicableRegions(BukkitAdapter.adapt(loc));
 
-        // 適用可能なリージョンを全てチェック
         for (ProtectedRegion region : set) {
-            // リージョンID（名前）が「safezone」を含んでいるか（大文字小文字を無視）
             if (region.getId().toLowerCase().contains("safezone")) {
                 return true;
             }
@@ -119,10 +166,8 @@ public class SafeZoneListener implements Listener, IManager {
         Player player = event.getPlayer();
         UUID playerUUID = player.getUniqueId();
 
-        // 永続化データからセーフゾーンのリスポーン地点を取得
-        Location safeZoneSpawn = plugin.getSafeZoneSpawn(playerUUID);
+        Location safeZoneSpawn = getSafeZoneSpawn(playerUUID);
 
-        // ダンジョン管理クラスの取得
         com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager dim =
                 com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager.getInstance();
 
@@ -130,24 +175,16 @@ public class SafeZoneListener implements Listener, IManager {
             com.lunar_prototype.deepwither.dungeon.instance.DungeonInstance dInstance = dim.getPlayerInstance(playerUUID);
 
             if (dInstance != null) {
-                // ★ PvPvEダンジョンかどうかをワールド名で判定
                 if (dInstance.getWorld().getName().startsWith("pvpve_")) {
-
-                    // 1. リスポーン地点をセーフゾーンに強制変更
                     if (safeZoneSpawn != null) {
                         event.setRespawnLocation(safeZoneSpawn);
                     }
-
-                    // 2. ダンジョンインスタンスからプレイヤーを脱退させる
-                    // これにより、BossBarの削除やインスタンスの人数カウントが正しく行われます
                     dInstance.removePlayer(player.getUniqueId());
                     Deepwither.getInstance().getRoguelikeBuffManager().clearBuffs(player);
-
                     player.sendMessage("§c§l[Dungeon] §r§c死亡したため、ダンジョンから追放されました。");
                     return;
                 }
 
-                // ローグライク等、別のダンジョン形式で「その場リスポーン」を許容する場合の既存ロジック
                 if (player.getWorld().equals(dInstance.getWorld())) {
                     event.setRespawnLocation(new Location(dInstance.getWorld(), 0.5, 64, 0.5));
                     return;
@@ -155,7 +192,6 @@ public class SafeZoneListener implements Listener, IManager {
             }
         }
 
-        // ダンジョン外、または通常のセーフゾーン処理
         if (safeZoneSpawn != null) {
             event.setRespawnLocation(safeZoneSpawn);
         }

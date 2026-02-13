@@ -113,10 +113,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         return (IItemFactory) serviceManager.get(ItemFactory.class);
     }
 
-    private Map<UUID, Location> safeZoneSpawns = new HashMap<>();
     private ServiceManager serviceManager;
-    private File safeZoneSpawnsFile;
-    private FileConfiguration safeZoneSpawnsConfig;
     private FileConfiguration questConfig;
     private LevelManager levelManager;
     private AttributeManager attributeManager;
@@ -187,7 +184,9 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     private MenuGUI menuGUI;
     private ResetGUI resetGUI;
     private MenuItemListener menuItemListener;
+    private SafeZoneListener safeZoneListener;
     private CraftingManager craftingManager;
+
     private CraftingGUI craftingGUI;
     private ProfessionManager professionManager;
     private PartyManager partyManager;
@@ -260,6 +259,10 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
 
     public MenuItemListener getMenuItemListener() {
         return menuItemListener;
+    }
+    
+    public SafeZoneListener getSafeZoneListener() {
+        return safeZoneListener;
     }
 
     public AttributeManager getAttributeManager() {
@@ -415,7 +418,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         ConfigurationSerialization.registerClass(GeneratedQuest.class);
         ConfigurationSerialization.registerClass(DailyTaskData.class);
 
-        loadSafeZoneSpawns();
+        // loadSafeZoneSpawns(); // Moved to SafeZoneListener
 
         if (!setupEconomy()) {
             getLogger().severe(
@@ -546,7 +549,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
             attributeManager.unload(p.getUniqueId());
         }
         
-        saveSafeZoneSpawns();
+        // saveSafeZoneSpawns(); // Managed by SafeZoneListener shutdown
 
         if (serviceManager != null) {
             serviceManager.stopAll();
@@ -665,7 +668,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         register(new MobKillListener(this));
         register(new TutorialController(this));
         register(new CombatAnalyzer(this));
-        register(new SafeZoneListener(this));
+        this.safeZoneListener = register(new SafeZoneListener(this));
         register(new AnimationListener(this));
         register(new BackpackListener(this,backpackManager));
         register(new CombatExperienceListener(this));
@@ -733,50 +736,22 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
 
     // リスポーン地点を取得
     public Location getSafeZoneSpawn(UUID playerUUID) {
-        return safeZoneSpawns.get(playerUUID);
+        return safeZoneListener.getSafeZoneSpawn(playerUUID);
     }
 
     // リスポーン地点を設定
     public void setSafeZoneSpawn(UUID playerUUID, Location location) {
-        safeZoneSpawns.put(playerUUID, location);
+        safeZoneListener.setSafeZoneSpawn(playerUUID, location);
     }
 
     // リスポーン地点データをファイルから読み込む
     private void loadSafeZoneSpawns() {
-        safeZoneSpawnsFile = new File(getDataFolder(), "safeZoneSpawns.yml");
-        if (!safeZoneSpawnsFile.exists()) {
-            safeZoneSpawnsFile.getParentFile().mkdirs();
-            try {
-                safeZoneSpawnsFile.createNewFile();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        safeZoneSpawnsConfig = YamlConfiguration.loadConfiguration(safeZoneSpawnsFile);
-
-        // 設定ファイルからデータをMapに読み込む
-        for (String key : safeZoneSpawnsConfig.getKeys(false)) {
-            UUID uuid = UUID.fromString(key);
-            Location loc = safeZoneSpawnsConfig.getLocation(key);
-            if (loc != null) {
-                safeZoneSpawns.put(uuid, loc);
-            }
-        }
+        // SafeZoneListener handles loading via init()
     }
 
     // リスポーン地点データをファイルに保存する
     public void saveSafeZoneSpawns() {
-        // Mapのデータを設定ファイルに書き込む
-        for (Map.Entry<UUID, Location> entry : safeZoneSpawns.entrySet()) {
-            safeZoneSpawnsConfig.set(entry.getKey().toString(), entry.getValue());
-        }
-
-        try {
-            safeZoneSpawnsConfig.save(safeZoneSpawnsFile);
-        } catch (IOException e) {
-            getLogger().severe("Could not save safeZoneSpawns.yml!");
-            e.printStackTrace();
-        }
+        safeZoneListener.saveSafeZoneSpawns();
     }
 
     /**
