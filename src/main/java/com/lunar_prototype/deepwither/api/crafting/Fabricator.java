@@ -1,6 +1,6 @@
 package com.lunar_prototype.deepwither.api.crafting;
 
-import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * レシピ処理用の(過度に)抽象的なインターフェース
@@ -15,6 +15,7 @@ import org.jspecify.annotations.NonNull;
  * @param <Recipe> 入力(材料, 要求, コンテキストなど; 要するになんでも！)
  * @param <Result> {@code nya? nya? nyo! nya??}
  */
+@NullMarked
 public interface Fabricator<Recipe, Result> {
-    FabricationResult<Result> fabricate(@NonNull Recipe recipe);
+    FabricationResult<Result> fabricate(Recipe recipe);
 }

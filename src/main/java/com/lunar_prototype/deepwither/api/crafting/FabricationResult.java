@@ -1,16 +1,17 @@
 package com.lunar_prototype.deepwither.api.crafting;
 
-import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * @see Fabricator
  */
+@NullMarked
 public sealed interface FabricationResult<Result> permits FabricationResult.Failure, FabricationResult.Success {
-    static <Result> @NonNull FabricationResult<Result> failure(Reason reason) {
+    static <Result> FabricationResult<Result> failure(Reason reason) {
         return new Failure<>(reason);
     }
 
-    static <Result> @NonNull FabricationResult<Result> success(Result result) {
+    static <Result> FabricationResult<Result> success(Result result) {
         return new Success<>(result);
     }
 
