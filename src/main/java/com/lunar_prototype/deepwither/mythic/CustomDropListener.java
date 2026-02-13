@@ -1,5 +1,7 @@
-package com.lunar_prototype.deepwither;
+package com.lunar_prototype.deepwither.mythic;
 
+import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.ItemFactory;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import io.lumine.mythic.api.adapters.AbstractItemStack;
@@ -46,10 +48,8 @@ public class CustomDropListener implements Listener, IManager {
                     if (itemId == null) {
                         return null; // IDがなければ何もドロップしない
                     }
-
-                    File itemFolder = new File(plugin.getDataFolder(), "items");
                     // ItemLoaderを使ってアイテムを動的に生成
-                    ItemStack customItem = ItemLoader.loadSingleItem(itemId, new ItemFactory(Deepwither.getInstance()), itemFolder);
+                    ItemStack customItem = Deepwither.getInstance().getItemFactoryAPI().getItem(itemId);
 
                     if (customItem != null) {
                         // MythicMobsが認識できる形式で返す

@@ -34,7 +34,7 @@ import com.lunar_prototype.deepwither.market.GlobalMarketManager;
 import com.lunar_prototype.deepwither.market.MarketGui;
 import com.lunar_prototype.deepwither.market.MarketSearchHandler;
 import com.lunar_prototype.deepwither.market.api.MarketApiController;
-import com.lunar_prototype.deepwither.mythic.ManaShieldMechanic;
+import com.lunar_prototype.deepwither.mythic.CustomDropListener;
 import com.lunar_prototype.deepwither.outpost.OutpostDamageListener;
 import com.lunar_prototype.deepwither.outpost.OutpostManager;
 import com.lunar_prototype.deepwither.outpost.OutpostRegionListener;
@@ -58,7 +58,6 @@ import com.lunar_prototype.deepwither.util.IManager;
 import com.lunar_prototype.deepwither.util.MythicMobSafeZoneManager;
 import com.lunar_prototype.deepwither.util.ServiceManager;
 import io.lumine.mythic.bukkit.MythicBukkit;
-import io.lumine.mythic.bukkit.events.MythicMechanicLoadEvent;
 import io.lumine.mythic.core.mobs.ActiveMob;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
@@ -71,10 +70,6 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.configuration.serialization.ConfigurationSerialization;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -478,50 +473,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.getCommand("status")
                 .setExecutor(new StatusCommand(levelManager, statManager, creditManager, professionManager));
 
-        Bukkit.getPluginManager().registerEvents(new Listener() {
-            @EventHandler
-            public void onMythicMechanicLoad(MythicMechanicLoadEvent event) {
-                getLogger().info("MythicMechanicLoadEvent called for mechanic " + event.getMechanicName());
-
-                if (event.getMechanicName().equalsIgnoreCase("CustomDamage")) {
-                    event.register(new CustomDamageMechanics(event.getConfig()));
-                    getLogger().info("-- Registered CustomDamage mechanic!");
-                }
-
-                if (event.getMechanicName().equalsIgnoreCase("CustomHPDamage")) {
-                    event.register(new CustomHPDamageMechanic(event.getConfig()));
-                    getLogger().info("-- Registered CustomHPDamage mechanic!");
-                }
-
-                if (event.getMechanicName().equalsIgnoreCase("manaShield")) {
-                    event.register(new ManaShieldMechanic(event.getConfig()));
-                    getLogger().info("-- Registered manaShield mechanic!");
-                }
-            }
-        }, this);
-
-        // ログイン・ログアウト同期
-        Bukkit.getPluginManager().registerEvents(new Listener() {
-            @EventHandler
-            public void onJoin(PlayerJoinEvent e) {
-                levelManager.load(e.getPlayer().getUniqueId());
-                attributeManager.load(e.getPlayer().getUniqueId());
-                skilltreeManager.load(e.getPlayer().getUniqueId());
-                dailyTaskManager.loadPlayer(e.getPlayer());
-                craftingManager.loadPlayer(e.getPlayer());
-                professionManager.loadPlayer(e.getPlayer());
-            }
-
-            @EventHandler
-            public void onQuit(PlayerQuitEvent e) {
-                levelManager.unload(e.getPlayer().getUniqueId());
-                attributeManager.unload(e.getPlayer().getUniqueId());
-                dailyTaskManager.saveAndUnloadPlayer(e.getPlayer().getUniqueId());
-                craftingManager.saveAndUnloadPlayer(e.getPlayer().getUniqueId());
-                professionManager.saveAndUnloadPlayer(e.getPlayer());
-            }
-        }, this);
-
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             for (Player p : Bukkit.getOnlinePlayers()) {
                 ManaData mana = Deepwither.getInstance().getManaManager().get(p.getUniqueId());
@@ -679,6 +630,8 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.sellGUI = register(new SellGUI(this));
 
         // --- Standalone Listeners (Managed) ---
+        register(new com.lunar_prototype.deepwither.core.PlayerConnectionListener(this));
+        register(new com.lunar_prototype.deepwither.core.MythicMechanicListener(this));
         register(new ArmorSetListener(this));
         register(new ItemUpgradeListener(this));
         register(new PlayerStatListener(this));

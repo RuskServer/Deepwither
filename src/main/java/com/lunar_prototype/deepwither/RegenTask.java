@@ -44,13 +44,4 @@ public class RegenTask extends BukkitRunnable implements IManager {
             }
         }
     }
-
-    /**
-     * DeepWitherプラグインでこのタスクを開始するためのヘルパー。
-     * @param plugin DeepWitherインスタンス
-     */
-    public void start(Deepwither plugin) {
-        // 2秒 (40ティック) ごとに実行
-        this.runTaskTimer(plugin, 0L, (long) (INTERVAL_SECONDS * 20));
-    }
 }
