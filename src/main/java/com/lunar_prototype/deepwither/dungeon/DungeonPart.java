@@ -61,9 +61,9 @@ public class DungeonPart {
 
             // 金ブロック (入口) -> 接続元を受け入れる場所
             if (block.getBlockType().equals(BlockTypes.GOLD_BLOCK)) {
-                this.entryX = pos.getX() - origin.getX();
-                this.entryY = pos.getY() - origin.getY();
-                this.entryZ = pos.getZ() - origin.getZ();
+                this.entryX = pos.x() - origin.x();
+                this.entryY = pos.y() - origin.y();
+                this.entryZ = pos.z() - origin.z();
 
                 Deepwither.getInstance().getLogger().info(String.format(
                         "[%s] Found ENTRY(Gold). Pos:%s - Origin:%s = %d,%d,%d",
@@ -75,9 +75,9 @@ public class DungeonPart {
                 // Force Flat: Use Entry Y for Exit Y to prevent climbing
                 // Assuming flat dungeon design as per user request
                 BlockVector3 exitVec = BlockVector3.at(
-                        pos.getX() - origin.getX(),
+                        pos.x() - origin.x(),
                         this.entryY, // Force Y to match Entry
-                        pos.getZ() - origin.getZ());
+                        pos.z() - origin.z());
 
                 this.exitOffsets.add(exitVec);
 
@@ -88,9 +88,9 @@ public class DungeonPart {
             // レッドストーンブロック (モブスポナー)
             if (block.getBlockType().equals(BlockTypes.REDSTONE_BLOCK)) {
                 BlockVector3 spawnerVec = BlockVector3.at(
-                        pos.getX() - origin.getX(),
-                        pos.getY() - origin.getY(),
-                        pos.getZ() - origin.getZ());
+                        pos.x() - origin.x(),
+                        pos.y() - origin.y(),
+                        pos.z() - origin.z());
                 this.mobSpawnerOffsets.add(spawnerVec);
 
                 Deepwither.getInstance().getLogger().info(String.format(
@@ -98,9 +98,9 @@ public class DungeonPart {
             }
             if (block.getBlockType().equals(BlockTypes.EMERALD_BLOCK)) {
                 BlockVector3 chestVec = BlockVector3.at(
-                        pos.getX() - origin.getX(),
-                        pos.getY() - origin.getY(),
-                        pos.getZ() - origin.getZ());
+                        pos.x() - origin.x(),
+                        pos.y() - origin.y(),
+                        pos.z() - origin.z());
                 this.lootChestOffsets.add(chestVec);
 
                 Deepwither.getInstance().getLogger().info(String.format(
@@ -108,9 +108,9 @@ public class DungeonPart {
             }
             if (block.getBlockType().equals(BlockTypes.LAPIS_BLOCK)) {
                 BlockVector3 spawnVec = BlockVector3.at(
-                        pos.getX() - origin.getX(),
-                        pos.getY() - origin.getY(),
-                        pos.getZ() - origin.getZ());
+                        pos.x() - origin.x(),
+                        pos.y() - origin.y(),
+                        pos.z() - origin.z());
                 this.playerSpawnOffsets.add(spawnVec);
 
                 Deepwither.getInstance().getLogger().info(String.format(
@@ -119,9 +119,9 @@ public class DungeonPart {
             // [追加] ダイヤモンドブロック (ボススポナー)
             if (block.getBlockType().equals(BlockTypes.DIAMOND_BLOCK)) {
                 BlockVector3 bossVec = BlockVector3.at(
-                        pos.getX() - origin.getX(),
-                        pos.getY() - origin.getY(),
-                        pos.getZ() - origin.getZ());
+                        pos.x() - origin.x(),
+                        pos.y() - origin.y(),
+                        pos.z() - origin.z());
                 this.bossSpawnOffsets.add(bossVec);
 
                 Deepwither.getInstance().getLogger().info(String.format(
@@ -179,8 +179,8 @@ public class DungeonPart {
         }
 
         BlockVector3 primExit = exitOffsets.get(0);
-        int dx = primExit.getX() - entryX;
-        int dz = primExit.getZ() - entryZ;
+        int dx = primExit.x() - entryX;
+        int dz = primExit.z() - entryZ;
 
         if (Math.abs(dx) > Math.abs(dz)) {
             this.intrinsicYaw = (dx > 0) ? 270 : 90;
@@ -223,7 +223,7 @@ public class DungeonPart {
 
         AffineTransform transform = new AffineTransform().rotateY(normalizedAngle);
         var v3 = transform.apply(vec.toVector3());
-        return BlockVector3.at(Math.round(v3.getX()), Math.round(v3.getY()), Math.round(v3.getZ()));
+        return BlockVector3.at(Math.round(v3.x()), Math.round(v3.y()), Math.round(v3.z()));
     }
 
     public BlockVector3 getEntryOffset() {
@@ -252,22 +252,22 @@ public class DungeonPart {
         int tolerance = 1;
 
         // Check Z faces
-        if (Math.abs(exit.getZ() - maxPoint.getZ()) <= tolerance)
+        if (Math.abs(exit.z() - maxPoint.z()) <= tolerance)
             return 0; // South (+Z)
-        if (Math.abs(exit.getZ() - minPoint.getZ()) <= tolerance)
+        if (Math.abs(exit.z() - minPoint.z()) <= tolerance)
             return 180; // North (-Z)
 
         // Check X faces
-        if (Math.abs(exit.getX() - maxPoint.getX()) <= tolerance)
+        if (Math.abs(exit.x() - maxPoint.x()) <= tolerance)
             return 270; // East (+X)
-        if (Math.abs(exit.getX() - minPoint.getX()) <= tolerance)
+        if (Math.abs(exit.x() - minPoint.x()) <= tolerance)
             return 90; // West (-X)
 
         // Fallback to vector heuristic if not on face (should rarely happen for valid
         // dungeons)
         Deepwither.getInstance().getLogger().warning("Exit not on bounding box face! Using vector heuristic: " + exit);
-        int dx = exit.getX() - entryX;
-        int dz = exit.getZ() - entryZ;
+        int dx = exit.x() - entryX;
+        int dz = exit.z() - entryZ;
         if (Math.abs(dx) > Math.abs(dz)) {
             return (dx > 0) ? 270 : 90;
         } else {

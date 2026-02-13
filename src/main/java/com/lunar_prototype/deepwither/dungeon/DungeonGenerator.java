@@ -134,25 +134,25 @@ public class DungeonGenerator {
             BlockVector3 max = part.getMaxPoint();
 
             List<BlockVector3> corners = new ArrayList<>();
-            corners.add(rotate(min.getX(), min.getY(), min.getZ(), rotation));
-            corners.add(rotate(min.getX(), min.getY(), max.getZ(), rotation));
-            corners.add(rotate(min.getX(), max.getY(), min.getZ(), rotation));
-            corners.add(rotate(min.getX(), max.getY(), max.getZ(), rotation));
-            corners.add(rotate(max.getX(), min.getY(), min.getZ(), rotation));
-            corners.add(rotate(max.getX(), min.getY(), max.getZ(), rotation));
-            corners.add(rotate(max.getX(), max.getY(), min.getZ(), rotation));
-            corners.add(rotate(max.getX(), max.getY(), max.getZ(), rotation));
+            corners.add(rotate(min.x(), min.y(), min.z(), rotation));
+            corners.add(rotate(min.x(), min.y(), max.z(), rotation));
+            corners.add(rotate(min.x(), max.y(), min.z(), rotation));
+            corners.add(rotate(min.x(), max.y(), max.z(), rotation));
+            corners.add(rotate(max.x(), min.y(), min.z(), rotation));
+            corners.add(rotate(max.x(), min.y(), max.z(), rotation));
+            corners.add(rotate(max.x(), max.y(), min.z(), rotation));
+            corners.add(rotate(max.x(), max.y(), max.z(), rotation));
 
             int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
             int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
 
             for (BlockVector3 v : corners) {
-                minX = Math.min(minX, v.getX());
-                minY = Math.min(minY, v.getY());
-                minZ = Math.min(minZ, v.getZ());
-                maxX = Math.max(maxX, v.getX());
-                maxY = Math.max(maxY, v.getY());
-                maxZ = Math.max(maxZ, v.getZ());
+                minX = Math.min(minX, v.x());
+                minY = Math.min(minY, v.y());
+                minZ = Math.min(minZ, v.z());
+                maxX = Math.max(maxX, v.x());
+                maxY = Math.max(maxY, v.y());
+                maxZ = Math.max(maxZ, v.z());
             }
 
             this.minBound = BlockVector3.at(minX, minY, minZ).add(origin);
@@ -162,15 +162,15 @@ public class DungeonGenerator {
         private BlockVector3 rotate(int x, int y, int z, int angle) {
             AffineTransform transform = new AffineTransform().rotateY(angle);
             var v = transform.apply(BlockVector3.at(x, y, z).toVector3());
-            return BlockVector3.at(Math.round(v.getX()), Math.round(v.getY()), Math.round(v.getZ()));
+            return BlockVector3.at(Math.round(v.x()), Math.round(v.y()), Math.round(v.z()));
         }
 
         public boolean intersects(PlacedPart other) {
-            return this.minBound.getX() < other.maxBound.getX() - 3 && this.maxBound.getX() > other.minBound.getX() + 3
+            return this.minBound.x() < other.maxBound.x() - 3 && this.maxBound.x() > other.minBound.x() + 3
                     &&
-                    this.minBound.getY() < other.maxBound.getY() && this.maxBound.getY() > other.minBound.getY() &&
-                    this.minBound.getZ() < other.maxBound.getZ() - 3
-                    && this.maxBound.getZ() > other.minBound.getZ() + 3;
+                    this.minBound.y() < other.maxBound.y() && this.maxBound.y() > other.minBound.y() &&
+                    this.minBound.z() < other.maxBound.z() - 3
+                    && this.maxBound.z() > other.minBound.z() + 3;
         }
     }
 
@@ -522,7 +522,7 @@ public class DungeonGenerator {
                 removeMarker(world, spawnPos, Material.REDSTONE_BLOCK);
 
                 String mobId = dungeonMobList.get(random.nextInt(dungeonMobList.size()));
-                Location loc = new Location(world, spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
+                Location loc = new Location(world, spawnPos.x() + 0.5, spawnPos.y(), spawnPos.z() + 0.5);
                 pendingSpawners.add(new PendingSpawner(loc, mobId, 1,false));
             }
         }
@@ -530,14 +530,14 @@ public class DungeonGenerator {
         for (BlockVector3 chestOffset : part.getRotatedLootChestOffsets(rotation)) {
             BlockVector3 chestPos = origin.add(chestOffset);
             removeMarker(world, chestPos, Material.EMERALD_BLOCK);
-            Location loc = new Location(world, chestPos.getX(), chestPos.getY(), chestPos.getZ());
+            Location loc = new Location(world, chestPos.x(), chestPos.y(), chestPos.z());
             Deepwither.getInstance().getLootChestManager().placeDungeonLootChest(loc, lootChestId);
         }
 
         for (BlockVector3 spawnOffset : part.getRotatedPlayerSpawnOffsets(rotation)) {
             BlockVector3 realPos = origin.add(spawnOffset);
             removeMarker(world, realPos, Material.LAPIS_BLOCK);
-            Location loc = new Location(world, realPos.getX() + 0.5, realPos.getY(), realPos.getZ() + 0.5);
+            Location loc = new Location(world, realPos.x() + 0.5, realPos.y(), realPos.z() + 0.5);
             loc.setYaw((float) rotation);
             validSpawnLocations.add(loc);
         }
@@ -547,7 +547,7 @@ public class DungeonGenerator {
             removeMarker(world, spawnPos, Material.DIAMOND_BLOCK); // ダイヤモンドブロックを除去
 
             // ボス用モブIDを取得 (configで定義するか、専用のロジックで)
-            Location loc = new Location(world, spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
+            Location loc = new Location(world, spawnPos.x() + 0.5, spawnPos.y(), spawnPos.z() + 0.5);
             pendingSpawners.add(new PendingSpawner(loc, this.bossMobId, this.mobLevel, true)); // isBoss = true
         }
     }
@@ -564,7 +564,7 @@ public class DungeonGenerator {
     // --- Utility Methods ---
 
     private void removeMarker(World world, BlockVector3 pos, Material expectedType) {
-        Location loc = new Location(world, pos.getX(), pos.getY(), pos.getZ());
+        Location loc = new Location(world, pos.x(), pos.y(), pos.z());
         if (loc.getBlock().getType() == expectedType) {
             loc.getBlock().setType(Material.AIR);
         }
