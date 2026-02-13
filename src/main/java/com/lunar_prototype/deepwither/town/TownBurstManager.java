@@ -251,13 +251,13 @@ public class TownBurstManager implements IManager {
 
         for (int i = 0; i < MAX_ATTEMPTS; i++) {
             // リージョンの境界内でランダムな座標を生成
-            int x = random.nextInt(max.getX() - min.getX() + 1) + min.getX();
-            int z = random.nextInt(max.getZ() - min.getZ() + 1) + min.getZ();
+            int x = random.nextInt(max.x() - min.x() + 1) + min.x();
+            int z = random.nextInt(max.z() - min.z() + 1) + min.z();
 
             // Y座標は、リージョンの最大Yから下に探索する
-            int startY = max.getY();
+            int startY = max.y();
 
-            for (int y = startY; y >= min.getY(); y--) {
+            for (int y = startY; y >= min.y(); y--) {
                 Location testLoc = new Location(bukkitWorld, x + 0.5, y, z + 0.5); // 中央に寄せる
 
                 // ブロックを取得

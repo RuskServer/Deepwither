@@ -35,7 +35,6 @@ import com.lunar_prototype.deepwither.market.MarketGui;
 import com.lunar_prototype.deepwither.market.MarketSearchHandler;
 import com.lunar_prototype.deepwither.market.api.MarketApiController;
 import com.lunar_prototype.deepwither.mythic.ManaShieldMechanic;
-import com.lunar_prototype.deepwither.outpost.OutpostConfig;
 import com.lunar_prototype.deepwither.outpost.OutpostDamageListener;
 import com.lunar_prototype.deepwither.outpost.OutpostManager;
 import com.lunar_prototype.deepwither.outpost.OutpostRegionListener;

@@ -3,7 +3,6 @@ package com.lunar_prototype.deepwither.companion;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
-import org.bukkit.Location;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -14,7 +13,6 @@ import org.bukkit.event.player.PlayerInputEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.util.Vector;
 
 @DependsOn({CompanionManager.class})
 public class CompanionListener implements Listener, IManager {

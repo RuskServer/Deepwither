@@ -1,7 +1,5 @@
 package com.lunar_prototype.deepwither;
 
-import org.bukkit.ChatColor;
-
 public enum FabricationGrade {
     STANDARD(1, "Standard", "§7", 1.0),       // 標準 (100%)
     INDUSTRIAL(2, "Industrial", "§8", 1.2),   // 工業 (120%)

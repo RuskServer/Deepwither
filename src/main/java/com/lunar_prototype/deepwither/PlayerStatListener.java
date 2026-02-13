@@ -12,7 +12,6 @@ import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.entity.Player;
 import org.bukkit.Bukkit;
-import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.plugin.java.JavaPlugin;
 

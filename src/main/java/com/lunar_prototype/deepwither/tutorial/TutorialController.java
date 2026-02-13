@@ -8,12 +8,9 @@ import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import com.lunar_prototype.eqf.EQFPlugin;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.KeybindComponent;
-import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.*;
@@ -26,8 +23,6 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
-
-import static io.lumine.mythic.bukkit.commands.CommandHelper.send;
 
 @DependsOn({StatManager.class, ItemFactory.class})
 public class TutorialController implements Listener, IManager {

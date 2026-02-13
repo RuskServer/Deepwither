@@ -1,7 +1,6 @@
 package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.api.event.GetTreeNode;
-import com.lunar_prototype.deepwither.api.event.OpenAttributes;
 import com.lunar_prototype.deepwither.api.event.OpenSkilltree;
 import org.bukkit.*;
 import org.bukkit.command.*;
@@ -10,7 +9,6 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.*;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.*;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;

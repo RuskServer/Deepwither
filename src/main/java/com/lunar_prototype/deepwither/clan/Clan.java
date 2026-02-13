@@ -1,7 +1,6 @@
 package com.lunar_prototype.deepwither.clan;
 
 import org.bukkit.Bukkit;
-import org.bukkit.OfflinePlayer;
 
 import java.util.HashSet;
 import java.util.Set;

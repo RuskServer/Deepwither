@@ -1,7 +1,6 @@
 package com.lunar_prototype.deepwither;
 
 import org.bukkit.ChatColor;
-import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;

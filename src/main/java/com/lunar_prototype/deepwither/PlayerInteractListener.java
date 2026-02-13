@@ -16,13 +16,9 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import javax.management.Attribute;
-import java.util.EventListener;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-
-import static com.lunar_prototype.deepwither.StatManager.getTotalStatsFromEquipment;
 
 @DependsOn({StatManager.class})
 public class PlayerInteractListener implements Listener, IManager {

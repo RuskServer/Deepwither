@@ -1,7 +1,6 @@
 package com.lunar_prototype.deepwither.dungeon.instance;
 
 import com.lunar_prototype.deepwither.Deepwither;
-import com.lunar_prototype.deepwither.api.DeepwitherPartyAPI;
 import com.lunar_prototype.deepwither.dungeon.DungeonGenerator;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;

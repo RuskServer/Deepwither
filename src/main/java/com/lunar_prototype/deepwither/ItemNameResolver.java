@@ -10,9 +10,9 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.io.File;
 
 @DependsOn({ItemFactory.class})
-/**
- * カスタムアイテムIDから実際のItemStackをロードし、その表示名を取得する責務を持つクラス。
- * QuestGeneratorが直接プラグインやファイル構造に依存するのを避けるためのDependency Injection。
+/*
+  カスタムアイテムIDから実際のItemStackをロードし、その表示名を取得する責務を持つクラス。
+  QuestGeneratorが直接プラグインやファイル構造に依存するのを避けるためのDependency Injection。
  */
 public class ItemNameResolver implements IManager {
 

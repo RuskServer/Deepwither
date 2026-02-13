@@ -81,13 +81,6 @@ public class PlayerQuestManager implements IManager {
 
     /**
      * プレイヤーがギルドからクエストを受け取る（Claimする）処理。
-     * @param player クエストを受け取るプレイヤー
-     * @param locationId ギルドのID
-     * @param questId 受け取るクエストのUUID
-     * @return 成功した場合はtrue
-     */
-    /**
-     * プレイヤーがギルドからクエストを受け取る（Claimする）処理。
      * ★ 同時に受けられるクエストを1個に制限します。
      * @param player クエストを受け取るプレイヤー
      * @param locationId ギルドのID

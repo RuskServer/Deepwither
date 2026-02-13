@@ -1,7 +1,6 @@
 package com.lunar_prototype.deepwither.command;
 
 import com.lunar_prototype.deepwither.Deepwither;
-import com.lunar_prototype.deepwither.dungeon.DungeonGenerator;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;

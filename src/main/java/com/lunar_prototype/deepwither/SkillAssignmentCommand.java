@@ -1,6 +1,5 @@
 package com.lunar_prototype.deepwither;
 
-import com.lunar_prototype.deepwither.api.event.OpenAttributes;
 import com.lunar_prototype.deepwither.api.event.OpenSkillassignment;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;

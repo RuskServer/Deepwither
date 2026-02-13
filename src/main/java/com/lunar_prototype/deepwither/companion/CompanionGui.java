@@ -1,6 +1,5 @@
 package com.lunar_prototype.deepwither.companion;
 
-import com.lunar_prototype.deepwither.Deepwither;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;

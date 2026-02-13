@@ -16,7 +16,6 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.Map;
 

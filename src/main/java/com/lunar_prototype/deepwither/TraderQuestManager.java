@@ -12,7 +12,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
@@ -24,9 +23,6 @@ import java.sql.SQLException;
 import java.util.*;
 
 @DependsOn({DatabaseManager.class})
-/**
- * トレーダークエストの進行状況管理、イベント監視、データ保存を担当するマネージャー
- */
 public class TraderQuestManager implements IManager, Listener {
 
     private final Deepwither plugin;

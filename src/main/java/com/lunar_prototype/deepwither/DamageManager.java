@@ -7,7 +7,6 @@ import com.lunar_prototype.deepwither.api.stat.IStatManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import io.lumine.mythic.bukkit.MythicBukkit;
-import io.lumine.mythic.bukkit.events.MythicDamageEvent;
 import org.bukkit.*;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.*;
@@ -24,13 +23,10 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffectType;
-import org.bukkit.projectiles.ProjectileSource;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
 import java.util.*;
-
-import static com.lunar_prototype.deepwither.PlayerSettingsManager.SettingType.SHOW_GIVEN_DAMAGE;
 
 @DependsOn({StatManager.class, PlayerSettingsManager.class, ChargeManager.class, ManaManager.class})
 public class DamageManager implements Listener, IManager {

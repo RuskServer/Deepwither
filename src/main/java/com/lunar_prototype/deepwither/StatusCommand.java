@@ -5,7 +5,6 @@ import com.lunar_prototype.deepwither.profession.PlayerProfessionData;
 import com.lunar_prototype.deepwither.profession.ProfessionManager;
 import com.lunar_prototype.deepwither.profession.ProfessionType;
 import net.milkbowl.vault.economy.Economy;
-import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;

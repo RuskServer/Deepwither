@@ -1,6 +1,5 @@
 package com.lunar_prototype.deepwither.party;
 
-import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;

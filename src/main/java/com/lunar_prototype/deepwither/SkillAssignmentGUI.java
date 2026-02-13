@@ -1,6 +1,5 @@
 package com.lunar_prototype.deepwither;
 
-import io.lumine.mythic.api.skills.Skill;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;

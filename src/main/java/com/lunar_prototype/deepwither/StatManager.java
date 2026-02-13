@@ -246,7 +246,7 @@ public class StatManager implements IManager, IStatManager {
         // Bukkitの最大HPを20.0に固定
         AttributeInstance maxHealthAttr = player.getAttribute(Attribute.MAX_HEALTH);
         if (maxHealthAttr != null && maxHealthAttr.getValue() != 20.0) {
-            AttributeModifier existing = maxHealthAttr.getModifier(MAX_HEALTH_MODIFIER_ID);
+            AttributeModifier existing = maxHealthAttr.getModifier(new NamespacedKey("minecraft",MAX_HEALTH_MODIFIER_ID.toString()));
             if (existing != null) {
                 maxHealthAttr.removeModifier(existing);
             }
@@ -406,7 +406,7 @@ public class StatManager implements IManager, IStatManager {
         if (attr == null) return;
 
         // 先に既存のModifier（UUID指定）を完全に削除
-        AttributeModifier existing = attr.getModifier(ATTACK_DAMAGE_MODIFIER_ID);
+        AttributeModifier existing = attr.getModifier(new NamespacedKey("minecraft",ATTACK_DAMAGE_MODIFIER_ID.toString()));
         if (existing != null) {
             attr.removeModifier(existing);
         }
@@ -416,8 +416,7 @@ public class StatManager implements IManager, IStatManager {
 
         // 新たなModifierを追加
         AttributeModifier modifier = new AttributeModifier(
-                ATTACK_DAMAGE_MODIFIER_ID,
-                "MMO_Attack_Damage",
+                new NamespacedKey("minecraft",ATTACK_DAMAGE_MODIFIER_ID.toString()),
                 value,
                 AttributeModifier.Operation.ADD_NUMBER
         );
@@ -477,7 +476,7 @@ public class StatManager implements IManager, IStatManager {
                 }
             } catch (IllegalArgumentException ex) {
                 Bukkit.getLogger().warning("[StatManager] Invalid AttributeModifier UUID on player " +
-                        player.getName() + " | Attribute: " + attrType.name() + " | Modifier: " + mod);
+                        player.getName() + " | Attribute: " + attrType + " | Modifier: " + mod);
                 // 明示的に削除しても良い（安全であれば）
                 attr.removeModifier(mod);
             }

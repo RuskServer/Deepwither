@@ -1,10 +1,7 @@
 package com.lunar_prototype.deepwither.listeners;
 
 import com.lunar_prototype.deepwither.Deepwither;
-import com.lunar_prototype.deepwither.FabricationGrade;
 import com.lunar_prototype.deepwither.ItemFactory;
-import com.lunar_prototype.deepwither.StatType;
-import com.lunar_prototype.deepwither.StatMap;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Material;
@@ -18,7 +15,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 @DependsOn({ItemFactory.class})

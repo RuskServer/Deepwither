@@ -1,6 +1,5 @@
 package com.lunar_prototype.deepwither.command;
 
-import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.clan.Clan;
 import com.lunar_prototype.deepwither.clan.ClanManager;
 import org.bukkit.Bukkit;

@@ -19,7 +19,6 @@ import org.bukkit.*;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.*;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -511,11 +510,6 @@ public class MobSpawnManager implements IManager {
     // ----------------------------------------------------
 
     /**
-     * MythicMobsのMobをスポーンさせる
-     * 
-     * @return スポーンしたMobのUUID
-     */
-    /**
      * MythicMobをスポーンさせ、周囲のプレイヤー状況に応じたレベルを付与する
      * 
      * @param mobId MythicMobsの内部ID
@@ -745,10 +739,10 @@ public class MobSpawnManager implements IManager {
         Random random = plugin.getRandom();
 
         // リージョン境界内でのランダムな座標計算
-        int minX = region.getMinimumPoint().getBlockX();
-        int maxX = region.getMaximumPoint().getBlockX();
-        int minZ = region.getMinimumPoint().getBlockZ();
-        int maxZ = region.getMaximumPoint().getBlockZ();
+        int minX = region.getMinimumPoint().x();
+        int maxX = region.getMaximumPoint().x();
+        int minZ = region.getMinimumPoint().z();
+        int maxZ = region.getMaximumPoint().z();
 
         double x = minX + random.nextDouble() * (maxX - minX + 1);
         double z = minZ + random.nextDouble() * (maxZ - minZ + 1);

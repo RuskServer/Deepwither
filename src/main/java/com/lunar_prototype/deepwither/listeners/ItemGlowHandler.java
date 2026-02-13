@@ -20,7 +20,6 @@ import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 @DependsOn({})

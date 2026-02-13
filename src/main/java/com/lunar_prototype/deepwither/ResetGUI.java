@@ -1,6 +1,5 @@
 package com.lunar_prototype.deepwither;
 
-import com.lunar_prototype.deepwither.profession.ProfessionManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;

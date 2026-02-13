@@ -3,7 +3,6 @@ package com.lunar_prototype.deepwither.loot;
 import com.lunar_prototype.deepwither.Deepwither;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.configuration.ConfigurationSection;
 
 import java.util.Map;
 import java.util.Random;

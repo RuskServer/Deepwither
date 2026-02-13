@@ -1,6 +1,5 @@
 package com.lunar_prototype.deepwither.outpost;
 
-import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.outpost.OutpostEvent;
 import com.lunar_prototype.deepwither.outpost.OutpostManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
@@ -17,8 +16,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.plugin.java.JavaPlugin;
-
-import java.util.Set;
 
 @DependsOn({OutpostManager.class})
 public class OutpostRegionListener implements Listener, IManager {
