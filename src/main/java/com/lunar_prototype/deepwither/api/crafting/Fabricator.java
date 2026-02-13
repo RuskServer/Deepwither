@@ -2,8 +2,6 @@ package com.lunar_prototype.deepwither.api.crafting;
 
 import org.jspecify.annotations.NonNull;
 
-import java.util.Optional;
-
 /**
  * レシピ処理用の(過度に)抽象的なインターフェース
  *
