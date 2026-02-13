@@ -137,6 +137,12 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     private ArtifactManager artifactManager;
     public ArtifactGUIListener artifactGUIListener;
 
+    public TraderGUI getTraderGUI() {
+        return traderGUI;
+    }
+
+    public TraderGUI traderGUI;
+
     public EMDALanguageAI getAi() {
         return ai;
     }
@@ -664,6 +670,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.resetGUI = register(new ResetGUI(this));
         this.menuItemListener = register(new MenuItemListener(this));
         this.craftingGUI = register(new CraftingGUI(this));
+        this.traderGUI = register(new TraderGUI(this));
 
         // --- Standalone Listeners (Managed) ---
         register(new ArmorSetListener(this));

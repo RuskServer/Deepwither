@@ -52,7 +52,7 @@ public class TraderCommand implements CommandExecutor {
         int playerCredit = creditManager.getCredit(targetPlayer.getUniqueId(), traderId);
 
         // GUIを開く
-        new TraderGUI(Deepwither.getInstance()).openBuyGUI(targetPlayer, traderId, playerCredit, traderManager);
+        Deepwither.getInstance().getTraderGUI().openBuyGUI(targetPlayer,traderId,playerCredit,Deepwither.getInstance().getTraderManager());
 
         return true;
     }
