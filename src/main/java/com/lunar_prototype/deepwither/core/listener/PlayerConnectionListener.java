@@ -1,4 +1,4 @@
-package com.lunar_prototype.deepwither.core;
+package com.lunar_prototype.deepwither.core.listener;
 
 import com.lunar_prototype.deepwither.AttributeManager;
 import com.lunar_prototype.deepwither.Deepwither;

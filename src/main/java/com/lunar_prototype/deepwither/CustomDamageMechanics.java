@@ -1,5 +1,9 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent;
+import com.lunar_prototype.deepwither.core.damage.DamageCalculator;
+import com.lunar_prototype.deepwither.core.damage.DamageContext;
+import com.lunar_prototype.deepwither.core.damage.DamageProcessor;
 import io.lumine.mythic.api.adapters.AbstractEntity;
 import io.lumine.mythic.api.config.MythicLineConfig;
 import io.lumine.mythic.api.skills.ITargetedEntitySkill;
@@ -45,12 +49,19 @@ public class CustomDamageMechanics implements ITargetedEntitySkill {
 
         Deepwither plugin = Deepwither.getInstance();
         DamageManager damageManager = plugin.getDamageManager();
+        DamageProcessor damageProcessor = plugin.getDamageProcessor();
 
         if (damageManager.isInvulnerable(bukkitTarget)) return SkillResult.CONDITION_FAILED;
 
-        double baseDamage = 0;
-        double finalDamage = 0;
         boolean isMagic = type.equals("MAGIC");
+        DeepwitherDamageEvent.DamageType damageType = isMagic ? DeepwitherDamageEvent.DamageType.MAGIC : 
+                                                    (isProjectile ? DeepwitherDamageEvent.DamageType.PROJECTILE : DeepwitherDamageEvent.DamageType.PHYSICAL);
+
+        DamageContext context = new DamageContext(caster, bukkitTarget, damageType, 0);
+        context.setProjectile(isProjectile);
+        tags.forEach(context::addTag);
+
+        double baseDamage;
 
         if (caster instanceof Player player) {
             StatMap attackerStats = StatManager.getTotalStatsFromEquipment(player);
@@ -65,7 +76,8 @@ public class CustomDamageMechanics implements ITargetedEntitySkill {
                 double weaponPercent = (weaponType != null) ? attackerStats.getPercent(weaponType) : 0;
 
                 if (isProjectile) {
-                    double distMult = damageManager.calculateDistanceMultiplier(player, bukkitTarget);
+                    double distMult = DamageCalculator.calculateDistanceMultiplier(player.getLocation(), bukkitTarget.getLocation());
+                    context.setDistanceMultiplier(distMult);
                     baseDamage = (basePower + attackerStats.getFlat(StatType.PROJECTILE_DAMAGE) + weaponFlat);
                     double mult = multiplier * (1.0 + (attackerStats.getPercent(StatType.PROJECTILE_DAMAGE) + weaponPercent) / 100.0);
                     baseDamage *= mult * distMult;
@@ -76,7 +88,8 @@ public class CustomDamageMechanics implements ITargetedEntitySkill {
                 }
             }
 
-            if (canCrit && damageManager.rollChance(attackerStats.getFinal(StatType.CRIT_CHANCE))) {
+            if (canCrit && DamageCalculator.rollChance(attackerStats.getFinal(StatType.CRIT_CHANCE))) {
+                context.setCrit(true);
                 baseDamage *= (attackerStats.getFinal(StatType.CRIT_DAMAGE) / 100.0);
                 playCriticalEffect(bukkitTarget);
                 damageManager.sendLog(player, PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, Component.text("クリティカル！", NamedTextColor.GOLD, TextDecoration.BOLD));
@@ -88,9 +101,10 @@ public class CustomDamageMechanics implements ITargetedEntitySkill {
             }
         }
 
+        double finalDamage;
         if (bukkitTarget instanceof Player playerTarget) {
             StatMap defenderStats = StatManager.getTotalStatsFromEquipment(playerTarget);
-            finalDamage = damageManager.applyDefense(baseDamage,
+            finalDamage = DamageCalculator.applyDefense(baseDamage,
                     isMagic ? defenderStats.getFinal(StatType.MAGIC_RESIST) : defenderStats.getFinal(StatType.DEFENSE),
                     isMagic ? 100.0 : 500.0);
 
@@ -109,7 +123,7 @@ public class CustomDamageMechanics implements ITargetedEntitySkill {
             }
         } else {
             StatMap defenderStats = damageManager.getDefenderStats(bukkitTarget);
-            finalDamage = damageManager.applyDefense(baseDamage,
+            finalDamage = DamageCalculator.applyDefense(baseDamage,
                     isMagic ? defenderStats.getFinal(StatType.MAGIC_RESIST) : defenderStats.getFinal(StatType.DEFENSE),
                     isMagic ? 100.0 : 100.0);
         }
@@ -121,14 +135,8 @@ public class CustomDamageMechanics implements ITargetedEntitySkill {
             damageManager.handleLifesteal(p, bukkitTarget, finalDamage);
         }
 
-        finalDamage = Math.max(0.1, finalDamage);
-        
-        com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent.DamageType damageType;
-        if (isMagic) damageType = com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent.DamageType.MAGIC;
-        else if (isProjectile) damageType = com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent.DamageType.PROJECTILE;
-        else damageType = com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent.DamageType.PHYSICAL;
-        
-        damageManager.finalizeDamage(bukkitTarget, finalDamage, caster, damageType);
+        context.setFinalDamage(Math.max(0.1, finalDamage));
+        damageProcessor.process(context);
 
         return SkillResult.SUCCESS;
     }

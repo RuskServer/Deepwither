@@ -15,6 +15,24 @@
     </resources>
     <plugins>
       <plugin>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>3.5.0</version>
+        <configuration>
+          <locale>ja_JP</locale>
+          <encoding>UTF-8</encoding>
+          <docencoding>UTF-8</docencoding>
+          <reportOutputDirectory>${project.build.directory}/reports</reportOutputDirectory>
+          <destDir>apidocs</destDir>
+          <tags>
+            <tag>
+              <name>apiNote</name>
+              <placement>a</placement>
+              <head>API Note:</head>
+            </tag>
+          </tags>
+        </configuration>
+      </plugin>
+      <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.13.0</version>
         <configuration>

@@ -10,6 +10,9 @@ import com.lunar_prototype.deepwither.companion.CompanionCommand;
 import com.lunar_prototype.deepwither.companion.CompanionGuiListener;
 import com.lunar_prototype.deepwither.companion.CompanionListener;
 import com.lunar_prototype.deepwither.companion.CompanionManager;
+import com.lunar_prototype.deepwither.core.damage.DamageProcessor;
+import com.lunar_prototype.deepwither.core.listener.MythicMechanicListener;
+import com.lunar_prototype.deepwither.core.listener.PlayerConnectionListener;
 import com.lunar_prototype.deepwither.crafting.CraftingGUI;
 import com.lunar_prototype.deepwither.crafting.CraftingListener;
 import com.lunar_prototype.deepwither.crafting.CraftingManager;
@@ -204,6 +207,8 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     private ChargeManager chargeManager;
     private BackpackManager backpackManager;
     private DamageManager damageManager;
+    private DamageProcessor damageProcessor;
+    private WeaponMechanicManager weaponMechanicManager;
     private PlayerSettingsManager settingsManager;
     private ProfessionDatabase professionDatabase;
     private SettingsGUI settingsGUI;
@@ -367,6 +372,14 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
 
     public DamageManager getDamageManager() {
         return damageManager;
+    }
+
+    public DamageProcessor getDamageProcessor() {
+        return damageProcessor;
+    }
+
+    public WeaponMechanicManager getWeaponMechanicManager() {
+        return weaponMechanicManager;
     }
 
     public PlayerSettingsManager getSettingsManager() {
@@ -580,6 +593,8 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.skillCastManager = register(new SkillCastManager());
         this.chargeManager = register(new ChargeManager(this));
         this.settingsManager = register(new PlayerSettingsManager(this));
+        this.damageProcessor = register(new DamageProcessor(this, statManager, settingsManager));
+        this.weaponMechanicManager = register(new WeaponMechanicManager(this, statManager, chargeManager, settingsManager));
         this.damageManager = register(new DamageManager(this, statManager, settingsManager));
 
         // --- Group C & D ---
@@ -633,8 +648,8 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.sellGUI = register(new SellGUI(this));
 
         // --- Standalone Listeners (Managed) ---
-        register(new com.lunar_prototype.deepwither.core.PlayerConnectionListener(this));
-        register(new com.lunar_prototype.deepwither.core.MythicMechanicListener(this));
+        register(new PlayerConnectionListener(this));
+        register(new MythicMechanicListener(this));
         register(new ArmorSetListener(this));
         register(new ItemUpgradeListener(this));
         register(new PlayerStatListener(this));
