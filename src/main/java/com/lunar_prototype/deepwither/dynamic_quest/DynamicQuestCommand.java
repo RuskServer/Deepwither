@@ -33,6 +33,28 @@ public class DynamicQuestCommand implements CommandExecutor {
         }
 
         String action = args[0].toLowerCase();
+        
+        if (action.equals("spawn")) {
+            manager.forceSpawnAt(player.getLocation());
+            player.sendMessage(Component.text("NPC Force Spawned at your location.", NamedTextColor.GREEN));
+            return true;
+        }
+
+        if (action.equals("reload")) {
+            manager.reload();
+            player.sendMessage(Component.text("NPC Refresh cycle manually triggered.", NamedTextColor.YELLOW));
+            return true;
+        }
+
+        if (action.equals("status")) {
+            player.sendMessage(Component.text("Active NPCs: " + manager.getActiveNPCCount(), NamedTextColor.AQUA));
+            return true;
+        }
+
+        if (args.length < 2) {
+            return false;
+        }
+
         String questIdStr = args[1];
 
         UUID questId;

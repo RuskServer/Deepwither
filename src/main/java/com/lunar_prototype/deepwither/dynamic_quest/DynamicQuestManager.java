@@ -75,6 +75,18 @@ public class DynamicQuestManager implements IManager, Listener {
         }
     }
 
+    public void forceSpawnAt(Location location) {
+        spawnNPC(location);
+    }
+
+    public int getActiveNPCCount() {
+        return activeNPCs.size();
+    }
+
+    public void reload() {
+        refreshNPCs();
+    }
+
     private void refreshNPCs() {
         despawnAll();
         
@@ -87,6 +99,7 @@ public class DynamicQuestManager implements IManager, Listener {
         RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
         
         // Iterate through worlds to find regions with "safezone"
+        int regionCount = 0;
         for (World world : Bukkit.getWorlds()) {
             RegionManager regionManager = container.get(BukkitAdapter.adapt(world));
             if (regionManager == null) continue;
@@ -96,6 +109,7 @@ public class DynamicQuestManager implements IManager, Listener {
                     .collect(Collectors.toList());
 
             if (safeRegions.isEmpty()) continue;
+            regionCount += safeRegions.size();
 
             // Try to spawn up to MAX_NPCS across found regions
             for (int i = 0; i < MAX_NPCS; i++) {
@@ -107,6 +121,7 @@ public class DynamicQuestManager implements IManager, Listener {
                 }
             }
         }
+        plugin.getLogger().info("[DynamicQuest] Spawning cycle complete. Found " + regionCount + " safezone regions. Spawned " + activeNPCs.size() + " NPCs.");
     }
 
     private Location getRandomLocationInRegion(World world, ProtectedRegion region) {
