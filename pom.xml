@@ -31,6 +31,8 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>3.5.0</version>
                 <configuration>
+                    <reportOutputDirectory>${project.build.directory}/reports</reportOutputDirectory>
+                    <destDir>apidocs</destDir>
                     <tags>
                         <tag>
                             <name>apiNote</name>
