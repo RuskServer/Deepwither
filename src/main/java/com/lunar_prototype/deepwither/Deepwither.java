@@ -248,6 +248,12 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     }
 
     private ClanManager clanManager;
+    private com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestManager dynamicQuestManager;
+
+    public com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestManager getDynamicQuestManager() {
+        return dynamicQuestManager;
+    }
+
     private static Economy econ = null;
     private final java.util.Random random = new java.util.Random();
     private OutpostManager outpostManager;
@@ -552,6 +558,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         ClanCommand clanCommand = new ClanCommand(clanManager);
         getCommand("clan").setExecutor(clanCommand);
         getCommand("clan").setTabCompleter(clanCommand);
+        getCommand("dq").setExecutor(new com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestCommand(dynamicQuestManager));
         getCommand("deepwither").setExecutor(new DeepwitherCommand(this));
     }
 
@@ -622,6 +629,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.partyManager = register(new PartyManager(this));
         this.roguelikeBuffManager = register(new RoguelikeBuffManager(this));
         this.roguelikeBuffGUI = register(new RoguelikeBuffGUI(this));
+        this.dynamicQuestManager = register(new com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestManager(this));
 
         // --- Group E ---
         this.fileDailyTaskDataStore = register(new FileDailyTaskDataStore(this, databaseManager));

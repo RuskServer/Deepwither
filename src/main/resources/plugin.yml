@@ -74,3 +74,6 @@ commands:
     aliases: [ dw ]
   clan:
     description: Clanに関するコマンドです
+  dq:
+    description: Dynamic Quest Command
+    usage: /dq <accept|decline> <id>
