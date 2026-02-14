@@ -128,16 +128,26 @@ public class DynamicQuestManager implements IManager, Listener {
         BlockVector3 min = region.getMinimumPoint();
         BlockVector3 max = region.getMaximumPoint();
 
-        for (int i = 0; i < 10; i++) { // Try 10 times to find a valid spot
+        for (int i = 0; i < 15; i++) { // Increase attempts slightly
             int x = ThreadLocalRandom.current().nextInt(min.getBlockX(), max.getBlockX() + 1);
             int z = ThreadLocalRandom.current().nextInt(min.getBlockZ(), max.getBlockZ() + 1);
-            int y = world.getHighestBlockYAt(x, z);
 
-            if (y >= min.getBlockY() && y <= max.getBlockY()) {
-                Location loc = new Location(world, x + 0.5, y + 1, z + 0.5);
-                // Check if block below is solid and block at/above is air
-                if (loc.getBlock().getType().isAir() && loc.clone().add(0, 1, 0).getBlock().getType().isAir()
-                        && loc.clone().subtract(0, 1, 0).getBlock().getType().isSolid()) {
+            int minY = Math.max(world.getMinHeight(), min.getBlockY());
+            int maxY = Math.min(world.getMaxHeight(), max.getBlockY());
+            
+            // Try random Ys inside the region to handle caves/multi-floor structures
+            for (int j = 0; j < 10; j++) {
+                int y = ThreadLocalRandom.current().nextInt(minY, maxY + 1);
+                
+                Location loc = new Location(world, x + 0.5, y, z + 0.5); // Check block at y
+                
+                // Check for valid standing spot:
+                // 1. Block at feet (y) is Air or Passable
+                // 2. Block at head (y+1) is Air or Passable
+                // 3. Block below (y-1) is Solid
+                if (loc.getBlock().isPassable() && 
+                    loc.clone().add(0, 1, 0).getBlock().isPassable() && 
+                    loc.clone().subtract(0, 1, 0).getBlock().getType().isSolid()) {
                     return loc;
                 }
             }
