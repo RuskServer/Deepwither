@@ -13,6 +13,9 @@ import io.papermc.paper.registry.RegistryKey;
 import io.papermc.paper.registry.TypedKey;
 import io.papermc.paper.registry.set.RegistryKeySet;
 import io.papermc.paper.registry.set.RegistrySet;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.*;
 import org.bukkit.block.BlockType;
 import org.bukkit.command.*;
@@ -50,10 +53,10 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IIt
     public static final NamespacedKey RECIPE_BOOK_KEY = new NamespacedKey(Deepwither.getInstance(), "recipe_book_target_grade");
     public static final NamespacedKey RARITY_KEY = new NamespacedKey(Deepwither.getInstance(), "item_rarity");
     public static final NamespacedKey ITEM_TYPE_KEY = new NamespacedKey(Deepwither.getInstance(), "item_type_name");
-    public static final NamespacedKey FLAVOR_TEXT_KEY = new NamespacedKey(Deepwither.getInstance(), "item_flavor_text"); // 文字列結合で保存
+    public static final NamespacedKey FLAVOR_TEXT_KEY = new NamespacedKey(Deepwither.getInstance(), "item_flavor_text");
     public static final NamespacedKey SET_PARTNER_KEY = new NamespacedKey(Deepwither.getInstance(), "set_partner_id");
     public static final NamespacedKey SPECIAL_ACTION_KEY = new NamespacedKey(Deepwither.getInstance(), "special_action_type");
-    public final Map<String, List<String>> rarityPools = new HashMap<>(); // <Rarity, List<ItemID>>
+    public final Map<String, List<String>> rarityPools = new HashMap<>();
     private static final String KEY_PREFIX = "rpgstats";
 
     @Override
@@ -141,15 +144,12 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IIt
     }
 
     @Override
-    public void shutdown() {
-        // 必要に応じてクリーンアップ
-    }
+    public void shutdown() {}
 
     private void loadAllItems() {
         File itemFolder = new File(plugin.getDataFolder(), "items");
         if (!itemFolder.exists()) itemFolder.mkdirs();
 
-        // 初期化（リロード時などを考慮して一度クリアする場合）
         itemMap.clear();
         int fileCount = 0;
 
@@ -157,10 +157,8 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IIt
         if (files != null) {
             for (File file : files) {
                 if (!file.getName().endsWith(".yml")) continue;
-
                 YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
                 Map<String, ItemStack> loaded = ItemLoader.loadItems(config, this);
-
                 if (!loaded.isEmpty()) {
                     itemMap.putAll(loaded);
                     fileCount++;
@@ -168,29 +166,12 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IIt
             }
         }
 
-        // --- ここでコンソールに表示 ---
-        Bukkit.getConsoleSender().sendMessage(String.format(
-                "§a[Deepwither] §fアイテムのロードが完了しました: §b%d個 §7(%d個のファイルを走査)",
-                itemMap.size(),
-                fileCount
-        ));
+        Bukkit.getConsoleSender().sendMessage(Component.text("[Deepwither] ", NamedTextColor.GREEN)
+                .append(Component.text("アイテムのロードが完了しました: ", NamedTextColor.WHITE))
+                .append(Component.text(itemMap.size() + "個", NamedTextColor.AQUA))
+                .append(Component.text(" (" + fileCount + "個のファイルを走査)", NamedTextColor.GRAY)));
     }
 
-    /**
-     * アイテムにステータスを適用し、再構築可能な状態でPDCに保存します。
-     * このメソッドは、ItemLoaderから「ベース値（倍率前）」と「モディファイアー」を受け取り、
-     * 最終的なステータス (Base * Grade + Modifiers) を計算して適用します。
-     *
-     * @param item            対象アイテム
-     * @param baseStats       ベースステータス (Configからランダムロールされた直後の値、等級倍率適用前)
-     * @param modifiers       レアリティ等による追加モディファイアー
-     * @param itemType        アイテム種別名 (例: "長剣")
-     * @param flavorText      フレーバーテキスト
-     * @param tracker         品質トラッカー (Lore表示用)
-     * @param rarity          レアリティ文字列
-     * @param grade           製造等級 (指定なしならSTANDARD)
-     * @return 更新されたItemStack
-     */
     public ItemStack applyStatsToItem(ItemStack item, StatMap baseStats, Map<StatType, Double> modifiers,
                                       @Nullable String itemType, @Nullable List<String> flavorText,
                                       ItemLoader.RandomStatTracker tracker, @Nullable String rarity,
@@ -198,7 +179,6 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IIt
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
-        // 1. グレードの確定と保存
         if (grade == null) {
             int gid = meta.getPersistentDataContainer().getOrDefault(GRADE_KEY, PersistentDataType.INTEGER, 1);
             grade = FabricationGrade.fromId(gid);
@@ -206,48 +186,35 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IIt
             meta.getPersistentDataContainer().set(GRADE_KEY, PersistentDataType.INTEGER, grade.getId());
         }
 
-        // 2. 最終ステータスの計算: Final = (Base * GradeMultiplier) + Modifiers
-        // ただし、特定のStat(Critical Chanceなど)はGrade倍率をかけない場合がある
         StatMap finalStats = new StatMap();
         double multiplier = grade.getMultiplier();
         Set<StatType> ignoredMultipliers = EnumSet.of(StatType.CRIT_CHANCE, StatType.ATTACK_SPEED, StatType.MOVE_SPEED);
 
-        // Base Statの計算と保存
         for (StatType type : baseStats.getAllTypes()) {
             double baseFlat = baseStats.getFlat(type);
             double basePercent = baseStats.getPercent(type);
-
-            // PDCへ保存 (再計算用: rpgstats.base.<type>_flat)
             saveStatValue(meta, "base", type, baseFlat, basePercent);
-
-            // 最終値の計算
             double finalFlat = baseFlat;
             if (!ignoredMultipliers.contains(type) && baseFlat != 0) {
                 finalFlat *= multiplier;
             }
             finalStats.setFlat(type, finalFlat);
-            finalStats.setPercent(type, basePercent); // Percentには通常倍率は乗らない想定
+            finalStats.setPercent(type, basePercent);
         }
 
-        // Modifierの加算と保存
         if (modifiers != null) {
             for (Map.Entry<StatType, Double> entry : modifiers.entrySet()) {
                 StatType type = entry.getKey();
                 double modValue = entry.getValue();
-
-                // PDCへ保存 (再計算用: rpgstats.mod.<type>)
                 meta.getPersistentDataContainer().set(
                         new NamespacedKey(KEY_PREFIX, "mod." + type.name().toLowerCase()),
                         PersistentDataType.DOUBLE,
                         modValue
                 );
-
-                // 最終値に加算 (Modifierは基本的にFlat値加算)
                 finalStats.setFlat(type, finalStats.getFlat(type) + modValue);
             }
         }
 
-        // 3. メタデータ(Flavor, Type, Rarity)の保存
         if (itemType != null) {
             meta.getPersistentDataContainer().set(ITEM_TYPE_KEY, PersistentDataType.STRING, itemType);
         }
@@ -255,19 +222,16 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IIt
             meta.getPersistentDataContainer().set(RARITY_KEY, PersistentDataType.STRING, rarity);
         }
         if (flavorText != null && !flavorText.isEmpty()) {
-            // リストを特定の区切り文字で結合して保存
             String joinedFlavor = String.join("|~|", flavorText);
             meta.getPersistentDataContainer().set(FLAVOR_TEXT_KEY, PersistentDataType.STRING, joinedFlavor);
         }
 
-        // 4. Loreの生成 (LoreBuilderには最終計算結果を渡す)
-        meta.setLore(LoreBuilder.build(finalStats, false, itemType, flavorText, tracker, rarity, modifiers, grade));
+        meta.lore(LoreBuilder.build(finalStats, false, itemType, flavorText, tracker, rarity, modifiers, grade));
 
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE);
         meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
 
-        // 5. 最終ステータスをPDCに保存 (ゲーム内ロジック参照用: rpgstats.<type>_flat)
         PersistentDataContainer container = meta.getPersistentDataContainer();
         for (StatType type : finalStats.getAllTypes()) {
             container.set(new NamespacedKey(KEY_PREFIX, type.name().toLowerCase() + "_flat"), PersistentDataType.DOUBLE, finalStats.getFlat(type));
@@ -280,7 +244,6 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IIt
         return item;
     }
 
-    // 内部ヘルパー: Base値保存
     private void saveStatValue(ItemMeta meta, String category, StatType type, double flat, double percent) {
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
         if (flat != 0) {
@@ -291,27 +254,21 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IIt
         }
     }
 
-    /**
-     * @deprecated Use {@link #updateGrade(ItemStack, FabricationGrade)} instead.
-     */
     @Deprecated
     public ItemStack updateItem(ItemStack item, @Nullable FabricationGrade newGrade) {
         if (item == null || !item.hasItemMeta()) return item;
         ItemMeta meta = item.getItemMeta();
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
 
-        // 1. 保存された情報の復元
         String itemType = pdc.get(ITEM_TYPE_KEY, PersistentDataType.STRING);
         String rarity = pdc.get(RARITY_KEY, PersistentDataType.STRING);
 
-        // フレーバーテキスト復元
         List<String> flavorText = new ArrayList<>();
         String joinedFlavor = pdc.get(FLAVOR_TEXT_KEY, PersistentDataType.STRING);
         if (joinedFlavor != null) {
-            flavorText = Arrays.asList(joinedFlavor.split("\\|~\\|"));
+            flavorText = Arrays.asList(joinedFlavor.split("|~|"));
         }
 
-        // BaseStats復元
         StatMap baseStats = new StatMap();
         for (StatType type : StatType.values()) {
             Double flat = pdc.get(new NamespacedKey(KEY_PREFIX, "base." + type.name().toLowerCase() + "_flat"), PersistentDataType.DOUBLE);
@@ -320,7 +277,6 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IIt
             if (percent != null) baseStats.setPercent(type, percent);
         }
 
-        // Modifiers復元
         Map<StatType, Double> modifiers = new HashMap<>();
         for (StatType type : StatType.values()) {
             Double modVal = pdc.get(new NamespacedKey(KEY_PREFIX, "mod." + type.name().toLowerCase()), PersistentDataType.DOUBLE);
@@ -329,7 +285,6 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IIt
             }
         }
 
-        // Grade復元または更新
         FabricationGrade gradeToUse;
         if (newGrade != null) {
             gradeToUse = newGrade;
@@ -338,134 +293,56 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IIt
             gradeToUse = FabricationGrade.fromId(gid);
         }
 
-        // ランダムトラッカーは復元できないため、ダミーまたは再計算が必要ですが、
-        // LoreBuilderの表示用だけなら、現在のBaseとConfigの定義(不明)との比較が必要です。
-        // ここでは簡易的に「保存された情報だけで再構築」するため、新規の空トラッカーを渡します。
-        // ※厳密にやりたい場合はトラッカーのratioもPDCに保存する必要があります。
         ItemLoader.RandomStatTracker tracker = new ItemLoader.RandomStatTracker();
-        // 改善案: tracker.ratio をPDCに保存しておき、ダミーのtrackerにセットするメソッドを作る
-
-        // 再適用
         return applyStatsToItem(item, baseStats, modifiers, itemType, flavorText, tracker, rarity, gradeToUse);
     }
 
-    /**
-     * @deprecated Use {@link #upgradeGrade(ItemStack)} instead.
-     */
     @Deprecated
     public ItemStack upgradeItemGrade(ItemStack item) {
         if (item == null || !item.hasItemMeta()) return item;
-
-        // 現在のグレードIDを取得 (デフォルトは1: STANDARD)
         int currentGid = item.getItemMeta().getPersistentDataContainer()
                 .getOrDefault(GRADE_KEY, PersistentDataType.INTEGER, 1);
-
-        // 次のグレードを取得 (ID + 1)
         FabricationGrade nextGrade = FabricationGrade.fromId(currentGid + 1);
-
-        // もし次のグレードが現在のグレードと同じなら、既に最大等級なのでそのまま返す
-        if (nextGrade.getId() == currentGid) {
-            return item;
-        }
-
-        // 既存の updateItem を利用して新しいグレードを適用
+        if (nextGrade.getId() == currentGid) return item;
         return updateItem(item, nextGrade);
     }
 
-    // 既存コード互換用のオーバーロード
     public ItemStack applyStatsToItem(ItemStack item, StatMap stats, @Nullable String itemType, @Nullable List<String> flavorText, ItemLoader.RandomStatTracker tracker, @Nullable String rarity, Map<StatType, Double> appliedModifiers) {
-        // ※注意: 以前のコードフローでは ItemLoader が既に Grade倍率 を stats に適用済みの場合がありました。
-        // 新しいフローでは applyStatsToItem は「BaseStats」を期待します。
-        // 互換性を保つには、ここで呼び出し元がどういう値を渡しているかによりますが、
-        // 基本的に ItemLoader 側も修正するため、このオーバーロードは推奨されません。
         return applyStatsToItem(item, stats, appliedModifiers, itemType, flavorText, tracker, rarity, null);
     }
 
-    /**
-     * アイテムのモディファイアー（ランダムオプション）のみを現在のレアリティに基づいて再抽選します。
-     * Baseステータスやグレードは維持されます。
-     *
-     * @param item 対象のItemStack
-     * @return モディファイアーが更新されたItemStack
-     */
     public ItemStack rerollModifiers(ItemStack item) {
         if (item == null || !item.hasItemMeta()) return item;
-
         PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
-
-        // 1. 必要な情報の復元
         String rarity = pdc.get(RARITY_KEY, PersistentDataType.STRING);
-        if (rarity == null) rarity = "コモン"; // デフォルト
-
-        // BaseStatsの復元 (これは維持する)
+        if (rarity == null) rarity = "コモン";
         StatMap baseStats = restoreBaseStats(pdc);
-
-        // その他のメタデータ復元
         String itemType = pdc.get(ITEM_TYPE_KEY, PersistentDataType.STRING);
         FabricationGrade grade = FabricationGrade.fromId(pdc.getOrDefault(GRADE_KEY, PersistentDataType.INTEGER, 1));
-
         List<String> flavorText = new ArrayList<>();
         String joinedFlavor = pdc.get(FLAVOR_TEXT_KEY, PersistentDataType.STRING);
-        if (joinedFlavor != null) {
-            flavorText = Arrays.asList(joinedFlavor.split("\\|~\\|"));
-        }
-
-        // 2. モディファイアーの完全再生成
-        // ItemLoaderに追加したstaticメソッドを使用
+        if (joinedFlavor != null) flavorText = Arrays.asList(joinedFlavor.split("|~|"));
         Map<StatType, Double> newModifiers = ItemLoader.generateRandomModifiers(rarity);
-
-        // 3. 再適用
-        // トラッカーは新規作成 (Loreの品質表記はBaseStatsの良し悪しに依存するため、本来はBase生成時の状態が必要だが、ここではリセット)
         ItemLoader.RandomStatTracker tracker = new ItemLoader.RandomStatTracker();
-
         return applyStatsToItem(item, baseStats, newModifiers, itemType, flavorText, tracker, rarity, grade);
     }
 
-    /**
-     * @deprecated Use {@link #updateStat(ItemStack, StatType, double, boolean)} instead.
-     */
     @Deprecated
     public ItemStack updateSpecificStat(ItemStack item, StatType type, double value, boolean isPercent) {
         if (item == null || !item.hasItemMeta()) return item;
-
-        // 1. 現在のデータをPDCから復元
         PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
-
-        // BaseStatsの復元
-        StatMap baseStats = restoreBaseStats(pdc); // ※下部にヘルパーメソッド記載
-
-        // Modifiersの復元
-        Map<StatType, Double> modifiers = restoreModifiers(pdc); // ※下部にヘルパーメソッド記載
-
-        // メタデータの復元
+        StatMap baseStats = restoreBaseStats(pdc);
+        Map<StatType, Double> modifiers = restoreModifiers(pdc);
         String itemType = pdc.get(ITEM_TYPE_KEY, PersistentDataType.STRING);
         String rarity = pdc.get(RARITY_KEY, PersistentDataType.STRING);
         FabricationGrade grade = FabricationGrade.fromId(pdc.getOrDefault(GRADE_KEY, PersistentDataType.INTEGER, 1));
-
-        // フレーバーテキスト復元
         List<String> flavorText = new ArrayList<>();
         String joinedFlavor = pdc.get(FLAVOR_TEXT_KEY, PersistentDataType.STRING);
-        if (joinedFlavor != null) {
-            flavorText = Arrays.asList(joinedFlavor.split("\\|~\\|"));
-        }
-
-        // 2. 指定ステータスの更新 (Base値に加算)
-        if (isPercent) {
-            double current = baseStats.getPercent(type);
-            baseStats.setPercent(type, current + value);
-        } else {
-            double current = baseStats.getFlat(type);
-            baseStats.setFlat(type, current + value);
-        }
-
-        // 3. ランダムトラッカー (更新の場合は空で渡すか、厳密にやるなら管理が必要)
+        if (joinedFlavor != null) flavorText = Arrays.asList(joinedFlavor.split("|~|"));
+        if (isPercent) baseStats.setPercent(type, baseStats.getPercent(type) + value); else baseStats.setFlat(type, baseStats.getFlat(type) + value);
         ItemLoader.RandomStatTracker tracker = new ItemLoader.RandomStatTracker();
-
-        // 4. 再適用して保存
         return applyStatsToItem(item, baseStats, modifiers, itemType, flavorText, tracker, rarity, grade);
     }
-
-    // --- 内部ヘルパーメソッド (PDC読み込みの重複コード排除用) ---
 
     private StatMap restoreBaseStats(PersistentDataContainer pdc) {
         StatMap stats = new StatMap();
@@ -492,7 +369,6 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IIt
     public StatMap readStatsFromItem(ItemStack item) {
         StatMap stats = new StatMap();
         if (item == null || !item.hasItemMeta()) return stats;
-
         PersistentDataContainer container = item.getItemMeta().getPersistentDataContainer();
         for (StatType type : StatType.values()) {
             Double flat = container.get(new NamespacedKey(KEY_PREFIX, type.name().toLowerCase() + "_flat"), PersistentDataType.DOUBLE);
@@ -505,111 +381,84 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IIt
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        // senderがPlayer型であればplayer変数に代入し、そうでなければnull
         Player player = (sender instanceof Player) ? (Player) sender : null;
 
-        // リロード処理 (コンソール/プレイヤー両方から許可)
         if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
             loadAllItems();
-            sender.sendMessage("§aアイテム設定をリロードしました。");
+            sender.sendMessage(Component.text("アイテム設定をリロードしました。", NamedTextColor.GREEN));
             return true;
         }
 
-        // ★ プレイヤー専用の処理はここでチェックし、コンソールからは実行できないようにする
         if (player == null) {
-            // コンソールからの実行の場合、アイテム付与とポイント付与・リセットのみを許可する
-            // ただし、これらの処理は必ずターゲットプレイヤーを必要とするように修正が必要
-
-            // アイテム付与（コンソール用）
             if (args.length == 2) {
                 String id = args[0];
                 String targetName = args[1];
-
                 Player targetPlayer = Bukkit.getPlayer(targetName);
                 if (targetPlayer == null) {
-                    sender.sendMessage("§cプレイヤー §e" + targetName + " §cは見つかりませんでした。");
+                    sender.sendMessage(Component.text("プレイヤー ", NamedTextColor.RED)
+                            .append(Component.text(targetName, NamedTextColor.YELLOW))
+                            .append(Component.text(" は見つかりませんでした。", NamedTextColor.RED)));
                     return true;
                 }
-
-                // ItemLoader.loadSingleItem(id, this, itemFolder); の部分は適切に修正してください
-                // File itemFolder = new File(Deepwither.getInstance().getDataFolder(), "items"); // Deepwither.getInstance()を適切なプラグインインスタンスに
-                // ItemStack item = ItemLoader.loadSingleItem(id, /* PluginInstance */, itemFolder);
-
-                // 例として仮のロード処理
-                File itemFolder = new File(Deepwither.getInstance().getDataFolder(), "items"); // 適切なプラグインインスタンスを使用
-                ItemStack item = ItemLoader.loadSingleItem(id, this, itemFolder); // Deepwither.getInstance()を適切なプラグインインスタンスに
-
+                File itemFolder = new File(Deepwither.getInstance().getDataFolder(), "items");
+                ItemStack item = ItemLoader.loadSingleItem(id, this, itemFolder);
                 if (item == null) {
-                    sender.sendMessage("§cそのIDのアイテムは存在しません。");
+                    sender.sendMessage(Component.text("そのIDのアイテムは存在しません。", NamedTextColor.RED));
                     return true;
                 }
-
                 targetPlayer.getInventory().addItem(item);
-                sender.sendMessage("§aアイテム §e" + id + " §aをプレイヤー §e" + targetPlayer.getName() + " §aに付与しました。");
-                targetPlayer.sendMessage("§aアイテム §e" + id + " §aを付与されました。");
+                sender.sendMessage(Component.text("アイテム ", NamedTextColor.GREEN)
+                        .append(Component.text(id, NamedTextColor.YELLOW))
+                        .append(Component.text(" をプレイヤー ", NamedTextColor.GREEN))
+                        .append(Component.text(targetPlayer.getName(), NamedTextColor.YELLOW))
+                        .append(Component.text(" に付与しました。", NamedTextColor.GREEN)));
+                targetPlayer.sendMessage(Component.text("アイテム ", NamedTextColor.GREEN)
+                        .append(Component.text(id, NamedTextColor.YELLOW))
+                        .append(Component.text(" を付与されました。", NamedTextColor.GREEN)));
                 return true;
             }
-
-            // addpoints / addskillpoints / resetpoints (コンソールからは未実装のまま、または別途実装が必要)
-            // プレイヤーデータ操作は、引数で対象プレイヤーを指定するロジックが必要だが、
-            // プレイヤー名を引数として受け取るロジックがまだ不完全なため、ここでは一旦プレイヤー専用とする。
-
-            sender.sendMessage("§c使い方: <id> <プレイヤー名> | reload");
+            sender.sendMessage(Component.text("使い方: <id> <プレイヤー名> | reload", NamedTextColor.RED));
             return true;
         }
 
-        if (args[0].equalsIgnoreCase("setwarp")) {
+        if (args.length > 0 && args[0].equalsIgnoreCase("setwarp")) {
             if (args.length < 2) {
-                sender.sendMessage("§cUsage: /dw setwarp <warp_id>");
+                sender.sendMessage(Component.text("Usage: /dw setwarp <warp_id>", NamedTextColor.RED));
                 return true;
             }
             String id = args[1];
             Deepwither.getInstance().getLayerMoveManager().setWarpLocation(id, player.getLocation());
-            sender.sendMessage("§aWarp地点(" + id + ")を現在位置に設定しました。");
+            sender.sendMessage(Component.text("Warp地点(" + id + ")を現在位置に設定しました。", NamedTextColor.GREEN));
             return true;
         }
 
-        // ステータスリセット処理
         if (args.length == 1 && args[0].equalsIgnoreCase("genquest")) {
-            // サーバーのメインスレッドをブロックしないように、LLM呼び出しを非同期タスクで実行
             Bukkit.getScheduler().runTaskAsynchronously(this.plugin, () -> {
                 try {
                     GeneratedQuest quest = new QuestGenerator().generateQuest(5);
-
-                    // -----------------------------------------------------------------------
-                    // 結果の処理をメインスレッドに戻して安全に行う
-                    // -----------------------------------------------------------------------
                     Bukkit.getScheduler().runTask(this.plugin, () -> {
-                        // クエストの内容をプレイヤーに表示
-                        player.sendMessage("§6--- 冒険者ギルドからの緊急依頼 ---");
-                        player.sendMessage("§fタイトル：「§b" + quest.getTitle() + "§f」");
-                        player.sendMessage("§e[場所]§r " + quest.getLocationDetails().getLlmLocationText());
-                        player.sendMessage("§e[目標]§r " + quest.getTargetMobId() + "を" + quest.getRequiredQuantity() + "体");
-                        player.sendMessage(" ");
-
-                        // クエスト本文の表示 (改行を考慮して1行ずつ送る)
+                        player.sendMessage(Component.text("---", NamedTextColor.GOLD).append(Component.text("冒険者ギルドからの緊急依頼", NamedTextColor.GOLD)));
+                        player.sendMessage(Component.text("タイトル：「", NamedTextColor.WHITE).append(Component.text(quest.getTitle(), NamedTextColor.AQUA)).append(Component.text("」", NamedTextColor.WHITE)));
+                        player.sendMessage(Component.text("[場所] ", NamedTextColor.YELLOW).append(Component.text(quest.getLocationDetails().getLlmLocationText(), NamedTextColor.WHITE)));
+                        player.sendMessage(Component.text("[目標] ", NamedTextColor.YELLOW).append(Component.text(quest.getTargetMobId() + "を" + quest.getRequiredQuantity() + "体", NamedTextColor.WHITE)));
+                        player.sendMessage(Component.empty());
                         for (String line : quest.getQuestText().split("\n")) {
-                            player.sendMessage("§7" + line);
+                            player.sendMessage(Component.text(line, NamedTextColor.GRAY));
                         }
-
-                        player.sendMessage(" ");
-                        player.sendMessage("§a[報酬]§r 200 ゴールド、経験値 500、小さな回復薬 x1");
-                        player.sendMessage("§6-------------------------------------");
+                        player.sendMessage(Component.empty());
+                        player.sendMessage(Component.text("[報酬] ", NamedTextColor.GREEN).append(Component.text("200 ゴールド、経験値 500、小さな回復薬 x1", NamedTextColor.WHITE)));
+                        player.sendMessage(Component.text("-------------------------------------", NamedTextColor.GOLD));
                     });
-
                 } catch (Exception e) {
-                    // LLM通信でエラーが発生した場合、メインスレッドに戻ってエラーメッセージを送信
                     Bukkit.getScheduler().runTask(this.plugin, () -> {
-                        player.sendMessage("§c[ギルド受付]§r 依頼の生成中にエラーが発生しました。時間を置いて再度お試しください。");
+                        player.sendMessage(Component.text("[ギルド受付] ", NamedTextColor.RED).append(Component.text("依頼の生成中にエラーが発生しました。時間を置いて再度お試しください。", NamedTextColor.WHITE)));
                         this.plugin.getLogger().log(Level.SEVERE, "LLMクエスト生成中にエラー:", e);
                     });
                 }
             });
-
             return true;
         }
 
-        // ステータスリセット処理
         if (args.length == 1 && args[0].equalsIgnoreCase("resetpoints")) {
             UUID uuid = player.getUniqueId();
             AttributeManager attrManager = Deepwither.getInstance().getAttributeManager();
@@ -621,27 +470,24 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IIt
                     data.setAllocated(type, 0);
                 }
                 data.addPoints(totalAllocated);
-                player.sendMessage("§6すべてのステータスポイントをリセットしました。");
+                player.sendMessage(Component.text("すべてのステータスポイントをリセットしました。", NamedTextColor.GOLD));
             } else {
-                player.sendMessage("§cステータスデータが読み込まれていません。");
+                player.sendMessage(Component.text("ステータスデータが読み込まれていません。", NamedTextColor.RED));
             }
             return true;
         }
-        //reset
         if (args.length == 1 && args[0].equalsIgnoreCase("reset")) {
             Deepwither.getInstance().getLevelManager().resetLevel(player);
             return true;
         }
 
-        // ステータスリセット処理
         if (args.length == 1 && args[0].equalsIgnoreCase("skilltreeresets")) {
             UUID uuid = player.getUniqueId();
             Deepwither.getInstance().getSkilltreeManager().resetSkillTree(uuid);
-            player.sendMessage("§6すべてのステータスポイントをリセットしました。");
+            player.sendMessage(Component.text("すべてのステータスポイントをリセットしました。", NamedTextColor.GOLD));
             return true;
         }
 
-        // ステータスポイント付与処理
         if (args.length == 2 && args[0].equalsIgnoreCase("addpoints")) {
             try {
                 int amount = Integer.parseInt(args[1]);
@@ -650,23 +496,21 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IIt
                 PlayerAttributeData data = attrManager.get(uuid);
                 if (data != null) {
                     data.addPoints(amount);
-                    player.sendMessage("§aステータスポイントを §e" + amount + " §a付与しました。");
+                    player.sendMessage(Component.text("ステータスポイントを ", NamedTextColor.GREEN).append(Component.text(amount, NamedTextColor.YELLOW)).append(Component.text(" 付与しました。", NamedTextColor.GREEN)));
                 } else {
-                    player.sendMessage("§cステータスデータが読み込まれていません。");
+                    player.sendMessage(Component.text("ステータスデータが読み込まれていません。", NamedTextColor.RED));
                 }
             } catch (NumberFormatException e) {
-                player.sendMessage("§c数値を入力してください。");
+                player.sendMessage(Component.text("数値を入力してください。", NamedTextColor.RED));
             }
             return true;
         }
 
-        // ステータスポイント付与処理
         if (args.length == 2 && args[0].equalsIgnoreCase("spawnoutpost")) {
             OutpostManager.getInstance().startRandomOutpost();
             return true;
         }
 
-        // スキルポイント付与処理
         if (args.length == 2 && args[0].equalsIgnoreCase("addskillpoints")) {
             try {
                 int amount = Integer.parseInt(args[1]);
@@ -675,76 +519,75 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IIt
                 if (data != null) {
                     data.setSkillPoint(data.getSkillPoint() + amount);
                     Deepwither.getInstance().getSkilltreeManager().save(uuid, data);
-                    player.sendMessage("§aスキルポイントを §e" + amount + " §a付与しました。");
+                    player.sendMessage(Component.text("スキルポイントを ", NamedTextColor.GREEN).append(Component.text(amount, NamedTextColor.YELLOW)).append(Component.text(" 付与しました。", NamedTextColor.GREEN)));
                 } else {
-                    player.sendMessage("§cスキルツリーデータが読み込まれていません。");
+                    player.sendMessage(Component.text("スキルツリーデータが読み込まれていません。", NamedTextColor.RED));
                 }
             } catch (NumberFormatException e) {
-                player.sendMessage("§c数値を入力してください。");
+                player.sendMessage(Component.text("数値を入力してください。", NamedTextColor.RED));
             }
             return true;
         }
 
-        // --- 引数の解析 ---
         if (args.length < 1) {
-            sender.sendMessage("§c使い方: /giveitem <id> [プレイヤー名] [グレード(1-5)]");
+            sender.sendMessage(Component.text("使い方: /giveitem <id> [プレイヤー名] [グレード(1-5)]", NamedTextColor.RED));
             return true;
         }
 
         String id = args[0];
         Player targetPlayer = player;
-        FabricationGrade grade = FabricationGrade.STANDARD; // デフォルトはFG-1
+        FabricationGrade grade = FabricationGrade.STANDARD;
 
-        // 1. ターゲットプレイヤーの判定
         if (args.length >= 2) {
             Player found = Bukkit.getPlayer(args[1]);
-            if (found != null) {
-                targetPlayer = found;
-            } else if (player == null) {
-                // コンソール実行でプレイヤーが見つからない場合
-                sender.sendMessage("§cプレイヤー §e" + args[1] + " §cは見つかりませんでした。");
+            if (found != null) targetPlayer = found;
+            else if (player == null) {
+                sender.sendMessage(Component.text("プレイヤー ", NamedTextColor.RED).append(Component.text(args[1], NamedTextColor.YELLOW)).append(Component.text(" は見つかりませんでした。", NamedTextColor.RED)));
                 return true;
             }
         }
 
-        // コンソール実行でターゲットが不明な場合のエラー
         if (targetPlayer == null) {
-            sender.sendMessage("§cコンソールから実行する場合はプレイヤー名を指定してください。");
+            sender.sendMessage(Component.text("コンソールから実行する場合はプレイヤー名を指定してください。", NamedTextColor.RED));
             return true;
         }
 
-        // 2. 製造等級(Fabrication Grade)の判定
-        // 引数が3つある場合 (例: /dw hammer player1 5)
         if (args.length >= 3) {
             try {
-                int gradeId = Integer.parseInt(args[2]);
-                grade = FabricationGrade.fromId(gradeId);
+                grade = FabricationGrade.fromId(Integer.parseInt(args[2]));
             } catch (NumberFormatException e) {
-                sender.sendMessage("§cグレードは数値(1-5)で指定してください。");
+                sender.sendMessage(Component.text("グレードは数値(1-5)で指定してください。", NamedTextColor.RED));
                 return true;
             }
         }
 
-        // --- アイテムの生成と付与 ---
         File itemFolder = new File(plugin.getDataFolder(), "items");
-        // 改修した loadSingleItem を呼び出し
         ItemStack item = ItemLoader.loadSingleItem(id, this, itemFolder, grade);
 
         if (item == null) {
-            sender.sendMessage("§cそのIDのアイテムは存在しません。");
+            sender.sendMessage(Component.text("そのIDのアイテムは存在しません。", NamedTextColor.RED));
             return true;
         }
 
         targetPlayer.getInventory().addItem(item);
 
-        String msg = "§aアイテム §e" + id + " " + grade.getDisplayName() + " §aを §e" + targetPlayer.getName() + " §aに付与しました。";
-        sender.sendMessage(msg);
+        Component successMsg = Component.text("アイテム ", NamedTextColor.GREEN)
+                .append(Component.text(id, NamedTextColor.YELLOW))
+                .append(Component.text(" "))
+                .append(Component.text(grade.getDisplayName()))
+                .append(Component.text(" を ", NamedTextColor.GREEN))
+                .append(Component.text(targetPlayer.getName(), NamedTextColor.YELLOW))
+                .append(Component.text(" に付与しました。", NamedTextColor.GREEN));
+        sender.sendMessage(successMsg);
         if (!sender.equals(targetPlayer)) {
-            targetPlayer.sendMessage("§aアイテム §e" + id + " " + grade.getDisplayName() + " §aを付与されました。");
+            targetPlayer.sendMessage(Component.text("アイテム ", NamedTextColor.GREEN)
+                    .append(Component.text(id, NamedTextColor.YELLOW))
+                    .append(Component.text(" "))
+                    .append(Component.text(grade.getDisplayName()))
+                    .append(Component.text(" を付与されました。", NamedTextColor.GREEN)));
         }
         return true;
     }
-
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
@@ -755,49 +598,34 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IIt
             candidates.add("addpoints");
             candidates.add("addskillpoints");
             candidates.add("skilltreeresets");
-            return candidates.stream()
-                    .filter(s -> s.toLowerCase().startsWith(args[0].toLowerCase()))
-                    .toList();
+            return candidates.stream().filter(s -> s.toLowerCase().startsWith(args[0].toLowerCase())).toList();
         }
-
-        // addpoints の引数補完（ダミー値）
-        if (args.length == 2 && args[0].equalsIgnoreCase("addpoints")) {
-            return List.of("10", "25", "50");
-        }
-        if (args.length == 2 && args[0].equalsIgnoreCase("addskillpoints")) {
-            return List.of("5", "10", "20");
-        }
-
+        if (args.length == 2 && args[0].equalsIgnoreCase("addpoints")) return List.of("10", "25", "50");
+        if (args.length == 2 && args[0].equalsIgnoreCase("addskillpoints")) return List.of("5", "10", "20");
         return Collections.emptyList();
     }
 
-    public void getCustomItem(Player player,String customitemid){
+    public void getCustomItem(Player player, String customitemid) {
         File itemFolder = new File(plugin.getDataFolder(), "items");
         ItemStack item = ItemLoader.loadSingleItem(customitemid, this, itemFolder);
         if (item == null) {
-            player.sendMessage("§cそのIDのアイテムは存在しません。");
+            player.sendMessage(Component.text("そのIDのアイテムは存在しません。", NamedTextColor.RED));
             return;
         }
         player.getInventory().addItem(item);
     }
 
-    public ItemStack getCustomItemStack(String customitemid){
-        File itemFolder = new File(plugin.getDataFolder(), "items");
-        ItemStack item = ItemLoader.loadSingleItem(customitemid, this, itemFolder);
-        return item;
+    public ItemStack getCustomItemStack(String customitemid) {
+        return ItemLoader.loadSingleItem(customitemid, this, new File(plugin.getDataFolder(), "items"));
     }
 
-    public ItemStack getCustomItemStack(String customitemid, FabricationGrade grade){
-        File itemFolder = new File(plugin.getDataFolder(), "items");
-        return ItemLoader.loadSingleItem(customitemid, this, itemFolder, grade);
+    public ItemStack getCustomItemStack(String customitemid, FabricationGrade grade) {
+        return ItemLoader.loadSingleItem(customitemid, this, new File(plugin.getDataFolder(), "items"), grade);
     }
 
-    public ItemStack getCustomCountItemStack(String customitemid,Integer count){
-        File itemFolder = new File(plugin.getDataFolder(), "items");
-        ItemStack item = ItemLoader.loadSingleItem(customitemid, this, itemFolder);
-        if (item != null) {
-            item.setAmount(count);
-        }
+    public ItemStack getCustomCountItemStack(String customitemid, Integer count) {
+        ItemStack item = getCustomItemStack(customitemid);
+        if (item != null) item.setAmount(count);
         return item;
     }
 }

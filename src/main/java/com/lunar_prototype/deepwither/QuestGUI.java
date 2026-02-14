@@ -3,8 +3,10 @@ package com.lunar_prototype.deepwither;
 import com.lunar_prototype.deepwither.aethelgard.GeneratedQuest;
 import com.lunar_prototype.deepwither.aethelgard.GuildQuestManager;
 import com.lunar_prototype.deepwither.aethelgard.QuestLocation;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
@@ -14,19 +16,12 @@ import org.bukkit.Material;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * ギルドクエスト一覧を表示するためのインベントリホルダー兼GUI作成クラス。
- * QuestLocationの情報を保持するため、InventoryHolderを実装します。
- */
 public class QuestGUI implements InventoryHolder {
 
     private final QuestLocation questLocation;
     private final Inventory inventory;
 
-    // GUIのタイトルフォーマット
     private static final String GUI_TITLE_FORMAT = "ギルドクエスト受付 - %s";
-
-    // GUIのサイズ (9の倍数、今回は最大54スロットまで利用可能)
     private static final int INVENTORY_SIZE = 54;
     private static final int QUEST_SLOTS_START = 10;
     private static final int QUEST_SLOTS_END = 43;
@@ -35,18 +30,14 @@ public class QuestGUI implements InventoryHolder {
         this.questLocation = manager.getQuestLocation(locationId);
 
         if (this.questLocation == null) {
-            // エラー処理（本来はコマンド側でチェックすべき）
-            this.inventory = Bukkit.createInventory(this, INVENTORY_SIZE, ChatColor.RED + "エラー: ギルドが見つかりません");
+            this.inventory = Bukkit.createInventory(this, INVENTORY_SIZE, Component.text("エラー: ギルドが見つかりません", NamedTextColor.RED));
         } else {
-            String title = String.format(GUI_TITLE_FORMAT, questLocation.getLocationName());
-            this.inventory = Bukkit.createInventory(this, INVENTORY_SIZE, ChatColor.DARK_AQUA + title);
+            String titleStr = String.format(GUI_TITLE_FORMAT, questLocation.getLocationName());
+            this.inventory = Bukkit.createInventory(this, INVENTORY_SIZE, Component.text(titleStr, NamedTextColor.DARK_AQUA));
             initializeItems();
         }
     }
 
-    /**
-     * GUIアイテムを初期化し、クエストを配置します。
-     */
     private void initializeItems() {
         if (questLocation == null) return;
 
@@ -54,62 +45,53 @@ public class QuestGUI implements InventoryHolder {
         int questIndex = 0;
 
         for (int i = QUEST_SLOTS_START; i <= QUEST_SLOTS_END && questIndex < quests.size(); i++) {
-            // スロットがアイテムで埋まっていないことを確認
             if (i % 9 == 0 || i % 9 == 8) continue;
-
             GeneratedQuest quest = quests.get(questIndex++);
-            // クエストアイテムを作成
             ItemStack item = createQuestItem(quest);
             inventory.setItem(i, item);
         }
     }
 
-    /**
-     * GeneratedQuestの詳細に基づいてItemStackを作成します。
-     */
     private ItemStack createQuestItem(GeneratedQuest quest) {
         ItemStack item = new ItemStack(Material.PAPER);
         ItemMeta meta = item.getItemMeta();
 
-        meta.setDisplayName(ChatColor.YELLOW.toString() + ChatColor.BOLD + quest.getTitle());
+        meta.displayName(Component.text(quest.getTitle(), NamedTextColor.YELLOW, TextDecoration.BOLD));
 
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "--- 依頼概要 ---");
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.text("---\\u4fca-----", NamedTextColor.GRAY));
 
         final int MAX_LINE_WIDTH = 35;
         for (String line : wrapText(quest.getQuestText(), MAX_LINE_WIDTH)) {
-            lore.add(ChatColor.WHITE + line);
+            lore.add(Component.text(line, NamedTextColor.WHITE));
         }
-        lore.add("");
-        lore.add(ChatColor.AQUA + "目標: " + ChatColor.DARK_AQUA + quest.getTargetMobId() + " 討伐 x" + quest.getRequiredQuantity());
+        lore.add(Component.empty());
+        lore.add(Component.text("目標: ", NamedTextColor.AQUA)
+                .append(Component.text(quest.getTargetMobId() + " 討伐 x" + quest.getRequiredQuantity(), NamedTextColor.DARK_AQUA)));
 
-        // 場所などの表示... (省略)
+        lore.add(Component.empty());
 
-        lore.add("");
-
-        // ★追加: 残り時間の表示
         long remainingMillis = quest.getRemainingTime();
-        String timeString;
+        Component timeComp;
         if (remainingMillis <= 0) {
-            timeString = ChatColor.RED + "期限切れ";
+            timeComp = Component.text("期限切れ", NamedTextColor.RED);
         } else {
             long hours = remainingMillis / (1000 * 60 * 60);
             long minutes = (remainingMillis % (1000 * 60 * 60)) / (1000 * 60);
-
-            // 残り時間が少ない場合は赤く表示、十分なら緑
-            ChatColor timeColor = (hours == 0 && minutes < 30) ? ChatColor.RED : ChatColor.GREEN;
-            timeString = timeColor + String.format("%d時間 %d分", hours, minutes);
+            NamedTextColor timeColor = (hours == 0 && minutes < 30) ? NamedTextColor.RED : NamedTextColor.GREEN;
+            timeComp = Component.text(String.format("%d時間 %d分", hours, minutes), timeColor);
         }
-        lore.add(ChatColor.GRAY + "残り受付時間: " + timeString);
+        lore.add(Component.text("残り受付時間: ", NamedTextColor.GRAY).append(timeComp));
 
-        lore.add("");
-        lore.add(ChatColor.GOLD + "報酬: " + ChatColor.YELLOW + quest.getRewardDetails().getLlmRewardText());
-        lore.add("");
-        lore.add(ChatColor.GREEN.toString() + ChatColor.BOLD + ">> クリックして受注 <<");
+        lore.add(Component.empty());
+        lore.add(Component.text("報酬: ", NamedTextColor.GOLD)
+                .append(Component.text(quest.getRewardDetails().getLlmRewardText(), NamedTextColor.YELLOW)));
+        lore.add(Component.empty());
+        lore.add(Component.text(">> クリックして受注 <<", NamedTextColor.GREEN, TextDecoration.BOLD));
 
-        lore.add(ChatColor.BLACK + "QUEST_ID:" + quest.getQuestId().toString());
+        lore.add(Component.text("QUEST_ID:" + quest.getQuestId().toString(), NamedTextColor.BLACK));
 
-        meta.setLore(lore);
+        meta.lore(lore);
         item.setItemMeta(meta);
         return item;
     }
@@ -123,24 +105,11 @@ public class QuestGUI implements InventoryHolder {
         return inventory;
     }
 
-    /**
-     * 長い文字列を指定した幅で改行（分割）し、リストとして返します。
-     * @param text 分割する文字列
-     * @param maxWidth 1行の最大文字数 (Bukkitのロア表示に適した値)
-     * @return 分割された文字列のリスト
-     */
     private List<String> wrapText(String text, int maxWidth) {
-        if (text == null || text.isEmpty()) {
-            return List.of();
-        }
-
+        if (text == null || text.isEmpty()) return List.of();
         List<String> lines = new ArrayList<>();
-
-        // 改行コード（\n）を考慮して一度分割
-        String[] sections = text.split("\n");
-
+        String[] sections = text.split("\\n");
         for (String section : sections) {
-            // 各セクションを指定された maxWidth でさらに分割
             int length = section.length();
             for (int i = 0; i < length; i += maxWidth) {
                 int endIndex = Math.min(i + maxWidth, length);

@@ -3,6 +3,8 @@ package com.lunar_prototype.deepwither.market;
 import com.lunar_prototype.deepwither.DatabaseManager;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.util.IManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -36,19 +38,15 @@ public class GlobalMarketManager implements IManager {
         loadEarnings();
     }
 
-    // --- コア機能 (DB連携) ---
-
     public void listItem(Player seller, ItemStack item, double price) {
         MarketListing listing = new MarketListing(seller.getUniqueId(), item.clone(), price);
         allListings.add(listing);
-
-        // 非同期でDBに保存 (ラグ防止)
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> saveListingToDB(listing));
     }
 
     public boolean buyItem(Player buyer, MarketListing listing) {
         if (!allListings.contains(listing)) {
-            buyer.sendMessage("§cこのアイテムは既に売り切れています。");
+            buyer.sendMessage(Component.text("このアイテムは既に売り切れています。", NamedTextColor.RED));
             return false;
         }
 
@@ -56,49 +54,40 @@ public class GlobalMarketManager implements IManager {
         var econ = Deepwither.getEconomy();
 
         if (!econ.has(buyer, price)) {
-            buyer.sendMessage("§c所持金が足りません。");
+            buyer.sendMessage(Component.text("所持金が足りません。", NamedTextColor.RED));
             return false;
         }
 
         if (buyer.getInventory().firstEmpty() == -1) {
-            buyer.sendMessage("§cインベントリが一杯です。");
+            buyer.sendMessage(Component.text("インベントリが一杯です。", NamedTextColor.RED));
             return false;
         }
 
-        // 支払い処理
         var res = econ.withdrawPlayer(buyer, price);
         if (!res.transactionSuccess()) return false;
 
         buyer.getInventory().addItem(listing.getItem().clone());
 
-        // キャッシュとDBから削除
         allListings.remove(listing);
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> deleteListingFromDB(listing.getId()));
 
-        // 売上金処理
         addEarnings(listing.getSellerId(), price);
 
-        buyer.sendMessage("§a購入が完了しました！");
+        buyer.sendMessage(Component.text("購入が完了しました！", NamedTextColor.GREEN));
         return true;
     }
 
-    /**
-     * プレイヤーの累積売上金を回収し、Vault口座に振り込みます。
-     * * @param player 回収を行うプレイヤー
-     */
     public void claimEarnings(Player player) {
         UUID uuid = player.getUniqueId();
         double amount = earnings.getOrDefault(uuid, 0.0);
 
         if (amount <= 0) {
-            player.sendMessage("§c[Market] 回収できる売上金はありません。");
+            player.sendMessage(Component.text("[Market] ", NamedTextColor.AQUA).append(Component.text("回収できる売上金はありません。", NamedTextColor.RED)));
             return;
         }
 
-        // 1. メモリ上のキャッシュをリセット (再入金防止のため先に処理)
         earnings.put(uuid, 0.0);
 
-        // 2. データベースの更新 (非同期)
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             String sql = "UPDATE market_earnings SET amount = 0 WHERE uuid = ?";
             try (java.sql.Connection conn = databaseManager.getConnection();
@@ -111,24 +100,20 @@ public class GlobalMarketManager implements IManager {
             }
         });
 
-        // 3. Vaultでプレイヤーの口座に入金
         var response = Deepwither.getEconomy().depositPlayer(player, amount);
 
         if (response.transactionSuccess()) {
-            player.sendMessage("§a[Market] 売上金 " + String.format("%.2f", amount) + " G を回収しました！");
+            player.sendMessage(Component.text("[Market] ", NamedTextColor.AQUA)
+                    .append(Component.text("売上金 ", NamedTextColor.WHITE))
+                    .append(Component.text(String.format("%.2f", amount) + " G", NamedTextColor.GOLD))
+                    .append(Component.text(" を回収しました！", NamedTextColor.WHITE)));
             player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1.2f);
         } else {
-            // 万が一Vault入金に失敗した場合のロールバック（簡易的）
             earnings.put(uuid, amount);
-            player.sendMessage("§c[Market] 入金処理に失敗しました。管理者にお問い合わせください: " + response.errorMessage);
+            player.sendMessage(Component.text("[Market] ", NamedTextColor.RED).append(Component.text("入金処理に失敗しました。管理者にお問い合わせください: " + response.errorMessage, NamedTextColor.WHITE)));
         }
     }
 
-    // --- データベース操作 (SQLite) ---
-
-    /**
-     * 部分一致によるアイテム検索
-     */
     public List<MarketListing> search(String query) {
         String lowerQuery = query.toLowerCase();
         return allListings.stream()
@@ -141,12 +126,8 @@ public class GlobalMarketManager implements IManager {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * 最近ログインしたアクティブな出品者を取得
-     */
     public List<OfflinePlayer> getActiveSellers() {
         long oneMonthAgo = System.currentTimeMillis() - (30L * 24 * 60 * 60 * 1000L);
-
         return allListings.stream()
                 .map(MarketListing::getSellerId)
                 .distinct()
@@ -167,7 +148,7 @@ public class GlobalMarketManager implements IManager {
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, listing.getId().toString());
             ps.setString(2, listing.getSellerId().toString());
-            ps.setString(3, serializeItem(listing.getItem())); // Base64シリアライズ
+            ps.setString(3, serializeItem(listing.getItem()));
             ps.setDouble(4, listing.getPrice());
             ps.setLong(5, listing.getListedDate());
             ps.executeUpdate();
@@ -229,8 +210,6 @@ public class GlobalMarketManager implements IManager {
         }
     }
 
-    // --- アイテムのシリアライズ (SQLite保存用) ---
-
     private String serializeItem(ItemStack item) {
         try {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -251,6 +230,5 @@ public class GlobalMarketManager implements IManager {
         } catch (Exception e) { return null; }
     }
 
-    // --- 以下、検索・Getter等は変更なし ---
     public List<MarketListing> getAllListings() { return Collections.unmodifiableList(allListings); }
 }

@@ -2,8 +2,11 @@ package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -39,9 +42,8 @@ public class SkillAssignmentGUI implements Listener, IManager {
     public void shutdown() {}
 
     public void open(Player player) {
-        Inventory gui = Bukkit.createInventory(null, 54, ChatColor.DARK_GREEN + "スキル割り当て");
+        Inventory gui = Bukkit.createInventory(null, 54, Component.text("スキル割り当て", NamedTextColor.DARK_GREEN));
 
-        // 取得済みスキル一覧の描画
         SkilltreeManager.SkillData data = Deepwither.getInstance().getSkilltreeManager().load(player.getUniqueId());
         int index = 0;
         for (String skillId : data.getSkills().keySet()) {
@@ -50,30 +52,24 @@ public class SkillAssignmentGUI implements Listener, IManager {
 
             ItemStack item = new ItemStack(skill.material);
             ItemMeta meta = item.getItemMeta();
-            meta.setDisplayName(ChatColor.GOLD + skill.name);
-            List<String> lore = new ArrayList<>();
-            // スキルの説明文（lore）に色を適用
+            meta.displayName(Component.text(skill.name, NamedTextColor.GOLD));
+            List<Component> lore = new ArrayList<>();
             for (String loreLine : skill.lore) {
-                String translatedLine = ChatColor.translateAlternateColorCodes('&', loreLine);
-                // クールダウンとマナのプレースホルダーを置き換える
                 double effectiveCooldown = StatManager.getEffectiveCooldown(player, skill.cooldown);
                 double manaCost = skill.manaCost;
-
-                translatedLine = translatedLine.replace("{cooldown}", String.format("%.1f", effectiveCooldown));
-                translatedLine = translatedLine.replace("{mana}", String.format("%.1f", manaCost));
-
-                lore.add(ChatColor.GRAY +translatedLine);
+                String translated = loreLine.replace("{cooldown}", String.format("%.1f", effectiveCooldown))
+                                           .replace("{mana}", String.format("%.1f", manaCost));
+                lore.add(LegacyComponentSerializer.legacyAmpersand().deserialize(translated).colorIfAbsent(NamedTextColor.GRAY));
             }
-            lore.add("");
-            lore.add(ChatColor.GRAY + "クリックでスロットに割り当て");
-            lore.add(ChatColor.DARK_GRAY + "ID:" + skillId);
-            meta.setLore(lore);
+            lore.add(Component.empty());
+            lore.add(Component.text("クリックでスロットに割り当て", NamedTextColor.GRAY));
+            lore.add(Component.text("ID:" + skillId, NamedTextColor.DARK_GRAY));
+            meta.lore(lore);
             item.setItemMeta(meta);
 
             gui.setItem(index++, item);
         }
 
-        // スロット枠の描画（Slot1〜4）
         SkillSlotData slotData = slotManager.get(player.getUniqueId());
         for (int i = 0; i < 4; i++) {
             String assigned = slotData.getSkill(i);
@@ -82,27 +78,20 @@ public class SkillAssignmentGUI implements Listener, IManager {
                 SkillDefinition assignedSkill = skillLoader.get(assigned);
                 slotItem = new ItemStack(Material.BOOK);
                 ItemMeta meta = slotItem.getItemMeta();
-                meta.setDisplayName(ChatColor.AQUA + "スロット" + (i + 1));
-                meta.setLore(List.of(
-                        ChatColor.YELLOW + "割り当て済み: " + assignedSkill.name,
-                        ChatColor.DARK_GRAY + "slot:" + i
+                meta.displayName(Component.text("スロット" + (i + 1), NamedTextColor.AQUA));
+                meta.lore(List.of(
+                        Component.text("割り当て済み: " + assignedSkill.name, NamedTextColor.YELLOW),
+                        Component.text("slot:" + i, NamedTextColor.DARK_GRAY)
                 ));
                 slotItem.setItemMeta(meta);
             } else {
                 slotItem = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
                 ItemMeta meta = slotItem.getItemMeta();
-                meta.setDisplayName(ChatColor.GRAY + "スロット" + (i + 1));
-                meta.setLore(List.of(ChatColor.DARK_GRAY + "slot:" + i));
+                meta.displayName(Component.text("スロット" + (i + 1), NamedTextColor.GRAY));
+                meta.lore(List.of(Component.text("slot:" + i, NamedTextColor.DARK_GRAY)));
                 slotItem.setItemMeta(meta);
             }
             gui.setItem(45 + i, slotItem);
-        }
-
-        for (String id : data.getSkills().keySet()) {
-            SkillDefinition def = skillLoader.get(id);
-            if (def == null) {
-                Bukkit.getLogger().warning("[SkillGUI] スキルID " + id + " は定義ファイルに存在しません！");
-            }
         }
 
         player.openInventory(gui);
@@ -111,7 +100,7 @@ public class SkillAssignmentGUI implements Listener, IManager {
     @EventHandler
     public void onClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
-        if (!event.getView().getTitle().equals(ChatColor.DARK_GREEN + "スキル割り当て")) return;
+        if (!event.getView().title().equals(Component.text("スキル割り当て", NamedTextColor.DARK_GREEN))) return;
 
         event.setCancelled(true);
 
@@ -119,53 +108,45 @@ public class SkillAssignmentGUI implements Listener, IManager {
         if (clicked == null || !clicked.hasItemMeta()) return;
 
         ItemMeta meta = clicked.getItemMeta();
-        List<String> lore = meta.getLore();
+        List<Component> lore = meta.lore();
         if (lore == null) return;
 
-        // スキルをクリック → どのスキルを割り当てるか一時保持
         String skillId = null;
-        for (String line : lore) {
-            if (line.contains("ID:")) {
-                skillId = ChatColor.stripColor(line.replace("ID:", "").trim());
+        for (Component line : lore) {
+            String plain = PlainTextComponentSerializer.plainText().serialize(line);
+            if (plain.contains("ID:")) {
+                skillId = plain.replace("ID:", "").trim();
                 break;
             }
         }
 
         if (skillId != null) {
-            // スキル選択状態に（プレイヤー→一時保存）
             selectedSkillMap.put(player.getUniqueId(), skillId);
-            player.sendMessage(ChatColor.YELLOW + "スロットをクリックして割り当ててください。");
+            player.sendMessage(Component.text("スロットをクリックして割り当ててください。", NamedTextColor.YELLOW));
             return;
         }
 
-        // スロットクリックかどうか
-        for (String line : lore) {
-            if (ChatColor.stripColor(line).contains("slot:")) {
+        for (Component line : lore) {
+            String plain = PlainTextComponentSerializer.plainText().serialize(line);
+            if (plain.contains("slot:")) {
                 try {
-                    String stripped = ChatColor.stripColor(line).trim(); // 例: "slot:0"
-                    String slotStr = stripped.replace("slot:", "").trim();
-                    int slot = Integer.parseInt(slotStr);
-
+                    int slot = Integer.parseInt(plain.replace("slot:", "").trim());
                     String selected = selectedSkillMap.get(player.getUniqueId());
                     if (selected == null) {
-                        player.sendMessage(ChatColor.RED + "先にスキルを選択してください。");
+                        player.sendMessage(Component.text("先にスキルを選択してください。", NamedTextColor.RED));
                         return;
                     }
 
-                    // 割り当て処理
                     slotManager.setSlot(player.getUniqueId(), slot, selected);
                     slotManager.saveAll();
                     selectedSkillMap.remove(player.getUniqueId());
-                    player.sendMessage(ChatColor.GREEN + "スキル「" + selected + "」をスロット" + (slot + 1) + "に割り当てました！");
-                    Deepwither.getInstance().getSkillAssignmentGUI().open(player);
-
+                    player.sendMessage(Component.text("スキル「" + selected + "」をスロット" + (slot + 1) + "に割り当てました！", NamedTextColor.GREEN));
+                    open(player);
                     return;
                 } catch (NumberFormatException e) {
-                    player.sendMessage(ChatColor.RED + "スロット番号の解析に失敗しました。");
-                    e.printStackTrace();
+                    player.sendMessage(Component.text("スロット番号の解析に失敗しました。", NamedTextColor.RED));
                 }
             }
         }
     }
 }
-

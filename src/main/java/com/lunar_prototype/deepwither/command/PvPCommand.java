@@ -1,6 +1,9 @@
 package com.lunar_prototype.deepwither.command;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
@@ -17,43 +20,36 @@ import java.util.UUID;
 
 public class PvPCommand implements CommandExecutor {
     private static final NamespacedKey BACK_LOCATION = NamespacedKey.fromString("pvp_back_location", Deepwither.getInstance());
-
-    //    // プレイヤーが元居た場所を記録するMap
-//    private final HashMap<UUID, Location> backLocations = new HashMap<>();
     private final String PVP_WORLD_NAME = "pvp";
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("§cこのコマンドはプレイヤー専用です。");
+            sender.sendMessage(Component.text("このコマンドはプレイヤー専用です。", NamedTextColor.RED));
             return true;
         }
 
         World pvpWorld = Bukkit.getWorld(PVP_WORLD_NAME);
         if (pvpWorld == null) {
-            player.sendMessage("§cエラー: ワールド '" + PVP_WORLD_NAME + "' が見つかりません。");
+            player.sendMessage(Component.text("エラー: ワールド '" + PVP_WORLD_NAME + "' が見つかりません。", NamedTextColor.RED));
             return true;
         }
 
-        // 現在PvPワールドにいるかチェック
         if (player.getWorld().getName().equals(PVP_WORLD_NAME)) {
-            // 元の場所に戻す
             Location backLoc = loadLocation(player);
             if (backLoc != null) {
                 player.teleport(backLoc);
                 removeLocation(player);
-                player.sendMessage("§a元の場所に戻りました。");
+                player.sendMessage(Component.text("元の場所に戻りました。", NamedTextColor.GREEN));
             } else {
-                // 記録がない場合は初期ワールドのスポーンへ（安全策）
                 player.teleport(Bukkit.getWorld("aether").getSpawnLocation());
-                player.sendMessage("§e元の場所の記録がないため、初期スポーンに戻りました。");
+                player.sendMessage(Component.text("元の場所の記録がないため、初期スポーンに戻りました。", NamedTextColor.YELLOW));
             }
         } else {
-            // PvPワールドへ行く
-            saveLocation(player); // 現在地を保存
+            saveLocation(player);
             player.teleport(pvpWorld.getSpawnLocation());
-            player.sendMessage("§6§lPvPワールドへ移動しました！");
-            player.sendMessage("§7もう一度 /pvp を打つと元の場所に戻ります。");
+            player.sendMessage(Component.text("PvPワールドへ移動しました！", NamedTextColor.GOLD, TextDecoration.BOLD));
+            player.sendMessage(Component.text("もう一度 /pvp を打つと元の場所に戻ります。", NamedTextColor.GRAY));
         }
 
         return true;

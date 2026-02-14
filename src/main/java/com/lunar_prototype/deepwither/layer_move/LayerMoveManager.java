@@ -3,8 +3,10 @@ package com.lunar_prototype.deepwither.layer_move;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
@@ -54,7 +56,6 @@ public class LayerMoveManager implements IManager {
             data.id = key;
             data.displayName = section.getString(key + ".display_name");
 
-            // 座標読み込み (world,x,y,z,yaw,pitch形式を想定)
             String locStr = section.getString(key + ".location");
             if (locStr != null) {
                 data.destination = parseLocation(locStr);
@@ -74,60 +75,52 @@ public class LayerMoveManager implements IManager {
     public void tryWarp(Player player, String warpId) {
         WarpData warp = warps.get(warpId);
         if (warp == null) {
-            player.sendMessage(ChatColor.RED + "移動先設定が存在しません: " + warpId);
+            player.sendMessage(Component.text("移動先設定が存在しません: " + warpId, NamedTextColor.RED));
             return;
         }
 
         if (warp.destination == null) {
-            player.sendMessage(ChatColor.RED + "移動先座標が設定されていません。");
+            player.sendMessage(Component.text("移動先座標が設定されていません。", NamedTextColor.RED));
             return;
         }
 
-        // 1. ボス撃破チェック
         if (warp.bossRequired && warp.bossMythicId != null) {
             NamespacedKey key = new NamespacedKey(Deepwither.getInstance(), "boss_killed_" + warp.bossMythicId.toLowerCase());
             if (!player.getPersistentDataContainer().has(key, PersistentDataType.BYTE)) {
-                // まだ倒していない -> ダンジョンコマンド実行
                 if (warp.dungeonCommand != null) {
                     String cmd = warp.dungeonCommand.replace("%player%", player.getName());
                     Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd);
-                    // player.sendMessage(ChatColor.YELLOW + "ボス部屋へ移動します...");
                 } else {
-                    player.sendMessage(ChatColor.RED + "この先に進むにはボス討伐が必要です。");
+                    player.sendMessage(Component.text("この先に進むにはボス討伐が必要です。", NamedTextColor.RED));
                 }
-                return; // ここで処理終了（移動させない）
+                return;
             }
         }
 
-        // 2. Open Alpha ロックチェック (ボスを倒していてもロックされていれば通さない)
         if (warp.isAlphaLocked) {
-            player.sendMessage(ChatColor.translateAlternateColorCodes('&', warp.alphaMessage));
+            player.sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize(warp.alphaMessage));
             return;
         }
 
-        // 3. 移動実行
         player.teleport(warp.destination);
-        player.sendMessage(ChatColor.GREEN + "移動しました: " + warp.displayName);
+        player.sendMessage(Component.text("移動しました: " + warp.displayName, NamedTextColor.GREEN));
     }
 
-    // 座標保存用コマンドなどで使用
     public void setWarpLocation(String warpId, Location loc) {
         String locStr = loc.getWorld().getName() + "," + loc.getX() + "," + loc.getY() + "," + loc.getZ() + "," + loc.getYaw() + "," + loc.getPitch();
         config.set("warps." + warpId + ".location", locStr);
         try {
             config.save(file);
-            load(file.getParentFile()); // リロード
+            load(file.getParentFile());
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    // 全てのワープデータを取得するメソッド
     public Collection<WarpData> getAllWarpData() {
         return warps.values();
     }
 
-    // 文字列 -> Location
     private Location parseLocation(String s) {
         try {
             String[] parts = s.split(",");
@@ -144,7 +137,6 @@ public class LayerMoveManager implements IManager {
         }
     }
 
-    // データクラス
     public static class WarpData {
         String id;
         String displayName;

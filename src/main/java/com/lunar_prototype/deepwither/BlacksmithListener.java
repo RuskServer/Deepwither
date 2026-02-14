@@ -2,8 +2,9 @@ package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -29,15 +30,13 @@ public class BlacksmithListener implements Listener, IManager {
     @Override
     public void shutdown() {}
 
-    private static final String GUI_TITLE = ChatColor.DARK_GRAY + "鍛冶屋メニュー";
-
     @EventHandler
     public void onInventoryClick(InventoryClickEvent e) {
         Inventory clickedInventory = e.getClickedInventory();
         if (clickedInventory == null) return;
 
         // 鍛冶屋GUI以外でのクリックは無視
-        if (!e.getView().getTitle().equals(GUI_TITLE)) return;
+        if (!e.getView().title().equals(BlacksmithGUI.GUI_TITLE)) return;
 
         // GUI内のアイテム操作を禁止
         e.setCancelled(true);
@@ -45,16 +44,17 @@ public class BlacksmithListener implements Listener, IManager {
         Player player = (Player) e.getWhoClicked();
         ItemStack clickedItem = e.getCurrentItem();
 
-        if (clickedItem == null || clickedItem.getItemMeta() == null) return;
+        if (clickedItem == null || !clickedItem.hasItemMeta()) return;
 
-        String displayName = clickedItem.getItemMeta().getDisplayName();
+        Component displayName = clickedItem.getItemMeta().displayName();
+        if (displayName == null) return;
 
         // --- 修理ボタンの処理 ---
-        if (displayName.equals(ChatColor.GREEN + "武器修理")) {
+        if (displayName.equals(Component.text("武器修理", NamedTextColor.GREEN))) {
             ItemStack mainHand = player.getInventory().getItemInMainHand();
 
             if (mainHand.getType().isAir()) {
-                player.sendMessage(ChatColor.RED + "修理するアイテムをメインハンドに持ってください。");
+                player.sendMessage(Component.text("修理するアイテムをメインハンドに持ってください。", NamedTextColor.RED));
                 player.closeInventory();
                 return;
             }
@@ -65,10 +65,10 @@ public class BlacksmithListener implements Listener, IManager {
 
         }
         // --- 未実装ボタンのフィードバック ---
-        else if (displayName.equals(ChatColor.AQUA + "装備強化")) {
-            player.sendMessage(ChatColor.YELLOW + "この機能はまだ実装されていません。");
+        else if (displayName.equals(Component.text("装備強化", NamedTextColor.AQUA))) {
+            player.sendMessage(Component.text("この機能はまだ実装されていません。", NamedTextColor.YELLOW));
         }
-        else if (displayName.equals(ChatColor.AQUA + "アイテムクラフト")) {
+        else if (displayName.equals(Component.text("アイテムクラフト", NamedTextColor.AQUA))) {
             // ★変更: クラフトGUIを開く
             Deepwither.getInstance().getCraftingGUI().openRecipeList(player);
         }

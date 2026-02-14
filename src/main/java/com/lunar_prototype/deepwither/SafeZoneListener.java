@@ -9,8 +9,11 @@ import com.sk89q.worldguard.protection.ApplicableRegionSet;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
 import com.sk89q.worldguard.protection.regions.RegionQuery;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -48,8 +51,6 @@ public class SafeZoneListener implements Listener, IManager {
     public void shutdown() {
         saveSafeZoneSpawns();
     }
-
-    // --- Data Management Methods ---
 
     public Location getSafeZoneSpawn(UUID playerUUID) {
         return safeZoneSpawns.get(playerUUID);
@@ -99,7 +100,6 @@ public class SafeZoneListener implements Listener, IManager {
         }
     }
 
-    // プレイヤーがブロックを跨いでいない移動は無視する
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
         Player player = event.getPlayer();
@@ -119,35 +119,28 @@ public class SafeZoneListener implements Listener, IManager {
         boolean isOldInSafeZone = isSafeZone(from);
         boolean isNewInSafeZone = isSafeZone(to);
 
-        // ----------------------------------------------------
-        // ★ 1. セーフゾーンへの侵入をチェック
-        // ----------------------------------------------------
         if (isNewInSafeZone && !isOldInSafeZone) {
-            player.sendTitle(
-                    ChatColor.AQUA + "セーフゾーン",
-                    ChatColor.GRAY + "リスポーン地点を更新しました",
-                    10, 70, 20
+            Title title = Title.title(
+                    Component.text("セーフゾーン", NamedTextColor.AQUA),
+                    Component.text("リスポーン地点を更新しました", NamedTextColor.GRAY)
             );
-            player.sendMessage(ChatColor.AQUA + ">> セーフゾーンに侵入しました。**リスポーン地点が現在地に設定されました。**");
+            player.showTitle(title);
+            player.sendMessage(Component.text(">> セーフゾーンに侵入しました。", NamedTextColor.AQUA)
+                    .append(Component.text("リスポーン地点が現在地に設定されました。", NamedTextColor.WHITE, TextDecoration.BOLD)));
 
             setSafeZoneSpawn(player.getUniqueId(), to);
-            saveSafeZoneSpawns(); // 即座にファイルに保存
+            saveSafeZoneSpawns();
         }
-        // ----------------------------------------------------
-        // ★ 2. セーフゾーンからの退出をチェック (オプション)
-        // ----------------------------------------------------
         else if (!isNewInSafeZone && isOldInSafeZone) {
-            player.sendTitle(
-                    ChatColor.RED + "危険区域",
-                    ChatColor.GRAY + "",
-                    10, 70, 20);
-            player.sendMessage(ChatColor.RED + ">> 危険区域へ移動しました。");
+            Title title = Title.title(
+                    Component.text("危険区域", NamedTextColor.RED),
+                    Component.empty()
+            );
+            player.showTitle(title);
+            player.sendMessage(Component.text(">> 危険区域へ移動しました。", NamedTextColor.RED));
         }
     }
 
-    /**
-     * 指定されたLocationが、名前に「safezone」を含むリージョン内にあるかを判定します。
-     */
     private boolean isSafeZone(Location loc) {
         RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
         RegionQuery query = container.createQuery();
@@ -181,7 +174,8 @@ public class SafeZoneListener implements Listener, IManager {
                     }
                     dInstance.removePlayer(player.getUniqueId());
                     Deepwither.getInstance().getRoguelikeBuffManager().clearBuffs(player);
-                    player.sendMessage("§c§l[Dungeon] §r§c死亡したため、ダンジョンから追放されました。");
+                    player.sendMessage(Component.text("[Dungeon] ", NamedTextColor.RED, TextDecoration.BOLD)
+                            .append(Component.text("死亡したため、ダンジョンから追放されました。", NamedTextColor.RED)));
                     return;
                 }
 

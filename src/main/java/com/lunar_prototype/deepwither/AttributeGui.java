@@ -2,6 +2,9 @@ package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -21,6 +24,7 @@ import java.util.List;
 public class AttributeGui implements Listener, IManager {
 
     private final JavaPlugin plugin;
+    public static final Component GUI_TITLE = Component.text("ステータス割り振り", NamedTextColor.DARK_GREEN);
 
     public AttributeGui(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -38,14 +42,12 @@ public class AttributeGui implements Listener, IManager {
         PlayerAttributeData data = Deepwither.getInstance().getAttributeManager().get(player.getUniqueId());
         if (data == null) return;
 
-        Inventory gui = Bukkit.createInventory(null, 27, "§aステータス割り振り");
+        Inventory gui = Bukkit.createInventory(null, 27, GUI_TITLE);
 
-        StatType[] guiStats = {
-                StatType.STR, StatType.VIT, StatType.MND, StatType.INT, StatType.AGI
-        };
+        StatType[] guiStats = { StatType.STR, StatType.VIT, StatType.MND, StatType.INT, StatType.AGI };
 
         for (StatType type : guiStats) {
-            ItemStack icon = getStatIcon(type,data,player);
+            ItemStack icon = getStatIcon(type, data, player);
             int slot = switch (type) {
                 case STR -> 9;
                 case VIT -> 11;
@@ -60,34 +62,38 @@ public class AttributeGui implements Listener, IManager {
         player.openInventory(gui);
     }
 
-    private static ItemStack getStatIcon(StatType type, PlayerAttributeData data,Player player) {
+    private static ItemStack getStatIcon(StatType type, PlayerAttributeData data, Player player) {
         Material mat = switch (type) {
             case STR -> Material.IRON_SWORD;
             case VIT -> Material.GOLDEN_APPLE;
             case MND -> Material.POTION;
             case INT -> Material.BOOK;
             case AGI -> Material.LEATHER_BOOTS;
-            default -> Material.BARRIER; // 目立つアイテムを表示して開発者に気づかせる
+            default -> Material.BARRIER;
         };
 
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName("§a" + type.getDisplayName());
+        meta.displayName(Component.text(type.getDisplayName(), NamedTextColor.GREEN));
 
-        List<String> lore = new ArrayList<>();
-        lore.add("");
-        lore.add("§7ポイント: §6" + data.getAllocated(type) + " §7/ §6" + Deepwither.getInstance().getAttributeManager().getMaxAllocatable(player.getUniqueId(),type));
-        lore.add("§7現在の" + type.getDisplayName() + "レベル: §6§l" + data.getAllocated(type));
-        lore.add("");
-        lore.add("§8効果:");
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.empty());
+        lore.add(Component.text("ポイント: ", NamedTextColor.GRAY)
+                .append(Component.text(data.getAllocated(type), NamedTextColor.GOLD))
+                .append(Component.text(" / ", NamedTextColor.GRAY))
+                .append(Component.text(Deepwither.getInstance().getAttributeManager().getMaxAllocatable(player.getUniqueId(), type), NamedTextColor.GOLD)));
+        lore.add(Component.text("現在の" + type.getDisplayName() + "レベル: ", NamedTextColor.GRAY)
+                .append(Component.text(data.getAllocated(type), NamedTextColor.GOLD, TextDecoration.BOLD)));
+        lore.add(Component.empty());
+        lore.add(Component.text("効果:", NamedTextColor.DARK_GRAY));
         for (String buff : StatEffectText.getBuffDescription(type, data.getAllocated(type))) {
-            lore.add("§7✤ §9" + buff);
+            lore.add(Component.text("  ✤ ", NamedTextColor.GRAY).append(Component.text(buff, NamedTextColor.BLUE)));
         }
-        lore.add("");
-        lore.add("§e右クリックで1ポイント消費してレベルアップする。");
-        lore.add("§e◆ 現在所持: §b" + data.getRemainingPoints() + " ポイント");
+        lore.add(Component.empty());
+        lore.add(Component.text("右クリックで1ポイント消費してレベルアップする。", NamedTextColor.YELLOW));
+        lore.add(Component.text("◆ 現在所持: ", NamedTextColor.YELLOW).append(Component.text(data.getRemainingPoints() + " ポイント", NamedTextColor.AQUA)));
 
-        meta.setLore(lore);
+        meta.lore(lore);
         item.setItemMeta(meta);
         return item;
     }
@@ -95,7 +101,7 @@ public class AttributeGui implements Listener, IManager {
     @EventHandler
     public void onClick(InventoryClickEvent e) {
         if (!(e.getWhoClicked() instanceof Player player)) return;
-        if (!e.getView().getTitle().equals("§aステータス割り振り")) return;
+        if (!e.getView().title().equals(GUI_TITLE)) return;
 
         e.setCancelled(true);
 
@@ -113,19 +119,19 @@ public class AttributeGui implements Listener, IManager {
 
         PlayerAttributeData data = Deepwither.getInstance().getAttributeManager().get(player.getUniqueId());
         if (data == null || data.getRemainingPoints() <= 0) {
-            player.sendMessage("§cポイントが足りません！");
+            player.sendMessage(Component.text("ポイントが足りません！", NamedTextColor.RED));
             return;
         }
 
-        if (data.getAllocated(type) >= Deepwither.getInstance().getAttributeManager().getMaxAllocatable(player.getUniqueId(),type)){
-            player.sendMessage("§c上限に達しています！");
+        if (data.getAllocated(type) >= Deepwither.getInstance().getAttributeManager().getMaxAllocatable(player.getUniqueId(), type)) {
+            player.sendMessage(Component.text("上限に達しています！", NamedTextColor.RED));
             return;
         }
 
         data.addPoint(type);
-        player.sendMessage("§a" + type.getDisplayName() + " に 1ポイント割り振りました！");
+        player.sendMessage(Component.text(type.getDisplayName() + " に 1ポイント割り振りました！", NamedTextColor.GREEN));
         player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.2f);
-        AttributeGui.open(player); // 更新
+        open(player);
     }
 }
 
@@ -154,5 +160,3 @@ class StatEffectText {
         return list;
     }
 }
-
-

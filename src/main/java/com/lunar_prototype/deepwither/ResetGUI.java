@@ -2,6 +2,9 @@ package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -21,7 +24,7 @@ import java.util.UUID;
 public class ResetGUI implements Listener, IManager {
 
     private final Deepwither plugin;
-    private final String GUI_TITLE = "§8§l【 魂の浄化祭壇 】"; // 教会風タイトル
+    public static final Component GUI_TITLE = Component.text("【 魂の浄化祭壇 】", NamedTextColor.DARK_GRAY, TextDecoration.BOLD);
 
     public ResetGUI(Deepwither plugin) {
         this.plugin = plugin;
@@ -38,30 +41,23 @@ public class ResetGUI implements Listener, IManager {
     public void open(Player player) {
         Inventory inv = Bukkit.createInventory(null, 27, GUI_TITLE);
 
-        // 背景装飾
-        ItemStack glass = createItem(Material.BLACK_STAINED_GLASS_PANE, " ");
-        for (int i = 0; i < 27; i++) {
-            inv.setItem(i, glass);
-        }
+        ItemStack glass = createItem(Material.BLACK_STAINED_GLASS_PANE, Component.text(" "));
+        for (int i = 0; i < 27; i++) inv.setItem(i, glass);
 
-        // --- メニューアイテム ---
-
-        // 1. 能力値(Attribute)リセット
-        ItemStack attrReset = createItem(Material.NETHER_STAR, "§b§l能力値の再分配",
-                "",
-                "§7現在のステータス振りを全てリセットし、",
-                "§7ポイントを未割り当て状態に戻します。",
-                "",
-                "§e▶ クリックして浄化する");
+        ItemStack attrReset = createItem(Material.NETHER_STAR, Component.text("能力値の再分配", NamedTextColor.AQUA, TextDecoration.BOLD),
+                Component.empty(),
+                Component.text("現在のステータス振りを全てリセットし、", NamedTextColor.GRAY),
+                Component.text("ポイントを未割り当て状態に戻します。", NamedTextColor.GRAY),
+                Component.empty(),
+                Component.text("▶ クリックして浄化する", NamedTextColor.YELLOW));
         inv.setItem(11, attrReset);
 
-        // 2. スキルツリー(SkillTree)リセット
-        ItemStack skillReset = createItem(Material.ENCHANTED_BOOK, "§a§lスキルの忘却",
-                "",
-                "§7習得したスキルを全て忘れ、",
-                "§7スキルポイントを取り戻します。",
-                "",
-                "§e▶ クリックして忘却する");
+        ItemStack skillReset = createItem(Material.ENCHANTED_BOOK, Component.text("スキルの忘却", NamedTextColor.GREEN, TextDecoration.BOLD),
+                Component.empty(),
+                Component.text("習得したスキルを全て忘れ、", NamedTextColor.GRAY),
+                Component.text("スキルポイントを取り戻します。", NamedTextColor.GRAY),
+                Component.empty(),
+                Component.text("▶ クリックして忘却する", NamedTextColor.YELLOW));
         inv.setItem(15, skillReset);
 
         player.openInventory(inv);
@@ -70,31 +66,23 @@ public class ResetGUI implements Listener, IManager {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent e) {
-        if (!e.getView().getTitle().equals(GUI_TITLE)) return;
+        if (!e.getView().title().equals(GUI_TITLE)) return;
         e.setCancelled(true);
 
         if (!(e.getWhoClicked() instanceof Player player)) return;
         ItemStack clicked = e.getCurrentItem();
         if (clicked == null || !clicked.hasItemMeta()) return;
 
-        // 誤操作防止のクールダウン等をここに入れるとより安全です
-
         if (clicked.getType() == Material.NETHER_STAR) {
-            // 能力値リセット処理
             processAttributeReset(player);
             player.closeInventory();
-
         } else if (clicked.getType() == Material.ENCHANTED_BOOK) {
-            // スキルリセット処理
             processSkillReset(player);
             player.closeInventory();
         }
     }
 
-    // --- ロジック実装部 ---
-
     private void processAttributeReset(Player player) {
-
         UUID uuid = player.getUniqueId();
         AttributeManager attrManager = Deepwither.getInstance().getAttributeManager();
         PlayerAttributeData data = attrManager.get(uuid);
@@ -106,32 +94,27 @@ public class ResetGUI implements Listener, IManager {
             }
             data.addPoints(totalAllocated);
         } else {
-            player.sendMessage("§cステータスデータが読み込まれていません。");
+            player.sendMessage(Component.text("ステータスデータが読み込まれていません。", NamedTextColor.RED));
             return;
         }
 
-        // 演出
-        player.sendMessage("§b§l[浄化] §f能力値が初期化され、ポイントが返還されました。");
+        player.sendMessage(Component.text("[浄化] ", NamedTextColor.AQUA, TextDecoration.BOLD).append(Component.text("能力値が初期化され、ポイントが返還されました。", NamedTextColor.WHITE)));
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 0.5f);
         player.playSound(player.getLocation(), Sound.BLOCK_BEACON_DEACTIVATE, 1f, 1f);
     }
 
     private void processSkillReset(Player player) {
         int totalSkillPoints = Deepwither.getInstance().getSkilltreeManager().resetSkillTree(player.getUniqueId());
-        // 演出
-        player.sendMessage("§a§l[忘却] §f習得したスキルを全て忘れ、スキルポイント §e" + totalSkillPoints + " §fを取り戻しました。");
+        player.sendMessage(Component.text("[忘却] ", NamedTextColor.GREEN, TextDecoration.BOLD).append(Component.text("習得したスキルを全て忘れ、スキルポイント ", NamedTextColor.WHITE)).append(Component.text(totalSkillPoints, NamedTextColor.YELLOW)).append(Component.text(" を取り戻しました。", NamedTextColor.WHITE)));
         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_WORK_CLERIC, 1f, 1f);
         player.playSound(player.getLocation(), Sound.ITEM_TOTEM_USE, 0.5f, 2f);
     }
 
-    // --- ヘルパー ---
-    private ItemStack createItem(Material mat, String name, String... lore) {
+    private ItemStack createItem(Material mat, Component name, Component... lore) {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(name);
-        List<String> list = new ArrayList<>();
-        for (String s : lore) list.add(s);
-        meta.setLore(list);
+        meta.displayName(name);
+        meta.lore(List.of(lore));
         item.setItemMeta(meta);
         return item;
     }

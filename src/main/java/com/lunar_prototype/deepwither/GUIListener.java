@@ -3,8 +3,10 @@ package com.lunar_prototype.deepwither;
 import com.lunar_prototype.deepwither.aethelgard.PlayerQuestManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -13,13 +15,11 @@ import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import java.util.List;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * QuestGUIのインベントリクリックイベントを処理します。
- */
 @DependsOn({PlayerQuestManager.class})
 public class GUIListener implements Listener, IManager {
 
@@ -42,14 +42,12 @@ public class GUIListener implements Listener, IManager {
     public void onInventoryClick(InventoryClickEvent event) {
         InventoryHolder holder = event.getInventory().getHolder();
 
-        // 1. QuestGUIであるかチェック
         if (!(holder instanceof com.lunar_prototype.deepwither.QuestGUI questGUI)) {
             return;
         }
 
-        event.setCancelled(true); // GUI内のアイテム操作を無効化
+        event.setCancelled(true);
 
-        // 2. クリックされたアイテムを取得
         ItemStack clickedItem = event.getCurrentItem();
         if (clickedItem == null || !clickedItem.hasItemMeta()) {
             return;
@@ -58,29 +56,32 @@ public class GUIListener implements Listener, IManager {
         Player player = (Player) event.getWhoClicked();
         ItemMeta meta = clickedItem.getItemMeta();
 
-        // 3. アイテムからQuest IDを抽出
         if (meta.hasLore()) {
-            String questIdString = meta.getLore().stream()
-                    .filter(line -> line.contains("QUEST_ID:"))
-                    .findFirst()
-                    .orElse(null);
+            List<Component> lore = meta.lore();
+            if (lore == null) return;
+
+            String questIdString = null;
+            for (Component line : lore) {
+                String plain = PlainTextComponentSerializer.plainText().serialize(line);
+                if (plain.contains("QUEST_ID:")) {
+                    questIdString = plain;
+                    break;
+                }
+            }
 
             if (questIdString != null) {
-                Matcher matcher = QUEST_ID_PATTERN.matcher(ChatColor.stripColor(questIdString));
+                Matcher matcher = QUEST_ID_PATTERN.matcher(questIdString);
                 if (matcher.find()) {
                     try {
                         UUID questId = UUID.fromString(matcher.group(1));
                         String locationId = questGUI.getQuestLocation().getLocationId();
 
-                        // 4. 受注処理をPlayerQuestManagerに依頼
                         boolean success = questManager.claimQuest(player, locationId, questId);
-
                         if (success) {
-                            // 受注成功時
                             player.closeInventory();
                         }
                     } catch (IllegalArgumentException e) {
-                        player.sendMessage(ChatColor.DARK_RED + "エラー: 無効なクエストIDです。");
+                        player.sendMessage(Component.text("エラー: 無効なクエストIDです。", NamedTextColor.DARK_RED));
                     }
                 }
             }

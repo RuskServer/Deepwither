@@ -2,6 +2,10 @@ package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.title.Title;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
@@ -22,9 +26,7 @@ public class LevelManager implements IManager {
     }
 
     @Override
-    public void init() {
-        // もし起動時にやりたいことがあればここに書く（なければ空でOK）
-    }
+    public void init() {}
 
     public void load(UUID uuid) {
         try (Connection conn = db.getConnection();
@@ -55,7 +57,7 @@ public class LevelManager implements IManager {
         if (data == null) return;
 
         int level = Math.min(data.getLevel(), MAX_LEVEL);
-        double exp = (level >= MAX_LEVEL) ? 0 : data.getExp(); // 上限ならEXPを0に
+        double exp = (level >= MAX_LEVEL) ? 0 : data.getExp();
 
         try (Connection conn = db.getConnection();
              PreparedStatement ps = conn.prepareStatement("""
@@ -79,37 +81,38 @@ public class LevelManager implements IManager {
         data.addExp(amount);
         int after = data.getLevel();
 
-        // EXP獲得メッセージはシンプルに
-        player.sendMessage("§a+ " + String.format("%.1f", amount) + " EXP"); // amountがdoubleなので、フォーマットを追加
+        player.sendMessage(Component.text("+ " + String.format("%.1f", amount) + " EXP", NamedTextColor.GREEN));
 
         if (after > before) {
-            // --- ★ レベルアップ通知を豪華にする ★ ---
+            Title title = Title.title(
+                    Component.text("LEVEL UP!", NamedTextColor.GOLD, TextDecoration.BOLD),
+                    Component.text(before, NamedTextColor.YELLOW)
+                            .append(Component.text(" → ", NamedTextColor.WHITE))
+                            .append(Component.text(after, NamedTextColor.GOLD, TextDecoration.BOLD))
+            );
+            player.showTitle(title);
 
-            // 1. タイトル/サブタイトル通知
-            String titleText = "§6§lLEVEL UP!";
-            String subtitleText = String.format("§e%d §f→ §6§l%d", before, after);
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 0.5f);
+            player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
 
-            // タイトル表示 (フェードイン: 10 tick, 表示時間: 70 tick, フェードアウト: 20 tick)
-            player.sendTitle(titleText, subtitleText, 10, 70, 20);
+            int attrPoints = 2;
+            int skillPoints = 2;
 
-            // 2. サウンドエフェクト
-            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 0.5f); // 低いピッチで重厚な音
-            player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f); // 達成感を出す
+            Component separator = Component.text("--------------------------------------", NamedTextColor.AQUA).decoration(TextDecoration.STRIKETHROUGH, true);
+            player.sendMessage(separator);
+            player.sendMessage(Component.text("    »» ", NamedTextColor.WHITE, TextDecoration.BOLD)
+                    .append(Component.text("レベルアップ！", NamedTextColor.GOLD, TextDecoration.BOLD))
+                    .append(Component.text(" ««", NamedTextColor.WHITE, TextDecoration.BOLD)));
+            player.sendMessage(Component.text("   レベル: ", NamedTextColor.YELLOW)
+                    .append(Component.text(before, NamedTextColor.WHITE))
+                    .append(Component.text(" → ", NamedTextColor.WHITE))
+                    .append(Component.text(after, NamedTextColor.GREEN, TextDecoration.BOLD)));
+            player.sendMessage(Component.empty());
+            player.sendMessage(Component.text("- 獲得したボーナス -", NamedTextColor.GRAY));
+            player.sendMessage(Component.text("  » ", NamedTextColor.RED).append(Component.text("属性ポイント: ", NamedTextColor.RED)).append(Component.text(attrPoints, NamedTextColor.WHITE, TextDecoration.BOLD)));
+            player.sendMessage(Component.text("  » ", NamedTextColor.LIGHT_PURPLE).append(Component.text("スキルポイント: ", NamedTextColor.LIGHT_PURPLE)).append(Component.text(skillPoints, NamedTextColor.WHITE, TextDecoration.BOLD)));
+            player.sendMessage(separator);
 
-            // 4. チャットメッセージの装飾
-            int attrPoints = 2; // 属性ポイント
-            int skillPoints = 2; // スキルポイント
-
-            player.sendMessage("§b§m--------------------------------------");
-            player.sendMessage("§f§l    »» §6§lレベルアップ！ §f§l««");
-            player.sendMessage(String.format("§e   レベル: %d §f→ §a§l%d", before, after));
-            player.sendMessage("");
-            player.sendMessage(String.format("§7- 獲得したボーナス -"));
-            player.sendMessage(String.format("§c  » §c属性ポイント: §f§l%d", attrPoints));
-            player.sendMessage(String.format("§d  » §dスキルポイント: §f§l%d", skillPoints));
-            player.sendMessage("§b§m--------------------------------------");
-
-            // 5. ポイント付与処理 (既存ロジック)
             Deepwither.getInstance().getAttributeManager().givePoints(player.getUniqueId(), attrPoints);
 
             UUID uuid = player.getUniqueId();
@@ -121,58 +124,44 @@ public class LevelManager implements IManager {
         }
 
         if (after >= MAX_LEVEL) {
-            player.sendMessage("§b§l§m--------------------------------------");
-            player.sendMessage("§f§l    »» §3§l最大レベル到達！ §f§l««");
-            player.sendMessage("§b   全ての戦いを乗り越えた証！");
-            player.sendMessage("§b§l§m--------------------------------------");
+            Component separator = Component.text("--------------------------------------", NamedTextColor.AQUA).decoration(TextDecoration.STRIKETHROUGH, true);
+            player.sendMessage(separator);
+            player.sendMessage(Component.text("    »» ", NamedTextColor.WHITE, TextDecoration.BOLD)
+                    .append(Component.text("最大レベル到達！", NamedTextColor.DARK_AQUA, TextDecoration.BOLD))
+                    .append(Component.text(" ««", NamedTextColor.WHITE, TextDecoration.BOLD)));
+            player.sendMessage(Component.text("   全ての戦いを乗り越えた証！", NamedTextColor.AQUA));
+            player.sendMessage(separator);
         }
     }
 
     public void updatePlayerDisplay(Player player) {
         PlayerLevelData data = dataMap.get(player.getUniqueId());
-
-        // 例: 現在のカスタムレベルと進捗データを取得 (あなたの実装に依存)
         int currentLevel = data.getLevel();
         double currentExp = data.getExp();
         double expToNextLevel = data.getRequiredExp();
-
-        // ★ 経験値レベル表示を「現在レベル」に設定
         player.setLevel(currentLevel);
-
-        // ★ 経験値バーを「レベルの進捗」に設定
-        // 0.0 (空) から 1.0 (満タン) の間で計算
         float progress = (float) (currentExp / expToNextLevel);
         player.setExp(progress);
     }
 
-    /**
-     * プレイヤーのレベルと経験値をリセットします。（レベル1、経験値0）
-     * @param player リセット対象のプレイヤー
-     */
     public void resetLevel(Player player) {
         UUID uuid = player.getUniqueId();
-
-        // 1. データマップ上のデータをリセット
         PlayerLevelData initialData = new PlayerLevelData(1, 0);
         dataMap.put(uuid, initialData);
-
-        // 2. データベース上のデータを更新 (saveメソッドを流用)
-        // 注意: saveメソッド内でもMAX_LEVELチェックが入るが、レベル1なので問題なし
         save(uuid);
 
-        // 3. レベルリセットの通知
-        player.sendMessage("§c§l§m--------------------------------------");
-        player.sendMessage("§f§l    »» §c§lレベルリセット完了 §f§l««");
-        player.sendMessage("§7   あなたのレベルと経験値が初期状態に戻りました。");
-        player.sendMessage(String.format("§e   レベル: §a§l%d", initialData.getLevel()));
-        player.sendMessage("§c§l§m--------------------------------------");
-        player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 0.5f); // リセット完了音
+        Component separator = Component.text("--------------------------------------", NamedTextColor.RED).decoration(TextDecoration.STRIKETHROUGH, true);
+        player.sendMessage(separator);
+        player.sendMessage(Component.text("    »» ", NamedTextColor.WHITE, TextDecoration.BOLD)
+                .append(Component.text("レベルリセット完了", NamedTextColor.RED, TextDecoration.BOLD))
+                .append(Component.text(" ««", NamedTextColor.WHITE, TextDecoration.BOLD)));
+        player.sendMessage(Component.text("   あなたのレベルと経験値が初期状態に戻りました。", NamedTextColor.GRAY));
+        player.sendMessage(Component.text("   レベル: ", NamedTextColor.YELLOW).append(Component.text(initialData.getLevel(), NamedTextColor.GREEN, TextDecoration.BOLD)));
+        player.sendMessage(separator);
+        player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 0.5f);
 
-        // 4. プレイヤーの表示を更新
         updatePlayerDisplay(player);
 
-        // 5. 属性ポイントとスキルポイントのリセット処理 (!!! 要実装 !!!)
-        // 属性ポイントのリセット
         Deepwither.getInstance().getSkilltreeManager().resetSkillTree(player.getUniqueId());
         SkilltreeManager.SkillData skilldata = Deepwither.getInstance().getSkilltreeManager().load(player.getUniqueId());
         skilldata.setSkillPoint(0);

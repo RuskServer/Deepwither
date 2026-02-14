@@ -5,6 +5,9 @@ import com.lunar_prototype.deepwither.api.DeepwitherPartyAPI;
 import com.lunar_prototype.deepwither.dungeon.DungeonGenerator;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.title.Title;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
@@ -79,7 +82,7 @@ public class DungeonInstanceManager implements IManager {
 
         World world = creator.createWorld();
         if (world == null) {
-            host.sendMessage(ChatColor.RED + "ワールド生成に失敗しました。");
+            host.sendMessage(Component.text("ワールド生成に失敗しました。", NamedTextColor.RED));
             return;
         }
 
@@ -105,7 +108,7 @@ public class DungeonInstanceManager implements IManager {
             Set<Player> members = partyApi.getOnlinePartyMembers(host);
 
             for (Player member : members) {
-                member.sendMessage(ChatColor.LIGHT_PURPLE + "パーティーリーダーがダンジョンを生成しました！転送します...");
+                member.sendMessage(Component.text("パーティーリーダーがダンジョンを生成しました！転送します...", NamedTextColor.LIGHT_PURPLE));
                 joinDungeon(member, worldName);
             }
         } else {
@@ -120,7 +123,7 @@ public class DungeonInstanceManager implements IManager {
     public void joinDungeon(Player player, String instanceId) {
         DungeonInstance dInstance = activeInstances.get(instanceId);
         if (dInstance == null) {
-            player.sendMessage(ChatColor.RED + "そのダンジョンインスタンスは存在しません。");
+            player.sendMessage(Component.text("そのダンジョンインスタンスは存在しません。", NamedTextColor.RED));
             return;
         }
 
@@ -138,10 +141,16 @@ public class DungeonInstanceManager implements IManager {
         playerInstanceMap.put(player.getUniqueId(), instanceId);
 
         // Join Message & Title
-        player.sendMessage(ChatColor.GREEN + ">> ダンジョンインスタンスに侵入しました。");
-        player.sendMessage(ChatColor.GREEN + ">> 脱出するには " + ChatColor.YELLOW + "/dw dungeon leave" + ChatColor.GREEN
-                + " と入力してください。");
-        player.sendTitle(ChatColor.RED + "Dungeon Started", ChatColor.GRAY + "", 10, 70, 20);
+        player.sendMessage(Component.text(">> ダンジョンインスタンスに侵入しました。", NamedTextColor.GREEN));
+        player.sendMessage(Component.text(">> 脱出するには ", NamedTextColor.GREEN)
+                .append(Component.text("/dw dungeon leave", NamedTextColor.YELLOW))
+                .append(Component.text(" と入力してください。", NamedTextColor.GREEN)));
+        
+        Title title = Title.title(
+                Component.text("Dungeon Started", NamedTextColor.RED),
+                Component.empty()
+        );
+        player.showTitle(title);
     }
 
     /**
@@ -168,7 +177,7 @@ public class DungeonInstanceManager implements IManager {
             // デフォルトのスポーン地点 (server.properties or plugin default)
             player.teleport(Bukkit.getWorlds().get(0).getSpawnLocation());
         }
-        player.sendMessage(ChatColor.YELLOW + "ダンジョンから離脱しました。");
+        player.sendMessage(Component.text("ダンジョンから離脱しました。", NamedTextColor.YELLOW));
     }
 
     /**
@@ -216,7 +225,7 @@ public class DungeonInstanceManager implements IManager {
         for (UUID uuid : new HashSet<>(dInstance.getPlayers())) {
             Player p = Bukkit.getPlayer(uuid);
             if (p != null) {
-                p.sendMessage(ChatColor.RED + "ダンジョンインスタンスが閉鎖されました。");
+                p.sendMessage(Component.text("ダンジョンインスタンスが閉鎖されました。", NamedTextColor.RED));
                 leaveDungeon(p);
             }
         }

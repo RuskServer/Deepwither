@@ -1,7 +1,8 @@
 package com.lunar_prototype.deepwither;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -18,18 +19,18 @@ public class CreditCommand implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!sender.hasPermission("deepwither.credit.admin")) {
-            sender.sendMessage(ChatColor.RED + "権限がありません。");
+            sender.sendMessage(Component.text("権限がありません。", NamedTextColor.RED));
             return true;
         }
 
         if (args.length < 3) {
-            sender.sendMessage(ChatColor.YELLOW + "使用方法: /credit <プレイヤー名> <トレーダーID> <増減量>");
+            sender.sendMessage(Component.text("使用方法: /credit <プレイヤー名> <トレーダーID> <増減量>", NamedTextColor.YELLOW));
             return true;
         }
 
         Player target = Bukkit.getPlayer(args[0]);
         if (target == null) {
-            sender.sendMessage(ChatColor.RED + "プレイヤーが見つかりません。");
+            sender.sendMessage(Component.text("プレイヤーが見つかりません。", NamedTextColor.RED));
             return true;
         }
 
@@ -38,7 +39,7 @@ public class CreditCommand implements CommandExecutor {
         try {
             amount = Integer.parseInt(args[2]);
         } catch (NumberFormatException e) {
-            sender.sendMessage(ChatColor.RED + "増減量は数値で指定してください。");
+            sender.sendMessage(Component.text("増減量は数値で指定してください。", NamedTextColor.RED));
             return true;
         }
 
@@ -46,11 +47,11 @@ public class CreditCommand implements CommandExecutor {
 
         int currentCredit = creditManager.getCredit(target.getUniqueId(), traderId);
 
-        sender.sendMessage(ChatColor.GREEN + target.getName() + "のトレーダー[" + traderId + "]に対する信用度を " + amount + " 更新しました。");
-        sender.sendMessage(ChatColor.GREEN + "現在の信用度: " + currentCredit);
+        sender.sendMessage(Component.text(target.getName() + "のトレーダー[" + traderId + "]に対する信用度を " + amount + " 更新しました。", NamedTextColor.GREEN));
+        sender.sendMessage(Component.text("現在の信用度: " + currentCredit, NamedTextColor.GREEN));
 
         if (target != sender) {
-            target.sendMessage(ChatColor.YELLOW + "トレーダー[" + traderId + "]に対する信用度が " + amount + " 変化しました。現在: " + currentCredit);
+            target.sendMessage(Component.text("トレーダー[" + traderId + "]に対する信用度が " + amount + " 変化しました。現在: " + currentCredit, NamedTextColor.YELLOW));
         }
 
         return true;

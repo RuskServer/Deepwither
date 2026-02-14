@@ -2,86 +2,88 @@ package com.lunar_prototype.deepwither.dungeon.roguelike;
 
 import com.lunar_prototype.deepwither.StatMap;
 import com.lunar_prototype.deepwither.StatType;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 
 public enum RoguelikeBuff {
 
-    STRENGTH_BOOST("§c筋力増強", "§7攻撃力が10%上昇する", Material.IRON_SWORD) {
+    STRENGTH_BOOST(Component.text("筋力増強", NamedTextColor.RED), Component.text("攻撃力が10%上昇する", NamedTextColor.GRAY), Material.IRON_SWORD) {
         @Override
         public void apply(StatMap stats) {
             stats.addPercent(StatType.ATTACK_DAMAGE, 10.0);
         }
     },
-    VITALITY_BOOST("§a生命力向上", "§7最大体力が20上昇する", Material.GOLDEN_APPLE) {
+    VITALITY_BOOST(Component.text("生命力向上", NamedTextColor.GREEN), Component.text("最大体力が20上昇する", NamedTextColor.GRAY), Material.GOLDEN_APPLE) {
         @Override
         public void apply(StatMap stats) {
             stats.addFlat(StatType.MAX_HEALTH, 20.0);
         }
     },
-    SPEED_BOOST("§b俊足の祝福", "§7移動速度が10%上昇する", Material.FEATHER) {
+    SPEED_BOOST(Component.text("俊足の祝福", NamedTextColor.AQUA), Component.text("移動速度が10%上昇する", NamedTextColor.GRAY), Material.FEATHER) {
         @Override
         public void apply(StatMap stats) {
             stats.addPercent(StatType.MOVE_SPEED, 10.0);
         }
     },
-    DEFENSE_BOOST("§9鉄壁の守り", "§7防御力が5上昇する", Material.IRON_CHESTPLATE) {
+    DEFENSE_BOOST(Component.text("鉄壁の守り", NamedTextColor.BLUE), Component.text("防御力が5上昇する", NamedTextColor.GRAY), Material.IRON_CHESTPLATE) {
         @Override
         public void apply(StatMap stats) {
             stats.addFlat(StatType.DEFENSE, 5.0);
         }
     },
-    CRITICAL_STRIKE("§e急所突き", "§7クリティカル率が5%上昇する", Material.FLINT) {
+    CRITICAL_STRIKE(Component.text("急所突き", NamedTextColor.YELLOW), Component.text("クリティカル率が5%上昇する", NamedTextColor.GRAY), Material.FLINT) {
         @Override
         public void apply(StatMap stats) {
             stats.addFlat(StatType.CRIT_CHANCE, 5.0);
         }
     },
-    REGENERATION("§d自然治癒", "§7自然回復速度が上昇する", Material.GHAST_TEAR) {
+    REGENERATION(Component.text("自然治癒", NamedTextColor.LIGHT_PURPLE), Component.text("自然回復速度が上昇する", NamedTextColor.GRAY), Material.GHAST_TEAR) {
         @Override
         public void apply(StatMap stats) {
-            stats.addFlat(StatType.HP_REGEN, 0.5); // %/sec か flat かはStatManagerの実装依存だが一旦Flat扱い
+            stats.addFlat(StatType.HP_REGEN, 0.5);
         }
     },
-    BLOOD_PACT("§4鮮血の契約", "§7攻撃時、20%の確率で出血を付与する", Material.REDSTONE_BLOCK) {
+    BLOOD_PACT(Component.text("鮮血の契約", NamedTextColor.DARK_RED), Component.text("攻撃時、20%の確率で出血を付与する", NamedTextColor.GRAY), Material.REDSTONE_BLOCK) {
         @Override
         public void apply(StatMap stats) {
             stats.addFlat(StatType.BLEED_CHANCE, 20.0);
         }
     },
-    VAMPIRE_FANG("§c吸血鬼の牙", "§7与えたダメージの5%を回復する", Material.GHAST_TEAR) { // Material変更検討
+    VAMPIRE_FANG(Component.text("吸血鬼の牙", NamedTextColor.RED), Component.text("与えたダメージの5%を回復する", NamedTextColor.GRAY), Material.GHAST_TEAR) {
         @Override
         public void apply(StatMap stats) {
             stats.addFlat(StatType.LIFESTEAL, 5.0);
         }
     },
-    FROST_TOUCH("§b氷結の指先", "§7攻撃時、15%の確率で敵を凍結させる", Material.PACKED_ICE) {
+    FROST_TOUCH(Component.text("氷結の指先", NamedTextColor.AQUA), Component.text("攻撃時、15%の確率で敵を凍結させる", NamedTextColor.GRAY), Material.PACKED_ICE) {
         @Override
         public void apply(StatMap stats) {
             stats.addFlat(StatType.FREEZE_CHANCE, 15.0);
         }
     },
-    EXPLOSIVE_BLOW("§e爆砕撃", "§7攻撃時、10%の確率で周囲に拡散ダメージを与える", Material.TNT) {
+    EXPLOSIVE_BLOW(Component.text("爆砕撃", NamedTextColor.YELLOW), Component.text("攻撃時、10%の確率で周囲に拡散ダメージを与える", NamedTextColor.GRAY), Material.TNT) {
         @Override
         public void apply(StatMap stats) {
             stats.addFlat(StatType.AOE_CHANCE, 10.0);
         }
     };
 
-    private final String displayName;
-    private final String description;
+    private final Component displayName;
+    private final Component description;
     private final Material icon;
 
-    RoguelikeBuff(String displayName, String description, Material icon) {
+    RoguelikeBuff(Component displayName, Component description, Material icon) {
         this.displayName = displayName;
         this.description = description;
         this.icon = icon;
     }
 
-    public String getDisplayName() {
+    public Component getDisplayName() {
         return displayName;
     }
 
-    public String getDescription() {
+    public Component getDescription() {
         return description;
     }
 

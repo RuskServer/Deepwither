@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither.command;
 
 import com.lunar_prototype.deepwither.ResetGUI;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -18,21 +20,19 @@ public class ResetGUICommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        // 使用法: /resetstatusgui <player>
         if (args.length != 1) {
-            sender.sendMessage("§cUsage: /resetstatusgui <player>");
+            sender.sendMessage(Component.text("Usage: /resetstatusgui <player>", NamedTextColor.RED));
             return true;
         }
 
         Player target = Bukkit.getPlayer(args[0]);
         if (target == null) {
-            sender.sendMessage("§cプレイヤーが見つかりません: " + args[0]);
+            sender.sendMessage(Component.text("プレイヤーが見つかりません: " + args[0], NamedTextColor.RED));
             return true;
         }
 
-        // GUIを開く
         resetGUI.open(target);
-        sender.sendMessage("§a" + target.getName() + " にリセットメニューを開きました。");
+        sender.sendMessage(Component.text(target.getName(), NamedTextColor.GREEN).append(Component.text(" にリセットメニューを開きました。", NamedTextColor.GREEN)));
         return true;
     }
 }

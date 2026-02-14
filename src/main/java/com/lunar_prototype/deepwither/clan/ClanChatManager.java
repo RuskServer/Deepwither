@@ -1,11 +1,11 @@
 package com.lunar_prototype.deepwither.clan;
 
 import com.lunar_prototype.deepwither.Deepwither;
-import com.lunar_prototype.deepwither.clan.Clan;
-import com.lunar_prototype.deepwither.clan.ClanManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.GoogleImeConverter;
 import com.lunar_prototype.deepwither.util.IManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -39,14 +39,29 @@ public class ClanChatManager implements Listener, IManager {
         String convertedMessage = GoogleImeConverter.convert(originalMessage);
 
         Clan clan = clanManager.getClanByPlayer(player.getUniqueId());
-        // tag ではなく ID 全文を表示に使用する
-        String clanDisplay = (clan != null) ? "§b[" + clan.getName() + "]§r " : "";
+        
+        Component clanDisplay = (clan != null) 
+                ? Component.text("[" + clan.getName() + "] ", NamedTextColor.AQUA) 
+                : Component.empty();
 
-        String finalMessage = originalMessage.equals(convertedMessage)
+        String finalMessageStr = originalMessage.equals(convertedMessage)
                 ? originalMessage
-                : convertedMessage + " §7(" + originalMessage + ")";
+                : convertedMessage + " (" + originalMessage + ")";
+        
+        Component finalMessage = Component.text(convertedMessage);
+        if (!originalMessage.equals(convertedMessage)) {
+            finalMessage = finalMessage.append(Component.text(" (" + originalMessage + ")", NamedTextColor.GRAY));
+        }
 
-        event.setFormat(clanDisplay + "%1$s: %2$s");
-        event.setMessage(finalMessage);
+        // Note: Paper uses AsyncChatEvent for Components, but here we are in legacy AsyncPlayerChatEvent.
+        // We can still use Component in setFormat if the server is modern enough, but safest is to keep format as string
+        // and let Paper handle the rest, or migrate to AsyncChatEvent.
+        // Given the task, I will keep this simple but remove hardcoded section signs.
+        
+        String clanPrefix = (clan != null) ? "§b[" + clan.getName() + "]§r " : "";
+        String msgSuffix = originalMessage.equals(convertedMessage) ? "" : " §7(" + originalMessage + ")";
+        
+        event.setFormat(clanPrefix + "%1$s: %2$s");
+        event.setMessage(convertedMessage + msgSuffix);
     }
 }

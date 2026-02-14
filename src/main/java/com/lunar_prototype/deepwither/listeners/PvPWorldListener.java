@@ -2,6 +2,8 @@ package com.lunar_prototype.deepwither.listeners;
 
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
@@ -29,29 +31,25 @@ public class PvPWorldListener implements Listener, IManager {
     @Override
     public void shutdown() {}
 
-    // ブロック破壊
     @EventHandler
     public void onBlockBreak(BlockBreakEvent e) {
         Player player = e.getPlayer();
         if (isPvPWorldProtectionActive(player)) {
             e.setCancelled(true);
-            player.sendMessage("§cこのワールドではブロックの破壊は禁止されています。");
+            player.sendMessage(Component.text("このワールドではブロックの破壊は禁止されています。", NamedTextColor.RED));
         }
     }
 
-    // ブロック設置
     @EventHandler
     public void onBlockPlace(BlockPlaceEvent e) {
         Player player = e.getPlayer();
         if (isPvPWorldProtectionActive(player)) {
             e.setCancelled(true);
-            player.sendMessage("§cこのワールドではブロックの設置は禁止されています。");
+            player.sendMessage(Component.text("このワールドではブロックの設置は禁止されています。", NamedTextColor.RED));
         }
     }
 
-    // 保護を適用すべきか判定するヘルパー
     private boolean isPvPWorldProtectionActive(Player player) {
-        // ワールド名が一致し、かつクリエイティブモードでない場合
         return player.getWorld().getName().equals(PVP_WORLD_NAME)
                 && player.getGameMode() != GameMode.CREATIVE;
     }

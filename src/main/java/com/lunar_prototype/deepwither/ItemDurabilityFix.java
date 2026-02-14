@@ -2,7 +2,8 @@ package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -37,7 +38,6 @@ public class ItemDurabilityFix implements Listener, IManager {
         Player player = e.getPlayer();
         World world = player.getWorld();
 
-        // PvPvEダンジョンかどうかを判定 (World名の接頭辞でチェック)
         boolean isPvPvE = world.getName().startsWith("pvpve_");
 
         ItemStack item = e.getItem();
@@ -62,38 +62,27 @@ public class ItemDurabilityFix implements Listener, IManager {
         int damageToApply = e.getDamage();
 
         if (isPvPvE) {
-            // --- PvPvEダンジョンの特別仕様: 耐久値2で固定 ---
-            // 次のダメージを適用すると残り耐久が2未満になる場合
             if (currentDamage + damageToApply > (maxDurability - 2)) {
-                e.setCancelled(true); // ダメージイベント自体をキャンセルして「減らない」ようにする
-
-                // まだ耐久が2より多い状態から一気に減る場合は、2に固定する処理を入れる
+                e.setCancelled(true);
                 if (currentDamage < (maxDurability - 2)) {
                     damageable.setDamage(maxDurability - 2);
                     item.setItemMeta(damageable);
-
-                    // 初めて限界に達した時だけ通知
-                    sendLimitNotification(player, meta, item, "§e(PvPvE保護) §c耐久値が残り2で固定されました！修理が必要です。");
+                    sendLimitNotification(player, meta, item, Component.text("(PvPvE保護) ", NamedTextColor.YELLOW).append(Component.text("耐久値が残り2で固定されました！修理が必要です。", NamedTextColor.RED)));
                 }
             }
         } else {
-            // --- 通常の仕様: 耐久値1で止める (既存ロジック) ---
             if (currentDamage + damageToApply >= maxDurability) {
                 e.setCancelled(true);
                 damageable.setDamage(maxDurability - 1);
                 item.setItemMeta(damageable);
-
-                sendLimitNotification(player, meta, item, "§c耐久値が限界です！修理してください。");
+                sendLimitNotification(player, meta, item, Component.text("耐久値が限界です！修理してください。", NamedTextColor.RED));
             }
         }
     }
 
-    /**
-     * 通知と音の共通処理
-     */
-    private void sendLimitNotification(Player player, ItemMeta meta, ItemStack item, String message) {
-        String displayName = meta.hasDisplayName() ? meta.getDisplayName() : item.getType().name();
-        player.sendMessage(ChatColor.RED + "⚠ " + displayName + " " + message);
+    private void sendLimitNotification(Player player, ItemMeta meta, ItemStack item, Component message) {
+        Component displayName = meta.hasDisplayName() ? meta.displayName() : Component.text(item.getType().name());
+        player.sendMessage(Component.text("⚠ ", NamedTextColor.RED).append(displayName).append(Component.text(" ")).append(message));
         player.playSound(player.getLocation(), Sound.ENTITY_ITEM_BREAK, 0.6f, 0.8f);
         player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_LAND, 0.4f, 1.2f);
     }

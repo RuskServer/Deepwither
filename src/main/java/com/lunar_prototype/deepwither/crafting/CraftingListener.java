@@ -5,8 +5,9 @@ import com.lunar_prototype.deepwither.FabricationGrade;
 import com.lunar_prototype.deepwither.ItemFactory;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
-import org.bukkit.ChatColor;
-import org.bukkit.Material;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -39,36 +40,35 @@ public class CraftingListener implements Listener, IManager {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent e) {
-        String title = e.getView().getTitle();
-        if (!title.startsWith(CraftingGUI.TITLE_PREFIX) && !title.startsWith(RecipeDetailGUI.DETAIL_PREFIX)) {
+        Component titleComp = e.getView().title();
+        String title = PlainTextComponentSerializer.plainText().serialize(titleComp);
+        
+        if (!title.startsWith("Craft - ") && !title.startsWith("Confirm - ")) {
             return;
         }
 
         e.setCancelled(true);
         if (!(e.getWhoClicked() instanceof Player player)) return;
         ItemStack clicked = e.getCurrentItem();
-        if (clicked == null || clicked.getType() == Material.AIR) return;
+        if (clicked == null || clicked.getType().isAir()) return;
 
-        // --- 詳細画面での「製作開始」処理 ---
-        if (title.startsWith(RecipeDetailGUI.DETAIL_PREFIX)) {
-            if (clicked.getType() == Material.ANVIL) {
+        if (title.startsWith("Confirm - ")) {
+            if (clicked.getType() == org.bukkit.Material.ANVIL) {
                 String recipeId = clicked.getItemMeta().getPersistentDataContainer().get(CraftingGUI.RECIPE_KEY, PersistentDataType.STRING);
                 if (plugin.getCraftingManager().startCrafting(player, recipeId)) {
                     player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
-                    player.closeInventory(); // 製作開始したら閉じる
+                    player.closeInventory();
                 } else {
                     player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
                 }
                 return;
             }
-            // 戻るボタン
             if (clicked.getItemMeta().getPersistentDataContainer().has(CraftingGUI.NAV_ACTION_KEY, PersistentDataType.STRING)) {
                 plugin.getCraftingGUI().openRecipeList(player);
                 return;
             }
         }
 
-        // --- ナビゲーション & タブ処理 ---
         if (clicked.getItemMeta().getPersistentDataContainer().has(CraftingGUI.NAV_ACTION_KEY, PersistentDataType.STRING)) {
             String action = clicked.getItemMeta().getPersistentDataContainer().get(CraftingGUI.NAV_ACTION_KEY, PersistentDataType.STRING);
             int page = clicked.getItemMeta().getPersistentDataContainer().getOrDefault(CraftingGUI.PAGE_KEY, PersistentDataType.INTEGER, 0);
@@ -82,17 +82,15 @@ public class CraftingListener implements Listener, IManager {
             return;
         }
 
-        // --- タブ切り替え ---
         if (clicked.getItemMeta().getPersistentDataContainer().has(CraftingGUI.GRADE_TAB_KEY, PersistentDataType.INTEGER)
-                && !clicked.getItemMeta().getPersistentDataContainer().has(CraftingGUI.NAV_ACTION_KEY, PersistentDataType.STRING)) { // navボタンと重複しないように
+                && !clicked.getItemMeta().getPersistentDataContainer().has(CraftingGUI.NAV_ACTION_KEY, PersistentDataType.STRING)) {
 
             int gradeId = clicked.getItemMeta().getPersistentDataContainer().get(CraftingGUI.GRADE_TAB_KEY, PersistentDataType.INTEGER);
             plugin.getCraftingGUI().openRecipeList(player, FabricationGrade.fromId(gradeId), 0);
             return;
         }
 
-        // --- レシピ選択 ---
-        if (title.contains("Craft -")) { // レシピ一覧画面
+        if (title.contains("Craft -")) {
             NamespacedKey key = CraftingGUI.RECIPE_KEY;
             if (clicked.getItemMeta().getPersistentDataContainer().has(key, PersistentDataType.STRING)) {
 
@@ -101,28 +99,23 @@ public class CraftingListener implements Listener, IManager {
 
                 if (recipe == null) return;
 
-                // ロック確認
                 CraftingData data = plugin.getCraftingManager().getData(player);
                 boolean isLocked = (recipe.getGrade() != FabricationGrade.STANDARD) && !data.hasRecipe(recipe.getId());
 
                 if (isLocked) {
                     player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-                    player.sendMessage(ChatColor.RED + "この設計図はまだ習得していません。");
+                    player.sendMessage(Component.text("この設計図はまだ習得していません。", NamedTextColor.RED));
                     return;
                 }
 
-                // --- クリック種類による分岐 ---
                 if (e.getClick().isLeftClick()) {
-                    // 左クリック: 詳細画面を開く
                     new RecipeDetailGUI().openDetail(player, recipe);
                     player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.2f);
 
                 } else if (e.getClick().isRightClick()) {
-                    // 右クリック: 即時製作開始 (元のロジック)
                     if (plugin.getCraftingManager().startCrafting(player, recipeId)) {
                         player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
-                        // 製作開始のフィードバックメッセージなど
-                        player.sendMessage(ChatColor.GREEN + "製作を開始しました: " + recipeId);
+                        player.sendMessage(Component.text("製作を開始しました: " + recipeId, NamedTextColor.GREEN));
                     } else {
                         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
                     }
@@ -130,7 +123,6 @@ public class CraftingListener implements Listener, IManager {
             }
         }
 
-        // --- キュー受取 ---
         if (title.contains("Queue")) {
             NamespacedKey key = CraftingGUI.JOB_KEY;
             if (clicked.getItemMeta().getPersistentDataContainer().has(key, PersistentDataType.STRING)) {
@@ -138,12 +130,11 @@ public class CraftingListener implements Listener, IManager {
                 UUID jobId = UUID.fromString(uuidStr);
 
                 plugin.getCraftingManager().claimJob(player, jobId);
-                plugin.getCraftingGUI().openQueueList(player); // 画面更新
+                plugin.getCraftingGUI().openQueueList(player);
             }
         }
     }
 
-    // --- 設計図の使用 ---
     @EventHandler
     public void onUseBlueprint(PlayerInteractEvent e) {
         if (e.getAction() != Action.RIGHT_CLICK_AIR && e.getAction() != Action.RIGHT_CLICK_BLOCK) return;
@@ -153,10 +144,8 @@ public class CraftingListener implements Listener, IManager {
         if (item.getItemMeta().getPersistentDataContainer().has(CraftingManager.BLUEPRINT_KEY, PersistentDataType.STRING)) {
             e.setCancelled(true);
             String recipeId = item.getItemMeta().getPersistentDataContainer().get(CraftingManager.BLUEPRINT_KEY, PersistentDataType.STRING);
-
             plugin.getCraftingManager().unlockRecipe(e.getPlayer(), recipeId);
-
-            item.setAmount(item.getAmount() - 1); // 消費
+            item.setAmount(item.getAmount() - 1);
         }
     }
 
@@ -167,30 +156,25 @@ public class CraftingListener implements Listener, IManager {
         ItemStack item = e.getItem();
         if (item == null || !item.hasItemMeta()) return;
 
-        // ItemFactoryで定義したKeyを持っているかチェック
         if (item.getItemMeta().getPersistentDataContainer().has(ItemFactory.RECIPE_BOOK_KEY, PersistentDataType.INTEGER)) {
-            e.setCancelled(true); // 誤設置などを防ぐ
+            e.setCancelled(true);
 
             Player player = e.getPlayer();
             int targetGrade = item.getItemMeta().getPersistentDataContainer().get(ItemFactory.RECIPE_BOOK_KEY, PersistentDataType.INTEGER);
 
-            // ランダム習得処理を実行
             String learnedItemName = plugin.getCraftingManager().unlockRandomRecipe(player, targetGrade);
 
             if (learnedItemName != null) {
-                // 成功: アイテムを1つ減らす
                 item.setAmount(item.getAmount() - 1);
 
-                // メッセージと音
-                player.sendMessage(ChatColor.GOLD + "=================================");
-                player.sendMessage(ChatColor.AQUA + " 新しいレシピを習得した！");
-                player.sendMessage(ChatColor.WHITE + " 作成可能: " + ChatColor.YELLOW + learnedItemName);
-                player.sendMessage(ChatColor.GOLD + "=================================");
+                player.sendMessage(Component.text("=================================", NamedTextColor.GOLD));
+                player.sendMessage(Component.text(" 新しいレシピを習得した！", NamedTextColor.AQUA));
+                player.sendMessage(Component.text(" 作成可能: ", NamedTextColor.WHITE).append(Component.text(learnedItemName, NamedTextColor.YELLOW)));
+                player.sendMessage(Component.text("=================================", NamedTextColor.GOLD));
                 player.playSound(player.getLocation(), org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
                 player.playSound(player.getLocation(), org.bukkit.Sound.ITEM_BOOK_PAGE_TURN, 1f, 1f);
             } else {
-                // 失敗 (すべて習得済み): アイテムは消費しない
-                player.sendMessage(ChatColor.RED + "この等級のレシピは全て習得済みです！");
+                player.sendMessage(Component.text("この等級のレシピは全て習得済みです！", NamedTextColor.RED));
                 player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 1f, 1f);
             }
         }

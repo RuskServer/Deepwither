@@ -2,6 +2,9 @@ package com.lunar_prototype.deepwither.dungeon;
 
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -23,7 +26,7 @@ import java.util.List;
 public class DungeonDifficultyGUI implements Listener {
     private final String dungeonId;
     private final FileConfiguration config;
-    private static final String CUSTOM_ID_KEY = "custom_id"; // 仮定
+    private static final String CUSTOM_ID_KEY = "custom_id";
 
     public DungeonDifficultyGUI(String dungeonId, FileConfiguration config) {
         this.dungeonId = dungeonId;
@@ -31,12 +34,14 @@ public class DungeonDifficultyGUI implements Listener {
     }
 
     public void open(Player player) {
-        Inventory gui = Bukkit.createInventory(null, 27, "難易度を選択: " + dungeonId);
+        Component title = Component.text("難易度を選択: " + dungeonId, NamedTextColor.DARK_GRAY);
+        Inventory gui = Bukkit.createInventory(null, 27, title);
 
-        // 通常モードのアイコン設定
-        gui.setItem(11, createIcon(Material.IRON_SWORD, "§a通常モード", "§7推奨レベル: " + config.getInt("difficulty.normal.mob_level")));
-        // 高難易度モードのアイコン設定
-        gui.setItem(15, createIcon(Material.NETHERITE_SWORD, "§c高難易度モード", "§7推奨レベル: " + config.getInt("difficulty.hard.mob_level"), "§e要: 専用の鍵"));
+        gui.setItem(11, createIcon(Material.IRON_SWORD, Component.text("通常モード", NamedTextColor.GREEN), 
+                Component.text("推奨レベル: " + config.getInt("difficulty.normal.mob_level"), NamedTextColor.GRAY)));
+        gui.setItem(15, createIcon(Material.NETHERITE_SWORD, Component.text("高難易度モード", NamedTextColor.RED), 
+                Component.text("推奨レベル: " + config.getInt("difficulty.hard.mob_level"), NamedTextColor.GRAY), 
+                Component.text("要: 専用の鍵", NamedTextColor.YELLOW)));
 
         Bukkit.getPluginManager().registerEvents(this, Deepwither.getInstance());
         player.openInventory(gui);
@@ -44,27 +49,31 @@ public class DungeonDifficultyGUI implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        if (!event.getView().getTitle().startsWith("難易度を選択")) return;
+        String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
+        if (!title.startsWith("難易度を選択")) return;
         event.setCancelled(true);
         Player player = (Player) event.getWhoClicked();
         ItemStack clicked = event.getCurrentItem();
 
-        if (clicked == null) return;
+        if (clicked == null || !clicked.hasItemMeta()) return;
 
-        if (clicked.getItemMeta().getDisplayName().contains("通常モード")) {
+        String dispName = PlainTextComponentSerializer.plainText().serialize(clicked.getItemMeta().displayName());
+
+        if (dispName.contains("通常モード")) {
             startDungeon(player, "normal");
-        } else if (clicked.getItemMeta().getDisplayName().contains("高難易度モード")) {
+        } else if (dispName.contains("高難易度モード")) {
             if (checkAndConsumeKey(player)) {
                 startDungeon(player, "hard");
             } else {
-                player.sendMessage("§cこのダンジョンに入るには専用の鍵が必要です！");
+                player.sendMessage(Component.text("このダンジョンに入るには専用の鍵が必要です！", NamedTextColor.RED));
             }
         }
     }
 
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
-        if (event.getView().getTitle().equals("難易度を選択: " + dungeonId)) {
+        String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
+        if (title.equals("難易度を選択: " + dungeonId)) {
             HandlerList.unregisterAll(this);
         }
     }
@@ -91,19 +100,12 @@ public class DungeonDifficultyGUI implements Listener {
         DungeonInstanceManager.getInstance().createDungeonInstance(player, dungeonId, difficulty);
     }
 
-    /**
-     * GUI用アイコン作成ヘルパーメソッド
-     */
-    private ItemStack createIcon(Material material, String name, String... loreLines) {
+    private ItemStack createIcon(Material material, Component name, Component... loreLines) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(name);
-            List<String> lore = new ArrayList<>();
-            for (String line : loreLines) {
-                lore.add(line);
-            }
-            meta.setLore(lore);
+            meta.displayName(name);
+            meta.lore(List.of(loreLines));
             item.setItemMeta(meta);
         }
         return item;

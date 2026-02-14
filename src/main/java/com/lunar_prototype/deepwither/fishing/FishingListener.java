@@ -6,7 +6,8 @@ import com.lunar_prototype.deepwither.profession.ProfessionManager;
 import com.lunar_prototype.deepwither.profession.ProfessionType;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.FishHook;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
@@ -77,8 +78,9 @@ public class FishingListener implements Listener, IManager {
             caughtEntity.setItemStack(customLoot);
 
             // オプション: 釣ったアイテムの名前を表示する
-            if (customLoot.hasItemMeta() && customLoot.getItemMeta().hasDisplayName()) {
-                String msg = ChatColor.GRAY + "釣り上げた! -> " + customLoot.getItemMeta().getDisplayName();
+            if (customLoot.hasItemMeta()) {
+                Component displayName = customLoot.getItemMeta().hasDisplayName() ? customLoot.getItemMeta().displayName() : Component.text(customLoot.getType().name());
+                Component msg = Component.text("釣り上げた! -> ", NamedTextColor.GRAY).append(displayName);
                 player.sendActionBar(msg);
             }
         }

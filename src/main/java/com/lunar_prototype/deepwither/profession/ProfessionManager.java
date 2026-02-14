@@ -3,8 +3,9 @@ package com.lunar_prototype.deepwither.profession;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
 import java.util.Map;
@@ -15,36 +16,28 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ProfessionManager implements IManager {
 
     private final Deepwither plugin;
-    private final ProfessionDatabase database; // DBクラス
+    private final ProfessionDatabase database;
     private final Map<UUID, PlayerProfessionData> cache = new ConcurrentHashMap<>();
 
-    // レベル計算定数
     private static final int BASE_EXP = 50;
 
     public ProfessionManager(Deepwither plugin,ProfessionDatabase db) {
         this.plugin = plugin;
-        // データベース初期化
         this.database = db;
     }
 
     @Override
     public void init() {}
 
-    // --- サーバー停止時の処理 ---
     @Override
     public void shutdown() {
-        // 全員のデータを保存
         for (UUID uuid : cache.keySet()) {
-            savePlayerSync(uuid); // 同期保存
+            savePlayerSync(uuid);
         }
     }
 
-    // --- データ管理 ---
-
     public void loadPlayer(Player player) {
         UUID uuid = player.getUniqueId();
-
-        // 非同期でDBからロード
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             PlayerProfessionData data = database.loadPlayer(uuid);
             cache.put(uuid, data);
@@ -55,14 +48,12 @@ public class ProfessionManager implements IManager {
         UUID uuid = player.getUniqueId();
         PlayerProfessionData data = cache.remove(uuid);
         if (data != null) {
-            // 非同期でDBへ保存
             Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
                 database.savePlayer(data);
             });
         }
     }
 
-    // サーバーシャットダウン時などの緊急保存用（同期）
     private void savePlayerSync(UUID uuid) {
         PlayerProfessionData data = cache.get(uuid);
         if (data != null) {
@@ -74,8 +65,6 @@ public class ProfessionManager implements IManager {
         return cache.getOrDefault(player.getUniqueId(), new PlayerProfessionData(player.getUniqueId()));
     }
 
-    // --- ロジック (変更なし) ---
-
     public void addExp(Player player, ProfessionType type, int amount) {
         PlayerProfessionData data = getData(player);
         int oldLevel = getLevel(data.getExp(type));
@@ -84,10 +73,10 @@ public class ProfessionManager implements IManager {
 
         int newLevel = getLevel(data.getExp(type));
         if (newLevel > oldLevel) {
-            player.sendMessage(ChatColor.GOLD + "==========================");
-            player.sendMessage(ChatColor.YELLOW + " レベルアップ！ (" + type.name() + ")");
-            player.sendMessage(ChatColor.AQUA + " Lv." + oldLevel + " -> Lv." + newLevel);
-            player.sendMessage(ChatColor.GOLD + "==========================");
+            player.sendMessage(Component.text("==========================", NamedTextColor.GOLD));
+            player.sendMessage(Component.text(" レベルアップ！ (" + type.name() + ")", NamedTextColor.YELLOW));
+            player.sendMessage(Component.text(" Lv." + oldLevel + " -> Lv." + newLevel, NamedTextColor.AQUA));
+            player.sendMessage(Component.text("==========================", NamedTextColor.GOLD));
             player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
         }
     }

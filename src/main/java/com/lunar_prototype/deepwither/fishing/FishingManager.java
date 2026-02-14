@@ -6,7 +6,7 @@ import com.lunar_prototype.deepwither.profession.ProfessionManager;
 import com.lunar_prototype.deepwither.profession.ProfessionType;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -52,7 +52,11 @@ public class FishingManager implements IManager {
         ConfigurationSection raritySection = config.getConfigurationSection("rarity_settings");
         if (raritySection != null) {
             for (String key : raritySection.getKeys(false)) {
-                String name = ChatColor.translateAlternateColorCodes('&', raritySection.getString(key + ".name", key));
+                String rawName = raritySection.getString(key + ".name", key);
+                // アンパサンド形式をセクション形式(§)のStringに変換
+                String name = LegacyComponentSerializer.legacySection().serialize(
+                        LegacyComponentSerializer.legacyAmpersand().deserialize(rawName)
+                );
                 double baseChance = raritySection.getDouble(key + ".base_chance", 0.0);
                 double levelBonus = raritySection.getDouble(key + ".level_bonus", 0.0);
                 rarityMap.put(key, new RaritySettings(name, baseChance, levelBonus));

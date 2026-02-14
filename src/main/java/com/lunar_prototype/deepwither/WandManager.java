@@ -2,6 +2,8 @@ package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.*;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -74,7 +76,7 @@ public class WandManager implements Listener, IManager {
         ManaData mana = Deepwither.getInstance().getManaManager().get(p.getUniqueId());
 
         if (mana.getCurrentMana() < 20) {
-            p.sendMessage(ChatColor.RED + "マナが足りません！");
+            p.sendMessage(Component.text("マナが足りません！", NamedTextColor.RED));
             return;
         }
 

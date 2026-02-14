@@ -2,7 +2,10 @@ package com.lunar_prototype.deepwither;
 
 import java.util.*;
 
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -11,56 +14,56 @@ import org.bukkit.inventory.meta.ItemMeta;
  * ステータスタイプの列挙。
  */
 public enum StatType {
-    ATTACK_DAMAGE("攻撃力", "§c", "➸"),
-    ATTACK_SPEED("攻撃速度", "&f", "➸"),
-    PROJECTILE_DAMAGE("発射体ダメージ", "&f", "➸"),
-    PROJECTILE_SPEED("弾速","&f", "➸"),
-    MAGIC_DAMAGE("魔法攻撃力", "§b", "■"),
-    MAGIC_AOE_DAMAGE("魔法AoE攻撃力", "§b", "■"),
-    MAGIC_BURST_DAMAGE("魔法バースト攻撃力", "§b", "■"),
-    DEFENSE("防御力", "§a", "✠"),
-    MAGIC_RESIST("魔法耐性", "§9", "✠"),
-    MAGIC_PENETRATION("魔法貫通", "§9", "■"),
-    CRIT_CHANCE("会心率", "§e", "■"),
-    CRIT_DAMAGE("会心ダメージ", "§e", "■"),
-    MAX_HEALTH("最大HP", "§4", "❤"),
-    HP_REGEN("HP回復", "§4", "❤"),
-    MOVE_SPEED("移動速度", "§d", "■"),
-    SKILL_POWER("スキル威力", "§b", "■"),
-    WEAR("損耗率", "§b", "■"),
-    REACH("リーチ増加", "§b", "■"),
-    REDUCES_MOVEMENT_SPEED_DECREASE("移動速度低下軽減", "§b", "■"),
-    DROP_RESISTANCE("落下耐性", "§b", "■"),
-    MASTERY("マスタリー", "§6", "■"),
-    MAX_MANA("最大マナ", "§b", "☆"),
-    COOLDOWN_REDUCTION("クールダウン短縮", "§8", "⌛"),
-    SHIELD_BLOCK_RATE("盾の減衰率", "§d", "■"),
-    STR("筋力", "§c", "❖"),
-    VIT("体力", "§a", "❤"),
-    MND("精神力", "§b", "✦"),
-    INT("知性", "§d", "✎"),
-    AGI("素早さ", "§e", "➤"),
-    SCYTHE_DAMAGE("鎌ダメージ", "§c", "⚔"),
-    GREATSWORD_DAMAGE("大剣ダメージ", "§c", "⚔"),
-    SPEAR_DAMAGE("槍ダメージ", "§c", "⚔"),
-    AXE_DAMAGE("斧ダメージ", "§c", "⚔"),
-    MACE_DAMAGE("メイスダメージ", "§c", "⚔"),
-    SWORD_DAMAGE("剣ダメージ", "§c", "⚔"),
-    MACHETE_DAMAGE("マチェットダメージ", "§c", "⚔"),
-    HAMMER_DAMAGE("ハンマーダメージ", "§c", "⚔"),
-    HALBERD_DAMAGE("ハルバードダメージ", "§c", "⚔"),
-    BLEED_CHANCE("出血付与", "§4", "🩸"),
-    LIFESTEAL("ドレイン", "§c", "❤"),
-    FREEZE_CHANCE("凍結付与", "§b", "❄"),
-    AOE_CHANCE("拡散攻撃", "§e", "💥");
+    ATTACK_DAMAGE("攻撃力", NamedTextColor.RED, "➸"),
+    ATTACK_SPEED("攻撃速度", NamedTextColor.WHITE, "➸"),
+    PROJECTILE_DAMAGE("発射体ダメージ", NamedTextColor.WHITE, "➸"),
+    PROJECTILE_SPEED("弾速", NamedTextColor.WHITE, "➸"),
+    MAGIC_DAMAGE("魔法攻撃力", NamedTextColor.AQUA, "■"),
+    MAGIC_AOE_DAMAGE("魔法AoE攻撃力", NamedTextColor.AQUA, "■"),
+    MAGIC_BURST_DAMAGE("魔法バースト攻撃力", NamedTextColor.AQUA, "■"),
+    DEFENSE("防御力", NamedTextColor.GREEN, "✠"),
+    MAGIC_RESIST("魔法耐性", NamedTextColor.BLUE, "✠"),
+    MAGIC_PENETRATION("魔法貫通", NamedTextColor.BLUE, "■"),
+    CRIT_CHANCE("会心率", NamedTextColor.YELLOW, "■"),
+    CRIT_DAMAGE("会心ダメージ", NamedTextColor.YELLOW, "■"),
+    MAX_HEALTH("最大HP", NamedTextColor.DARK_RED, "❤"),
+    HP_REGEN("HP回復", NamedTextColor.DARK_RED, "❤"),
+    MOVE_SPEED("移動速度", NamedTextColor.LIGHT_PURPLE, "■"),
+    SKILL_POWER("スキル威力", NamedTextColor.AQUA, "■"),
+    WEAR("損耗率", NamedTextColor.AQUA, "■"),
+    REACH("リーチ増加", NamedTextColor.AQUA, "■"),
+    REDUCES_MOVEMENT_SPEED_DECREASE("移動速度低下軽減", NamedTextColor.AQUA, "■"),
+    DROP_RESISTANCE("落下耐性", NamedTextColor.AQUA, "■"),
+    MASTERY("マスタリー", NamedTextColor.GOLD, "■"),
+    MAX_MANA("最大マナ", NamedTextColor.AQUA, "☆"),
+    COOLDOWN_REDUCTION("クールダウン短縮", NamedTextColor.DARK_GRAY, "⌛"),
+    SHIELD_BLOCK_RATE("盾の減衰率", NamedTextColor.LIGHT_PURPLE, "■"),
+    STR("筋力", NamedTextColor.RED, "❖"),
+    VIT("体力", NamedTextColor.GREEN, "❤"),
+    MND("精神力", NamedTextColor.AQUA, "✦"),
+    INT("知性", NamedTextColor.LIGHT_PURPLE, "✎"),
+    AGI("素早さ", NamedTextColor.YELLOW, "➤"),
+    SCYTHE_DAMAGE("鎌ダメージ", NamedTextColor.RED, "⚔"),
+    GREATSWORD_DAMAGE("大剣ダメージ", NamedTextColor.RED, "⚔"),
+    SPEAR_DAMAGE("槍ダメージ", NamedTextColor.RED, "⚔"),
+    AXE_DAMAGE("斧ダメージ", NamedTextColor.RED, "⚔"),
+    MACE_DAMAGE("メイスダメージ", NamedTextColor.RED, "⚔"),
+    SWORD_DAMAGE("剣ダメージ", NamedTextColor.RED, "⚔"),
+    MACHETE_DAMAGE("マチェットダメージ", NamedTextColor.RED, "⚔"),
+    HAMMER_DAMAGE("ハンマーダメージ", NamedTextColor.RED, "⚔"),
+    HALBERD_DAMAGE("ハルバードダメージ", NamedTextColor.RED, "⚔"),
+    BLEED_CHANCE("出血付与", NamedTextColor.DARK_RED, "🩸"),
+    LIFESTEAL("ドレイン", NamedTextColor.RED, "❤"),
+    FREEZE_CHANCE("凍結付与", NamedTextColor.AQUA, "❄"),
+    AOE_CHANCE("拡散攻撃", NamedTextColor.YELLOW, "💥");
 
     private final String displayName;
-    private final String colorCode;
+    private final NamedTextColor color;
     private final String icon;
 
-    StatType(String displayName, String colorCode, String icon) {
+    StatType(String displayName, NamedTextColor color, String icon) {
         this.displayName = displayName;
-        this.colorCode = colorCode;
+        this.color = color;
         this.icon = icon;
     }
 
@@ -68,8 +71,8 @@ public enum StatType {
         return displayName;
     }
 
-    public String getColor() {
-        return colorCode;
+    public NamedTextColor getColor() {
+        return color;
     }
 
     public String getIcon() {
@@ -82,34 +85,43 @@ public enum StatType {
  */
 class LoreBuilder {
 
-    private static final String WEAR_LORE_PREFIX = "§7損耗率: ";
-    private static final String MASTERY_LORE_PREFIX = "§7マスタリー: ";
+    private static final Component WEAR_LORE_PREFIX = Component.text("損耗率: ", NamedTextColor.GRAY);
+    private static final Component MASTERY_LORE_PREFIX = Component.text("マスタリー: ", NamedTextColor.GRAY);
+    private static final Component SEPARATOR = Component.text("----------------------------", NamedTextColor.GRAY)
+            .decoration(TextDecoration.STRIKETHROUGH, true);
 
     /**
      * 既存のアイテムのLoreを読み込み、提供されたStatMapと修理ステータス（損耗率、マスタリー）
      * に基づいて部分的に更新または行を追加する。
-     * * @param item アイテムスタック
-     * 
+     *
+     * @param item アイテムスタック
      * @param newStats     新しいカスタムステータス (StatMap)
      * @param wearRate     損耗率
      * @param masteryLevel マスタリーレベル
      * @return 更新されたLoreのリスト
      */
-    public static List<String> updateExistingLore(ItemStack item, StatMap newStats, double wearRate, int masteryLevel) {
+    public static List<Component> updateExistingLore(ItemStack item, StatMap newStats, double wearRate, int masteryLevel) {
         ItemMeta meta = item.getItemMeta();
         // Metaがない、またはLoreがない場合は新規作成（build）へ
         if (meta == null || !meta.hasLore()) {
             return build(newStats, false, null, null, null, null, null, null);
         }
 
-        List<String> existingLore = meta.getLore();
-        List<String> newLore = new ArrayList<>();
-        String separator = "§7§m----------------------------";
+        List<Component> existingLore = meta.lore();
+        if (existingLore == null) {
+            return build(newStats, false, null, null, null, null, null, null);
+        }
+
+        List<Component> newLore = new ArrayList<>();
+        LegacyComponentSerializer serializer = LegacyComponentSerializer.legacySection();
+        String separatorLegacy = "§7§m----------------------------";
 
         // --- 1. 区切り線の位置をすべて特定する ---
         List<Integer> separatorIndices = new ArrayList<>();
         for (int i = 0; i < existingLore.size(); i++) {
-            if (existingLore.get(i).equals(separator)) {
+            Component line = existingLore.get(i);
+            String legacy = serializer.serialize(line);
+            if (legacy.equals(separatorLegacy) || line.equals(SEPARATOR)) {
                 separatorIndices.add(i);
             }
         }
@@ -141,25 +153,30 @@ class LoreBuilder {
         }
 
         // 最後の区切り線を追加
-        newLore.add(separator);
+        newLore.add(SEPARATOR);
 
         // --- 5. 修理ステータス（損耗率とマスタリー）の追加 ---
         if (wearRate > 0) {
-            String wearLine = WEAR_LORE_PREFIX + ChatColor.RESET + String.format("%.0f", wearRate) + "%";
+            Component wearLine = WEAR_LORE_PREFIX.append(
+                    Component.text(String.format("%.0f", wearRate) + "%", NamedTextColor.WHITE)
+            ).decoration(TextDecoration.STRIKETHROUGH, false);
             newLore.add(wearLine);
         }
         if (masteryLevel > 0) {
-            String masteryLine = MASTERY_LORE_PREFIX + ChatColor.AQUA + masteryLevel;
+            Component masteryLine = MASTERY_LORE_PREFIX.append(
+                    Component.text(String.valueOf(masteryLevel), NamedTextColor.AQUA)
+            );
             newLore.add(masteryLine);
         }
 
         // --- 6. 既存ロアの「最後の方」にあるかもしれない独自行を保持 ---
         // ただし、損耗率、マスタリー、および既に処理したStats行は除外する
         for (int i = lastSepIndex + 1; i < existingLore.size(); i++) {
-            String line = existingLore.get(i);
+            Component line = existingLore.get(i);
+            String legacy = serializer.serialize(line);
 
             // 修理ステータス行は新しく追加済みなのでスキップ
-            if (line.startsWith(WEAR_LORE_PREFIX) || line.startsWith(MASTERY_LORE_PREFIX)) {
+            if (legacy.startsWith("§7損耗率: ") || legacy.startsWith("§7マスタリー: ")) {
                 continue;
             }
 
@@ -173,50 +190,63 @@ class LoreBuilder {
     /**
      * 2列レイアウト用のメインビルドロジック（修正版）
      */
-    public static List<String> build(StatMap stats, boolean compact, String itemType, List<String> flavorText,
-                                     ItemLoader.RandomStatTracker tracker, String rarity, Map<StatType, Double> appliedModifiers,
+    public static List<Component> build(StatMap stats, boolean compact, String itemType, List<String> flavorText, 
+                                     ItemLoader.RandomStatTracker tracker, String rarity, Map<StatType, Double> appliedModifiers, 
                                      FabricationGrade grade) {
-        List<String> lore = new ArrayList<>();
+        List<Component> lore = new ArrayList<>();
+        LegacyComponentSerializer serializer = LegacyComponentSerializer.legacySection();
 
         // --- ヘッダー ---
-        if (grade != null) lore.add(grade.getDisplayName());
+        if (grade != null) {
+            lore.add(serializer.deserialize(grade.getDisplayName()));
+        }
 
-        StringBuilder infoLine = new StringBuilder();
-        if (rarity != null) infoLine.append(rarity.replace("&", "§"));
-        if (itemType != null) infoLine.append(" §f| §7").append(itemType.replace("&", "§"));
-        if (infoLine.length() > 0) lore.add(infoLine.toString());
+        Component infoLine = Component.empty();
+        if (rarity != null) { 
+             infoLine = infoLine.append(LegacyComponentSerializer.legacyAmpersand().deserialize(rarity));
+        }
+        if (itemType != null) {
+            if (rarity != null) { 
+                 // Replicating legacy behavior: if rarity exists, append " | "
+                 infoLine = infoLine.append(Component.text(" | ", NamedTextColor.WHITE));
+            }
+             infoLine = infoLine.append(Component.text(itemType, NamedTextColor.GRAY));
+        }
+        if (!infoLine.equals(Component.empty())) lore.add(infoLine);
 
         if (tracker != null) {
             double ratio = tracker.getRatio() * 100.0;
-            String color = (ratio >= 90) ? "§6" : (ratio >= 70) ? "§e" : (ratio >= 50) ? "§a" : "§7";
-            lore.add("§f品質: " + color + Math.round(ratio) + "%");
+            NamedTextColor color = (ratio >= 90) ? NamedTextColor.GOLD : (ratio >= 70) ? NamedTextColor.YELLOW : (ratio >= 50) ? NamedTextColor.GREEN : NamedTextColor.GRAY;
+            lore.add(Component.text("品質: ", NamedTextColor.WHITE).append(Component.text(Math.round(ratio) + "%", color)));
         }
 
         // --- フレーバー ---
         if (flavorText != null && !flavorText.isEmpty()) {
-            lore.add("");
-            for (String line : flavorText) lore.add("§8§o" + line.replace("&", "§"));
+            lore.add(Component.empty());
+            for (String line : flavorText) {
+                lore.add(LegacyComponentSerializer.legacyAmpersand().deserialize("&8&o" + line));
+            }
         }
 
-        lore.add("§8§m-----------------------------");
+        lore.add(Component.text("-----------------------------", NamedTextColor.DARK_GRAY).decoration(TextDecoration.STRIKETHROUGH, true));
 
         // --- [付加能力] セクション ---
         if (appliedModifiers != null && !appliedModifiers.isEmpty()) {
-            lore.add(" §d§l[付加能力]"); // 見出しは単独で1行
+            lore.add(Component.text(" [付加能力]", NamedTextColor.LIGHT_PURPLE, TextDecoration.BOLD));
 
-            List<String> mods = new ArrayList<>();
+            List<Component> mods = new ArrayList<>();
             for (Map.Entry<StatType, Double> entry : appliedModifiers.entrySet()) {
                 mods.add(formatModifierStat(entry.getKey(), entry.getValue()));
             }
             // 中身だけを2列化
             addTwoColumnLore(lore, mods);
-            lore.add(""); // セクション間に少し隙間
+            lore.add(Component.empty()); // セクション間に少し隙間
         }
 
         // --- [基礎ステータス] セクション ---
-        lore.add(" §f§l[基礎ステータス]"); // 見出しは単独で1行
+        lore.add(Component.text(" [基礎ステータス]", NamedTextColor.WHITE, TextDecoration.BOLD));
 
-        List<String> baseStats = new ArrayList<>();
+        List<Component> baseStats = new ArrayList<>();
         for (StatType type : stats.getAllTypes()) {
             double flat = stats.getFlat(type);
             double percent = stats.getPercent(type);
@@ -226,78 +256,74 @@ class LoreBuilder {
         // 中身だけを2列化
         addTwoColumnLore(lore, baseStats);
 
-        lore.add("§8§m-----------------------------");
+        lore.add(Component.text("-----------------------------", NamedTextColor.DARK_GRAY).decoration(TextDecoration.STRIKETHROUGH, true));
         return lore;
     }
 
     // 2列レイアウト生成メソッドの微調整
-    private static void addTwoColumnLore(List<String> mainLore, List<String> items) {
+    private static void addTwoColumnLore(List<Component> mainLore, List<Component> items) {
         if (items.isEmpty()) return;
 
         int maxLeftWidth = 0;
+        List<String> legacyItems = new ArrayList<>();
+        LegacyComponentSerializer serializer = LegacyComponentSerializer.legacySection();
+
+        // Convert to legacy strings for width calculation
+        for (Component item : items) {
+            String legacy = serializer.serialize(item);
+            legacyItems.add(legacy);
+        }
+
         // まず左側にくる要素の中で「最大の幅」を計算
         for (int i = 0; i < items.size(); i += 2) {
-            int width = getMinecraftStringWidth(items.get(i));
+            int width = getMinecraftStringWidth(legacyItems.get(i));
             if (width > maxLeftWidth) maxLeftWidth = width;
         }
 
-        // 目標幅の設定：
-        // 「最大幅」+「最低限の余白(8px)」に加え、
-        // 全体を4pxの倍数（スペースのグリッド）に揃える補正を行います。
-        // これにより、どの行も「スペースの区切り」で右側の文字が始まるようになります。
+        // 目標幅の設定
         int rawTarget = maxLeftWidth + 8;
         int targetWidth = (rawTarget % 4 == 0) ? rawTarget : (rawTarget + (4 - (rawTarget % 4)));
 
         for (int i = 0; i < items.size(); i += 2) {
-            String left = items.get(i);
+            Component left = items.get(i);
+            String leftLegacy = legacyItems.get(i);
+
             if (i + 1 >= items.size()) {
-                mainLore.add(" " + left);
+                mainLore.add(Component.text(" ").append(left));
                 break;
             }
-            String right = items.get(i + 1);
+            Component right = items.get(i + 1);
 
             // 生成
-            // 以前のように debug ログを出しても良いですが、このロジックならほぼズレません
-            mainLore.add(" " + padToWidth(left, targetWidth) + "§r" + right);
+            Component paddedLeft = padToWidth(left, leftLegacy, targetWidth);
+            mainLore.add(Component.text(" ").append(paddedLeft).append(right));
         }
     }
 
     /**
-     * パディング生成メソッド（安定化版）
-     * 太字スペース(5px)を使わず、通常スペース(4px)のみで調整します。
-     * これにより1-3px程度の誤差は出ますが、列がガタつく現象（ジッター）を防げます。
+     *パディング生成メソッド（安定化版）
      */
-    private static String padToWidth(String text, int targetPx) {
-        int currentPx = getMinecraftStringWidth(text);
+    private static Component padToWidth(Component textComponent, String textLegacy, int targetPx) {
+        int currentPx = getMinecraftStringWidth(textLegacy);
 
         // 現在の幅がすでに目標を超えている、または差が小さすぎる場合
-        // 最低でもスペース2つ分(8px)の余白を確保して、右の文字が被らないようにする
         if (currentPx >= targetPx) {
-            return text + "  ";
+            return textComponent.append(Component.text("  "));
         }
 
         int neededPx = targetPx - currentPx;
 
         // 必要なピクセル数をスペースの幅(4px)で割り、切り上げる
-        // これにより、必ず targetPx 以上になる最小のスペース数が求まります
         int spacesNeeded = (int) Math.ceil(neededPx / 4.0);
 
         // 念のため最低1つは入れる
         if (spacesNeeded < 1) spacesNeeded = 1;
-
-        StringBuilder sb = new StringBuilder(text);
-
-        // 色や装飾の影響を受けないようにリセットしてからスペースを入れる
-        sb.append("§r");
-        sb.append(" ".repeat(spacesNeeded));
-
-        return sb.toString();
+        
+        return textComponent.append(Component.text(" ".repeat(spacesNeeded)));
     }
 
     /**
      * 文字幅計算メソッド（調整版）
-     * スクリーンショットで「右にズレる（＝幅を過小評価している）」傾向があるため
-     * 一部の数値を安全側に修正しています。
      */
     private static int getCharWidth(char c) {
         // 1. 特殊アイコン (ここがズレの原因になりやすいので少し大きめに見積もる)
@@ -318,9 +344,6 @@ class LoreBuilder {
         if (c == ' ') return 4;
 
         // 3. 全角文字
-        // 日本語フォントは12px描画+1px影=13pxが基本ですが、
-        // ズレるなら少し過大評価して「14」にしておくと、パディングが減って左に寄るため安全です。
-        // 現状維持の13でOKですが、もし右に飛び出るならここを14にしてください。
         if (c > 255) return 13;
 
         // 4. 標準
@@ -360,14 +383,26 @@ class LoreBuilder {
         return length;
     }
 
-    private static String formatModifierStat(StatType type, double value) {
-        // アイコンとテキストの間に余計な空白を入れず、padToWidthに計算させる
-        return "§d• " + type.getIcon() + " " + type.getDisplayName() + ": §d+" + String.format("%.1f", value);
+    private static Component formatModifierStat(StatType type, double value) {
+        return Component.text("• ", NamedTextColor.LIGHT_PURPLE) 
+                .append(Component.text(type.getIcon() + " " + type.getDisplayName() + ": ")) 
+                .append(Component.text("+" + String.format("%.1f", value), NamedTextColor.LIGHT_PURPLE));
     }
 
-    private static String formatStat(StatType type, double flat, double percent, boolean compact) {
-        String valStr = (percent != 0) ? String.format("%.1f", flat) + " (§a+" + Math.round(percent) + "%§f)" : String.valueOf(flat);
-        return "§f• " + type.getIcon() + " " + type.getDisplayName() + ": §f" + valStr;
+    private static Component formatStat(StatType type, double flat, double percent, boolean compact) {
+        Component valComp;
+        if (percent != 0) {
+            valComp = Component.text(String.format("%.1f", flat))
+                    .append(Component.text(" ("))
+                    .append(Component.text("+" + Math.round(percent) + "%", NamedTextColor.GREEN))
+                    .append(Component.text(")", NamedTextColor.WHITE));
+        } else {
+            valComp = Component.text(String.valueOf(flat));
+        }
+        
+        return Component.text("• ", NamedTextColor.WHITE) 
+                .append(Component.text(type.getIcon() + " " + type.getDisplayName() + ": ")) 
+                .append(valComp.color(NamedTextColor.WHITE));
     }
 }
 

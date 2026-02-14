@@ -2,6 +2,9 @@ package com.lunar_prototype.deepwither.command;
 
 import com.lunar_prototype.deepwither.clan.Clan;
 import com.lunar_prototype.deepwither.clan.ClanManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -37,19 +40,19 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
         switch (args[0].toLowerCase()) {
             case "create" -> {
                 if (args.length < 2) {
-                    player.sendMessage("§c使用法: /clan create <名前>");
+                    player.sendMessage(Component.text("使用法: /clan create <名前>", NamedTextColor.RED));
                     return true;
                 }
                 clanManager.createClan(player, args[1]);
             }
             case "invite" -> {
                 if (args.length < 2) {
-                    player.sendMessage("§c使用法: /clan invite <プレイヤー名>");
+                    player.sendMessage(Component.text("使用法: /clan invite <プレイヤー名>", NamedTextColor.RED));
                     return true;
                 }
                 Player target = Bukkit.getPlayer(args[1]);
                 if (target == null) {
-                    player.sendMessage("§cプレイヤーが見つかりません。");
+                    player.sendMessage(Component.text("プレイヤーが見つかりません。", NamedTextColor.RED));
                     return true;
                 }
                 clanManager.invitePlayer(player, target);
@@ -58,11 +61,11 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
             case "info" -> {
                 Clan clan = clanManager.getClanByPlayer(player.getUniqueId());
                 if (clan == null) {
-                    player.sendMessage("§cクランに所属していません。");
+                    player.sendMessage(Component.text("クランに所属していません。", NamedTextColor.RED));
                 } else {
-                    player.sendMessage("§6=== " + clan.getName() + " ===");
-                    player.sendMessage("§7リーダー: " + Bukkit.getOfflinePlayer(clan.getOwner()).getName());
-                    player.sendMessage("§7メンバー数: " + clan.getMembers().size());
+                    player.sendMessage(Component.text("=== " + clan.getName() + " ===", NamedTextColor.GOLD, TextDecoration.BOLD));
+                    player.sendMessage(Component.text("リーダー: ", NamedTextColor.GRAY).append(Component.text(Bukkit.getOfflinePlayer(clan.getOwner()).getName(), NamedTextColor.WHITE)));
+                    player.sendMessage(Component.text("メンバー数: ", NamedTextColor.GRAY).append(Component.text(clan.getMembers().size(), NamedTextColor.WHITE)));
                 }
             }
             case "leave" -> clanManager.leaveClan(player);
@@ -76,36 +79,24 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
         if (args.length == 1) {
-            // 第1引数: サブコマンドのリストをフィルタリングして返す
-            return subCommands.stream()
-                    .filter(s -> s.startsWith(args[0].toLowerCase()))
-                    .collect(Collectors.toList());
+            return subCommands.stream().filter(s -> s.startsWith(args[0].toLowerCase())).collect(Collectors.toList());
         }
-
         if (args.length == 2) {
             if (args[0].equalsIgnoreCase("invite")) {
-                // 第2引数が invite の場合: オンラインプレイヤー名を返す
-                return Bukkit.getOnlinePlayers().stream()
-                        .map(Player::getName)
-                        .filter(name -> name.toLowerCase().startsWith(args[1].toLowerCase()))
-                        .collect(Collectors.toList());
+                return Bukkit.getOnlinePlayers().stream().map(Player::getName).filter(name -> name.toLowerCase().startsWith(args[1].toLowerCase())).collect(Collectors.toList());
             }
-
-            if (args[0].equalsIgnoreCase("create")) {
-                return Arrays.asList("<クラン名>");
-            }
+            if (args[0].equalsIgnoreCase("create")) return Arrays.asList("<クラン名>");
         }
-
         return new ArrayList<>();
     }
 
     private void sendHelp(Player player) {
-        player.sendMessage("§b=== Clan System Help ===");
-        player.sendMessage("§f/clan create <name> §7- クランを作成");
-        player.sendMessage("§f/clan invite <player> §7- プレイヤーを招待");
-        player.sendMessage("§f/clan join §7- 招待を受ける");
-        player.sendMessage("§f/clan info §7- 所属クランの情報");
-        player.sendMessage("§f/clan leave §7- クランを脱退");
-        player.sendMessage("§f/clan disband §7- クランを解散（リーダー用）");
+        player.sendMessage(Component.text("=== Clan System Help ===", NamedTextColor.AQUA, TextDecoration.BOLD));
+        player.sendMessage(Component.text("/clan create <name>", NamedTextColor.WHITE).append(Component.text(" - クランを作成", NamedTextColor.GRAY)));
+        player.sendMessage(Component.text("/clan invite <player>", NamedTextColor.WHITE).append(Component.text(" - プレイヤーを招待", NamedTextColor.GRAY)));
+        player.sendMessage(Component.text("/clan join", NamedTextColor.WHITE).append(Component.text(" - 招待を受ける", NamedTextColor.GRAY)));
+        player.sendMessage(Component.text("/clan info", NamedTextColor.WHITE).append(Component.text(" - 所属クランの情報", NamedTextColor.GRAY)));
+        player.sendMessage(Component.text("/clan leave", NamedTextColor.WHITE).append(Component.text(" - クランを脱退", NamedTextColor.GRAY)));
+        player.sendMessage(Component.text("/clan disband", NamedTextColor.WHITE).append(Component.text(" - クランを解散（リーダー用）", NamedTextColor.GRAY)));
     }
 }

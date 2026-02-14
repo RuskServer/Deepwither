@@ -9,6 +9,9 @@ import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
 import com.sk89q.worldguard.protection.regions.RegionQuery;
 import io.lumine.mythic.bukkit.MythicBukkit;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -49,9 +52,8 @@ public class RaidBossManager implements IManager {
             String mythicMobId = bossSec.getString("mythic_mob");
             String regionId = bossSec.getString("region");
 
-            // 座標設定
             ConfigurationSection locSec = bossSec.getConfigurationSection("location");
-            String worldName = locSec != null ? locSec.getString("world", "aether") : "aether"; // デフォルトaether
+            String worldName = locSec != null ? locSec.getString("world", "aether") : "aether";
             double x = locSec != null ? locSec.getDouble("x") : 0;
             double y = locSec != null ? locSec.getDouble("y") : 0;
             double z = locSec != null ? locSec.getDouble("z") : 0;
@@ -66,47 +68,46 @@ public class RaidBossManager implements IManager {
         return bossDataMap.get(id);
     }
 
-    // 召喚処理
     public boolean spawnBoss(Player player, String bossId) {
         RaidBossData data = bossDataMap.get(bossId);
         if (data == null) {
-            player.sendMessage("§cエラー: このボスの設定が存在しません。");
+            player.sendMessage(Component.text("エラー: このボスの設定が存在しません。", NamedTextColor.RED));
             return false;
         }
 
-        // 1. リージョンチェック
         if (!isInRegion(player, data.regionId)) {
-            player.sendMessage("§cこのアイテムは決戦のバトルフィールド (§e" + data.regionId + "§c) でのみ使用可能です。");
+            player.sendMessage(Component.text("このアイテムは決戦のバトルフィールド (", NamedTextColor.RED)
+                    .append(Component.text(data.regionId, NamedTextColor.YELLOW))
+                    .append(Component.text(") でのみ使用可能です。", NamedTextColor.RED)));
             return false;
         }
 
-        // 2. ワールド取得
         World world = Bukkit.getWorld(data.worldName);
         if (world == null) {
-            player.sendMessage("§cエラー: 指定されたワールド (" + data.worldName + ") が見つかりません。");
+            player.sendMessage(Component.text("エラー: 指定されたワールド (" + data.worldName + ") が見つかりません。", NamedTextColor.RED));
             return false;
         }
 
         Location spawnLoc = new Location(world, data.x, data.y, data.z);
 
-        // 3. MythicMobsスポーン
         try {
             MythicBukkit.inst().getAPIHelper().spawnMythicMob(data.mythicMobId, spawnLoc);
 
-            // メッセージや音の演出
-            player.sendMessage("§5§l[RAID] §dレイドボス §f" + data.mythicMobId + " §dが出現しました！");
-            world.strikeLightningEffect(spawnLoc); // 雷エフェクト
+            player.sendMessage(Component.text("[RAID] ", NamedTextColor.DARK_PURPLE, TextDecoration.BOLD)
+                    .append(Component.text("レイドボス ", NamedTextColor.LIGHT_PURPLE))
+                    .append(Component.text(data.mythicMobId, NamedTextColor.WHITE))
+                    .append(Component.text(" が出現しました！", NamedTextColor.LIGHT_PURPLE)));
+            world.strikeLightningEffect(spawnLoc);
             return true;
         } catch (Exception e) {
-            player.sendMessage("§cMythicMobsのスポーンに失敗しました。IDを確認してください: " + data.mythicMobId);
+            player.sendMessage(Component.text("MythicMobsのスポーンに失敗しました。IDを確認してください: " + data.mythicMobId, NamedTextColor.RED));
             e.printStackTrace();
             return false;
         }
     }
 
-    // WorldGuardリージョン判定
     private boolean isInRegion(Player player, String targetRegionId) {
-        if (targetRegionId == null || targetRegionId.isEmpty()) return true; // 設定なければどこでも可とする場合
+        if (targetRegionId == null || targetRegionId.isEmpty()) return true;
 
         Location loc = player.getLocation();
         RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
@@ -121,7 +122,6 @@ public class RaidBossManager implements IManager {
         return false;
     }
 
-    // データクラス
     public static class RaidBossData {
         private final String id;
         private final String mythicMobId;

@@ -1,11 +1,12 @@
 package com.lunar_prototype.deepwither;
 
-import com.lunar_prototype.deepwither.profession.ProfessionManager; // 追加
-import com.lunar_prototype.deepwither.profession.ProfessionType;    // 追加
+import com.lunar_prototype.deepwither.profession.ProfessionManager;
+import com.lunar_prototype.deepwither.profession.ProfessionType;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
@@ -30,11 +31,11 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @DependsOn({LevelManager.class, ProfessionManager.class, ItemFactory.class})
 public class CustomOreListener implements Listener, IManager {
-    private static final NamespacedKey KB_RESIST_BACKUP = NamespacedKey.fromString("mining_kb_backup", Deepwither.getInstance()); //
+    private static final NamespacedKey KB_RESIST_BACKUP = NamespacedKey.fromString("mining_kb_backup", Deepwither.getInstance());
 
     private final JavaPlugin plugin;
     private final Random random = new Random();
-    private final Map<UUID, BukkitTask> taskmap = new ConcurrentHashMap<>(); // 同期かどうか確認するやる気はないのだ...
+    private final Map<UUID, BukkitTask> taskmap = new ConcurrentHashMap<>();
 
     public CustomOreListener(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -48,13 +49,9 @@ public class CustomOreListener implements Listener, IManager {
     @Override
     public void shutdown() {}
 
-    /**
-     * ブロックを叩き始めた時にノックバック耐性を付与
-     */
     @EventHandler(ignoreCancelled = true)
     public void onBlockDamage(BlockDamageEvent event) {
         Material type = event.getBlock().getType();
-        // カスタム鉱石の設定があるか確認
         if (!plugin.getConfig().contains("ore_setting." + type.name())) {
             return;
         }
@@ -75,8 +72,6 @@ public class CustomOreListener implements Listener, IManager {
 
         var task = taskmap.put(source.getUniqueId(), Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (source.isOnline()) {
-                // 抑制: 順序的にsetされていることが保証されているはず
-                //noinspection DataFlowIssue
                 attribute.setBaseValue(container.get(KB_RESIST_BACKUP, PersistentDataType.DOUBLE));
                 container.remove(KB_RESIST_BACKUP);
             }
@@ -97,16 +92,11 @@ public class CustomOreListener implements Listener, IManager {
             if (task != null) {
                 task.cancel();
             }
-
-            // noinspection DataFlowIssue
             attribute.setBaseValue(container.get(KB_RESIST_BACKUP, PersistentDataType.DOUBLE));
             container.remove(KB_RESIST_BACKUP);
         }
     }
 
-    /**
-     * プレイヤーのノックバック耐性を設定するヘルパーメソッド
-     */
     private void setKnockbackResistance(Player player, double value) {
         AttributeInstance attr = player.getAttribute(Attribute.KNOCKBACK_RESISTANCE);
         if (attr != null) {
@@ -129,23 +119,17 @@ public class CustomOreListener implements Listener, IManager {
         event.setCancelled(true);
         block.setType(Material.BEDROCK);
 
-        // ★修正: レアドロップが発生したかを受け取る
         boolean rareDropTriggered = handleCustomDrops(player, block, oreSection);
 
-        // 基本経験値の取得
         int baseExp = oreSection.getInt("exp", 10);
         int finalExp = baseExp;
 
-        // ★追加: レアドロップボーナス (50% ~ 100% アップ)
         if (rareDropTriggered) {
-            // 1.5倍から2.0倍のランダム倍率
             double bonusMultiplier = 1.5 + (random.nextDouble() * 0.5);
             finalExp = (int) (baseExp * bonusMultiplier);
-
-            player.sendMessage(ChatColor.AQUA + "★ 希少鉱石発見！獲得経験値アップ: " + finalExp);
+            player.sendMessage(Component.text("★ 希少鉱石発見！獲得経験値アップ: " + finalExp, NamedTextColor.AQUA));
         }
 
-        // 経験値付与 (finalExpを使用)
         Deepwither.getInstance().getLevelManager().addExp(player, finalExp);
         if (Deepwither.getInstance().getProfessionManager() != null) {
             Deepwither.getInstance().getProfessionManager().addExp(player, ProfessionType.MINING, finalExp);
@@ -155,10 +139,6 @@ public class CustomOreListener implements Listener, IManager {
         scheduleRespawn(block, originalType, respawnTicks);
     }
 
-    /**
-     * 確率に基づいてカスタムドロップアイテムをドロップさせる
-     * @return レアドロップ（chance < 1.0）が発生した場合は true
-     */
     private boolean handleCustomDrops(Player player, Block block, ConfigurationSection oreSection) {
         List<Map<?, ?>> dropList = oreSection.getMapList("drops");
         if (dropList.isEmpty()) return false;
@@ -166,7 +146,7 @@ public class CustomOreListener implements Listener, IManager {
         ProfessionManager profManager = Deepwither.getInstance().getProfessionManager();
         double doubleDropChance = (profManager != null) ? profManager.getDoubleDropChance(player, ProfessionType.MINING) : 0.0;
 
-        boolean lucky = false; // レアドロップフラグ
+        boolean lucky = false;
 
         for (Map<?, ?> dropEntry : dropList) {
             String dropId = (String) dropEntry.get("item_id");
@@ -177,19 +157,13 @@ public class CustomOreListener implements Listener, IManager {
                 chance = ((Number) chanceObj).doubleValue();
             }
 
-            // ドロップ判定
             if (random.nextDouble() <= chance) {
                 dropItem(block, dropId);
+                if (chance < 1.0) lucky = true;
 
-                // ★追加: レアドロップ(chance < 1.0) かつ成功ならフラグを立てる
-                if (chance < 1.0) {
-                    lucky = true;
-                }
-
-                // ダブルドロップ判定
                 if (random.nextDouble() <= doubleDropChance) {
                     dropItem(block, dropId);
-                    player.sendMessage(ChatColor.GOLD + "★ ダブルドロップ！");
+                    player.sendMessage(Component.text("★ ダブルドロップ！", NamedTextColor.GOLD));
                     player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 2.0f);
                 }
             }
@@ -197,12 +171,8 @@ public class CustomOreListener implements Listener, IManager {
         return lucky;
     }
 
-    // ドロップ処理を共通化
     private void dropItem(Block block, String dropId) {
-        File itemFolder = new File(plugin.getDataFolder(), "items");
-        // Deepwither.getInstance() へのアクセスはstatic import等で行っている前提、または修正してください
         ItemStack customDrop = Deepwither.getInstance().getItemFactory().getCustomItemStack(dropId);
-
         if (customDrop != null) {
             block.getWorld().dropItemNaturally(block.getLocation().add(0.5, 0.5, 0.5), customDrop);
         } else {

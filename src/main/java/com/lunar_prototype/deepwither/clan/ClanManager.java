@@ -3,6 +3,9 @@ package com.lunar_prototype.deepwither.clan;
 import com.lunar_prototype.deepwither.DatabaseManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.entity.Player;
 
 import java.sql.*;
@@ -28,7 +31,6 @@ public class ClanManager implements IManager {
 
     private void loadClansFromDatabase() throws SQLException {
         try (Connection conn = db.getConnection()) {
-            // クラン本体のロード
             try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM clans")) {
                 ResultSet rs = ps.executeQuery();
                 while (rs.next()) {
@@ -39,7 +41,6 @@ public class ClanManager implements IManager {
                 }
             }
 
-            // メンバーのロード
             try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM clan_members")) {
                 ResultSet rs = ps.executeQuery();
                 while (rs.next()) {
@@ -56,7 +57,7 @@ public class ClanManager implements IManager {
 
     public boolean createClan(Player owner, String name) {
         if (playerClanMap.containsKey(owner.getUniqueId())) {
-            owner.sendMessage("§c既にクランに所属しています。");
+            owner.sendMessage(Component.text("既にクランに所属しています。", NamedTextColor.RED));
             return false;
         }
 
@@ -66,98 +67,85 @@ public class ClanManager implements IManager {
         clans.put(id, newClan);
         playerClanMap.put(owner.getUniqueId(), id);
 
-        // 非同期保存が理想ですが、まずは直接保存
         saveClanToDatabase(newClan);
         saveMemberToDatabase(owner.getUniqueId(), id);
 
-        owner.sendMessage("§aクラン " + name + " を結成しました！");
+        owner.sendMessage(Component.text("クラン ", NamedTextColor.GREEN)
+                .append(Component.text(name, NamedTextColor.WHITE))
+                .append(Component.text(" を結成しました！", NamedTextColor.GREEN)));
         return true;
     }
 
-    /**
-     * プレイヤーがクランから脱退する
-     */
     public void leaveClan(Player player) {
         Clan clan = getClanByPlayer(player.getUniqueId());
         if (clan == null) {
-            player.sendMessage("§cクランに所属していません。");
+            player.sendMessage(Component.text("クランに所属していません。", NamedTextColor.RED));
             return;
         }
 
-        // リーダーは脱退できない（解散するかリーダー譲渡が必要）
         if (clan.getOwner().equals(player.getUniqueId())) {
-            player.sendMessage("§cリーダーは脱退できません。解散するには /clan disband を使用してください。");
+            player.sendMessage(Component.text("リーダーは脱退できません。解散するには /clan disband を使用してください。", NamedTextColor.RED));
             return;
         }
 
-        // メモリからの削除
         clan.removeMember(player.getUniqueId());
         playerClanMap.remove(player.getUniqueId());
-
-        // データベースからの削除
         deleteMemberFromDatabase(player.getUniqueId());
 
-        player.sendMessage("§aクラン " + clan.getName() + " から脱退しました。");
-        clan.broadcast("§e" + player.getName() + " がクランを脱退しました。");
+        player.sendMessage(Component.text("クラン ", NamedTextColor.GREEN)
+                .append(Component.text(clan.getName(), NamedTextColor.WHITE))
+                .append(Component.text(" から脱退しました。", NamedTextColor.GREEN)));
+        clan.broadcast(Component.text(player.getName(), NamedTextColor.YELLOW)
+                .append(Component.text(" がクランを脱退しました。", NamedTextColor.YELLOW)));
     }
 
-    /**
-     * クランを解散する（リーダーのみ）
-     */
     public void disbandClan(Player leader) {
         Clan clan = getClanByPlayer(leader.getUniqueId());
         if (clan == null || !clan.getOwner().equals(leader.getUniqueId())) {
-            leader.sendMessage("§cクランリーダーのみが解散できます。");
+            leader.sendMessage(Component.text("クランリーダーのみが解散できます。", NamedTextColor.RED));
             return;
         }
 
         String clanName = clan.getName();
         String clanId = clan.getId();
 
-        // 所属メンバー全員のキャッシュをクリア
         for (UUID memberUuid : clan.getMembers()) {
             playerClanMap.remove(memberUuid);
         }
         clans.remove(clanId);
-
-        // データベースからクラン本体と全メンバーを削除
         deleteClanFromDatabase(clanId);
 
-        leader.sendMessage("§aクラン " + clanName + " を解散しました。");
+        leader.sendMessage(Component.text("クラン ", NamedTextColor.GREEN)
+                .append(Component.text(clanName, NamedTextColor.WHITE))
+                .append(Component.text(" を解散しました。", NamedTextColor.GREEN)));
     }
 
-    /**
-     * クランへの招待を送る
-     * 永続化の必要がない一時的なメモリデータとして管理します
-     */
     public void invitePlayer(Player sender, Player target) {
-        // 送信者がクランに所属しているか確認
         Clan clan = getClanByPlayer(sender.getUniqueId());
 
-        // 権限チェック: クランが存在し、送信者がオーナーであること
         if (clan == null || !clan.getOwner().equals(sender.getUniqueId())) {
-            sender.sendMessage("§cクランリーダーのみが招待できます。");
+            sender.sendMessage(Component.text("クランリーダーのみが招待できます。", NamedTextColor.RED));
             return;
         }
 
-        // ターゲットが既にクランに入っているか確認
         if (playerClanMap.containsKey(target.getUniqueId())) {
-            sender.sendMessage("§c相手は既に他のクランに所属しています。");
+            sender.sendMessage(Component.text("相手は既に他のクランに所属しています。", NamedTextColor.RED));
             return;
         }
 
-        // 招待リストへの登録（メモリ上のみ）
         pendingInvites.put(target.getUniqueId(), clan.getId());
 
-        // メッセージ通知
-        target.sendMessage("§e" + sender.getName() + " からクラン §6" + clan.getName() + " §eへの招待が届きました。");
-        target.sendMessage("§e/clan join で参加できます。");
-        sender.sendMessage("§a" + target.getName() + " に招待を送りました。");
+        target.sendMessage(Component.text(sender.getName(), NamedTextColor.YELLOW)
+                .append(Component.text(" からクラン ", NamedTextColor.YELLOW))
+                .append(Component.text(clan.getName(), NamedTextColor.GOLD, TextDecoration.BOLD))
+                .append(Component.text(" への招待が届きました。", NamedTextColor.YELLOW)));
+        target.sendMessage(Component.text("/clan join で参加できます。", NamedTextColor.YELLOW));
+        sender.sendMessage(Component.text(target.getName() + " に招待を送りました。", NamedTextColor.GREEN));
     }
 
     public void joinClan(Player player) {
         if (!pendingInvites.containsKey(player.getUniqueId())) {
-            player.sendMessage("§c招待が来ていません。");
+            player.sendMessage(Component.text("招待が来ていません。", NamedTextColor.RED));
             return;
         }
 
@@ -165,19 +153,16 @@ public class ClanManager implements IManager {
         Clan clan = clans.get(clanId);
 
         if (clan == null) {
-            player.sendMessage("§cそのクランは既に解散したようです。");
+            player.sendMessage(Component.text("そのクランは既に解散したようです。", NamedTextColor.RED));
             return;
         }
 
         clan.addMember(player.getUniqueId());
         playerClanMap.put(player.getUniqueId(), clanId);
-
         saveMemberToDatabase(player.getUniqueId(), clanId);
 
-        clan.broadcast("§a" + player.getName() + " がクランに参加しました！");
+        clan.broadcast(Component.text(player.getName() + " がクランに参加しました！", NamedTextColor.GREEN));
     }
-
-    // --- データベース保存用ヘルパー ---
 
     private void saveClanToDatabase(Clan clan) {
         try (Connection conn = db.getConnection();
@@ -212,22 +197,15 @@ public class ClanManager implements IManager {
 
     private void deleteClanFromDatabase(String clanId) {
         try (Connection conn = db.getConnection()) {
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "DELETE FROM clans WHERE id = ?")) {
+            try (PreparedStatement ps = conn.prepareStatement("DELETE FROM clans WHERE id = ?")) {
                 ps.setString(1, clanId);
                 ps.executeUpdate();
             }
-
-            // SQLiteの外部キー制約 (ON DELETE CASCADE) が設定されている場合、
-            // clan_members も自動で消えますが、念のため明示的に消すことも可能です。
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "DELETE FROM clan_members WHERE clan_id = ?")) {
+            try (PreparedStatement ps = conn.prepareStatement("DELETE FROM clan_members WHERE clan_id = ?")) {
                 ps.setString(1, clanId);
                 ps.executeUpdate();
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        } catch (SQLException e) { e.printStackTrace(); }
     }
 
     public Clan getClanByPlayer(UUID uuid) {
@@ -237,7 +215,6 @@ public class ClanManager implements IManager {
 
     @Override
     public void shutdown() {
-        // サーバー停止時、念のため全クランの最新状態を保存
         clans.values().forEach(this::saveClanToDatabase);
     }
 }

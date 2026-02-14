@@ -3,8 +3,9 @@ package com.lunar_prototype.deepwither;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -48,7 +49,7 @@ public class SkillCastSessionManager implements Listener, IManager {
                     skillSlotOffsetMap.put(uuid, offset);
 
                     SkillSlotData slotData = slotManager.get(uuid);
-                    StringBuilder sb = new StringBuilder();
+                    Component actionBar = Component.empty();
 
                     for (int i = 0; i < 4; i++) {
                         String skillId = slotData.getSkill(i);
@@ -56,43 +57,39 @@ public class SkillCastSessionManager implements Listener, IManager {
 
                         if (displayKey > 9) continue;
 
-                        // ■ 改善点1: キー番号の表示を統一（灰色ブラケット + 黄色数字）
-                        // §7[ §e1 §7] のようになります
-                        String keyPrefix = "§7[§e" + displayKey + "§7] ";
+                        Component keyPrefix = Component.text("[", NamedTextColor.GRAY)
+                                .append(Component.text(displayKey, NamedTextColor.YELLOW))
+                                .append(Component.text("] ", NamedTextColor.GRAY));
 
                         if (skillId == null) {
-                            // 未設定は目立たないように暗い灰色で
-                            sb.append(keyPrefix).append("§8----  ");
+                            actionBar = actionBar.append(keyPrefix).append(Component.text("----  ", NamedTextColor.DARK_GRAY));
                             continue;
                         }
 
                         SkillDefinition def = skillLoader.get(skillId);
                         if (def == null) {
-                            sb.append(keyPrefix).append("§cERROR  ");
+                            actionBar = actionBar.append(keyPrefix).append(Component.text("ERROR  ", NamedTextColor.RED));
                             continue;
                         }
 
                         boolean onCooldown = cooldownManager.isOnCooldown(uuid, skillId, def.cooldown, def.cooldown_min);
                         boolean notEnoughMana = manaManager.get(uuid).getCurrentMana() < def.manaCost;
 
-                        String display;
+                        Component display;
                         if (onCooldown) {
                             double remaining = cooldownManager.getRemaining(uuid, skillId, def.cooldown, def.cooldown_min);
-                            // ■ 改善点2: クールダウン中は赤文字＋秒数は少し薄くして見やすく
-                            display = "§c" + def.name + " §7(" + String.format("%.1f", remaining) + ")";
+                            display = Component.text(def.name, NamedTextColor.RED)
+                                    .append(Component.text(" (" + String.format("%.1f", remaining) + ")", NamedTextColor.GRAY));
                         } else if (notEnoughMana) {
-                            // ■ 改善点3: マナ不足は §9(濃い青) だと見づらいので §b(水色) や §3(濃い水色) 推奨
-                            display = "§b" + def.name;
+                            display = Component.text(def.name, NamedTextColor.AQUA);
                         } else {
-                            // ■ 改善点4: 使用可能時は緑 (§a) + 太字 (§l) で強調しても良い
-                            display = "§a§l" + def.name;
+                            display = Component.text(def.name, NamedTextColor.GREEN, TextDecoration.BOLD);
                         }
 
-                        // ■ 改善点5: 末尾にスペースを2つ入れて区切りを明確に
-                        sb.append(keyPrefix).append(display).append("  ");
+                        actionBar = actionBar.append(keyPrefix).append(display).append(Component.text("  "));
                     }
 
-                    player.sendActionBar(sb.toString().trim());
+                    player.sendActionBar(actionBar);
                 }
             }
         }.runTaskTimer(plugin, 0L, 10L); // 0.5秒ごと更新
@@ -117,7 +114,7 @@ public class SkillCastSessionManager implements Listener, IManager {
         if (skillModePlayers.contains(uuid)) {
             skillModePlayers.remove(uuid);
             skillSlotOffsetMap.remove(uuid);
-            player.sendActionBar(Component.text(" "));
+            player.sendActionBar(Component.empty());
             player.playSound(player.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 1.0f, 2.0f);
             return;
         }
@@ -126,8 +123,6 @@ public class SkillCastSessionManager implements Listener, IManager {
         previousSlotMap.put(uuid, player.getInventory().getHeldItemSlot());
 
         player.playSound(player.getLocation(), Sound.BLOCK_END_PORTAL_FRAME_FILL, 1.0f, 2.0f);
-
-        //player.sendTitle(ChatColor.GOLD + "スキル発動モード", ChatColor.GRAY + "スロットでスキルを選択", 5, 40, 10);
     }
 
     @EventHandler
@@ -142,19 +137,19 @@ public class SkillCastSessionManager implements Listener, IManager {
         int skillIndex = rawSlot - offset;
 
         if (skillIndex < 0 || skillIndex >= 4) {
-            player.sendMessage(ChatColor.RED + "スキルスロット外を選択しました。");
+            player.sendMessage(Component.text("スキルスロット外を選択しました。", NamedTextColor.RED));
             return;
         }
 
         String skillId = Deepwither.getInstance().getSkillSlotManager().getSkillInSlot(uuid, skillIndex);
         if (skillId == null) {
-            player.sendMessage(ChatColor.RED + "このスロットにはスキルが設定されていません。");
+            player.sendMessage(Component.text("このスロットにはスキルが設定されていません。", NamedTextColor.RED));
             return;
         }
 
         SkillDefinition skill = Deepwither.getInstance().getSkillLoader().get(skillId);
         if (skill == null) {
-            player.sendMessage(ChatColor.RED + "スキルの読み込みに失敗しました。");
+            player.sendMessage(Component.text("スキルの読み込みに失敗しました。", NamedTextColor.RED));
             return;
         }
 

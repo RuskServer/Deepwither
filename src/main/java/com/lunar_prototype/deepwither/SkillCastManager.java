@@ -4,8 +4,9 @@ import com.lunar_prototype.deepwither.api.event.SkillCastEvent;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import io.lumine.mythic.bukkit.MythicBukkit;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -30,13 +31,13 @@ public class SkillCastManager implements IManager {
         CooldownManager cd = Deepwither.getInstance().getCooldownManager();
 
         if (mana.getCurrentMana() < def.manaCost) {
-            player.sendMessage(ChatColor.RED + "マナが足りません！");
+            player.sendMessage(Component.text("マナが足りません！", NamedTextColor.RED));
             return false;
         }
 
         if (cd.isOnCooldown(player.getUniqueId(), def.id, def.cooldown,def.cooldown_min)) {
             double rem = cd.getRemaining(player.getUniqueId(), def.id, def.cooldown,def.cooldown_min);
-            player.sendMessage(ChatColor.YELLOW + String.format("スキルはクールダウン中です！（残り %.1f 秒）", rem));
+            player.sendMessage(Component.text(String.format("スキルはクールダウン中です！（残り %.1f 秒）", rem), NamedTextColor.YELLOW));
             return false;
         }
 
@@ -56,7 +57,7 @@ public class SkillCastManager implements IManager {
     }
 
     private void startCasting(Player player, SkillDefinition def) {
-        player.sendMessage(ChatColor.YELLOW + "詠唱開始: " + def.name + " (" + def.castTime + "s)");
+        player.sendMessage(Component.text("詠唱開始: " + def.name + " (" + def.castTime + "s)", NamedTextColor.YELLOW));
 
         // 移動速度低下を付与（強さは調整してください。4でかなり遅くなります）
         // 詠唱時間分だけ付与
@@ -82,9 +83,9 @@ public class SkillCastManager implements IManager {
             mana.consume(def.manaCost);
             Deepwither.getInstance().getCooldownManager().setCooldown(player.getUniqueId(), def.id);
             Bukkit.getPluginManager().callEvent(new SkillCastEvent(player));
-            player.sendMessage(ChatColor.GREEN + "スキル「" + def.name + "」を発動！");
+            player.sendMessage(Component.text("スキル「" + def.name + "」を発動！", NamedTextColor.GREEN));
         } else {
-            player.sendMessage(ChatColor.GRAY + "発動条件を満たしていません。");
+            player.sendMessage(Component.text("発動条件を満たしていません。", NamedTextColor.GRAY));
             // 失敗時にスローを解除したい場合はここでremovePotionEffect
             player.removePotionEffect(PotionEffectType.SLOWNESS);
         }

@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither.companion;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -21,38 +23,36 @@ public class CompanionCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("このコマンドはプレイヤーのみ実行可能です。");
+            sender.sendMessage(Component.text("このコマンドはプレイヤーのみ実行可能です。", NamedTextColor.RED));
             return true;
         }
 
         if (args.length == 0) {
-            player.sendMessage("§c使用法: /companion <spawn|despawn|reload>");
+            player.sendMessage(Component.text("使用法: /companion <spawn|despawn|reload>", NamedTextColor.RED));
             return true;
         }
 
         switch (args[0].toLowerCase()) {
-            case "spawn":
+            case "spawn" -> {
                 if (args.length < 2) {
-                    player.sendMessage("§cIDを指定してください。");
+                    player.sendMessage(Component.text("IDを指定してください。", NamedTextColor.RED));
                     return true;
                 }
                 manager.spawnCompanion(player, args[1]);
-                player.sendMessage("§aコンパニオン §f" + args[1] + " §aを召喚しました。");
-                break;
-
-            case "despawn":
+                player.sendMessage(Component.text("コンパニオン ", NamedTextColor.GREEN)
+                        .append(Component.text(args[1], NamedTextColor.WHITE))
+                        .append(Component.text(" を召喚しました。", NamedTextColor.GREEN)));
+            }
+            case "despawn" -> {
                 manager.despawnCompanion(player);
-                player.sendMessage("§eコンパニオンを帰還させました。");
-                break;
-
-            case "reload":
+                player.sendMessage(Component.text("コンパニオンを帰還させました。", NamedTextColor.YELLOW));
+            }
+            case "reload" -> {
                 if (!player.hasPermission("admin")) return true;
                 manager.loadConfig();
-                player.sendMessage("§aCompanions config reloaded.");
-                break;
-            case "menu":
-                new CompanionGui(manager).openGui(player);
-                break;
+                player.sendMessage(Component.text("Companions config reloaded.", NamedTextColor.GREEN));
+            }
+            case "menu" -> new CompanionGui(manager).openGui(player);
         }
 
         return true;
@@ -61,11 +61,7 @@ public class CompanionCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
         if (args.length == 1) {
-            return List.of("spawn", "despawn", "reload","menu");
-        }
-        if (args.length == 2 && args[0].equalsIgnoreCase("spawn")) {
-            // managerのcompanionTypesのキーを補完に出す（外部公開メソッドをmanagerに追加してください）
-            // return manager.getCompanionIds();
+            return List.of("spawn", "despawn", "reload", "menu");
         }
         return new ArrayList<>();
     }

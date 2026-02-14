@@ -3,6 +3,9 @@ package com.lunar_prototype.deepwither.market;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -20,7 +23,6 @@ public class MarketSearchHandler implements Listener, IManager {
 
     private final JavaPlugin plugin;
     private MarketGui gui;
-    // 検索入力待ちのプレイヤーリスト
     private final Set<UUID> searchingPlayers = new HashSet<>();
 
     public MarketSearchHandler(JavaPlugin plugin) {
@@ -36,16 +38,13 @@ public class MarketSearchHandler implements Listener, IManager {
     @Override
     public void shutdown() {}
 
-    /**
-     * プレイヤーを検索待機状態にする
-     */
     public void startSearch(Player player) {
         searchingPlayers.add(player.getUniqueId());
-        player.sendMessage("");
-        player.sendMessage("§b§l[Market Search]");
-        player.sendMessage("§f検索したいアイテムの名前をチャットに入力してください。");
-        player.sendMessage("§7(キャンセルする場合は 'cancel' と入力してください)");
-        player.sendMessage("");
+        player.sendMessage(Component.empty());
+        player.sendMessage(Component.text("[Market Search]", NamedTextColor.AQUA, TextDecoration.BOLD));
+        player.sendMessage(Component.text("検索したいアイテムの名前をチャットに入力してください。", NamedTextColor.WHITE));
+        player.sendMessage(Component.text("(キャンセルする場合は 'cancel' と入力してください)", NamedTextColor.GRAY));
+        player.sendMessage(Component.empty());
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -53,22 +52,21 @@ public class MarketSearchHandler implements Listener, IManager {
         Player p = e.getPlayer();
         if (!searchingPlayers.contains(p.getUniqueId())) return;
 
-        // チャットが全体に流れないようにキャンセル
         e.setCancelled(true);
         searchingPlayers.remove(p.getUniqueId());
 
         String message = e.getMessage();
 
         if (message.equalsIgnoreCase("cancel")) {
-            p.sendMessage("§c検索をキャンセルしました。");
-            // メインメニューに戻してあげる親切設計
+            p.sendMessage(Component.text("検索をキャンセルしました。", NamedTextColor.RED));
             Bukkit.getScheduler().runTask(plugin, () -> gui.openMainMenu(p));
             return;
         }
 
-        // GUI操作はメインスレッドで行う必要があるため、同期タスクに切り替える
         Bukkit.getScheduler().runTask(plugin, () -> {
-            p.sendMessage("§aキーワード「§f" + message + "§a」で検索中...");
+            p.sendMessage(Component.text("キーワード「", NamedTextColor.GREEN)
+                    .append(Component.text(message, NamedTextColor.WHITE))
+                    .append(Component.text("」で検索中...", NamedTextColor.GREEN)));
             gui.openSearchResults(p, message);
         });
     }

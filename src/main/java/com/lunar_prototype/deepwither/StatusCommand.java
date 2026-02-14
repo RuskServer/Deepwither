@@ -4,6 +4,9 @@ import com.lunar_prototype.deepwither.api.stat.IStatManager;
 import com.lunar_prototype.deepwither.profession.PlayerProfessionData;
 import com.lunar_prototype.deepwither.profession.ProfessionManager;
 import com.lunar_prototype.deepwither.profession.ProfessionType;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -20,160 +23,129 @@ public class StatusCommand implements CommandExecutor {
     private final LevelManager levelManager;
     private final IStatManager statManager;
     private final CreditManager creditManager;
-    private final ProfessionManager professionManager; // ★追加
+    private final ProfessionManager professionManager;
 
     public StatusCommand(LevelManager levelManager, IStatManager statManager, CreditManager creditManager, ProfessionManager professionManager) {
         this.levelManager = levelManager;
         this.statManager = statManager;
         this.creditManager = creditManager;
-        this.professionManager = professionManager; // ★初期化
+        this.professionManager = professionManager;
     }
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("§cこのコマンドはプレイヤーのみ実行できます。");
+            sender.sendMessage(Component.text("このコマンドはプレイヤーのみ実行できます。", NamedTextColor.RED));
             return true;
         }
 
-        // データの取得
         PlayerLevelData levelData = levelManager.get(player);
         if (levelData == null) {
-            player.sendMessage("§cデータロード中です。しばらくお待ちください。");
+            player.sendMessage(Component.text("データロード中です。しばらくお待ちください。", NamedTextColor.RED));
             return true;
         }
 
         Economy econ = Deepwither.getEconomy();
         StatMap finalStats = statManager.getTotalStats(player);
 
-        // --- レイアウト開始 ---
-        player.sendMessage("§8§m---------------------------------------");
-        player.sendMessage("       §e§l【 プレイヤー ステータス 】");
-        player.sendMessage("");
+        player.sendMessage(Component.text("---------------------------------------", NamedTextColor.DARK_GRAY).decoration(TextDecoration.STRIKETHROUGH, true));
+        player.sendMessage(Component.text("       【 プレイヤー ステータス 】", NamedTextColor.YELLOW, TextDecoration.BOLD));
+        player.sendMessage(Component.empty());
 
-        // ----------------------------------------------------
-        // [1] 基本情報 (レベル・所持金)
-        // ----------------------------------------------------
         int currentLevel = levelData.getLevel();
         double currentExp = levelData.getExp();
         double expToNextLevel = levelData.getRequiredExp();
         double expPercent = (currentExp / expToNextLevel) * 100;
 
-        player.sendMessage(" §b§l[ 基本情報 ]");
-        player.sendMessage(String.format("  §7Lv: §a%d §7(§e%.1f%%§7)", currentLevel, expPercent));
-        player.sendMessage("  §7所持金  : §6" + econ.format(econ.getBalance(player)));
-        player.sendMessage("");
+        player.sendMessage(Component.text(" [ 基本情報 ]", NamedTextColor.AQUA, TextDecoration.BOLD));
+        player.sendMessage(Component.text("  Lv: ", NamedTextColor.GRAY).append(Component.text(currentLevel, NamedTextColor.GREEN))
+                .append(Component.text(String.format(" (%.1f%%)", expPercent), NamedTextColor.YELLOW)));
+        player.sendMessage(Component.text("  所持金  : ", NamedTextColor.GRAY).append(Component.text(econ.format(econ.getBalance(player)), NamedTextColor.GOLD)));
+        player.sendMessage(Component.empty());
 
-        // ----------------------------------------------------
-        // [2] 戦闘ステータス
-        // ----------------------------------------------------
         double currentHp = statManager.getActualCurrentHealth(player);
         double maxHp = statManager.getActualMaxHealth(player);
 
-        player.sendMessage(" §c§l[ 戦闘ステータス ]");
-        player.sendMessage("  §7HP: §f" + String.format("%.0f", currentHp) + " §7/ §f" + String.format("%.0f", maxHp));
+        player.sendMessage(Component.text(" [ 戦闘ステータス ]", NamedTextColor.RED, TextDecoration.BOLD));
+        player.sendMessage(Component.text("  HP: ", NamedTextColor.GRAY)
+                .append(Component.text(String.format("%.0f", currentHp), NamedTextColor.WHITE))
+                .append(Component.text(" / ", NamedTextColor.GRAY))
+                .append(Component.text(String.format("%.0f", maxHp), NamedTextColor.WHITE)));
 
-        // 2カラムで表示するようなイメージで整形
-        String atk = getStatString("攻撃力", StatType.ATTACK_DAMAGE, finalStats, "§c", false);
-        String def = getStatString("防御力", StatType.DEFENSE, finalStats, "§9", false);
-        player.sendMessage("  " + atk + "   " + def);
+        Component atk = getStatComponent("攻撃力", StatType.ATTACK_DAMAGE, finalStats, NamedTextColor.RED, false);
+        Component def = getStatComponent("防御力", StatType.DEFENSE, finalStats, NamedTextColor.BLUE, false);
+        player.sendMessage(Component.text("  ").append(atk).append(Component.text("   ")).append(def));
 
-        String matk = getStatString("魔攻力", StatType.MAGIC_DAMAGE, finalStats, "§d", false);
-        String mres = getStatString("魔耐性", StatType.MAGIC_RESIST, finalStats, "§3", false);
-        player.sendMessage("  " + matk + "   " + mres);
+        Component matk = getStatComponent("魔攻力", StatType.MAGIC_DAMAGE, finalStats, NamedTextColor.LIGHT_PURPLE, false);
+        Component mres = getStatComponent("魔耐性", StatType.MAGIC_RESIST, finalStats, NamedTextColor.DARK_AQUA, false);
+        player.sendMessage(Component.text("  ").append(matk).append(Component.text("   ")).append(mres));
 
-        String maoeatk = getStatString("魔AoE", StatType.MAGIC_AOE_DAMAGE, finalStats, "§d", false);
-        String mburstres = getStatString("魔バースト", StatType.MAGIC_BURST_DAMAGE, finalStats, "§3", false);
-        player.sendMessage("  " + maoeatk + "   " + mburstres);
+        Component maoeatk = getStatComponent("魔AoE", StatType.MAGIC_AOE_DAMAGE, finalStats, NamedTextColor.LIGHT_PURPLE, false);
+        Component mburstres = getStatComponent("魔バースト", StatType.MAGIC_BURST_DAMAGE, finalStats, NamedTextColor.DARK_AQUA, false);
+        player.sendMessage(Component.text("  ").append(maoeatk).append(Component.text("   ")).append(mburstres));
 
-        String critD = getStatString("クリ倍率", StatType.CRIT_DAMAGE, finalStats, "§6", true);
-        String critC = getStatString("クリ率", StatType.CRIT_CHANCE, finalStats, "§6", true);
-        player.sendMessage("  " + critD + "   " + critC);
+        Component critD = getStatComponent("クリ倍率", StatType.CRIT_DAMAGE, finalStats, NamedTextColor.GOLD, true);
+        Component critC = getStatComponent("クリ率", StatType.CRIT_CHANCE, finalStats, NamedTextColor.GOLD, true);
+        player.sendMessage(Component.text("  ").append(critD).append(Component.text("   ")).append(critC));
 
-        player.sendMessage("  " + getStatString("回復力", StatType.HP_REGEN, finalStats, "§a", false));
-        player.sendMessage("");
+        player.sendMessage(Component.text("  ").append(getStatComponent("回復力", StatType.HP_REGEN, finalStats, NamedTextColor.GREEN, false)));
+        player.sendMessage(Component.empty());
 
-        // ----------------------------------------------------
-        // [3] 職業スキル (★新規追加)
-        // ----------------------------------------------------
-        player.sendMessage(" §a§l[ 職業スキル ]");
+        player.sendMessage(Component.text(" [ 職業スキル ]", NamedTextColor.GREEN, TextDecoration.BOLD));
         PlayerProfessionData profData = professionManager.getData(player);
 
         for (ProfessionType type : ProfessionType.values()) {
             long totalExp = profData.getExp(type);
             int profLevel = professionManager.getLevel(totalExp);
-
-            // 次のレベルまでの進捗計算（簡易版: ProfessionManagerの計算式に依存）
-            // 正確な進捗バーを出すには「現在のレベルの開始Exp」と「次のレベルの開始Exp」が必要ですが、
-            // ここでは簡易的に「現在の総Exp / (現在のレベル+1になるための総Exp)」を表示するか、
-            // 以前のExp計算ロジックを公開する必要があります。
-            // 今回はシンプルに「Lv.XX (Total Exp: YYY)」とします。
-
             String typeName = formatProfessionName(type);
-            player.sendMessage(String.format("  §7%s: §aLv.%d §7(Total: %d xp)", typeName, profLevel, totalExp));
+            player.sendMessage(Component.text("  " + typeName + ": ", NamedTextColor.GRAY)
+                    .append(Component.text("Lv." + profLevel, NamedTextColor.GREEN))
+                    .append(Component.text(" (Total: " + totalExp + " xp)", NamedTextColor.GRAY)));
         }
-        player.sendMessage("");
+        player.sendMessage(Component.empty());
 
-        // ----------------------------------------------------
-        // [4] トレーダー信用度
-        // ----------------------------------------------------
-        player.sendMessage(" §e§l[ 信用度 ]");
+        player.sendMessage(Component.text(" [ 信用度 ]", NamedTextColor.YELLOW, TextDecoration.BOLD));
         TraderManager traderManager = Deepwither.getInstance().getTraderManager();
         Set<String> allTraderIds = traderManager.getAllTraderIds();
 
         if (allTraderIds.isEmpty()) {
-            player.sendMessage("  §7(データなし)");
+            player.sendMessage(Component.text("  (データなし)", NamedTextColor.GRAY));
         } else {
-            // IDリストを変換・保持
             List<String> ids = new ArrayList<>(allTraderIds);
-
-            // 2個ずつループして表示
             for (int i = 0; i < ids.size(); i += 2) {
                 String id1 = ids.get(i);
-                String name1 = traderManager.getTraderName(id1); // 日本語名を取得
+                String name1 = traderManager.getTraderName(id1);
                 int credit1 = creditManager.getCredit(player.getUniqueId(), id1);
-                String entry1 = String.format("  §7%s: §b%d", name1, credit1);
+                Component entry1 = Component.text("  " + name1 + ": ", NamedTextColor.GRAY).append(Component.text(credit1, NamedTextColor.AQUA));
 
-                // 2つ目の要素があるか確認
                 if (i + 1 < ids.size()) {
                     String id2 = ids.get(i + 1);
-                    String name2 = traderManager.getTraderName(id2); // 日本語名を取得
+                    String name2 = traderManager.getTraderName(id2);
                     int credit2 = creditManager.getCredit(player.getUniqueId(), id2);
-                    // 1つ目の表示幅を揃える（例: 全角8文字分程度を想定した空白調整）
-                    player.sendMessage(String.format("%-20s  §7%s: §b%d", entry1, name2, credit2));
+                    Component entry2 = Component.text("  " + name2 + ": ", NamedTextColor.GRAY).append(Component.text(credit2, NamedTextColor.AQUA));
+                    
+                    player.sendMessage(entry1.append(Component.text("    ")).append(entry2));
                 } else {
                     player.sendMessage(entry1);
                 }
             }
         }
 
-        player.sendMessage("§8§m---------------------------------------");
+        player.sendMessage(Component.text("---------------------------------------", NamedTextColor.DARK_GRAY).decoration(TextDecoration.STRIKETHROUGH, true));
         return true;
     }
 
-    // --- ヘルパーメソッド群 ---
-
-    // ステータス文字列生成（メッセージ送信ではなく文字列を返すように変更）
-    private String getStatString(String name, StatType type, StatMap stats, String color, boolean isPercent) {
+    private Component getStatComponent(String name, StatType type, StatMap stats, NamedTextColor color, boolean isPercent) {
         double value = stats.getFinal(type);
         String valStr = isPercent ? String.format("%.1f%%", value) : String.format("%.0f", value);
-        return String.format("§7%s: %s%s", name, color, valStr);
+        return Component.text(name + ": ", NamedTextColor.GRAY).append(Component.text(valStr, color));
     }
 
-    // トレーダーIDの整形
-    private String formatTraderId(String traderId) {
-        if (traderId == null || traderId.isEmpty()) return "Unknown";
-        // アンダースコアをスペースに＆単語ごとにキャピタライズなどの処理があればここに追加
-        return traderId;
-    }
-
-    // 職業名の整形
     private String formatProfessionName(ProfessionType type) {
-        switch (type) {
-            case MINING: return "採掘";
-            case FISHING: return "釣り";
-            // case FISHING: return "釣り"; // 将来用
-            default: return type.name();
-        }
+        return switch (type) {
+            case MINING -> "採掘";
+            case FISHING -> "釣り";
+            default -> type.name();
+        };
     }
 }

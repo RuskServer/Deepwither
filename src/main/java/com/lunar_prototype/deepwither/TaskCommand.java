@@ -4,6 +4,9 @@ import com.lunar_prototype.deepwither.aethelgard.PlayerQuestData;
 import com.lunar_prototype.deepwither.aethelgard.PlayerQuestManager;
 import com.lunar_prototype.deepwither.aethelgard.QuestProgress;
 import com.lunar_prototype.deepwither.data.DailyTaskData;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -24,41 +27,39 @@ public class TaskCommand implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("§cこのコマンドはプレイヤーのみ実行できます。");
+            sender.sendMessage(Component.text("このコマンドはプレイヤーのみ実行できます。", NamedTextColor.RED));
             return true;
         }
 
-        // --- コマンド実行時の表示整形 ---
-        player.sendMessage("§9§l--- 進行中タスク・クエスト ---");
+        player.sendMessage(Component.text("--- 進行中タスク・クエスト ---", NamedTextColor.BLUE, TextDecoration.BOLD));
 
         displayGuildQuestStatus(player);
-        player.sendMessage("§9§m--------------------------------------");
+        player.sendMessage(Component.text("--------------------------------------", NamedTextColor.BLUE).decoration(TextDecoration.STRIKETHROUGH, true));
         displayDailyTaskStatus(player);
-        player.sendMessage("§9§l--------------------------------------");
+        player.sendMessage(Component.text("--------------------------------------", NamedTextColor.BLUE, TextDecoration.BOLD));
 
         return true;
     }
 
-    // ギルドクエストの進捗を表示するヘルパーメソッド
     private void displayGuildQuestStatus(Player player) {
         PlayerQuestManager questManager = plugin.getPlayerQuestManager();
         PlayerQuestData questData = questManager.getPlayerData(player.getUniqueId());
 
         if (questData == null) {
-            player.sendMessage("§c[ギルド] クエストデータがロードされていません。");
+            player.sendMessage(Component.text("[ギルド] クエストデータがロードされていません。", NamedTextColor.RED));
             return;
         }
 
         Map<UUID, QuestProgress> activeQuests = questData.getActiveQuests();
 
-        player.sendMessage("§6§l[ギルドクエスト] (" + activeQuests.size() + "件)");
+        player.sendMessage(Component.text("[ギルドクエスト] ", NamedTextColor.GOLD, TextDecoration.BOLD)
+                .append(Component.text("(" + activeQuests.size() + "件)", NamedTextColor.WHITE)));
 
         if (activeQuests.isEmpty()) {
-            player.sendMessage("§7現在、ギルドクエストは受注していません。");
+            player.sendMessage(Component.text("現在、ギルドクエストは受注していません。", NamedTextColor.GRAY));
             return;
         }
 
-        // クエストは最大1個の制限があるため、最初のクエストのみ表示
         for (QuestProgress progress : activeQuests.values()) {
             String title = progress.getQuestDetails().getTitle();
             String mobId = progress.getQuestDetails().getTargetMobId();
@@ -66,47 +67,57 @@ public class TaskCommand implements CommandExecutor {
             int required = progress.getQuestDetails().getRequiredQuantity();
             String locationText = progress.getQuestDetails().getLocationDetails().getLlmLocationText();
 
-            // 表示形式
-            player.sendMessage(String.format(" §a■ クエスト名: §f%s", title));
-            player.sendMessage(String.format("   §7- 目標: §c%s §7を討伐 (§a%d§7/%d)", mobId, current, required));
-            player.sendMessage(String.format("   §7- 場所: §b%s", locationText));
+            player.sendMessage(Component.text(" ■ クエスト名: ", NamedTextColor.GREEN).append(Component.text(title, NamedTextColor.WHITE)));
+            player.sendMessage(Component.text("   - 目標: ", NamedTextColor.GRAY)
+                    .append(Component.text(mobId, NamedTextColor.RED))
+                    .append(Component.text(" を討伐 (", NamedTextColor.GRAY))
+                    .append(Component.text(current, NamedTextColor.GREEN))
+                    .append(Component.text("/", NamedTextColor.GRAY))
+                    .append(Component.text(required, NamedTextColor.GRAY))
+                    .append(Component.text(")", NamedTextColor.GRAY)));
+            player.sendMessage(Component.text("   - 場所: ", NamedTextColor.GRAY).append(Component.text(locationText, NamedTextColor.AQUA)));
 
             if (progress.isComplete()) {
-                player.sendMessage("   §e報告可能: §6達成済みです。ギルドに戻り報酬を受け取りましょう。");
+                player.sendMessage(Component.text("   報告可能: ", NamedTextColor.YELLOW)
+                        .append(Component.text("達成済みです。ギルドに戻り報酬を受け取りましょう。", NamedTextColor.GOLD)));
             }
         }
     }
 
-    // デイリータスクの進捗を表示するヘルパーメソッド
     private void displayDailyTaskStatus(Player player) {
         DailyTaskManager taskManager = plugin.getDailyTaskManager();
-        DailyTaskData taskData = taskManager.getTaskData(player); // データの取得とリセットチェック
+        DailyTaskData taskData = taskManager.getTaskData(player);
 
         Set<String> activeTraders = taskManager.getActiveTaskTraders(player);
 
-        player.sendMessage("§6§l[デイリータスク] (" + activeTraders.size() + "件)");
+        player.sendMessage(Component.text("[デイリータスク] ", NamedTextColor.GOLD, TextDecoration.BOLD)
+                .append(Component.text("(" + activeTraders.size() + "件)", NamedTextColor.WHITE)));
 
         if (activeTraders.isEmpty()) {
-            player.sendMessage("§7現在、トレーダーからのデイリータスクは受注していません。");
+            player.sendMessage(Component.text("現在、トレーダーからのデイリータスクは受注していません。", NamedTextColor.GRAY));
             return;
         }
 
         for (String traderId : activeTraders) {
-            // progress[0] = Current Kill Count, progress[1] = Target Kill Count
             int[] progress = taskData.getProgress(traderId);
             int current = progress[0];
             int required = progress[1];
 
-            // ★変更: DailyTaskDataから保存されたターゲットMobIDを取得
             String targetMobId = taskData.getTargetMob(traderId);
             String displayName = targetMobId.equals("bandit") ? "バンディット" : targetMobId;
 
-            player.sendMessage(String.format(" §a■ トレーダー: §f%s", traderId));
-            // ★変更: 具体的なMob名を表示するように修正
-            player.sendMessage(String.format("   §7- 目標: %s 討伐 (§a%d§7/%d)", displayName, current, required));
+            player.sendMessage(Component.text(" ■ トレーダー: ", NamedTextColor.GREEN).append(Component.text(traderId, NamedTextColor.WHITE)));
+            player.sendMessage(Component.text("   - 目標: ", NamedTextColor.GRAY)
+                    .append(Component.text(displayName, NamedTextColor.WHITE))
+                    .append(Component.text(" 討伐 (", NamedTextColor.GRAY))
+                    .append(Component.text(current, NamedTextColor.GREEN))
+                    .append(Component.text("/", NamedTextColor.GRAY))
+                    .append(Component.text(required, NamedTextColor.GRAY))
+                    .append(Component.text(")", NamedTextColor.GRAY)));
 
             if (current >= required) {
-                player.sendMessage("   §e報告可能: §6達成済みです。トレーダーに報告しましょう。");
+                player.sendMessage(Component.text("   報告可能: ", NamedTextColor.YELLOW)
+                        .append(Component.text("達成済みです。トレーダーに報告しましょう。", NamedTextColor.GOLD)));
             }
         }
     }

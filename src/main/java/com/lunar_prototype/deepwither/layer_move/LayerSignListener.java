@@ -3,7 +3,10 @@ package com.lunar_prototype.deepwither.layer_move;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import org.bukkit.Bukkit;
 import org.bukkit.block.Sign;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -23,7 +26,7 @@ public class LayerSignListener implements Listener, IManager {
 
     @Override
     public void init() {
-        org.bukkit.Bukkit.getPluginManager().registerEvents(this, plugin);
+        Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
     @Override
@@ -31,26 +34,24 @@ public class LayerSignListener implements Listener, IManager {
 
     @EventHandler
     public void onSignCreate(SignChangeEvent event) {
-        // 1行目に [warp] と書くと生成
-        if ("[warp]".equalsIgnoreCase(event.getLine(0))) {
-            String warpId = event.getLine(1); // 2行目にWarp IDを書く
-            if (warpId == null || warpId.isEmpty()) return;
+        if ("[warp]".equalsIgnoreCase(PlainTextComponentSerializer.plainText().serialize(event.line(0)))) {
+            String warpId = (event.line(1) != null) ? PlainTextComponentSerializer.plainText().serialize(event.line(1)) : "";
+            if (warpId.isEmpty()) return;
 
             LayerMoveManager.WarpData data = Deepwither.getInstance().getLayerMoveManager().getWarpData(warpId);
 
             if (data == null) {
-                event.getPlayer().sendMessage(ChatColor.RED + "存在しないWarp IDです: " + warpId);
-                event.setLine(0, "§cERROR");
+                event.getPlayer().sendMessage(Component.text("存在しないWarp IDです: " + warpId, NamedTextColor.RED));
+                event.line(0, Component.text("ERROR", NamedTextColor.RED));
                 return;
             }
 
-            // 看板のデザイン変更
-            event.setLine(0, "§e[EoA]");
-            event.setLine(1, "§f" + data.displayName); // Configの表示名を使用
-            event.setLine(2, "");
-            event.setLine(3, "§8ID:" + warpId); // 隠しIDとして4行目に保持（またはNBTに入れる）
+            event.line(0, Component.text("[EoA]", NamedTextColor.YELLOW));
+            event.line(1, Component.text(data.displayName, NamedTextColor.WHITE));
+            event.line(2, Component.empty());
+            event.line(3, Component.text("ID:" + warpId, NamedTextColor.DARK_GRAY));
 
-            event.getPlayer().sendMessage(ChatColor.GREEN + "移動看板を作成しました。");
+            event.getPlayer().sendMessage(Component.text("移動看板を作成しました。", NamedTextColor.GREEN));
         }
     }
 
@@ -62,12 +63,10 @@ public class LayerSignListener implements Listener, IManager {
         if (event.getClickedBlock().getType().name().contains("SIGN")) {
             Sign sign = (Sign) event.getClickedBlock().getState();
 
-            if ("§e[EoA]".equals(sign.getLine(0))) {
-                // 4行目からIDを取得
-                String line3 = sign.getLine(3);
-                if (line3.startsWith("§8ID:")) {
-                    String warpId = line3.replace("§8ID:", "");
-
+            if (PlainTextComponentSerializer.plainText().serialize(sign.line(0)).equals("[EoA]")) {
+                String line3 = PlainTextComponentSerializer.plainText().serialize(sign.line(3));
+                if (line3.startsWith("ID:")) {
+                    String warpId = line3.replace("ID:", "");
                     event.setCancelled(true);
                     Deepwither.getInstance().getLayerMoveManager().tryWarp(event.getPlayer(), warpId);
                 }

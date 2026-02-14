@@ -4,6 +4,8 @@ import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -29,7 +31,7 @@ public class MarketGui implements Listener, IManager {
 
     private GlobalMarketManager manager;
     private static final String TITLE_MAIN = "Global Market: Sellers";
-    private static final String TITLE_SHOP = "Shop: ";
+    private static final String TITLE_SHOP_PREFIX = "Shop: ";
     private static final String TITLE_SEARCH = "Market Search Results";
     private final NamespacedKey LISTING_ID_KEY = new NamespacedKey(Deepwither.getInstance(), "listing_id");
     private final JavaPlugin plugin;
@@ -47,74 +49,66 @@ public class MarketGui implements Listener, IManager {
     @Override
     public void shutdown() {}
 
-    // 1. メインメニュー: アクティブな出品者一覧
     public void openMainMenu(Player player) {
         List<OfflinePlayer> sellers = manager.getActiveSellers();
         int size = Math.min(54, ((sellers.size() / 9) + 1) * 9);
-        Inventory inv = Bukkit.createInventory(null, size, Component.text(TITLE_MAIN));
+        Inventory inv = Bukkit.createInventory(null, size, Component.text(TITLE_MAIN, NamedTextColor.DARK_AQUA));
 
         for (OfflinePlayer seller : sellers) {
             ItemStack head = new ItemStack(Material.PLAYER_HEAD);
             SkullMeta meta = (SkullMeta) head.getItemMeta();
             meta.setOwningPlayer(seller);
-            meta.displayName(Component.text("§e" + seller.getName() + "のショップ"));
-            meta.lore(List.of(Component.text("§7クリックして商品を見る")));
+            meta.displayName(Component.text(seller.getName() + "のショップ", NamedTextColor.YELLOW));
+            meta.lore(List.of(Component.text("クリックして商品を見る", NamedTextColor.GRAY)));
             head.setItemMeta(meta);
             inv.addItem(head);
         }
 
-        // 検索ボタンなどを配置
         ItemStack searchBtn = new ItemStack(Material.COMPASS);
         ItemMeta searchMeta = searchBtn.getItemMeta();
-        searchMeta.displayName(Component.text("§b[アイテム検索]"));
+        searchMeta.displayName(Component.text("[アイテム検索]", NamedTextColor.AQUA));
         searchBtn.setItemMeta(searchMeta);
         inv.setItem(size - 1, searchBtn);
 
         player.openInventory(inv);
     }
 
-    // 2. プレイヤーごとのショップ画面
     public void openPlayerShop(Player viewer, OfflinePlayer seller) {
         List<MarketListing> listings = manager.getListingsByPlayer(seller.getUniqueId());
-        Inventory inv = Bukkit.createInventory(null, 54, Component.text(TITLE_SHOP + seller.getName()));
+        Inventory inv = Bukkit.createInventory(null, 54, Component.text(TITLE_SHOP_PREFIX + seller.getName(), NamedTextColor.DARK_AQUA));
 
         for (MarketListing listing : listings) {
             ItemStack displayItem = listing.getItem().clone();
             ItemMeta meta = displayItem.getItemMeta();
-            List<Component> lore = meta.lore();
-            if (lore == null) lore = new ArrayList<>();
+            List<Component> lore = meta.lore() != null ? meta.lore() : new ArrayList<>();
             meta.getPersistentDataContainer().set(LISTING_ID_KEY, PersistentDataType.STRING, listing.getId().toString());
 
-            lore.add(Component.text("§8----------------"));
-            lore.add(Component.text("§e価格: " + listing.getPrice() + " G"));
-            lore.add(Component.text("§aクリックで購入"));
+            lore.add(Component.text("----------------", NamedTextColor.DARK_GRAY).decoration(TextDecoration.STRIKETHROUGH, true));
+            lore.add(Component.text("価格: ", NamedTextColor.YELLOW).append(Component.text(listing.getPrice() + " G", NamedTextColor.GOLD)));
+            lore.add(Component.text("クリックで購入", NamedTextColor.GREEN));
 
             meta.lore(lore);
             displayItem.setItemMeta(meta);
-
-            // NBT等でListingIDを埋め込むか、スロット位置とリストを対応させる必要がある
-            // ここでは簡易的にアイテムを配置
             inv.addItem(displayItem);
         }
 
         viewer.openInventory(inv);
     }
 
-    // 3. 検索結果画面
     public void openSearchResults(Player player, String query) {
         List<MarketListing> results = manager.search(query);
-        Inventory inv = Bukkit.createInventory(null, 54, Component.text(TITLE_SEARCH));
+        Inventory inv = Bukkit.createInventory(null, 54, Component.text(TITLE_SEARCH, NamedTextColor.DARK_AQUA));
 
         for (MarketListing listing : results) {
             ItemStack displayItem = listing.getItem().clone();
             ItemMeta meta = displayItem.getItemMeta();
-            List<Component> lore = meta.hasLore() ? meta.lore() : new ArrayList<>();
+            List<Component> lore = meta.lore() != null ? meta.lore() : new ArrayList<>();
 
             meta.getPersistentDataContainer().set(LISTING_ID_KEY, PersistentDataType.STRING, listing.getId().toString());
 
-            lore.add(Component.text("§8----------------"));
-            lore.add(Component.text("§7出品者: " + Bukkit.getOfflinePlayer(listing.getSellerId()).getName()));
-            lore.add(Component.text("§e価格: " + listing.getPrice() + " G"));
+            lore.add(Component.text("----------------", NamedTextColor.DARK_GRAY).decoration(TextDecoration.STRIKETHROUGH, true));
+            lore.add(Component.text("出品者: ", NamedTextColor.GRAY).append(Component.text(Bukkit.getOfflinePlayer(listing.getSellerId()).getName(), NamedTextColor.WHITE)));
+            lore.add(Component.text("価格: ", NamedTextColor.YELLOW).append(Component.text(listing.getPrice() + " G", NamedTextColor.GOLD)));
 
             meta.lore(lore);
             displayItem.setItemMeta(meta);
@@ -126,21 +120,13 @@ public class MarketGui implements Listener, IManager {
 
     @EventHandler
     public void onClick(InventoryClickEvent e) {
-        // 1. タイトルチェック
-        String title = e.getView().getTitle();
-        boolean isMain = title.equals(TITLE_MAIN);
-        boolean isShop = title.startsWith("Shop:");
-        boolean isSearch = title.equals(TITLE_SEARCH);
-
-        if (!isMain && !isShop && !isSearch) return;
-
-        e.setCancelled(true);
-        Player p = (Player) e.getWhoClicked();
+        Component titleComp = e.getView().title();
+        if (!(e.getWhoClicked() instanceof Player p)) return;
         ItemStack current = e.getCurrentItem();
         if (current == null || current.getType() == Material.AIR) return;
 
-        // 2. メインメニュー（出品者一覧）の処理
-        if (isMain) {
+        if (titleComp.equals(Component.text(TITLE_MAIN, NamedTextColor.DARK_AQUA))) {
+            e.setCancelled(true);
             if (current.getType() == Material.PLAYER_HEAD) {
                 SkullMeta meta = (SkullMeta) current.getItemMeta();
                 if (meta.getOwningPlayer() != null) {
@@ -148,46 +134,36 @@ public class MarketGui implements Listener, IManager {
                 }
             } else if (current.getType() == Material.COMPASS) {
                 p.closeInventory();
-                p.sendMessage("§b[Market] 検索したいキーワードをチャットに入力してください。");
+                p.sendMessage(Component.text("[Market] ", NamedTextColor.AQUA).append(Component.text("検索したいキーワードをチャットに入力してください。", NamedTextColor.WHITE)));
                 Deepwither.getInstance().getMarketSearchHandler().startSearch(p);
             }
-        }
-
-        // 3. ショップまたは検索結果画面での購入処理
-        else {
+        } else if (e.getView().title().toString().contains(TITLE_SHOP_PREFIX) || titleComp.equals(Component.text(TITLE_SEARCH, NamedTextColor.DARK_AQUA))) {
+            e.setCancelled(true);
             ItemMeta meta = current.getItemMeta();
             if (meta == null) return;
 
-            // PDCからListing IDを取得
             String idStr = meta.getPersistentDataContainer().get(LISTING_ID_KEY, PersistentDataType.STRING);
             if (idStr == null) return;
 
             UUID listingId = UUID.fromString(idStr);
-
-            // 全出品リストから対象のListingを検索
             Optional<MarketListing> listingOpt = manager.getAllListings().stream()
                     .filter(l -> l.getId().equals(listingId))
                     .findFirst();
 
             if (listingOpt.isEmpty()) {
-                p.sendMessage("§c[Market] このアイテムは既に売り切れているか、取り下げられています。");
+                p.sendMessage(Component.text("[Market] ", NamedTextColor.RED).append(Component.text("このアイテムは既に売り切れているか、取り下げられています。", NamedTextColor.WHITE)));
                 p.closeInventory();
                 return;
             }
 
             MarketListing listing = listingOpt.get();
-
-            // 自分の出品は買えないようにする（任意）
             if (listing.getSellerId().equals(p.getUniqueId())) {
-                p.sendMessage("§c[Market] 自分の出品を購入することはできません。");
+                p.sendMessage(Component.text("[Market] ", NamedTextColor.RED).append(Component.text("自分の出品を購入することはできません。", NamedTextColor.WHITE)));
                 return;
             }
 
-            // 購入実行 (Vault連携済みのbuyItemメソッドを呼び出し)
             if (manager.buyItem(p, listing)) {
-                // 購入成功：画面を更新するか閉じる
                 p.closeInventory();
-                // 再度開いて最新の状態にする場合は openPlayerShop を呼ぶ
             }
         }
     }

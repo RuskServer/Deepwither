@@ -1,8 +1,9 @@
 package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.aethelgard.GuildQuestManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -22,12 +23,12 @@ public class QuestCommand implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!sender.isOp()) {
-            sender.sendMessage(ChatColor.RED + "このコマンドはOPからのみ実行可能です。");
+            sender.sendMessage(Component.text("このコマンドはOPからのみ実行可能です。", NamedTextColor.RED));
             return true;
         }
 
         if (args.length != 2) {
-            sender.sendMessage(ChatColor.RED + "使用方法: /questnpc <CITY_ID> <プレイヤー名>");
+            sender.sendMessage(Component.text("使用方法: /questnpc <CITY_ID> <プレイヤー名>", NamedTextColor.RED));
             return false;
         }
 
@@ -36,19 +37,19 @@ public class QuestCommand implements CommandExecutor {
         Player targetPlayer = Bukkit.getPlayer(playerName);
 
         if (targetPlayer == null || !targetPlayer.isOnline()) {
-            sender.sendMessage(ChatColor.RED + "プレイヤー '" + playerName + "' がオンラインではありません。");
+            sender.sendMessage(Component.text("プレイヤー '" + playerName + "' がオンラインではありません。", NamedTextColor.RED));
             return true;
         }
 
         if (guildQuestManager.getQuestLocation(cityId) == null) {
-            sender.sendMessage(ChatColor.RED + "指定されたCITY_ID '" + cityId + "' は存在しません。");
+            sender.sendMessage(Component.text("指定されたCITY_ID '" + cityId + "' は存在しません。", NamedTextColor.RED));
             return true;
         }
 
         // GUIを作成し、ターゲットプレイヤーに表示
         QuestGUI questGUI = new QuestGUI(guildQuestManager, cityId);
         targetPlayer.openInventory(questGUI.getInventory());
-        sender.sendMessage(ChatColor.GREEN + targetPlayer.getName() + " にギルドクエストGUIを表示しました。");
+        sender.sendMessage(Component.text(targetPlayer.getName() + " にギルドクエストGUIを表示しました。", NamedTextColor.GREEN));
 
         return true;
     }

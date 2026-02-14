@@ -5,6 +5,8 @@ import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.ItemFactory;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -40,12 +42,10 @@ public class ArmorSetListener implements Listener, IManager {
         ItemStack newItem = event.getNewItem();
         ItemStack oldItem = event.getOldItem();
 
-        // 1. 装備した場合のロジック
         if (isSetItem(newItem)) {
             handleEquip(player, newItem);
         }
 
-        // 2. 外した場合のロジック (共連れで外す)
         if (isSetItem(oldItem)) {
             handleUnequip(player, oldItem);
         }
@@ -60,22 +60,21 @@ public class ArmorSetListener implements Listener, IManager {
         String partnerId = equippedItem.getItemMeta().getPersistentDataContainer().get(ItemFactory.SET_PARTNER_KEY, PersistentDataType.STRING);
         if (partnerId == null) return;
 
-        // すでに相方を装備中か確認
         if (isEquippingPartner(player, partnerId)) return;
 
-        // インベントリから相方を探す
         ItemStack partnerStack = findPartnerInInventory(player, partnerId);
 
         if (partnerStack != null) {
-            // 相方が見つかった場合：自動装着
             equipPartner(player, partnerStack);
-            player.sendMessage("§aセット装備「" + partnerId + "」を自動で装着しました。");
+            player.sendMessage(Component.text("セット装備「", NamedTextColor.GREEN)
+                    .append(Component.text(partnerId, NamedTextColor.WHITE))
+                    .append(Component.text("」を自動で装着しました。", NamedTextColor.GREEN)));
         } else {
-            // 相方を持っていない場合：現在の装備を強制解除
-            // 1チック後に実行しないとイベント内で矛盾が起きる場合がある
             Bukkit.getScheduler().runTask(Deepwither.getInstance(), () -> {
                 unequipItem(player, equippedItem);
-                player.sendMessage("§cこの装備には相方のアイテム(" + partnerId + ")がインベントリに必要です。");
+                player.sendMessage(Component.text("この装備には相方のアイテム(", NamedTextColor.RED)
+                        .append(Component.text(partnerId, NamedTextColor.YELLOW))
+                        .append(Component.text(")がインベントリに必要です。", NamedTextColor.RED)));
             });
         }
     }
@@ -84,19 +83,16 @@ public class ArmorSetListener implements Listener, IManager {
         String partnerId = removedItem.getItemMeta().getPersistentDataContainer().get(ItemFactory.SET_PARTNER_KEY, PersistentDataType.STRING);
         if (partnerId == null) return;
 
-        // 相方を装備しているか探し、装備していれば外す
         for (ItemStack armor : player.getInventory().getArmorContents()) {
             if (isSameCustomId(armor, partnerId)) {
                 Bukkit.getScheduler().runTask(Deepwither.getInstance(), () -> {
                     unequipSpecificItem(player, armor);
-                    player.sendMessage("§7セット装備が解除されたため、相方のパーツも外しました。");
+                    player.sendMessage(Component.text("セット装備が解除されたため、相方のパーツも外しました。", NamedTextColor.GRAY));
                 });
                 break;
             }
         }
     }
-
-    // --- ヘルパーメソッド群 ---
 
     private boolean isEquippingPartner(Player player, String partnerId) {
         for (ItemStack armor : player.getInventory().getArmorContents()) {
@@ -120,26 +116,21 @@ public class ArmorSetListener implements Listener, IManager {
     }
 
     private void equipPartner(Player player, ItemStack partner) {
-        // アイテムの種類に応じてスロットを決定
         Material type = partner.getType();
         if (type.name().contains("CHESTPLATE")) player.getInventory().setChestplate(partner);
         else if (type.name().contains("LEGGINGS")) player.getInventory().setLeggings(partner);
         else if (type.name().contains("HELMET")) player.getInventory().setHelmet(partner);
         else if (type.name().contains("BOOTS")) player.getInventory().setBoots(partner);
-
-        player.getInventory().removeItem(partner); // 元の場所から消す
+        player.getInventory().removeItem(partner);
     }
 
     private void unequipItem(Player player, ItemStack item) {
-        // 指定されたアイテムをインベントリに戻し、装備スロットを空にする
         if (player.getInventory().getChestplate() != null && player.getInventory().getChestplate().equals(item)) player.getInventory().setChestplate(null);
         else if (player.getInventory().getLeggings() != null && player.getInventory().getLeggings().equals(item)) player.getInventory().setLeggings(null);
-        // ...他部位も同様
         player.getInventory().addItem(item);
     }
 
     private void unequipSpecificItem(Player player, ItemStack armorItem) {
-        // 防具スロットにある特定のアイテムを安全に外す
         ItemStack[] armor = player.getInventory().getArmorContents();
         for (int i = 0; i < armor.length; i++) {
             if (armor[i] != null && armor[i].equals(armorItem)) {

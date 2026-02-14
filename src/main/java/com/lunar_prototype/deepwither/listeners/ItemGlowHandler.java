@@ -3,8 +3,11 @@ package com.lunar_prototype.deepwither.listeners;
 import com.lunar_prototype.deepwither.ItemFactory;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -40,30 +43,26 @@ public class ItemGlowHandler implements Listener, IManager {
     @Override
     public void shutdown() {}
 
-    // 順序を維持（長い名前を先に判定）
-    private static final Map<String, ChatColor> RARITY_CONFIG = new LinkedHashMap<>();
+    private static final Map<String, NamedTextColor> RARITY_CONFIG = new LinkedHashMap<>();
 
     static {
-        RARITY_CONFIG.put("レジェンダリー", ChatColor.GOLD);
-        RARITY_CONFIG.put("アンコモン", ChatColor.GREEN);
-        RARITY_CONFIG.put("エピック", ChatColor.LIGHT_PURPLE);
-        RARITY_CONFIG.put("コモン", ChatColor.WHITE);
-        RARITY_CONFIG.put("レア", ChatColor.AQUA);
+        RARITY_CONFIG.put("レジェンダリー", NamedTextColor.GOLD);
+        RARITY_CONFIG.put("アンコモン", NamedTextColor.GREEN);
+        RARITY_CONFIG.put("エピック", NamedTextColor.LIGHT_PURPLE);
+        RARITY_CONFIG.put("コモン", NamedTextColor.WHITE);
+        RARITY_CONFIG.put("レア", NamedTextColor.AQUA);
     }
 
-    /**
-     * 指定したスコアボードに対してレアリティチームをセットアップします
-     */
     private void setupTeams(Scoreboard sb) {
-        for (Map.Entry<String, ChatColor> entry : RARITY_CONFIG.entrySet()) {
-            ChatColor color = entry.getValue();
-            String teamName = TEAM_PREFIX + color.name();
+        for (Map.Entry<String, NamedTextColor> entry : RARITY_CONFIG.entrySet()) {
+            NamedTextColor color = entry.getValue();
+            String teamName = TEAM_PREFIX + color.toString();
 
             Team team = sb.getTeam(teamName);
             if (team == null) {
                 team = sb.registerNewTeam(teamName);
             }
-            team.setColor(color);
+            team.color(color);
         }
     }
 
@@ -77,17 +76,15 @@ public class ItemGlowHandler implements Listener, IManager {
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
         if (!meta.hasLore()) return;
 
-        // --- PDCからレアリティを取得 ---
-        // ItemFactory.RARITY_KEY ("item_rarity") を使用
         String rarityTag = pdc.get(ItemFactory.RARITY_KEY, PersistentDataType.STRING);
         if (rarityTag == null) return;
 
-        ChatColor targetColor = null;
-        // 保存されている文字列（例: "§6§lレジェンダリー"）にキーワードが含まれているか判定
-        // stripColor して純粋なテキストのみで比較
-        String cleanRarity = ChatColor.stripColor(rarityTag.replace("&", "§"));
+        NamedTextColor targetColor = null;
+        String cleanRarity = PlainTextComponentSerializer.plainText().serialize(
+                LegacyComponentSerializer.legacyAmpersand().deserialize(rarityTag)
+        );
 
-        for (Map.Entry<String, ChatColor> entry : RARITY_CONFIG.entrySet()) {
+        for (Map.Entry<String, NamedTextColor> entry : RARITY_CONFIG.entrySet()) {
             if (cleanRarity.contains(entry.getKey())) {
                 targetColor = entry.getValue();
                 break;
@@ -97,12 +94,11 @@ public class ItemGlowHandler implements Listener, IManager {
         if (targetColor != null) {
             itemEntity.setGlowing(true);
             String entryName = itemEntity.getUniqueId().toString();
-            String teamName = TEAM_PREFIX + targetColor.name();
+            String teamName = TEAM_PREFIX + targetColor.toString();
 
-            // ★重要: 全プレイヤーのスコアボードに対して登録を行う
             for (Player player : Bukkit.getOnlinePlayers()) {
                 Scoreboard sb = player.getScoreboard();
-                setupTeams(sb); // チームがなければ作成
+                setupTeams(sb);
 
                 Team team = sb.getTeam(teamName);
                 if (team != null && !team.hasEntry(entryName)) {
@@ -110,7 +106,6 @@ public class ItemGlowHandler implements Listener, IManager {
                 }
             }
 
-            // ★重要: サーバーのメインスコアボードにも念のため登録
             Scoreboard mainSb = Bukkit.getScoreboardManager().getMainScoreboard();
             setupTeams(mainSb);
             Team mainTeam = mainSb.getTeam(teamName);

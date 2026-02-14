@@ -1,7 +1,8 @@
 package com.lunar_prototype.deepwither;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -23,7 +24,7 @@ public class TraderCommand implements CommandExecutor {
         // コマンドはコンソール、NPC、または管理者プレイヤーから実行される
 
         if (args.length < 2) {
-            sender.sendMessage(ChatColor.YELLOW + "使用方法: /trader <トレーダーID> <ターゲットプレイヤー名>");
+            sender.sendMessage(Component.text("使用方法: /trader <トレーダーID> <ターゲットプレイヤー名>", NamedTextColor.YELLOW));
             return true;
         }
 
@@ -32,19 +33,19 @@ public class TraderCommand implements CommandExecutor {
 
         Player targetPlayer = Bukkit.getPlayer(targetName);
         if (targetPlayer == null) {
-            sender.sendMessage(ChatColor.RED + "ターゲットプレイヤーが見つかりません: " + targetName);
+            sender.sendMessage(Component.text("ターゲットプレイヤーが見つかりません: " + targetName, NamedTextColor.RED));
             return true;
         }
 
         // ターゲットプレイヤーがオフラインの場合はエラーメッセージを出力
         if (!targetPlayer.isOnline()) {
-            sender.sendMessage(ChatColor.RED + targetName + "はオフラインです。");
+            sender.sendMessage(Component.text(targetName + "はオフラインです。", NamedTextColor.RED));
             return true;
         }
 
         // TraderManagerにトレーダーが存在するか確認（任意）
         if (!traderManager.traderExists(traderId)) {
-            sender.sendMessage(ChatColor.RED + "トレーダーIDが見つかりません: " + traderId);
+            sender.sendMessage(Component.text("トレーダーIDが見つかりません: " + traderId, NamedTextColor.RED));
             return true;
         }
 

@@ -11,6 +11,10 @@ import com.lunar_prototype.deepwither.aethelgard.QuestProgress;
 import com.lunar_prototype.deepwither.api.stat.IStatManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -32,15 +36,13 @@ public class MenuGUI implements Listener, IManager {
 
     private final Deepwither plugin;
 
-    // 依存マネージャー
     private LevelManager levelManager;
     private IStatManager statManager;
     private ProfessionManager professionManager;
     private PlayerQuestManager questManager;
     private DailyTaskManager dailyTaskManager;
 
-    // GUI設定
-    private static final String GUI_TITLE = "§8Main Menu";
+    public static final Component GUI_TITLE = Component.text("Main Menu", NamedTextColor.DARK_GRAY);
     private static final int GUI_SIZE = 54;
 
     public MenuGUI(Deepwither plugin) {
@@ -61,79 +63,76 @@ public class MenuGUI implements Listener, IManager {
     @Override
     public void shutdown() {}
 
-
     public void open(Player player) {
         Inventory inv = Bukkit.createInventory(null, GUI_SIZE, GUI_TITLE);
 
-        // 背景装飾 (ガラス板)
         fillBackground(inv);
 
-        // --- 1. ステータス情報セクション ---
-        inv.setItem(10, createProfileIcon(player));      // プレイヤー基本情報 (Lv, Money)
-        inv.setItem(11, createCombatStatsIcon(player));  // 戦闘ステータス
-        inv.setItem(12, createProfessionIcon(player));   // 職業ステータス
+        inv.setItem(10, createProfileIcon(player));
+        inv.setItem(11, createCombatStatsIcon(player));
+        inv.setItem(12, createProfessionIcon(player));
 
-        // --- 2. タスク/クエストセクション ---
-        inv.setItem(15, createGuildQuestIcon(player));   // ギルドクエスト
-        inv.setItem(16, createDailyTaskIcon(player));    // デイリータスク
+        inv.setItem(15, createGuildQuestIcon(player));
+        inv.setItem(16, createDailyTaskIcon(player));
 
-        // コンパニオン
-        inv.setItem(22, createNavButton(Material.TOTEM_OF_UNDYING, "§6§lコンパニオン",
-                "§7共に冒険する仲間を管理します。",
-                "§7スキルの設定や装備の変更が可能です。",
-                "", "§e▶ クリックして開く"));
+        inv.setItem(22, createNavButton(Material.TOTEM_OF_UNDYING, Component.text("コンパニオン", NamedTextColor.GOLD, TextDecoration.BOLD),
+                Component.text("共に冒険する仲間を管理します。", NamedTextColor.GRAY),
+                Component.text("スキルの設定や装備の変更が可能です。", NamedTextColor.GRAY),
+                Component.empty(), Component.text("▶ クリックして開く", NamedTextColor.YELLOW)));
 
-        // --- 3. ナビゲーションボタン ---
-        // Skill Tree
-        inv.setItem(38, createNavButton(Material.ENCHANTED_BOOK, "§a§lスキルツリー",
-                "§7スキルポイントを消費して", "§7新しい能力を習得します。", "", "§e▶ クリックして開く"));
+        inv.setItem(38, createNavButton(Material.ENCHANTED_BOOK, Component.text("スキルツリー", NamedTextColor.GREEN, TextDecoration.BOLD),
+                Component.text("スキルポイントを消費して", NamedTextColor.GRAY), 
+                Component.text("新しい能力を習得します。", NamedTextColor.GRAY), 
+                Component.empty(), Component.text("▶ クリックして開く", NamedTextColor.YELLOW)));
 
-        // Attributes
-        inv.setItem(39, createNavButton(Material.NETHER_STAR, "§b§l能力値 (Attributes)",
-                "§7ステータスポイントを割り振り", "§7基礎能力を強化します。", "", "§e▶ クリックして開く"));
+        inv.setItem(39, createNavButton(Material.NETHER_STAR, Component.text("能力値 (Attributes)", NamedTextColor.AQUA, TextDecoration.BOLD),
+                Component.text("ステータスポイントを割り振り", NamedTextColor.GRAY), 
+                Component.text("基礎能力を強化します。", NamedTextColor.GRAY), 
+                Component.empty(), Component.text("▶ クリックして開く", NamedTextColor.YELLOW)));
 
-        // Skill Assignment
-        inv.setItem(41, createNavButton(Material.WRITABLE_BOOK, "§d§lスキルセット",
-                "§7習得したスキルを", "§7スロットに装備します。", "", "§e▶ クリックして開く"));
+        inv.setItem(41, createNavButton(Material.WRITABLE_BOOK, Component.text("スキルセット", NamedTextColor.LIGHT_PURPLE, TextDecoration.BOLD),
+                Component.text("習得したスキルを", NamedTextColor.GRAY), 
+                Component.text("スロットに装備します。", NamedTextColor.GRAY), 
+                Component.empty(), Component.text("▶ クリックして開く", NamedTextColor.YELLOW)));
 
-        // Artifacts
-        inv.setItem(42, createNavButton(Material.AMETHYST_SHARD, "§5§lアーティファクト",
-                "§7特殊な遺物を管理・装備します。", "", "§e▶ クリックして開く"));
+        inv.setItem(42, createNavButton(Material.AMETHYST_SHARD, Component.text("アーティファクト", NamedTextColor.DARK_PURPLE, TextDecoration.BOLD),
+                Component.text("特殊な遺物を管理・装備します。", NamedTextColor.GRAY), 
+                Component.empty(), Component.text("▶ クリックして開く", NamedTextColor.YELLOW)));
 
-        // 閉じるボタン
-        inv.setItem(49, createNavButton(Material.BARRIER, "§c閉じる", "§7メニューを閉じます。"));
+        inv.setItem(49, createNavButton(Material.BARRIER, Component.text("閉じる", NamedTextColor.RED), 
+                Component.text("メニューを閉じます。", NamedTextColor.GRAY)));
 
-        inv.setItem(50, createNavButton(Material.COMPARATOR, "§7§lシステム設定",
-                "§7チャットログ表示などを", "§7カスタマイズします。", "", "§e▶ クリックして設定"));
+        inv.setItem(50, createNavButton(Material.COMPARATOR, Component.text("システム設定", NamedTextColor.GRAY, TextDecoration.BOLD),
+                Component.text("チャットログ表示などを", NamedTextColor.GRAY), 
+                Component.text("カスタマイズします。", NamedTextColor.GRAY), 
+                Component.empty(), Component.text("▶ クリックして設定", NamedTextColor.YELLOW)));
 
         player.openInventory(inv);
     }
-
-    // --- アイテム作成メソッド群 ---
 
     private ItemStack createProfileIcon(Player player) {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) item.getItemMeta();
         meta.setOwningPlayer(player);
-        meta.setDisplayName("§e§l[ 基本情報 ]");
+        meta.displayName(Component.text("[ 基本情報 ]", NamedTextColor.YELLOW, TextDecoration.BOLD));
 
         PlayerLevelData levelData = levelManager.get(player);
         Economy econ = Deepwither.getEconomy();
 
-        List<String> lore = new ArrayList<>();
-        lore.add("");
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.empty());
         if (levelData != null) {
             double percent = (levelData.getExp() / levelData.getRequiredExp()) * 100;
-            lore.add(String.format(" §7Level: §a%d", levelData.getLevel()));
-            lore.add(String.format(" §7Exp: §e%.1f%%", percent));
+            lore.add(Component.text(" Level: ", NamedTextColor.GRAY).append(Component.text(levelData.getLevel(), NamedTextColor.GREEN)));
+            lore.add(Component.text(" Exp: ", NamedTextColor.GRAY).append(Component.text(String.format("%.1f%%", percent), NamedTextColor.YELLOW)));
         } else {
-            lore.add(" §7Level: §cLoading...");
+            lore.add(Component.text(" Level: ", NamedTextColor.GRAY).append(Component.text("Loading...", NamedTextColor.RED)));
         }
-        lore.add(" §7Money: §6" + (econ != null ? econ.format(econ.getBalance(player)) : "0"));
-        lore.add("");
-        lore.add("§7プレイヤーの基本ステータスです。");
+        lore.add(Component.text(" Money: ", NamedTextColor.GRAY).append(Component.text(econ != null ? econ.format(econ.getBalance(player)) : "0", NamedTextColor.GOLD)));
+        lore.add(Component.empty());
+        lore.add(Component.text("プレイヤーの基本ステータスです。", NamedTextColor.GRAY));
 
-        meta.setLore(lore);
+        meta.lore(lore);
         item.setItemMeta(meta);
         return item;
     }
@@ -145,20 +144,24 @@ public class MenuGUI implements Listener, IManager {
 
         ItemStack item = new ItemStack(Material.IRON_SWORD);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName("§c§l[ 戦闘ステータス ]");
+        meta.displayName(Component.text("[ 戦闘ステータス ]", NamedTextColor.RED, TextDecoration.BOLD));
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
 
-        List<String> lore = new ArrayList<>();
-        lore.add("");
-        lore.add(" §7HP: §f" + String.format("%.0f", curHp) + " §7/ §f" + String.format("%.0f", maxHp));
-        lore.add(getStatLine("攻撃力", StatType.ATTACK_DAMAGE, stats, "§c", false));
-        lore.add(getStatLine("防御力", StatType.DEFENSE, stats, "§9", false));
-        lore.add(getStatLine("魔攻力", StatType.MAGIC_DAMAGE, stats, "§d", false));
-        lore.add(getStatLine("魔耐性", StatType.MAGIC_RESIST, stats, "§3", false));
-        lore.add(getStatLine("クリ率", StatType.CRIT_CHANCE, stats, "§6", true));
-        lore.add(getStatLine("クリダメ", StatType.CRIT_DAMAGE, stats, "§6", true));
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.empty());
+        lore.add(Component.text(" HP: ", NamedTextColor.GRAY)
+                .append(Component.text(String.format("%.0f", curHp), NamedTextColor.WHITE))
+                .append(Component.text(" / ", NamedTextColor.GRAY))
+                .append(Component.text(String.format("%.0f", maxHp), NamedTextColor.WHITE)));
+        
+        lore.add(getStatLine("攻撃力", StatType.ATTACK_DAMAGE, stats, NamedTextColor.RED, false));
+        lore.add(getStatLine("防御力", StatType.DEFENSE, stats, NamedTextColor.BLUE, false));
+        lore.add(getStatLine("魔攻力", StatType.MAGIC_DAMAGE, stats, NamedTextColor.LIGHT_PURPLE, false));
+        lore.add(getStatLine("魔耐性", StatType.MAGIC_RESIST, stats, NamedTextColor.DARK_AQUA, false));
+        lore.add(getStatLine("クリ率", StatType.CRIT_CHANCE, stats, NamedTextColor.GOLD, true));
+        lore.add(getStatLine("クリダメ", StatType.CRIT_DAMAGE, stats, NamedTextColor.GOLD, true));
 
-        meta.setLore(lore);
+        meta.lore(lore);
         item.setItemMeta(meta);
         return item;
     }
@@ -166,25 +169,27 @@ public class MenuGUI implements Listener, IManager {
     private ItemStack createProfessionIcon(Player player) {
         ItemStack item = new ItemStack(Material.GOLDEN_PICKAXE);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName("§a§l[ 職業スキル ]");
+        meta.displayName(Component.text("[ 職業スキル ]", NamedTextColor.GREEN, TextDecoration.BOLD));
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
 
         PlayerProfessionData profData = professionManager.getData(player);
-        List<String> lore = new ArrayList<>();
-        lore.add("");
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.empty());
 
         if (profData != null) {
             for (ProfessionType type : ProfessionType.values()) {
                 long totalExp = profData.getExp(type);
                 int profLevel = professionManager.getLevel(totalExp);
-                String typeName = (type == ProfessionType.MINING) ? "採掘" : type.name();
-                lore.add(String.format(" §7%s: §aLv.%d §7(%d xp)", typeName, profLevel, totalExp));
+                String typeName = (type == ProfessionType.MINING) ? "採掘" : (type == ProfessionType.FISHING) ? "釣り" : type.name();
+                lore.add(Component.text(" " + typeName + ": ", NamedTextColor.GRAY)
+                        .append(Component.text("Lv." + profLevel, NamedTextColor.GREEN))
+                        .append(Component.text(" (" + totalExp + " xp)", NamedTextColor.GRAY)));
             }
         } else {
-            lore.add(" §7データ読み込み中...");
+            lore.add(Component.text(" データ読み込み中...", NamedTextColor.GRAY));
         }
 
-        meta.setLore(lore);
+        meta.lore(lore);
         item.setItemMeta(meta);
         return item;
     }
@@ -192,11 +197,11 @@ public class MenuGUI implements Listener, IManager {
     private ItemStack createGuildQuestIcon(Player player) {
         ItemStack item = new ItemStack(Material.BOOK);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName("§6§l[ ギルドクエスト ]");
+        meta.displayName(Component.text("[ ギルドクエスト ]", NamedTextColor.GOLD, TextDecoration.BOLD));
 
         PlayerQuestData qData = questManager.getPlayerData(player.getUniqueId());
-        List<String> lore = new ArrayList<>();
-        lore.add("");
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.empty());
 
         if (qData != null && !qData.getActiveQuests().isEmpty()) {
             Map<UUID, QuestProgress> quests = qData.getActiveQuests();
@@ -206,19 +211,22 @@ public class MenuGUI implements Listener, IManager {
                 int req = progress.getQuestDetails().getRequiredQuantity();
                 String mob = progress.getQuestDetails().getTargetMobId();
 
-                lore.add(" §f" + title);
-                lore.add("  §7討伐: §c" + mob);
-                lore.add("  §7進捗: §a" + cur + "§7 / " + req);
+                lore.add(Component.text(" " + title, NamedTextColor.WHITE));
+                lore.add(Component.text("  討伐: ", NamedTextColor.GRAY).append(Component.text(mob, NamedTextColor.RED)));
+                lore.add(Component.text("  進捗: ", NamedTextColor.GRAY)
+                        .append(Component.text(cur, NamedTextColor.GREEN))
+                        .append(Component.text(" / ", NamedTextColor.GRAY))
+                        .append(Component.text(req, NamedTextColor.GRAY)));
                 if (progress.isComplete()) {
-                    lore.add("  §e§l[報告可能]");
+                    lore.add(Component.text("  [報告可能]", NamedTextColor.YELLOW, TextDecoration.BOLD));
                 }
-                lore.add(""); // クエスト間の区切り
+                lore.add(Component.empty());
             }
         } else {
-            lore.add(" §7現在受注しているクエストはありません。");
+            lore.add(Component.text(" 現在受注しているクエストはありません。", NamedTextColor.GRAY));
         }
 
-        meta.setLore(lore);
+        meta.lore(lore);
         item.setItemMeta(meta);
         return item;
     }
@@ -226,12 +234,12 @@ public class MenuGUI implements Listener, IManager {
     private ItemStack createDailyTaskIcon(Player player) {
         ItemStack item = new ItemStack(Material.PAPER);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName("§e§l[ デイリータスク ]");
+        meta.displayName(Component.text("[ デイリータスク ]", NamedTextColor.YELLOW, TextDecoration.BOLD));
 
         DailyTaskData tData = dailyTaskManager.getTaskData(player);
         Set<String> activeTraders = dailyTaskManager.getActiveTaskTraders(player);
-        List<String> lore = new ArrayList<>();
-        lore.add("");
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.empty());
 
         if (!activeTraders.isEmpty()) {
             for (String traderId : activeTraders) {
@@ -239,29 +247,32 @@ public class MenuGUI implements Listener, IManager {
                 String mob = tData.getTargetMob(traderId);
                 String mobName = mob.equals("bandit") ? "バンディット" : mob;
 
-                lore.add(" §f依頼者: " + traderId);
-                lore.add("  §7討伐: " + mobName);
-                lore.add("  §7進捗: §a" + progress[0] + "§7 / " + progress[1]);
+                lore.add(Component.text(" 依頼者: " + traderId, NamedTextColor.WHITE));
+                lore.add(Component.text("  討伐: " + mobName, NamedTextColor.GRAY));
+                lore.add(Component.text("  進捗: ", NamedTextColor.GRAY)
+                        .append(Component.text(progress[0], NamedTextColor.GREEN))
+                        .append(Component.text(" / ", NamedTextColor.GRAY))
+                        .append(Component.text(progress[1], NamedTextColor.GRAY)));
                 if (progress[0] >= progress[1]) {
-                    lore.add("  §e§l[報告可能]");
+                    lore.add(Component.text("  [報告可能]", NamedTextColor.YELLOW, TextDecoration.BOLD));
                 }
-                lore.add("");
+                lore.add(Component.empty());
             }
         } else {
-            lore.add(" §7現在受注しているタスクはありません。");
+            lore.add(Component.text(" 現在受注しているタスクはありません。", NamedTextColor.GRAY));
         }
 
-        meta.setLore(lore);
+        meta.lore(lore);
         item.setItemMeta(meta);
         return item;
     }
 
-    private ItemStack createNavButton(Material mat, String name, String... loreLines) {
+    private ItemStack createNavButton(Material mat, Component name, Component... loreLines) {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(name);
+        meta.displayName(name);
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
-        meta.setLore(Arrays.asList(loreLines));
+        meta.lore(Arrays.asList(loreLines));
         item.setItemMeta(meta);
         return item;
     }
@@ -269,7 +280,7 @@ public class MenuGUI implements Listener, IManager {
     private void fillBackground(Inventory inv) {
         ItemStack glass = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
         ItemMeta meta = glass.getItemMeta();
-        meta.setDisplayName(" ");
+        meta.displayName(Component.text(" "));
         glass.setItemMeta(meta);
 
         for (int i = 0; i < inv.getSize(); i++) {
@@ -279,24 +290,23 @@ public class MenuGUI implements Listener, IManager {
         }
     }
 
-    private String getStatLine(String name, StatType type, StatMap stats, String color, boolean isPercent) {
+    private Component getStatLine(String name, StatType type, StatMap stats, NamedTextColor color, boolean isPercent) {
         double value = stats.getFinal(type);
         String valStr = isPercent ? String.format("%.1f%%", value) : String.format("%.0f", value);
-        return String.format("  §7%s: %s%s", name, color, valStr);
+        return Component.text("  ", NamedTextColor.GRAY)
+                .append(Component.text(name + ": ", NamedTextColor.GRAY))
+                .append(Component.text(valStr, color));
     }
-
-    // --- イベントハンドリング ---
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent e) {
-        if (!e.getView().getTitle().equals(GUI_TITLE)) return;
+        if (!e.getView().title().equals(GUI_TITLE)) return;
         e.setCancelled(true);
 
         if (!(e.getWhoClicked() instanceof Player player)) return;
         ItemStack clicked = e.getCurrentItem();
         if (clicked == null || !clicked.hasItemMeta()) return;
 
-        // ボタンの処理
         int slot = e.getSlot();
         player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
 
@@ -305,39 +315,29 @@ public class MenuGUI implements Listener, IManager {
                 player.closeInventory();
                 new CompanionGui(Deepwither.getInstance().getCompanionManager()).openGui(player);
                 break;
-            case 38: // Skill Tree
-                // 既存のSkilltreeGUIを開くコマンドを実行させる、もしくは直接Manager経由で開く
-                // SkilltreeGUIのコマンドロジックを直接呼ぶのは複雑なため、コマンドを実行させます
+            case 38:
                 player.closeInventory();
                 player.performCommand("skilltree");
                 break;
-            case 39: // Attributes
-                // AttributeCommandは Event Call -> Static Open という手順
+            case 39:
                 player.closeInventory();
-                // イベントが必要な場合はコマンド実行の方が安全ですが、
-                // コードを見る限り直接呼んでも動きそうです。一貫性のためにコマンド推奨。
                 player.performCommand("attributes");
                 break;
-
-            case 41: // Skill Assignment
+            case 41:
                 player.closeInventory();
-                // DeepwitherインスタンスからGUIを取得して開く
                 Deepwither.getInstance().getSkillAssignmentGUI().open(player);
                 break;
-
-            case 42: // Artifacts
+            case 42:
                 player.closeInventory();
                 new ArtifactGUI().openArtifactGUI(player);
                 break;
-
-            case 49: // Close
+            case 49:
                 player.closeInventory();
                 break;
             case 50:
-                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
                 player.closeInventory();
-                // DeepwitherインスタンスからSettingsGUIを開く
                 Deepwither.getInstance().getSettingsGUI().open(player);
+                break;
         }
     }
 }

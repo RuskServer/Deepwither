@@ -3,11 +3,14 @@ package com.lunar_prototype.deepwither;
 import com.lunar_prototype.deepwither.booster.BoosterManager;
 import com.lunar_prototype.deepwither.outpost.OutpostEvent;
 import com.lunar_prototype.deepwither.outpost.OutpostManager;
-import com.lunar_prototype.deepwither.party.Party;          // ★追加
-import com.lunar_prototype.deepwither.party.PartyManager;   // ★追加
+import com.lunar_prototype.deepwither.party.Party;
+import com.lunar_prototype.deepwither.party.PartyManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import io.lumine.mythic.bukkit.events.MythicMobDeathEvent;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
@@ -25,8 +28,8 @@ public class MobKillListener implements Listener, IManager {
     private LevelManager levelManager;
     private final FileConfiguration mobExpConfig;
     private OutpostManager outpostManager;
-    private PartyManager partyManager; // ★追加
-    private BoosterManager boosterManager; // ★追加
+    private PartyManager partyManager;
+    private BoosterManager boosterManager;
     private final JavaPlugin plugin;
 
     public MobKillListener(JavaPlugin plugin) {
@@ -50,17 +53,13 @@ public class MobKillListener implements Listener, IManager {
     public void onMythicMobDeath(MythicMobDeathEvent e) {
         if (!(e.getKiller() instanceof Player killer)) return;
 
-        // 1. 経験値処理
         String mobType = e.getMobType().getInternalName();
         double baseExp = mobExpConfig.getDouble("mob-exp." + mobType, 0);
 
         if (baseExp > 0) {
-            handleExpDistribution(killer, baseExp); // ★ 分配メソッド呼び出しに変更
+            handleExpDistribution(killer, baseExp);
         }
-        // updatePlayerDisplayは分配メソッド内で行うか、ここでkillerだけ更新するかですが、
-        // 分配対象全員を更新する必要があるためメソッド内で処理します。
 
-        // 2. Outpost Mobの撃破カウント (既存ロジック・変更なし)
         OutpostEvent activeEvent = outpostManager.getActiveEvent();
         if (activeEvent != null) {
             String mobOutpostId = Deepwither.getInstance().getMobSpawnManager().getMobOutpostId(e.getEntity());
@@ -70,15 +69,10 @@ public class MobKillListener implements Listener, IManager {
         }
     }
 
-    /**
-     * ★ 経験値分配ロジック
-     */
     private void handleExpDistribution(Player killer, double baseExp) {
         Party party = partyManager.getParty(killer);
 
-        // --- 1. パーティー未所属の場合 ---
         if (party == null) {
-            // ★ ブースト適用
             double multiplier = boosterManager.getMultiplier(killer);
             double finalExp = baseExp * multiplier;
 
@@ -86,12 +80,12 @@ public class MobKillListener implements Listener, IManager {
             levelManager.updatePlayerDisplay(killer);
 
             if (multiplier > 1.0) {
-                killer.sendMessage("§6[Booster] §e+" + String.format("%.1f", finalExp) + " Exp (x" + multiplier + ")");
+                killer.sendMessage(Component.text("[Booster] ", NamedTextColor.GOLD)
+                        .append(Component.text("+" + String.format("%.1f", finalExp) + " Exp (x" + multiplier + ")", NamedTextColor.YELLOW)));
             }
             return;
         }
 
-        // --- 2. パーティー分配処理 ---
         double shareRadius = 30.0;
         List<Player> nearbyMembers = party.getOnlineMembers().stream()
                 .filter(p -> p.getWorld().equals(killer.getWorld()))
@@ -110,18 +104,16 @@ public class MobKillListener implements Listener, IManager {
         double expPerMemberBase = totalExpWithBonus / nearbyMembers.size();
 
         for (Player member : nearbyMembers) {
-            // ★ 各メンバーの個人ブーストを適用
-            // これにより、ブーストを買った人だけが多く貰える仕組み、
-            // もしくは全員ブーストなら全員凄まじく増える仕組みになります。
             double personalMultiplier = boosterManager.getMultiplier(member);
             double finalMemberExp = expPerMemberBase * personalMultiplier;
 
             levelManager.addExp(member, finalMemberExp);
             levelManager.updatePlayerDisplay(member);
 
-            String msg = "§e[Party] +" + String.format("%.1f", finalMemberExp) + " Exp";
+            Component msg = Component.text("[Party] ", NamedTextColor.YELLOW)
+                    .append(Component.text("+" + String.format("%.1f", finalMemberExp) + " Exp", NamedTextColor.YELLOW));
             if (personalMultiplier > 1.0) {
-                msg += " §6(x" + personalMultiplier + " Booster)";
+                msg = msg.append(Component.text(" (x" + personalMultiplier + " Booster)", NamedTextColor.GOLD));
             }
             member.sendMessage(msg);
         }

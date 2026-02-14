@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither.clan;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 
 import java.util.HashSet;
@@ -7,21 +9,19 @@ import java.util.Set;
 import java.util.UUID;
 
 public class Clan {
-    private final String id;      // 内部管理用ID (UUIDなど)
-    private String name;          // 表示名
-    private String tag;           // チャット用タグ (例: [RUSK])
-    private UUID owner;           // リーダー
-    private final Set<UUID> members = new HashSet<>(); // メンバーリスト
+    private final String id;
+    private String name;
+    private String tag;
+    private UUID owner;
+    private final Set<UUID> members = new HashSet<>();
 
     public Clan(String id, String name, UUID owner) {
         this.id = id;
         this.name = name;
         this.owner = owner;
-        this.members.add(owner); // リーダーは最初からメンバー
-        this.tag = name.substring(0, Math.min(name.length(), 4)).toUpperCase(); // 仮のタグ生成
+        this.members.add(owner);
+        this.tag = name.substring(0, Math.min(name.length(), 4)).toUpperCase();
     }
-
-    // --- ロジック ---
 
     public void addMember(UUID uuid) {
         members.add(uuid);
@@ -36,15 +36,20 @@ public class Clan {
     }
 
     public void broadcast(String message) {
+        broadcast(Component.text(message));
+    }
+
+    public void broadcast(Component message) {
+        Component fullMessage = Component.text("[Clan] ", NamedTextColor.AQUA)
+                .append(message.colorIfAbsent(NamedTextColor.WHITE));
         for (UUID uuid : members) {
             var player = Bukkit.getPlayer(uuid);
             if (player != null && player.isOnline()) {
-                player.sendMessage("§b[Clan] §f" + message);
+                player.sendMessage(fullMessage);
             }
         }
     }
 
-    // --- Getter / Setter ---
     public String getId() { return id; }
     public String getName() { return name; }
     public String getTag() { return tag; }
