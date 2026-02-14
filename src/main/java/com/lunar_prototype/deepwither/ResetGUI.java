@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.util.ConfirmationGUI;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
@@ -74,11 +75,15 @@ public class ResetGUI implements Listener, IManager {
         if (clicked == null || !clicked.hasItemMeta()) return;
 
         if (clicked.getType() == Material.NETHER_STAR) {
-            processAttributeReset(player);
-            player.closeInventory();
+            new ConfirmationGUI(plugin, player, Component.text("能力値をリセットしますか？"),
+                    p -> processAttributeReset(p),
+                    p -> p.sendMessage(Component.text("リセットをキャンセルしました。", NamedTextColor.GRAY))
+            ).open();
         } else if (clicked.getType() == Material.ENCHANTED_BOOK) {
-            processSkillReset(player);
-            player.closeInventory();
+            new ConfirmationGUI(plugin, player, Component.text("スキルを忘却しますか？"),
+                    p -> processSkillReset(p),
+                    p -> p.sendMessage(Component.text("忘却をキャンセルしました。", NamedTextColor.GRAY))
+            ).open();
         }
     }
 
