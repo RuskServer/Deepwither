@@ -24,7 +24,8 @@ public class MenuItemListener implements Listener, IManager {
     private final Deepwither plugin;
     private MenuGUI menuGUI;
     public static final Component ITEM_NAME = Component.text("メニュー ", NamedTextColor.GOLD, TextDecoration.BOLD)
-            .append(Component.text("(右クリック)", NamedTextColor.GRAY).decoration(TextDecoration.BOLD, false));
+            .append(Component.text("(右クリック)", NamedTextColor.GRAY).decoration(TextDecoration.BOLD, false))
+            .decoration(TextDecoration.ITALIC, false);
 
     public MenuItemListener(Deepwither plugin) {
         this.plugin = plugin;
@@ -66,7 +67,7 @@ public class MenuItemListener implements Listener, IManager {
         ItemMeta meta = menuBtn.getItemMeta();
 
         meta.displayName(ITEM_NAME);
-        meta.lore(Collections.singletonList(Component.text("クリックしてステータスやスキルを確認します。", NamedTextColor.WHITE)));
+        meta.lore(Collections.singletonList(Component.text("クリックしてステータスやスキルを確認します。", NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false)));
         menuBtn.setItemMeta(meta);
 
         player.getInventory().setItem(8, menuBtn);

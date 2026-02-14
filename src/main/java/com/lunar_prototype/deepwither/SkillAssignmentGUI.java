@@ -4,6 +4,7 @@ import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
@@ -52,18 +53,18 @@ public class SkillAssignmentGUI implements Listener, IManager {
 
             ItemStack item = new ItemStack(skill.material);
             ItemMeta meta = item.getItemMeta();
-            meta.displayName(Component.text(skill.name, NamedTextColor.GOLD));
+            meta.displayName(Component.text(skill.name, NamedTextColor.GOLD).decoration(TextDecoration.ITALIC, false));
             List<Component> lore = new ArrayList<>();
             for (String loreLine : skill.lore) {
                 double effectiveCooldown = StatManager.getEffectiveCooldown(player, skill.cooldown);
                 double manaCost = skill.manaCost;
                 String translated = loreLine.replace("{cooldown}", String.format("%.1f", effectiveCooldown))
                                            .replace("{mana}", String.format("%.1f", manaCost));
-                lore.add(LegacyComponentSerializer.legacyAmpersand().deserialize(translated).colorIfAbsent(NamedTextColor.GRAY));
+                lore.add(LegacyComponentSerializer.legacyAmpersand().deserialize(translated).colorIfAbsent(NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
             }
             lore.add(Component.empty());
-            lore.add(Component.text("クリックでスロットに割り当て", NamedTextColor.GRAY));
-            lore.add(Component.text("ID:" + skillId, NamedTextColor.DARK_GRAY));
+            lore.add(Component.text("クリックでスロットに割り当て", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
+            lore.add(Component.text("ID:" + skillId, NamedTextColor.DARK_GRAY).decoration(TextDecoration.ITALIC, false));
             meta.lore(lore);
             item.setItemMeta(meta);
 
@@ -78,17 +79,17 @@ public class SkillAssignmentGUI implements Listener, IManager {
                 SkillDefinition assignedSkill = skillLoader.get(assigned);
                 slotItem = new ItemStack(Material.BOOK);
                 ItemMeta meta = slotItem.getItemMeta();
-                meta.displayName(Component.text("スロット" + (i + 1), NamedTextColor.AQUA));
+                meta.displayName(Component.text("スロット" + (i + 1), NamedTextColor.AQUA).decoration(TextDecoration.ITALIC, false));
                 meta.lore(List.of(
-                        Component.text("割り当て済み: " + assignedSkill.name, NamedTextColor.YELLOW),
-                        Component.text("slot:" + i, NamedTextColor.DARK_GRAY)
+                        Component.text("割り当て済み: " + assignedSkill.name, NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false),
+                        Component.text("slot:" + i, NamedTextColor.DARK_GRAY).decoration(TextDecoration.ITALIC, false)
                 ));
                 slotItem.setItemMeta(meta);
             } else {
                 slotItem = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
                 ItemMeta meta = slotItem.getItemMeta();
-                meta.displayName(Component.text("スロット" + (i + 1), NamedTextColor.GRAY));
-                meta.lore(List.of(Component.text("slot:" + i, NamedTextColor.DARK_GRAY)));
+                meta.displayName(Component.text("スロット" + (i + 1), NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
+                meta.lore(List.of(Component.text("slot:" + i, NamedTextColor.DARK_GRAY).decoration(TextDecoration.ITALIC, false)));
                 slotItem.setItemMeta(meta);
             }
             gui.setItem(45 + i, slotItem);

@@ -61,7 +61,7 @@ public class TraderGUI implements Listener, IManager {
         int size = Math.min((offerRows + 1) * 9, 54);
 
         String traderDisplayName = manager.getTraderName(traderId);
-        Component title = Component.text("[購入] ", NamedTextColor.DARK_GRAY).append(Component.text(traderDisplayName, NamedTextColor.WHITE));
+        Component title = Component.text("[購入] ", NamedTextColor.DARK_GRAY).append(Component.text(traderDisplayName, NamedTextColor.WHITE)).decoration(TextDecoration.ITALIC, false);
         Inventory gui = Bukkit.createInventory(player, size, title);
 
         final int maxOfferSlots = size - 9;
@@ -79,39 +79,40 @@ public class TraderGUI implements Listener, IManager {
                 boolean isUnlocked = manager.canAccessTier(player, traderId, offer.getRequiredCredit(), playerCredit);
 
                 lore.add(Component.empty());
-                lore.add(Component.text("--- 取引情報 ---", NamedTextColor.GREEN));
+                lore.add(Component.text("--- 取引情報 ---", NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false));
 
                 if (offer.getCost() > 0) {
-                    lore.add(Component.text("価格: ", NamedTextColor.GRAY).append(Component.text(Deepwither.getEconomy().format(offer.getCost()), NamedTextColor.GOLD)));
+                    lore.add(Component.text("価格: ", NamedTextColor.GRAY).append(Component.text(Deepwither.getEconomy().format(offer.getCost()), NamedTextColor.GOLD)).decoration(TextDecoration.ITALIC, false));
                 }
 
                 List<ItemStack> reqItems = offer.getRequiredItems();
                 if (reqItems != null && !reqItems.isEmpty()) {
-                    lore.add(Component.text("必要アイテム:", NamedTextColor.GRAY));
+                    lore.add(Component.text("必要アイテム:", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
                     for (ItemStack req : reqItems) {
                         Component itemName = req.hasItemMeta() && req.getItemMeta().hasDisplayName()
                                 ? req.getItemMeta().displayName()
                                 : Component.text(req.getType().name().toLowerCase().replace("_", " "));
                         lore.add(Component.text(" - ", NamedTextColor.DARK_GRAY)
                                 .append(itemName.colorIfAbsent(NamedTextColor.WHITE))
-                                .append(Component.text(" ×" + req.getAmount(), NamedTextColor.GRAY)));
+                                .append(Component.text(" ×" + req.getAmount(), NamedTextColor.GRAY))
+                                .decoration(TextDecoration.ITALIC, false));
                     }
                 }
 
-                lore.add(Component.text("必要信用度: ", NamedTextColor.GRAY).append(Component.text(offer.getRequiredCredit(), NamedTextColor.AQUA)));
+                lore.add(Component.text("必要信用度: ", NamedTextColor.GRAY).append(Component.text(offer.getRequiredCredit(), NamedTextColor.AQUA)).decoration(TextDecoration.ITALIC, false));
 
                 meta.getPersistentDataContainer().set(new NamespacedKey(Deepwither.getInstance(), SELL_ID_KEY), PersistentDataType.INTEGER, offer.getCost());
                 meta.getPersistentDataContainer().set(new NamespacedKey(Deepwither.getInstance(), OFFER_ID_KEY), PersistentDataType.STRING, offer.getId());
                 meta.getPersistentDataContainer().set(new NamespacedKey(Deepwither.getInstance(), TRADER_ID_KEY), PersistentDataType.STRING, traderId);
 
                 if (isUnlocked) {
-                    lore.add(Component.text("クリックして購入", NamedTextColor.GREEN));
+                    lore.add(Component.text("クリックして購入", NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false));
                 } else {
                     displayItem.setType(Material.GRAY_STAINED_GLASS_PANE);
                     lore.add(Component.empty());
-                    lore.add(Component.text("【 ⚠ ロック中 】", NamedTextColor.RED, TextDecoration.BOLD));
-                    lore.add(Component.text("信用度が不足しているか、", NamedTextColor.RED));
-                    lore.add(Component.text("特定のクエストを完了する必要があります。", NamedTextColor.RED));
+                    lore.add(Component.text("【 ⚠ ロック中 】", NamedTextColor.RED, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false));
+                    lore.add(Component.text("信用度が不足しているか、", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
+                    lore.add(Component.text("特定のクエストを完了する必要があります。", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
                     meta.getPersistentDataContainer().set(new NamespacedKey(Deepwither.getInstance(), SELL_ID_KEY), PersistentDataType.INTEGER, 0);
                 }
 
@@ -131,8 +132,8 @@ public class TraderGUI implements Listener, IManager {
     private static void addSellButton(Inventory gui, int slot) {
         ItemStack sellButton = new ItemStack(Material.EMERALD);
         ItemMeta meta = sellButton.getItemMeta();
-        meta.displayName(Component.text(">> 売却画面へ <<", NamedTextColor.GREEN));
-        meta.lore(List.of(Component.text("あなたのアイテムを売却します。", NamedTextColor.GRAY)));
+        meta.displayName(Component.text(">> 売却画面へ <<", NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false));
+        meta.lore(List.of(Component.text("あなたのアイテムを売却します。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false)));
         sellButton.setItemMeta(meta);
         gui.setItem(slot, sellButton);
     }
@@ -153,26 +154,26 @@ public class TraderGUI implements Listener, IManager {
         ItemMeta meta = taskButton.getItemMeta();
         List<Component> lore = new ArrayList<>();
 
-        meta.displayName(Component.text("デイリータスク (" + traderId + ")", NamedTextColor.YELLOW));
+        meta.displayName(Component.text("デイリータスク (" + traderId + ")", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
         meta.getPersistentDataContainer().set(new NamespacedKey(Deepwither.getInstance(), TRADER_ID_KEY), PersistentDataType.STRING, traderId);
 
-        lore.add(Component.text("残りのタスク完了回数: ", NamedTextColor.GRAY).append(Component.text((limit - completedCount) + "/" + limit, NamedTextColor.AQUA)));
+        lore.add(Component.text("残りのタスク完了回数: ", NamedTextColor.GRAY).append(Component.text((limit - completedCount) + "/" + limit, NamedTextColor.AQUA)).decoration(TextDecoration.ITALIC, false));
 
         if (completedCount >= limit) {
             lore.add(Component.empty());
-            lore.add(Component.text(">> 本日のタスク制限に達しました <<", NamedTextColor.RED));
+            lore.add(Component.text(">> 本日のタスク制限に達しました <<", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
             taskButton.setType(Material.BARRIER);
         } else if (target != 0) {
-            lore.add(Component.text("--- 現在の目標 ---", NamedTextColor.GREEN));
-            lore.add(Component.text(displayMobName + "討伐: ", NamedTextColor.GRAY).append(Component.text(current + "/" + target, NamedTextColor.RED)));
+            lore.add(Component.text("--- 現在の目標 ---", NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false));
+            lore.add(Component.text(displayMobName + "討伐: ", NamedTextColor.GRAY).append(Component.text(current + "/" + target, NamedTextColor.RED)).decoration(TextDecoration.ITALIC, false));
             lore.add(Component.empty());
-            lore.add(Component.text("目標を達成して報告してください。", NamedTextColor.YELLOW));
+            lore.add(Component.text("目標を達成して報告してください。", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
         } else {
             lore.add(Component.empty());
-            lore.add(Component.text("[討伐依頼] ", NamedTextColor.GREEN).append(Component.text("現在のエリア周辺の", NamedTextColor.GRAY)));
-            lore.add(Component.text("脅威となっている生命体を討伐する。", NamedTextColor.GRAY));
+            lore.add(Component.text("[討伐依頼] ", NamedTextColor.GREEN).append(Component.text("現在のエリア周辺の", NamedTextColor.GRAY)).decoration(TextDecoration.ITALIC, false));
+            lore.add(Component.text("脅威となっている生命体を討伐する。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
             lore.add(Component.empty());
-            lore.add(Component.text("クリックでタスクを受注", NamedTextColor.GREEN));
+            lore.add(Component.text("クリックでタスクを受注", NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false));
         }
 
         meta.lore(lore);
@@ -344,10 +345,10 @@ public class TraderGUI implements Listener, IManager {
     private void addQuestListButton(Inventory gui, int slot, String traderId) {
         ItemStack button = new ItemStack(Material.BOOK);
         ItemMeta meta = button.getItemMeta();
-        meta.displayName(Component.text("トレーダークエスト", NamedTextColor.GOLD, TextDecoration.BOLD));
+        meta.displayName(Component.text("トレーダークエスト", NamedTextColor.GOLD, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false));
         meta.lore(List.of(
-                Component.text("このトレーダーから受けられる", NamedTextColor.GRAY),
-                Component.text("永続的なタスクを確認します。", NamedTextColor.GRAY)
+                Component.text("このトレーダーから受けられる", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false),
+                Component.text("永続的なタスクを確認します。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false)
         ));
         meta.getPersistentDataContainer().set(new NamespacedKey(Deepwither.getInstance(), TRADER_ID_KEY), PersistentDataType.STRING, traderId);
         button.setItemMeta(meta);
@@ -362,7 +363,7 @@ public class TraderGUI implements Listener, IManager {
         int rowCount = (int) Math.ceil(quests.size() / 9.0) + 1;
         int size = Math.min(Math.max(rowCount, 3), 6) * 9;
 
-        Component title = Component.text("[クエスト] ", NamedTextColor.DARK_GRAY).append(Component.text(tm.getTraderName(traderId), NamedTextColor.WHITE));
+        Component title = Component.text("[クエスト] ", NamedTextColor.DARK_GRAY).append(Component.text(tm.getTraderName(traderId), NamedTextColor.WHITE)).decoration(TextDecoration.ITALIC, false);
         Inventory gui = Bukkit.createInventory(player, size, title);
 
         for (TraderManager.QuestData quest : quests.values()) {
@@ -379,7 +380,7 @@ public class TraderGUI implements Listener, IManager {
 
             if (quest.getDescription() != null && !quest.getDescription().isEmpty()) {
                 for (String line : quest.getDescription()) {
-                    lore.add(Component.text(line, NamedTextColor.GRAY));
+                    lore.add(Component.text(line, NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
                 }
                 lore.add(Component.empty());
             }
@@ -387,31 +388,31 @@ public class TraderGUI implements Listener, IManager {
             if (isCompleted) {
                 item = new ItemStack(Material.ENCHANTED_BOOK);
                 meta = item.getItemMeta();
-                meta.displayName(Component.text("✔ ", NamedTextColor.GREEN, TextDecoration.BOLD).append(Component.text(quest.getDisplayName(), NamedTextColor.WHITE)));
-                lore.add(Component.text("ステータス: ", NamedTextColor.GRAY).append(Component.text("完了済み", NamedTextColor.GREEN)));
+                meta.displayName(Component.text("✔ ", NamedTextColor.GREEN, TextDecoration.BOLD).append(Component.text(quest.getDisplayName(), NamedTextColor.WHITE)).decoration(TextDecoration.ITALIC, false));
+                lore.add(Component.text("ステータス: ", NamedTextColor.GRAY).append(Component.text("完了済み", NamedTextColor.GREEN)).decoration(TextDecoration.ITALIC, false));
             } else if (!canAccept) {
                 item = new ItemStack(Material.BARRIER);
                 meta = item.getItemMeta();
-                meta.displayName(Component.text("[ロック中] ", NamedTextColor.RED, TextDecoration.BOLD).append(Component.text(quest.getDisplayName(), NamedTextColor.GRAY)));
-                lore.add(Component.text("ステータス: ", NamedTextColor.GRAY).append(Component.text("未開放", NamedTextColor.RED)));
-                lore.add(Component.text("前提条件: ", NamedTextColor.GRAY).append(Component.text((quest.getRequiredQuestId() != null ? quest.getRequiredQuestId() : "なし"), NamedTextColor.YELLOW)));
+                meta.displayName(Component.text("[ロック中] ", NamedTextColor.RED, TextDecoration.BOLD).append(Component.text(quest.getDisplayName(), NamedTextColor.GRAY)).decoration(TextDecoration.ITALIC, false));
+                lore.add(Component.text("ステータス: ", NamedTextColor.GRAY).append(Component.text("未開放", NamedTextColor.RED)).decoration(TextDecoration.ITALIC, false));
+                lore.add(Component.text("前提条件: ", NamedTextColor.GRAY).append(Component.text((quest.getRequiredQuestId() != null ? quest.getRequiredQuestId() : "なし"), NamedTextColor.YELLOW)).decoration(TextDecoration.ITALIC, false));
             } else {
                 item = new ItemStack(isActive ? Material.WRITABLE_BOOK : Material.BOOK);
                 meta = item.getItemMeta();
                 Component prefix = isActive ? Component.text("[進行中] ", NamedTextColor.YELLOW, TextDecoration.BOLD) : Component.text("[受領可能] ", NamedTextColor.GOLD, TextDecoration.BOLD);
-                meta.displayName(prefix.append(Component.text(quest.getDisplayName(), NamedTextColor.WHITE)));
+                meta.displayName(prefix.append(Component.text(quest.getDisplayName(), NamedTextColor.WHITE)).decoration(TextDecoration.ITALIC, false));
 
-                lore.add(Component.text("タイプ: ", NamedTextColor.GRAY).append(Component.text((quest.getType().equalsIgnoreCase("KILL") ? "討伐" : "納品"), NamedTextColor.WHITE)));
-                lore.add(Component.text("目標: ", NamedTextColor.GRAY).append(Component.text(quest.getTarget(), NamedTextColor.WHITE)).append(Component.text(" を ", NamedTextColor.GRAY)).append(Component.text(quest.getAmount() + "個", NamedTextColor.WHITE)));
+                lore.add(Component.text("タイプ: ", NamedTextColor.GRAY).append(Component.text((quest.getType().equalsIgnoreCase("KILL") ? "討伐" : "納品"), NamedTextColor.WHITE)).decoration(TextDecoration.ITALIC, false));
+                lore.add(Component.text("目標: ", NamedTextColor.GRAY).append(Component.text(quest.getTarget(), NamedTextColor.WHITE)).append(Component.text(" を ", NamedTextColor.GRAY)).append(Component.text(quest.getAmount() + "個", NamedTextColor.WHITE)).decoration(TextDecoration.ITALIC, false));
 
                 if (isActive) {
                     int current = data.getCurrentProgress().getOrDefault(progressKey, 0);
-                    lore.add(Component.text("現在の進捗: ", NamedTextColor.GREEN).append(Component.text(current + " / " + quest.getAmount(), NamedTextColor.WHITE)));
+                    lore.add(Component.text("現在の進捗: ", NamedTextColor.GREEN).append(Component.text(current + " / " + quest.getAmount(), NamedTextColor.WHITE)).decoration(TextDecoration.ITALIC, false));
                     lore.add(Component.empty());
-                    lore.add(Component.text("▶ クリックして報告/納品", NamedTextColor.YELLOW));
+                    lore.add(Component.text("▶ クリックして報告/納品", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
                 } else {
                     lore.add(Component.empty());
-                    lore.add(Component.text("▶ クリックして受領する", NamedTextColor.GREEN));
+                    lore.add(Component.text("▶ クリックして受領する", NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false));
                 }
             }
 

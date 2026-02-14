@@ -1017,11 +1017,10 @@ class ItemLoader {
                         ItemMeta metaBook = item.getItemMeta();
                         metaBook.getPersistentDataContainer().set(ItemFactory.RECIPE_BOOK_KEY, PersistentDataType.INTEGER, recipeBookGrade);
 
-                        // 分かりやすくLoreに追加しても良い
-                        List<String> lore = metaBook.hasLore() ? metaBook.getLore() : new ArrayList<>();
                         String gradeName = (recipeBookGrade == 0) ? "全等級" : "等級 " + recipeBookGrade;
-                        lore.add(ChatColor.GOLD + "右クリックで使用: " + ChatColor.WHITE + "未習得の" + gradeName + "レシピを獲得");
-                        metaBook.setLore(lore);
+                        metaBook.lore().add(Component.text("右クリックで使用: ", NamedTextColor.GOLD)
+                                .append(Component.text("未習得の" + gradeName + "レシピを獲得", NamedTextColor.WHITE))
+                                .decoration(TextDecoration.ITALIC, false));
 
                         item.setItemMeta(metaBook);
                     }

@@ -2,6 +2,7 @@ package com.lunar_prototype.deepwither;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -60,10 +61,14 @@ public class BlacksmithGUI {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(name);
+            meta.displayName(name.decoration(TextDecoration.ITALIC, false));
 
             if (lore != null && lore.length > 0) {
-                meta.lore(List.of(lore));
+                List<Component> nonItalicLore = new ArrayList<>();
+                for (Component l : lore) {
+                    nonItalicLore.add(l.decoration(TextDecoration.ITALIC, false));
+                }
+                meta.lore(nonItalicLore);
             } else {
                 meta.lore(new ArrayList<>());
             }

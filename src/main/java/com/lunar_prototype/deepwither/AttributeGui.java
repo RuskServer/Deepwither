@@ -74,24 +74,26 @@ public class AttributeGui implements Listener, IManager {
 
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text(type.getDisplayName(), NamedTextColor.GREEN));
+        meta.displayName(Component.text(type.getDisplayName(), NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false));
 
         List<Component> lore = new ArrayList<>();
         lore.add(Component.empty());
         lore.add(Component.text("ポイント: ", NamedTextColor.GRAY)
                 .append(Component.text(data.getAllocated(type), NamedTextColor.GOLD))
                 .append(Component.text(" / ", NamedTextColor.GRAY))
-                .append(Component.text(Deepwither.getInstance().getAttributeManager().getMaxAllocatable(player.getUniqueId(), type), NamedTextColor.GOLD)));
+                .append(Component.text(Deepwither.getInstance().getAttributeManager().getMaxAllocatable(player.getUniqueId(), type), NamedTextColor.GOLD))
+                .decoration(TextDecoration.ITALIC, false));
         lore.add(Component.text("現在の" + type.getDisplayName() + "レベル: ", NamedTextColor.GRAY)
-                .append(Component.text(data.getAllocated(type), NamedTextColor.GOLD, TextDecoration.BOLD)));
+                .append(Component.text(data.getAllocated(type), NamedTextColor.GOLD, TextDecoration.BOLD))
+                .decoration(TextDecoration.ITALIC, false));
         lore.add(Component.empty());
-        lore.add(Component.text("効果:", NamedTextColor.DARK_GRAY));
+        lore.add(Component.text("効果:", NamedTextColor.DARK_GRAY).decoration(TextDecoration.ITALIC, false));
         for (String buff : StatEffectText.getBuffDescription(type, data.getAllocated(type))) {
-            lore.add(Component.text("  ✤ ", NamedTextColor.GRAY).append(Component.text(buff, NamedTextColor.BLUE)));
+            lore.add(Component.text("  ✤ ", NamedTextColor.GRAY).append(Component.text(buff, NamedTextColor.BLUE)).decoration(TextDecoration.ITALIC, false));
         }
         lore.add(Component.empty());
-        lore.add(Component.text("右クリックで1ポイント消費してレベルアップする。", NamedTextColor.YELLOW));
-        lore.add(Component.text("◆ 現在所持: ", NamedTextColor.YELLOW).append(Component.text(data.getRemainingPoints() + " ポイント", NamedTextColor.AQUA)));
+        lore.add(Component.text("右クリックで1ポイント消費してレベルアップする。", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text("◆ 現在所持: ", NamedTextColor.YELLOW).append(Component.text(data.getRemainingPoints() + " ポイント", NamedTextColor.AQUA)).decoration(TextDecoration.ITALIC, false));
 
         meta.lore(lore);
         item.setItemMeta(meta);

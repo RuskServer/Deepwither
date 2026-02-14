@@ -85,10 +85,11 @@ public enum StatType {
  */
 class LoreBuilder {
 
-    private static final Component WEAR_LORE_PREFIX = Component.text("損耗率: ", NamedTextColor.GRAY);
-    private static final Component MASTERY_LORE_PREFIX = Component.text("マスタリー: ", NamedTextColor.GRAY);
+    private static final Component WEAR_LORE_PREFIX = Component.text("損耗率: ", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false);
+    private static final Component MASTERY_LORE_PREFIX = Component.text("マスタリー: ", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false);
     private static final Component SEPARATOR = Component.text("----------------------------", NamedTextColor.GRAY)
-            .decoration(TextDecoration.STRIKETHROUGH, true);
+            .decoration(TextDecoration.STRIKETHROUGH, true)
+            .decoration(TextDecoration.ITALIC, false);
 
     /**
      * 既存のアイテムのLoreを読み込み、提供されたStatMapと修理ステータス（損耗率、マスタリー）
@@ -159,13 +160,13 @@ class LoreBuilder {
         if (wearRate > 0) {
             Component wearLine = WEAR_LORE_PREFIX.append(
                     Component.text(String.format("%.0f", wearRate) + "%", NamedTextColor.WHITE)
-            ).decoration(TextDecoration.STRIKETHROUGH, false);
+            ).decoration(TextDecoration.STRIKETHROUGH, false).decoration(TextDecoration.ITALIC, false);
             newLore.add(wearLine);
         }
         if (masteryLevel > 0) {
             Component masteryLine = MASTERY_LORE_PREFIX.append(
                     Component.text(String.valueOf(masteryLevel), NamedTextColor.AQUA)
-            );
+            ).decoration(TextDecoration.ITALIC, false);
             newLore.add(masteryLine);
         }
 
@@ -207,32 +208,31 @@ class LoreBuilder {
         }
         if (itemType != null) {
             if (rarity != null) { 
-                 // Replicating legacy behavior: if rarity exists, append " | "
                  infoLine = infoLine.append(Component.text(" | ", NamedTextColor.WHITE));
             }
              infoLine = infoLine.append(Component.text(itemType, NamedTextColor.GRAY));
         }
-        if (!infoLine.equals(Component.empty())) lore.add(infoLine);
+        if (!infoLine.equals(Component.empty())) lore.add(infoLine.decoration(TextDecoration.ITALIC, false));
 
         if (tracker != null) {
             double ratio = tracker.getRatio() * 100.0;
             NamedTextColor color = (ratio >= 90) ? NamedTextColor.GOLD : (ratio >= 70) ? NamedTextColor.YELLOW : (ratio >= 50) ? NamedTextColor.GREEN : NamedTextColor.GRAY;
-            lore.add(Component.text("品質: ", NamedTextColor.WHITE).append(Component.text(Math.round(ratio) + "%", color)));
+            lore.add(Component.text("品質: ", NamedTextColor.WHITE).append(Component.text(Math.round(ratio) + "%", color)).decoration(TextDecoration.ITALIC, false));
         }
 
         // --- フレーバー ---
         if (flavorText != null && !flavorText.isEmpty()) {
             lore.add(Component.empty());
             for (String line : flavorText) {
-                lore.add(LegacyComponentSerializer.legacyAmpersand().deserialize("&8&o" + line));
+                lore.add(LegacyComponentSerializer.legacyAmpersand().deserialize("&8&o" + line).decoration(TextDecoration.ITALIC, true)); // Keep flavor italic but controlled
             }
         }
 
-        lore.add(Component.text("-----------------------------", NamedTextColor.DARK_GRAY).decoration(TextDecoration.STRIKETHROUGH, true));
+        lore.add(Component.text("-----------------------------", NamedTextColor.DARK_GRAY).decoration(TextDecoration.STRIKETHROUGH, true).decoration(TextDecoration.ITALIC, false));
 
         // --- [付加能力] セクション ---
         if (appliedModifiers != null && !appliedModifiers.isEmpty()) {
-            lore.add(Component.text(" [付加能力]", NamedTextColor.LIGHT_PURPLE, TextDecoration.BOLD));
+            lore.add(Component.text(" [付加能力]", NamedTextColor.LIGHT_PURPLE, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false));
 
             List<Component> mods = new ArrayList<>();
             for (Map.Entry<StatType, Double> entry : appliedModifiers.entrySet()) {
@@ -244,7 +244,7 @@ class LoreBuilder {
         }
 
         // --- [基礎ステータス] セクション ---
-        lore.add(Component.text(" [基礎ステータス]", NamedTextColor.WHITE, TextDecoration.BOLD));
+        lore.add(Component.text(" [基礎ステータス]", NamedTextColor.WHITE, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false));
 
         List<Component> baseStats = new ArrayList<>();
         for (StatType type : stats.getAllTypes()) {
@@ -289,14 +289,14 @@ class LoreBuilder {
             String leftLegacy = legacyItems.get(i);
 
             if (i + 1 >= items.size()) {
-                mainLore.add(Component.text(" ").append(left));
+                mainLore.add(Component.text(" ").append(left).decoration(TextDecoration.ITALIC, false));
                 break;
             }
             Component right = items.get(i + 1);
 
             // 生成
             Component paddedLeft = padToWidth(left, leftLegacy, targetWidth);
-            mainLore.add(Component.text(" ").append(paddedLeft).append(right));
+            mainLore.add(Component.text(" ").append(paddedLeft).append(right).decoration(TextDecoration.ITALIC, false));
         }
     }
 
@@ -386,7 +386,8 @@ class LoreBuilder {
     private static Component formatModifierStat(StatType type, double value) {
         return Component.text("• ", NamedTextColor.LIGHT_PURPLE) 
                 .append(Component.text(type.getIcon() + " " + type.getDisplayName() + ": ")) 
-                .append(Component.text("+" + String.format("%.1f", value), NamedTextColor.LIGHT_PURPLE));
+                .append(Component.text("+" + String.format("%.1f", value), NamedTextColor.LIGHT_PURPLE))
+                .decoration(TextDecoration.ITALIC, false);
     }
 
     private static Component formatStat(StatType type, double flat, double percent, boolean compact) {
@@ -402,7 +403,8 @@ class LoreBuilder {
         
         return Component.text("• ", NamedTextColor.WHITE) 
                 .append(Component.text(type.getIcon() + " " + type.getDisplayName() + ": ")) 
-                .append(valComp.color(NamedTextColor.WHITE));
+                .append(valComp.color(NamedTextColor.WHITE))
+                .decoration(TextDecoration.ITALIC, false);
     }
 }
 

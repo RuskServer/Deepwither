@@ -415,20 +415,20 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
                         double manaCost = skill.manaCost;
                         String translated = loreLine.replace("{cooldown}", String.format("%.1f", effectiveCooldown))
                                                    .replace("{mana}", String.format("%.1f", manaCost));
-                        lore.add(LegacyComponentSerializer.legacyAmpersand().deserialize(translated).colorIfAbsent(NamedTextColor.GRAY));
+                        lore.add(LegacyComponentSerializer.legacyAmpersand().deserialize(translated).colorIfAbsent(NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
                     }
                 }
             } else {
                 mat = Material.RED_STAINED_GLASS_PANE;
-                lore.add(Component.text("Error: Skill definition not found for '" + skillEffectId + "'", NamedTextColor.RED));
+                lore.add(Component.text("Error: Skill definition not found for '" + skillEffectId + "'", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
             }
         } else if ("special_passive".equals(type)) {
             mat = Material.ENCHANTED_BOOK;
-            lore.add(Component.text(desc, NamedTextColor.GRAY));
+            lore.add(Component.text(desc, NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
             Map<?, ?> effect = (Map<?, ?>) node.get("effect");
             if (effect != null) {
                 lore.add(Component.empty());
-                lore.add(Component.text("特殊効果: " + effect.get("id"), NamedTextColor.DARK_PURPLE));
+                lore.add(Component.text("特殊効果: " + effect.get("id"), NamedTextColor.DARK_PURPLE).decoration(TextDecoration.ITALIC, false));
             }
         } else {
             if (learned) mat = Material.LIME_STAINED_GLASS_PANE;
@@ -436,54 +436,54 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
             else mat = Material.RED_STAINED_GLASS_PANE;
             if (isConflicted) mat = Material.RED_STAINED_GLASS_PANE;
             if ("starter".equals(type)) mat = Material.BEACON;
-            lore.add(Component.text(desc, NamedTextColor.GRAY));
+            lore.add(Component.text(desc, NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
         }
 
         if (!lore.isEmpty()) lore.add(Component.empty());
-        lore.add(Component.text("ID: " + id, NamedTextColor.GRAY));
+        lore.add(Component.text("ID: " + id, NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
 
         NamedTextColor nameColor;
         Component statusText;
 
         if (learned) {
             nameColor = NamedTextColor.GREEN;
-            statusText = Component.text("■ 習得済み", NamedTextColor.GREEN);
+            statusText = Component.text("■ 習得済み", NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false);
         } else if (isConflicted) {
             nameColor = NamedTextColor.RED;
-            statusText = Component.text("■ 習得不可 (競合)", NamedTextColor.RED);
+            statusText = Component.text("■ 習得不可 (競合)", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false);
         } else if (unlocked) {
             nameColor = NamedTextColor.YELLOW;
-            statusText = Component.text("■ 習得可能", NamedTextColor.YELLOW);
+            statusText = Component.text("■ 習得可能", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false);
         } else {
             nameColor = NamedTextColor.RED;
-            statusText = Component.text("■ 未解除", NamedTextColor.RED);
+            statusText = Component.text("■ 未解除", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false);
         }
 
         lore.add(statusText);
-        lore.add(Component.text("Lv: " + level + "/" + maxLevel, NamedTextColor.WHITE));
+        lore.add(Component.text("Lv: " + level + "/" + maxLevel, NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false));
 
         if (!reqs.isEmpty()) {
             lore.add(Component.empty());
-            lore.add(Component.text("[必要スキル]", NamedTextColor.GOLD));
+            lore.add(Component.text("[必要スキル]", NamedTextColor.GOLD).decoration(TextDecoration.ITALIC, false));
             for (String r : reqs) {
                 boolean hasReq = data.hasSkill(r);
-                lore.add(Component.text("- " + r, hasReq ? NamedTextColor.GREEN : NamedTextColor.RED));
+                lore.add(Component.text("- " + r, hasReq ? NamedTextColor.GREEN : NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
             }
         }
 
         if (!conflicts.isEmpty()) {
             lore.add(Component.empty());
-            lore.add(Component.text("排他選択 (競合):", NamedTextColor.DARK_RED));
+            lore.add(Component.text("排他選択 (競合):", NamedTextColor.DARK_RED).decoration(TextDecoration.ITALIC, false));
             for (String conflictId : conflicts) {
                 Map<String, Object> conflictNode = getNodeById(treeId, conflictId);
                 String conflictName = (conflictNode != null) ? (String) conflictNode.get("name") : conflictId;
-                lore.add(Component.text("- " + conflictName, NamedTextColor.RED));
+                lore.add(Component.text("- " + conflictName, NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
             }
         }
 
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text(name, nameColor));
+        meta.displayName(Component.text(name, nameColor).decoration(TextDecoration.ITALIC, false));
         meta.lore(lore);
 
         if (learned) {

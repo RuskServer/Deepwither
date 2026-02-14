@@ -4,6 +4,7 @@ import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -26,17 +27,17 @@ public class ArtifactGUI implements Listener, IManager {
 
     @Override
     public void init() {
-        Component title = Component.text("[GUI] ", NamedTextColor.DARK_GRAY).append(Component.text("アーティファクト", NamedTextColor.GOLD));
+        Component title = Component.text("[GUI] ", NamedTextColor.DARK_GRAY).append(Component.text("アーティファクト", NamedTextColor.GOLD)).decoration(TextDecoration.ITALIC, false);
         artifactGUI = Bukkit.createInventory(null, 18, title);
 
         ItemStack artifactPlaceholder = new ItemStack(Material.CYAN_STAINED_GLASS_PANE);
         ItemMeta artifactMeta = artifactPlaceholder.getItemMeta();
-        artifactMeta.displayName(Component.text("【アーティファクトスロット】", NamedTextColor.AQUA));
+        artifactMeta.displayName(Component.text("【アーティファクトスロット】", NamedTextColor.AQUA).decoration(TextDecoration.ITALIC, false));
         artifactPlaceholder.setItemMeta(artifactMeta);
 
         ItemStack borderPlaceholder = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
         ItemMeta borderMeta = borderPlaceholder.getItemMeta();
-        borderMeta.displayName(Component.text("- - -", NamedTextColor.GRAY));
+        borderMeta.displayName(Component.text("- - -", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
         borderPlaceholder.setItemMeta(borderMeta);
 
         for (int i : BORDER_SLOTS) {
@@ -49,7 +50,7 @@ public class ArtifactGUI implements Listener, IManager {
 
         ItemStack bpPlaceholder = new ItemStack(Material.PURPLE_STAINED_GLASS_PANE);
         ItemMeta bpMeta = bpPlaceholder.getItemMeta();
-        bpMeta.displayName(Component.text("【背中装備スロット】", NamedTextColor.LIGHT_PURPLE));
+        bpMeta.displayName(Component.text("【背中装備スロット】", NamedTextColor.LIGHT_PURPLE).decoration(TextDecoration.ITALIC, false));
         bpPlaceholder.setItemMeta(bpMeta);
         artifactGUI.setItem(BACKPACK_SLOT, bpPlaceholder);
 
@@ -67,7 +68,7 @@ public class ArtifactGUI implements Listener, IManager {
     private void updateGUIFromPlayerData(Player player) {
         ItemStack artifactPlaceholder = new ItemStack(Material.CYAN_STAINED_GLASS_PANE);
         ItemMeta artifactMeta = artifactPlaceholder.getItemMeta();
-        artifactMeta.displayName(Component.text("【アーティファクトスロット】", NamedTextColor.AQUA));
+        artifactMeta.displayName(Component.text("【アーティファクトスロット】", NamedTextColor.AQUA).decoration(TextDecoration.ITALIC, false));
         artifactPlaceholder.setItemMeta(artifactMeta);
 
         for (int i : ARTIFACT_SLOTS) {

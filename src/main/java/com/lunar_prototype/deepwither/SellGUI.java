@@ -4,6 +4,7 @@ import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
@@ -39,7 +40,7 @@ public class SellGUI implements Listener, IManager {
     @Override
     public void shutdown() {}
 
-    public static final Component SELL_GUI_TITLE = Component.text("[売却] ", NamedTextColor.DARK_GRAY).append(Component.text("総合売却所", NamedTextColor.WHITE));
+    public static final Component SELL_GUI_TITLE = Component.text("[売却] ", NamedTextColor.DARK_GRAY).append(Component.text("総合売却所", NamedTextColor.WHITE)).decoration(TextDecoration.ITALIC, false);
     private static final String CUSTOM_ID_KEY = "custom_id";
 
     private static final Map<StatType, Double> FLAT_PRICE_MULTIPLIERS = new EnumMap<>(StatType.class);
@@ -61,8 +62,8 @@ public class SellGUI implements Listener, IManager {
     public static void openSellGUI(Player player, TraderManager manager) {
         Inventory gui = Bukkit.createInventory(player, 27, SELL_GUI_TITLE);
 
-        ItemStack filler = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, Component.text(" "));
-        ItemStack backButton = createGuiItem(Material.ARROW, Component.text("<< 戻る", NamedTextColor.YELLOW));
+        ItemStack filler = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, Component.text(" ").decoration(TextDecoration.ITALIC, false));
+        ItemStack backButton = createGuiItem(Material.ARROW, Component.text("<< 戻る", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
 
         for (int i = 0; i < 9; i++) {
             gui.setItem(i, filler);
@@ -76,7 +77,7 @@ public class SellGUI implements Listener, IManager {
     private static ItemStack createGuiItem(Material material, Component name) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(name);
+        meta.displayName(name.decoration(TextDecoration.ITALIC, false));
         item.setItemMeta(meta);
         return item;
     }

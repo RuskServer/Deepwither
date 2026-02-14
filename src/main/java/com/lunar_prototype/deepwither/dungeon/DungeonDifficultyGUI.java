@@ -4,6 +4,7 @@ import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -34,14 +35,14 @@ public class DungeonDifficultyGUI implements Listener {
     }
 
     public void open(Player player) {
-        Component title = Component.text("難易度を選択: " + dungeonId, NamedTextColor.DARK_GRAY);
+        Component title = Component.text("難易度を選択: " + dungeonId, NamedTextColor.DARK_GRAY).decoration(TextDecoration.ITALIC, false);
         Inventory gui = Bukkit.createInventory(null, 27, title);
 
-        gui.setItem(11, createIcon(Material.IRON_SWORD, Component.text("通常モード", NamedTextColor.GREEN), 
-                Component.text("推奨レベル: " + config.getInt("difficulty.normal.mob_level"), NamedTextColor.GRAY)));
-        gui.setItem(15, createIcon(Material.NETHERITE_SWORD, Component.text("高難易度モード", NamedTextColor.RED), 
-                Component.text("推奨レベル: " + config.getInt("difficulty.hard.mob_level"), NamedTextColor.GRAY), 
-                Component.text("要: 専用の鍵", NamedTextColor.YELLOW)));
+        gui.setItem(11, createIcon(Material.IRON_SWORD, Component.text("通常モード", NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false), 
+                Component.text("推奨レベル: " + config.getInt("difficulty.normal.mob_level"), NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false)));
+        gui.setItem(15, createIcon(Material.NETHERITE_SWORD, Component.text("高難易度モード", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false), 
+                Component.text("推奨レベル: " + config.getInt("difficulty.hard.mob_level"), NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false), 
+                Component.text("要: 専用の鍵", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false)));
 
         Bukkit.getPluginManager().registerEvents(this, Deepwither.getInstance());
         player.openInventory(gui);
@@ -65,7 +66,7 @@ public class DungeonDifficultyGUI implements Listener {
             if (checkAndConsumeKey(player)) {
                 startDungeon(player, "hard");
             } else {
-                player.sendMessage(Component.text("このダンジョンに入るには専用の鍵が必要です！", NamedTextColor.RED));
+                player.sendMessage(Component.text("このダンジョンに入るには専用의鍵が必要です！", NamedTextColor.RED));
             }
         }
     }
@@ -104,8 +105,12 @@ public class DungeonDifficultyGUI implements Listener {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(name);
-            meta.lore(List.of(loreLines));
+            meta.displayName(name.decoration(TextDecoration.ITALIC, false));
+            List<Component> nonItalicLore = new ArrayList<>();
+            for (Component l : loreLines) {
+                nonItalicLore.add(l.decoration(TextDecoration.ITALIC, false));
+            }
+            meta.lore(nonItalicLore);
             item.setItemMeta(meta);
         }
         return item;

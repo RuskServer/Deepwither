@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither.companion;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -22,12 +24,12 @@ public class CompanionGui {
     }
 
     public void openGui(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 27, Component.text(GUI_TITLE));
+        Inventory inv = Bukkit.createInventory(null, 27, Component.text(GUI_TITLE).decoration(TextDecoration.ITALIC, false));
 
         // 1. 背景の装飾 (板ガラス)
         ItemStack filler = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
         ItemMeta fMeta = filler.getItemMeta();
-        fMeta.displayName(Component.text(" "));
+        fMeta.displayName(Component.text(" ").decoration(TextDecoration.ITALIC, false));
         filler.setItemMeta(fMeta);
 
         for (int i = 0; i < inv.getSize(); i++) {
@@ -51,14 +53,14 @@ public class CompanionGui {
         if (isSpawned) {
             button = new ItemStack(Material.RED_DYE);
             ItemMeta meta = button.getItemMeta();
-            meta.displayName(Component.text("§c[帰還させる]"));
-            meta.lore(List.of(Component.text("§7クリックしてコンパニオンを戻す")));
+            meta.displayName(Component.text("[帰還させる]", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
+            meta.lore(List.of(Component.text("クリックしてコンパニオンを戻す", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false)));
             button.setItemMeta(meta);
         } else {
             button = new ItemStack(Material.LIME_DYE);
             ItemMeta meta = button.getItemMeta();
-            meta.displayName(Component.text("§a[召喚する]"));
-            meta.lore(List.of(Component.text("§7クリックしてコンパニオンを呼ぶ")));
+            meta.displayName(Component.text("[召喚する]", NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false));
+            meta.lore(List.of(Component.text("クリックしてコンパニオンを呼ぶ", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false)));
             button.setItemMeta(meta);
         }
 

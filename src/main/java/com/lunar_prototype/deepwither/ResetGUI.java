@@ -113,8 +113,12 @@ public class ResetGUI implements Listener, IManager {
     private ItemStack createItem(Material mat, Component name, Component... lore) {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(name);
-        meta.lore(List.of(lore));
+        meta.displayName(name.decoration(TextDecoration.ITALIC, false));
+        List<Component> nonItalicLore = new ArrayList<>();
+        for (Component l : lore) {
+            nonItalicLore.add(l.decoration(TextDecoration.ITALIC, false));
+        }
+        meta.lore(nonItalicLore);
         item.setItemMeta(meta);
         return item;
     }
