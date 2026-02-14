@@ -67,6 +67,12 @@ public class SkillSlotManager implements IManager {
 
     public void clear(UUID uuid) {
         slotDataMap.remove(uuid);
+        config.set(uuid.toString(), null);
+        try {
+            config.save(slotFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
 
