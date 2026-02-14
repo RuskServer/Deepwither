@@ -45,7 +45,7 @@ public class DynamicQuestManager implements IManager, Listener {
     private final Random random = new Random();
 
     // Configuration
-    private static final int MAX_NPCS = 5;
+    private static final int NPCS_PER_REGION = 1; // Number of NPCs to try spawning per safezone
     private static final long REFRESH_INTERVAL_TICKS = 20L * 60 * 10; // 10 minutes
 
     public DynamicQuestManager(Deepwither plugin) {
@@ -63,16 +63,6 @@ public class DynamicQuestManager implements IManager, Listener {
     public void shutdown() {
         stopSpawnTask();
         despawnAll();
-    }
-
-    private void startSpawnTask() {
-        spawnTask = Bukkit.getScheduler().runTaskTimer(plugin, this::refreshNPCs, 100L, REFRESH_INTERVAL_TICKS);
-    }
-
-    private void stopSpawnTask() {
-        if (spawnTask != null && !spawnTask.isCancelled()) {
-            spawnTask.cancel();
-        }
     }
 
     public void forceSpawnAt(Location location) {
@@ -111,17 +101,27 @@ public class DynamicQuestManager implements IManager, Listener {
             if (safeRegions.isEmpty()) continue;
             regionCount += safeRegions.size();
 
-            // Try to spawn up to MAX_NPCS across found regions
-            for (int i = 0; i < MAX_NPCS; i++) {
-                if (safeRegions.isEmpty()) break;
-                ProtectedRegion region = safeRegions.get(random.nextInt(safeRegions.size()));
-                Location spawnLoc = getRandomLocationInRegion(world, region);
-                if (spawnLoc != null) {
-                    spawnNPC(spawnLoc);
+            // Try to spawn NPCs in EACH found region
+            for (ProtectedRegion region : safeRegions) {
+                for (int i = 0; i < NPCS_PER_REGION; i++) {
+                    Location spawnLoc = getRandomLocationInRegion(world, region);
+                    if (spawnLoc != null) {
+                        spawnNPC(spawnLoc);
+                    }
                 }
             }
         }
         plugin.getLogger().info("[DynamicQuest] Spawning cycle complete. Found " + regionCount + " safezone regions. Spawned " + activeNPCs.size() + " NPCs.");
+    }
+
+    private void startSpawnTask() {
+        spawnTask = Bukkit.getScheduler().runTaskTimer(plugin, this::refreshNPCs, 100L, REFRESH_INTERVAL_TICKS);
+    }
+
+    private void stopSpawnTask() {
+        if (spawnTask != null && !spawnTask.isCancelled()) {
+            spawnTask.cancel();
+        }
     }
 
     private Location getRandomLocationInRegion(World world, ProtectedRegion region) {
