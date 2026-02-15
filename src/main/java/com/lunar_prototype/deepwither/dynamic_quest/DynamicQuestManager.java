@@ -14,9 +14,11 @@ import com.lunar_prototype.deepwither.util.IManager;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldguard.WorldGuard;
+import com.sk89q.worldguard.protection.ApplicableRegionSet;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
+import com.sk89q.worldguard.protection.regions.RegionQuery;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
@@ -237,11 +239,11 @@ public class DynamicQuestManager implements IManager, Listener {
         BlockVector3 max = region.getMaximumPoint();
 
         for (int i = 0; i < 15; i++) { // Increase attempts slightly
-            int x = ThreadLocalRandom.current().nextInt(min.getBlockX(), max.getBlockX() + 1);
-            int z = ThreadLocalRandom.current().nextInt(min.getBlockZ(), max.getBlockZ() + 1);
+            int x = ThreadLocalRandom.current().nextInt(min.x(), max.x() + 1);
+            int z = ThreadLocalRandom.current().nextInt(min.z(), max.z() + 1);
 
-            int minY = Math.max(world.getMinHeight(), min.getBlockY());
-            int maxY = Math.min(world.getMaxHeight(), max.getBlockY());
+            int minY = Math.max(world.getMinHeight(), min.y());
+            int maxY = Math.min(world.getMaxHeight(), max.y());
             
             // Try random Ys inside the region to handle caves/multi-floor structures
             for (int j = 0; j < 10; j++) {
