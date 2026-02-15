@@ -151,22 +151,38 @@ public class DynamicQuestManager implements IManager, Listener {
         int maxTier = 0;
         for (ProtectedRegion region : set) {
             String id = region.getId().toLowerCase();
-            // We ignore safezone check here because we want to know the "surrounding" layer even in safezone
-            int tierIndex = id.indexOf("t");
-            if (tierIndex != -1 && tierIndex + 1 < id.length()) {
-                char nextChar = id.charAt(tierIndex + 1);
-                if (Character.isDigit(nextChar)) {
-                    StringBuilder tierStr = new StringBuilder();
-                    int i = tierIndex + 1;
-                    while (i < id.length() && Character.isDigit(id.charAt(i))) {
-                        tierStr.append(id.charAt(i));
-                        i++;
+            
+            // Skip safezone regions to avoid using their index as a layer ID
+            if (id.contains("safezone")) continue;
+            
+            int tier = 0;
+            // Look for "t" at the start or after an underscore
+            int tIdx = -1;
+            if (id.startsWith("t")) tIdx = 0;
+            else if (id.contains("_t")) tIdx = id.indexOf("_t") + 1;
+            
+            if (tIdx != -1 && tIdx + 1 < id.length()) {
+                char next = id.charAt(tIdx + 1);
+                int startDigit = -1;
+                if (Character.isDigit(next)) {
+                    startDigit = tIdx + 1;
+                } else if (next == '_' && tIdx + 2 < id.length() && Character.isDigit(id.charAt(tIdx + 2))) {
+                    startDigit = tIdx + 2;
+                }
+                
+                if (startDigit != -1) {
+                    StringBuilder numStr = new StringBuilder();
+                    for (int i = startDigit; i < id.length() && Character.isDigit(id.charAt(i)); i++) {
+                        numStr.append(id.charAt(i));
                     }
                     try {
-                        int tier = Integer.parseInt(tierStr.toString());
-                        if (tier > maxTier) maxTier = tier;
+                        tier = Integer.parseInt(numStr.toString());
                     } catch (NumberFormatException ignored) {}
                 }
+            }
+
+            if (tier > maxTier) {
+                maxTier = tier;
             }
         }
         return maxTier;
