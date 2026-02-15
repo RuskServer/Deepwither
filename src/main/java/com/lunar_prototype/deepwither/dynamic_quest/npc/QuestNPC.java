@@ -59,6 +59,12 @@ public class QuestNPC {
                 break;
         }
 
+        villager.getPersistentDataContainer().set(
+                new org.bukkit.NamespacedKey(com.lunar_prototype.deepwither.Deepwither.getInstance(), "quest_npc"),
+                org.bukkit.persistence.PersistentDataType.BYTE,
+                (byte) 1
+        );
+
         Component name = Component.text(quest.getPersona().getDisplayName(), NamedTextColor.YELLOW)
                 .append(Component.text(" [Quest]", NamedTextColor.GOLD));
         

@@ -27,9 +27,12 @@ import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.NamespacedKey;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
@@ -55,6 +58,7 @@ public class DynamicQuestManager implements IManager, Listener {
 
     @Override
     public void init() {
+        cleanupOldNPCs();
         Bukkit.getPluginManager().registerEvents(this, plugin);
         startSpawnTask();
     }
@@ -63,6 +67,17 @@ public class DynamicQuestManager implements IManager, Listener {
     public void shutdown() {
         stopSpawnTask();
         despawnAll();
+    }
+
+    private void cleanupOldNPCs() {
+        NamespacedKey key = new NamespacedKey(plugin, "quest_npc");
+        for (World world : Bukkit.getWorlds()) {
+            for (Entity entity : world.getEntities()) {
+                if (entity.getPersistentDataContainer().has(key, PersistentDataType.BYTE)) {
+                    entity.remove();
+                }
+            }
+        }
     }
 
     public void forceSpawnAt(Location location) {
@@ -79,6 +94,7 @@ public class DynamicQuestManager implements IManager, Listener {
 
     private void refreshNPCs() {
         despawnAll();
+        cleanupOldNPCs();
         
         // Find safe zones
         if (!Bukkit.getPluginManager().isPluginEnabled("WorldGuard")) {
@@ -188,7 +204,7 @@ public class DynamicQuestManager implements IManager, Listener {
         activeNPCs.clear();
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onInteract(PlayerInteractEntityEvent event) {
         Entity clicked = event.getRightClicked();
         Player player = event.getPlayer();
@@ -199,6 +215,15 @@ public class DynamicQuestManager implements IManager, Listener {
                 handleNPCInteraction(player, npc);
                 return;
             }
+        }
+
+        // Fallback for PDC tag
+        NamespacedKey key = new NamespacedKey(plugin, "quest_npc");
+        if (clicked.getPersistentDataContainer().has(key, PersistentDataType.BYTE)) {
+            event.setCancelled(true);
+            // If it has the tag but isn't in activeNPCs, it's a "ghost" NPC
+            clicked.remove();
+            player.sendMessage(Component.text("このNPCは無効化されました。もう一度お試しください。", NamedTextColor.RED));
         }
     }
 
