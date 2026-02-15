@@ -38,12 +38,21 @@ import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
+import java.io.File;
+import java.io.IOException;
+import com.lunar_prototype.deepwither.dynamic_quest.obj.QuestLocation;
+
 @DependsOn({SafeZoneListener.class})
 public class DynamicQuestManager implements IManager, Listener {
 
     private final Deepwither plugin;
     private final DialogueGenerator dialogueGenerator;
     private final List<QuestNPC> activeNPCs = new ArrayList<>();
+    private final Map<QuestType, List<QuestLocation>> questLocations = new HashMap<>();
+    private File locationsFile;
+    private FileConfiguration locationsConfig;
     private BukkitTask spawnTask;
     private final Random random = new Random();
 
@@ -59,6 +68,7 @@ public class DynamicQuestManager implements IManager, Listener {
     @Override
     public void init() {
         cleanupOldNPCs();
+        loadLocations();
         Bukkit.getPluginManager().registerEvents(this, plugin);
         startSpawnTask();
     }
@@ -67,6 +77,87 @@ public class DynamicQuestManager implements IManager, Listener {
     public void shutdown() {
         stopSpawnTask();
         despawnAll();
+    }
+
+    private void loadLocations() {
+        questLocations.clear();
+        locationsFile = new File(plugin.getDataFolder(), "dynamic_quest_locations.yml");
+        if (!locationsFile.exists()) {
+            try {
+                locationsFile.createNewFile();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        locationsConfig = YamlConfiguration.loadConfiguration(locationsFile);
+
+        for (QuestType type : QuestType.values()) {
+            List<?> list = locationsConfig.getList("locations." + type.name());
+            if (list != null) {
+                List<QuestLocation> qLocs = new ArrayList<>();
+                for (Object obj : list) {
+                    if (obj instanceof QuestLocation) {
+                        qLocs.add((QuestLocation) obj);
+                    }
+                }
+                questLocations.put(type, qLocs);
+            }
+        }
+        plugin.getLogger().info("[DynamicQuest] Loaded " + questLocations.values().stream().mapToInt(List::size).sum() + " custom locations.");
+    }
+
+    public void saveLocations() {
+        for (Map.Entry<QuestType, List<QuestLocation>> entry : questLocations.entrySet()) {
+            locationsConfig.set("locations." + entry.getKey().name(), entry.getValue());
+        }
+        try {
+            locationsConfig.save(locationsFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void addQuestLocation(QuestType type, QuestLocation loc) {
+        List<QuestLocation> list = questLocations.computeIfAbsent(type, k -> new ArrayList<>());
+        // Remove old if exists
+        list.removeIf(l -> l.getName().equalsIgnoreCase(loc.getName()));
+        list.add(loc);
+        saveLocations();
+    }
+
+    public QuestLocation getQuestLocation(QuestType type, String name) {
+        List<QuestLocation> list = questLocations.get(type);
+        if (list == null) return null;
+        return list.stream().filter(l -> l.getName().equalsIgnoreCase(name)).findFirst().orElse(null);
+    }
+
+    public int getLayerId(Location loc) {
+        if (!Bukkit.getPluginManager().isPluginEnabled("WorldGuard")) return 0;
+        RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+        RegionQuery query = container.createQuery();
+        ApplicableRegionSet set = query.getApplicableRegions(BukkitAdapter.adapt(loc));
+        int maxTier = 0;
+        for (ProtectedRegion region : set) {
+            String id = region.getId().toLowerCase();
+            // We ignore safezone check here because we want to know the "surrounding" layer even in safezone
+            int tierIndex = id.indexOf("t");
+            if (tierIndex != -1 && tierIndex + 1 < id.length()) {
+                char nextChar = id.charAt(tierIndex + 1);
+                if (Character.isDigit(nextChar)) {
+                    StringBuilder tierStr = new StringBuilder();
+                    int i = tierIndex + 1;
+                    while (i < id.length() && Character.isDigit(id.charAt(i))) {
+                        tierStr.append(id.charAt(i));
+                        i++;
+                    }
+                    try {
+                        int tier = Integer.parseInt(tierStr.toString());
+                        if (tier > maxTier) maxTier = tier;
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+        }
+        return maxTier;
     }
 
     private void cleanupOldNPCs() {
@@ -89,6 +180,7 @@ public class DynamicQuestManager implements IManager, Listener {
     }
 
     public void reload() {
+        loadLocations();
         refreshNPCs();
     }
 
@@ -177,13 +269,39 @@ public class DynamicQuestManager implements IManager, Listener {
         // Determine difficulty based on some logic, random for now
         QuestDifficulty difficulty = type.getDefaultDifficulty(); 
 
-        // Generate Target Location (Placeholder logic: 100-500 blocks away)
-        double angle = random.nextDouble() * 2 * Math.PI;
-        double distance = 100 + random.nextDouble() * 400;
-        int dx = (int) (Math.cos(angle) * distance);
-        int dz = (int) (Math.sin(angle) * distance);
-        Location target = location.clone().add(dx, 0, dz);
-        target.setY(target.getWorld().getHighestBlockYAt(target.getBlockX(), target.getBlockZ()) + 1);
+        int npcLayer = getLayerId(location);
+
+        // Try to pick a custom location
+        Location target = null;
+        Location startLocForEvent = null;
+        List<QuestLocation> qLocs = questLocations.get(type);
+        if (qLocs != null && !qLocs.isEmpty()) {
+            // Filter by layer
+            List<QuestLocation> layerLocs = qLocs.stream()
+                    .filter(l -> l.getLayerId() == npcLayer)
+                    .collect(Collectors.toList());
+
+            if (!layerLocs.isEmpty()) {
+                QuestLocation chosen = layerLocs.get(random.nextInt(layerLocs.size()));
+                target = chosen.getPos();
+                if (type == QuestType.RAID) {
+                    startLocForEvent = chosen.getPos();
+                    target = chosen.getPos2() != null ? chosen.getPos2() : chosen.getPos();
+                }
+            } else if (npcLayer > 0) {
+                plugin.getLogger().warning("[DynamicQuest] No locations found for type " + type + " in Layer " + npcLayer + ". Falling back to random generation.");
+            }
+        }
+
+        if (target == null) {
+            // Generate Target Location (Placeholder logic: 100-500 blocks away)
+            double angle = random.nextDouble() * 2 * Math.PI;
+            double distance = 100 + random.nextDouble() * 400;
+            int dx = (int) (Math.cos(angle) * distance);
+            int dz = (int) (Math.sin(angle) * distance);
+            target = location.clone().add(dx, 0, dz);
+            target.setY(target.getWorld().getHighestBlockYAt(target.getBlockX(), target.getBlockZ()) + 1);
+        }
 
         String text = dialogueGenerator.generate(persona, type, target);
         
@@ -192,6 +310,10 @@ public class DynamicQuestManager implements IManager, Listener {
         double reward = baseReward * difficulty.getRewardMultiplier();
 
         DynamicQuest quest = new DynamicQuest(type, difficulty, persona, text, target, "クエスト詳細", reward);
+        if (startLocForEvent != null) {
+            quest.setStartLocation(startLocForEvent);
+        }
+        
         QuestNPC npc = new QuestNPC(quest, location);
         npc.spawn();
         activeNPCs.add(npc);
@@ -271,12 +393,15 @@ public class DynamicQuestManager implements IManager, Listener {
 
         if (quest.getType() == QuestType.RAID) {
             // Start Raid Event
-            // Start point: near player
-            Location start = player.getLocation().add(random.nextInt(20) - 10, 0, random.nextInt(20) - 10);
-            start.setY(start.getWorld().getHighestBlockYAt(start.getBlockX(), start.getBlockZ()) + 1);
+            Location start = quest.getStartLocation();
+            if (start == null) {
+                // Fallback: near player
+                start = player.getLocation().add(random.nextInt(20) - 10, 0, random.nextInt(20) - 10);
+                start.setY(start.getWorld().getHighestBlockYAt(start.getBlockX(), start.getBlockZ()) + 1);
+            }
             
             new SupplyConvoyEvent(plugin, start, quest.getTargetLocation()).start();
-            player.sendMessage(Component.text(">> 補給部隊が近くに出現した！追跡して襲撃しろ！", NamedTextColor.RED));
+            player.sendMessage(Component.text(">> 補給部隊が移動を開始した！追跡して襲撃しろ！", NamedTextColor.RED));
         } else {
             // Handle other types (Placeholder)
             player.sendMessage(Component.text(">> 指定地点へ向かい、任務を遂行せよ。(未実装: " + quest.getType().name() + ")", NamedTextColor.YELLOW));

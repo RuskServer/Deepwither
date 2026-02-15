@@ -436,6 +436,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         ConfigurationSerialization.registerClass(LocationDetails.class);
         ConfigurationSerialization.registerClass(GeneratedQuest.class);
         ConfigurationSerialization.registerClass(DailyTaskData.class);
+        ConfigurationSerialization.registerClass(com.lunar_prototype.deepwither.dynamic_quest.obj.QuestLocation.class);
 
         // loadSafeZoneSpawns(); // Moved to SafeZoneListener
 
@@ -558,7 +559,9 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         ClanCommand clanCommand = new ClanCommand(clanManager);
         getCommand("clan").setExecutor(clanCommand);
         getCommand("clan").setTabCompleter(clanCommand);
-        getCommand("dq").setExecutor(new com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestCommand(dynamicQuestManager));
+        com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestCommand dqCmd = new com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestCommand(dynamicQuestManager);
+        getCommand("dq").setExecutor(dqCmd);
+        getCommand("dq").setTabCompleter(new com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestTabCompleter());
         getCommand("deepwither").setExecutor(new DeepwitherCommand(this));
     }
 

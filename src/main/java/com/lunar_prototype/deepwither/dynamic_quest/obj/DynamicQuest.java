@@ -17,6 +17,7 @@ public class DynamicQuest {
     private final String objectiveDescription;
     private final double rewardAmount; // Assuming credit/money
     private final long expireTime;
+    private Location startLocation;
 
     public DynamicQuest(QuestType type, QuestDifficulty difficulty, QuestPersona persona, String generatedDialogue, Location targetLocation, String objectiveDescription, double rewardAmount) {
         this.questId = UUID.randomUUID();
@@ -52,6 +53,14 @@ public class DynamicQuest {
 
     public Location getTargetLocation() {
         return targetLocation;
+    }
+
+    public Location getStartLocation() {
+        return startLocation;
+    }
+
+    public void setStartLocation(Location startLocation) {
+        this.startLocation = startLocation;
     }
 
     public String getObjectiveDescription() {
