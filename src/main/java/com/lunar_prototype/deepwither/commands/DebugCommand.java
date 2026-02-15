@@ -26,6 +26,7 @@ public class DebugCommand implements DeepwitherCommand {
     @Override
     public LiteralCommandNode<CommandSourceStack> node() {
         return literal(name())
+            .requires(source -> !(source.getSender() instanceof Player player) || player.hasPermission("deepwither.admin"))
             .then(argument("player", ArgumentTypes.player())
                 .then(literal("heal")
                     .then(literal("hp").executes(DebugCommand::healHp))
