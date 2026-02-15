@@ -114,6 +114,8 @@ public class DynamicQuestCommand implements CommandExecutor {
             manager.acceptQuest(player, questId);
         } else if (action.equals("decline")) {
             manager.declineQuest(player, questId);
+        } else if (action.equals("report")) {
+            manager.reportQuest(player, questId);
         }
 
         return true;

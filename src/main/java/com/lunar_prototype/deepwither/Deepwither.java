@@ -645,6 +645,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.ai = register(new EMDALanguageAI(this));
         this.aiEngine = register(new SeekerAIEngine());
         this.outpostManager = register(new OutpostManager(this));
+        this.dynamicQuestManager = register(new com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestManager(this));
 
         // --- UI & Listeners (Managed) ---
         this.artifactGUI = register(new ArtifactGUI());
@@ -699,7 +700,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         register(new BackpackListener(this,backpackManager));
         register(new CombatExperienceListener(this));
         register(new SeekerAIEngine());
-        register(new MobSpawnManager(this, playerQuestManager));
+        this.mobSpawnManager = register(new MobSpawnManager(this, playerQuestManager));
         register(new RegenTask(this));
         register(new MarketApiController(this));
         register(new PlayerInventoryRestrictor(this));

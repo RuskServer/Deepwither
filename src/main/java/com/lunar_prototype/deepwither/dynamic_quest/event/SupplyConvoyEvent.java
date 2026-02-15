@@ -1,6 +1,7 @@
 package com.lunar_prototype.deepwither.dynamic_quest.event;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.dynamic_quest.obj.DynamicQuest;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;
@@ -20,18 +21,20 @@ import java.util.List;
 
 public class SupplyConvoyEvent {
 
-    private final Deepwither plugin;
     private final Location startLocation;
     private final Location endLocation;
     private final List<LivingEntity> convoyMembers = new ArrayList<>();
+    private final DynamicQuest quest;
     private LivingEntity leader;
     private BukkitTask task;
     private boolean isActive = false;
+    private Deepwither plugin;
 
-    public SupplyConvoyEvent(Deepwither plugin, Location start, Location end) {
+    public SupplyConvoyEvent(Deepwither plugin, Location start, Location end, DynamicQuest quest) {
         this.plugin = plugin;
         this.startLocation = start;
         this.endLocation = end;
+        this.quest = quest;
     }
 
     public void start() {
@@ -118,8 +121,10 @@ public class SupplyConvoyEvent {
         if (task != null) task.cancel();
 
         if (playerWon) {
-            plugin.getServer().broadcast(Component.text("[Event] 補給部隊が撃破されました！物資を奪いましょう。", NamedTextColor.GREEN));
-            // Loot is dropped naturally by Mule death
+            plugin.getServer().broadcast(Component.text("[Event] 補給部隊が撃破されました！NPCに報告しましょう。", NamedTextColor.GREEN));
+            quest.setObjectiveMet(true);
+            // Despawn guards but leave the mule drop
+            despawnMembers();
         } else {
             plugin.getServer().broadcast(Component.text("[Event] 補給部隊が目的地に到達しました...作戦失敗。", NamedTextColor.DARK_RED));
             despawnMembers();

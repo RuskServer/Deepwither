@@ -14,10 +14,28 @@ public class DynamicQuest {
     private final QuestPersona persona;
     private final String generatedDialogue;
     private final Location targetLocation;
-    private final String objectiveDescription;
+
+    public void setObjectiveDescription(String objectiveDescription) {
+        this.objectiveDescription = objectiveDescription;
+    }
+
+    private String objectiveDescription;
     private final double rewardAmount; // Assuming credit/money
     private final long expireTime;
     private Location startLocation;
+    private UUID assignee;
+    private QuestStatus status;
+    private boolean objectiveMet = false;
+
+    // Objective details
+    private org.bukkit.inventory.ItemStack targetItem;
+    private int targetAmount;
+    private String targetMobId;
+    private int progressCount = 0;
+
+    public enum QuestStatus {
+        CREATED, ACTIVE, COMPLETED
+    }
 
     public DynamicQuest(QuestType type, QuestDifficulty difficulty, QuestPersona persona, String generatedDialogue, Location targetLocation, String objectiveDescription, double rewardAmount) {
         this.questId = UUID.randomUUID();
@@ -29,6 +47,7 @@ public class DynamicQuest {
         this.objectiveDescription = objectiveDescription;
         this.rewardAmount = rewardAmount;
         this.expireTime = System.currentTimeMillis() + (1000 * 60 * 30); // 30 minutes to accept? Or complete?
+        this.status = QuestStatus.CREATED;
     }
 
     public UUID getQuestId() {
@@ -61,6 +80,62 @@ public class DynamicQuest {
 
     public void setStartLocation(Location startLocation) {
         this.startLocation = startLocation;
+    }
+
+    public UUID getAssignee() {
+        return assignee;
+    }
+
+    public void setAssignee(UUID assignee) {
+        this.assignee = assignee;
+    }
+
+    public QuestStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(QuestStatus status) {
+        this.status = status;
+    }
+
+    public boolean isObjectiveMet() {
+        return objectiveMet;
+    }
+
+    public void setObjectiveMet(boolean objectiveMet) {
+        this.objectiveMet = objectiveMet;
+    }
+
+    public org.bukkit.inventory.ItemStack getTargetItem() {
+        return targetItem;
+    }
+
+    public void setTargetItem(org.bukkit.inventory.ItemStack targetItem) {
+        this.targetItem = targetItem;
+    }
+
+    public int getTargetAmount() {
+        return targetAmount;
+    }
+
+    public void setTargetAmount(int targetAmount) {
+        this.targetAmount = targetAmount;
+    }
+
+    public String getTargetMobId() {
+        return targetMobId;
+    }
+
+    public void setTargetMobId(String targetMobId) {
+        this.targetMobId = targetMobId;
+    }
+
+    public int getProgressCount() {
+        return progressCount;
+    }
+
+    public void setProgressCount(int progressCount) {
+        this.progressCount = progressCount;
     }
 
     public String getObjectiveDescription() {

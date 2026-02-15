@@ -27,6 +27,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -46,7 +47,16 @@ import java.io.File;
 import java.io.IOException;
 import com.lunar_prototype.deepwither.dynamic_quest.obj.QuestLocation;
 
-@DependsOn({SafeZoneListener.class})
+import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
+
+import io.lumine.mythic.bukkit.MythicBukkit;
+import com.lunar_prototype.deepwither.MobSpawnManager;
+import com.lunar_prototype.deepwither.api.DW;
+
+@DependsOn({SafeZoneListener.class, MobSpawnManager.class})
 public class DynamicQuestManager implements IManager, Listener {
 
     private final Deepwither plugin;
@@ -187,9 +197,15 @@ public class DynamicQuestManager implements IManager, Listener {
     }
 
     private void refreshNPCs() {
-        despawnAll();
-        cleanupOldNPCs();
-        
+        // Despawn only non-active NPCs
+        activeNPCs.removeIf(npc -> {
+            if (npc.getQuest().getStatus() == DynamicQuest.QuestStatus.CREATED) {
+                npc.despawn();
+                return true;
+            }
+            return false;
+        });
+
         // Find safe zones
         if (!Bukkit.getPluginManager().isPluginEnabled("WorldGuard")) {
             plugin.getLogger().warning("WorldGuard not enabled, cannot spawn Dynamic Quest NPCs.");
@@ -221,7 +237,7 @@ public class DynamicQuestManager implements IManager, Listener {
                 }
             }
         }
-        plugin.getLogger().info("[DynamicQuest] Spawning cycle complete. Found " + regionCount + " safezone regions. Spawned " + activeNPCs.size() + " NPCs.");
+        plugin.getLogger().info("[DynamicQuest] Spawning cycle complete. Found " + regionCount + " safezone regions. Total NPCs: " + activeNPCs.size());
     }
 
     private void startSpawnTask() {
@@ -311,7 +327,47 @@ public class DynamicQuestManager implements IManager, Listener {
         double baseReward = 100; // Base credits
         double reward = baseReward * difficulty.getRewardMultiplier();
 
-        DynamicQuest quest = new DynamicQuest(type, difficulty, persona, text, target, "クエスト詳細", reward);
+        String objectiveDesc = "クエスト目的";
+        DynamicQuest quest = new DynamicQuest(type, difficulty, persona, text, target, objectiveDesc, reward);
+
+        // Type specific initialization
+        switch (type) {
+            case FETCH:
+                Material[] mats = {Material.IRON_INGOT, Material.BREAD, Material.COPPER_INGOT, Material.COAL};
+                Material targetMat = mats[random.nextInt(mats.length)];
+                int amount = 3 + random.nextInt(8);
+                quest.setTargetItem(new ItemStack(targetMat));
+                quest.setTargetAmount(amount);
+                quest.setObjectiveDescription(targetMat.name() + " を " + amount + "個持ってくる");
+                break;
+            case DELIVERY:
+                ItemStack item = new ItemStack(Material.PAPER);
+                item.editMeta(meta -> meta.displayName(Component.text("重要書類", NamedTextColor.GOLD)));
+                quest.setTargetItem(item);
+                quest.setObjectiveDescription("指定地点まで 重要書類 を運ぶ");
+                break;
+            case ELIMINATE:
+                MobSpawnManager mobManager = DW.get(MobSpawnManager.class);
+                List<String> candidates = mobManager != null ? mobManager.getQuestCandidateMobIdsByTier(npcLayer) : new ArrayList<>();
+                
+                String targetMob = "ZOMBIE";
+                if (!candidates.isEmpty()) {
+                    targetMob = candidates.get(random.nextInt(candidates.size()));
+                }
+                
+                int killCount = 5 + random.nextInt(6); // 5-10 kills
+                quest.setTargetMobId(targetMob);
+                quest.setTargetAmount(killCount);
+                quest.setObjectiveDescription(targetMob + " を " + killCount + "体討伐する");
+                break;
+            case SCOUT:
+                quest.setObjectiveDescription("指定地点の状況を確認する");
+                break;
+            case RAID:
+                quest.setObjectiveDescription("移動中の補給部隊を襲撃し、輸送車を破壊する");
+                break;
+        }
+
         if (startLocForEvent != null) {
             quest.setStartLocation(startLocForEvent);
         }
@@ -354,24 +410,105 @@ public class DynamicQuestManager implements IManager, Listener {
     private void handleNPCInteraction(Player player, QuestNPC npc) {
         DynamicQuest quest = npc.getQuest();
         
-        // Display Dialogue
         player.sendMessage(Component.text("--------------------------------", NamedTextColor.GRAY));
         player.sendMessage(Component.text(quest.getPersona().getDisplayName(), NamedTextColor.YELLOW)
-                .append(Component.text(": ", NamedTextColor.GRAY))
-                .append(Component.text(quest.getGeneratedDialogue(), NamedTextColor.WHITE)));
-        
-        // Display Options
-        Component accept = Component.text("[受諾する]", NamedTextColor.GREEN)
-                .clickEvent(ClickEvent.runCommand("/dq accept " + quest.getQuestId()))
-                .hoverEvent(HoverEvent.showText(Component.text("クリックしてクエストを開始")));
-        
-        Component decline = Component.text("[拒否する]", NamedTextColor.RED)
-                .clickEvent(ClickEvent.runCommand("/dq decline " + quest.getQuestId())) // Placeholder command
-                .hoverEvent(HoverEvent.showText(Component.text("この話を忘れる")));
+                .append(Component.text(": ", NamedTextColor.GRAY)));
 
-        player.sendMessage(Component.empty());
-        player.sendMessage(accept.append(Component.text("  ")).append(decline));
+        if (quest.getStatus() == DynamicQuest.QuestStatus.CREATED) {
+            player.sendMessage(Component.text(quest.getGeneratedDialogue(), NamedTextColor.WHITE));
+            
+            Component accept = Component.text("[受諾する]", NamedTextColor.GREEN)
+                    .clickEvent(ClickEvent.runCommand("/dq accept " + quest.getQuestId()))
+                    .hoverEvent(HoverEvent.showText(Component.text("クリックしてクエストを開始")));
+            
+            Component decline = Component.text("[拒否する]", NamedTextColor.RED)
+                    .clickEvent(ClickEvent.runCommand("/dq decline " + quest.getQuestId()))
+                    .hoverEvent(HoverEvent.showText(Component.text("この話を忘れる")));
+
+            player.sendMessage(Component.empty());
+            player.sendMessage(accept.append(Component.text("  ")).append(decline));
+        } else if (quest.getStatus() == DynamicQuest.QuestStatus.ACTIVE) {
+            if (quest.getAssignee().equals(player.getUniqueId())) {
+                if (isQuestObjectiveComplete(quest)) {
+                    player.sendMessage(Component.text("よくやってくれた！これが約束の報酬だ。", NamedTextColor.WHITE));
+                    Component report = Component.text("[報告する]", NamedTextColor.GOLD)
+                            .clickEvent(ClickEvent.runCommand("/dq report " + quest.getQuestId()))
+                            .hoverEvent(HoverEvent.showText(Component.text("クリックして報酬を受け取り、クエストを完了する")));
+                    player.sendMessage(Component.empty());
+                    player.sendMessage(report);
+                } else {
+                    player.sendMessage(Component.text("まだ終わっていないようだな。急いでくれ。", NamedTextColor.WHITE));
+                    player.sendMessage(Component.text("目標地点: " + quest.getTargetLocation().getBlockX() + ", " + quest.getTargetLocation().getBlockZ(), NamedTextColor.GRAY));
+                }
+            } else {
+                player.sendMessage(Component.text("他を当たってくれ。先客がいるんでな。", NamedTextColor.GRAY));
+            }
+        }
         player.sendMessage(Component.text("--------------------------------", NamedTextColor.GRAY));
+    }
+
+    @EventHandler
+    public void onPlayerMove(PlayerMoveEvent event) {
+        Player player = event.getPlayer();
+        UUID uuid = player.getUniqueId();
+
+        for (QuestNPC npc : activeNPCs) {
+            DynamicQuest quest = npc.getQuest();
+            if (quest.getStatus() == DynamicQuest.QuestStatus.ACTIVE && uuid.equals(quest.getAssignee())) {
+                if (quest.getType() == QuestType.SCOUT || quest.getType() == QuestType.DELIVERY) {
+                    if (quest.isObjectiveMet()) continue;
+                    
+                    if (player.getLocation().distanceSquared(quest.getTargetLocation()) < 100) { // 10 blocks
+                        quest.setObjectiveMet(true);
+                        player.sendMessage(Component.text(">> クエスト目標地点に到達しました！NPCに報告してください。", NamedTextColor.GOLD));
+                    }
+                }
+            }
+        }
+    }
+
+    @EventHandler
+    public void onEntityDeath(EntityDeathEvent event) {
+        LivingEntity victim = event.getEntity();
+        Player killer = victim.getKiller();
+        if (killer == null) return;
+
+        String killedMobId = victim.getType().name();
+        
+        // MythicMob Check
+        if (Bukkit.getPluginManager().isPluginEnabled("MythicMobs")) {
+            var activeMob = MythicBukkit.inst().getMobManager().getActiveMob(victim.getUniqueId());
+            if (activeMob.isPresent()) {
+                killedMobId = activeMob.get().getMobType();
+            }
+        }
+
+        for (QuestNPC npc : activeNPCs) {
+            DynamicQuest quest = npc.getQuest();
+            if (quest.getStatus() == DynamicQuest.QuestStatus.ACTIVE && killer.getUniqueId().equals(quest.getAssignee())) {
+                if (quest.getType() == QuestType.ELIMINATE) {
+                    if (quest.isObjectiveMet()) continue;
+
+                    if (killedMobId.equalsIgnoreCase(quest.getTargetMobId())) {
+                        quest.setProgressCount(quest.getProgressCount() + 1);
+                        if (quest.getProgressCount() >= quest.getTargetAmount()) {
+                            quest.setObjectiveMet(true);
+                            killer.sendMessage(Component.text(">> ターゲットの排除が完了しました！NPCに報告してください。", NamedTextColor.GOLD));
+                        } else {
+                            killer.sendMessage(Component.text(">> " + quest.getTargetMobId() + " を排除 (" + quest.getProgressCount() + "/" + quest.getTargetAmount() + ")", NamedTextColor.YELLOW));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private boolean isQuestObjectiveComplete(DynamicQuest quest) {
+        if (quest.getType() == QuestType.FETCH) {
+            // Fetch is checked at the moment of reporting (inventory check)
+            return true; // We return true here so handleNPCInteraction shows the [Report] button, but reportQuest will do the final check.
+        }
+        return quest.isObjectiveMet();
     }
 
     // --- Command Handling ---
@@ -388,25 +525,75 @@ public class DynamicQuestManager implements IManager, Listener {
 
         QuestNPC npc = npcOpt.get();
         DynamicQuest quest = npc.getQuest();
-        activeNPCs.remove(npc);
-        npc.despawn(); // Remove NPC on accept (or keep it?) - Removing for now as per "One-off" style or let's say they leave.
+        
+        if (quest.getStatus() != DynamicQuest.QuestStatus.CREATED) {
+            player.sendMessage(Component.text("このクエストは既に受諾されています。", NamedTextColor.RED));
+            return;
+        }
+
+        quest.setStatus(DynamicQuest.QuestStatus.ACTIVE);
+        quest.setAssignee(player.getUniqueId());
 
         player.sendMessage(Component.text("クエストを受諾しました！", NamedTextColor.GREEN));
 
         if (quest.getType() == QuestType.RAID) {
-            // Start Raid Event
             Location start = quest.getStartLocation();
             if (start == null) {
-                // Fallback: near player
                 start = player.getLocation().add(random.nextInt(20) - 10, 0, random.nextInt(20) - 10);
                 start.setY(start.getWorld().getHighestBlockYAt(start.getBlockX(), start.getBlockZ()) + 1);
             }
             
-            new SupplyConvoyEvent(plugin, start, quest.getTargetLocation()).start();
+            new SupplyConvoyEvent(plugin, start, quest.getTargetLocation(), quest).start();
             player.sendMessage(Component.text(">> 補給部隊が移動を開始した！追跡して襲撃しろ！", NamedTextColor.RED));
+        } else if (quest.getType() == QuestType.DELIVERY) {
+            if (quest.getTargetItem() != null) {
+                player.getInventory().addItem(quest.getTargetItem().clone());
+                player.sendMessage(Component.text(">> 配送品を受け取りました。指定地点へ届けてください。", NamedTextColor.YELLOW));
+            }
         } else {
-            // Handle other types (Placeholder)
-            player.sendMessage(Component.text(">> 指定地点へ向かい、任務を遂行せよ。(未実装: " + quest.getType().name() + ")", NamedTextColor.YELLOW));
+            player.sendMessage(Component.text(">> クエストを開始しました。目標: " + quest.getObjectiveDescription(), NamedTextColor.YELLOW));
+        }
+    }
+
+    public void reportQuest(Player player, UUID questId) {
+        Optional<QuestNPC> npcOpt = activeNPCs.stream()
+                .filter(n -> n.getQuest().getQuestId().equals(questId))
+                .findFirst();
+
+        if (npcOpt.isEmpty()) return;
+
+        QuestNPC npc = npcOpt.get();
+        DynamicQuest quest = npc.getQuest();
+
+        if (quest.getStatus() == DynamicQuest.QuestStatus.ACTIVE && player.getUniqueId().equals(quest.getAssignee())) {
+            
+            // Special check for FETCH
+            if (quest.getType() == QuestType.FETCH) {
+                ItemStack target = quest.getTargetItem();
+                int amount = quest.getTargetAmount();
+                if (!player.getInventory().containsAtLeast(target, amount)) {
+                    player.sendMessage(Component.text("必要なアイテム (" + target.getType().name() + " x" + amount + ") が足りません。", NamedTextColor.RED));
+                    return;
+                }
+                // Remove items
+                ItemStack toRemove = target.clone();
+                toRemove.setAmount(amount);
+                player.getInventory().removeItem(toRemove);
+            }
+
+            if (isQuestObjectiveComplete(quest)) {
+                quest.setStatus(DynamicQuest.QuestStatus.COMPLETED);
+                
+                // Give reward
+                Deepwither.getEconomy().depositPlayer(player, quest.getRewardAmount());
+                player.sendMessage(Component.text("クエスト完了！報酬として " + quest.getRewardAmount() + " クレジットを獲得しました。", NamedTextColor.GREEN));
+                
+                // Despawn NPC
+                activeNPCs.remove(npc);
+                npc.despawn();
+            } else {
+                player.sendMessage(Component.text("まだ報告できる段階ではありません。", NamedTextColor.RED));
+            }
         }
     }
 
