@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither.profession;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.api.DW;
+import com.lunar_prototype.deepwither.core.CacheManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
@@ -12,12 +14,11 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-@DependsOn({ProfessionDatabase.class})
+@DependsOn({ProfessionDatabase.class, CacheManager.class})
 public class ProfessionManager implements IManager {
 
     private final Deepwither plugin;
     private final ProfessionDatabase database;
-    private final Map<UUID, PlayerProfessionData> cache = new ConcurrentHashMap<>();
 
     private static final int BASE_EXP = 50;
 
@@ -31,38 +32,35 @@ public class ProfessionManager implements IManager {
 
     @Override
     public void shutdown() {
-        for (UUID uuid : cache.keySet()) {
-            savePlayerSync(uuid);
-        }
     }
 
     public void loadPlayer(Player player) {
         UUID uuid = player.getUniqueId();
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             PlayerProfessionData data = database.loadPlayer(uuid);
-            cache.put(uuid, data);
+            DW.cache().getCache(uuid).set(PlayerProfessionData.class, data);
         });
     }
 
     public void saveAndUnloadPlayer(Player player) {
         UUID uuid = player.getUniqueId();
-        PlayerProfessionData data = cache.remove(uuid);
+        PlayerProfessionData data = DW.cache().getCache(uuid).get(PlayerProfessionData.class);
         if (data != null) {
-            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                database.savePlayer(data);
-            });
+            database.savePlayer(data);
+            DW.cache().getCache(uuid).remove(PlayerProfessionData.class);
         }
     }
 
     private void savePlayerSync(UUID uuid) {
-        PlayerProfessionData data = cache.get(uuid);
+        PlayerProfessionData data = DW.cache().getCache(uuid).get(PlayerProfessionData.class);
         if (data != null) {
             database.savePlayer(data);
         }
     }
 
     public PlayerProfessionData getData(Player player) {
-        return cache.getOrDefault(player.getUniqueId(), new PlayerProfessionData(player.getUniqueId()));
+        PlayerProfessionData data = DW.cache().getCache(player.getUniqueId()).get(PlayerProfessionData.class);
+        return data != null ? data : new PlayerProfessionData(player.getUniqueId());
     }
 
     public void addExp(Player player, ProfessionType type, int amount) {

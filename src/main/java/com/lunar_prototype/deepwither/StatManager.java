@@ -243,7 +243,7 @@ public class StatManager implements IManager, IStatManager {
             }
         }
 
-        SkilltreeManager.SkillData skillData = Deepwither.getInstance().getSkilltreeManager().load(player.getUniqueId());
+        SkillData skillData = Deepwither.getInstance().getSkilltreeManager().load(player.getUniqueId());
         if (skillData != null) {
             total.add(skillData.getPassiveStats());
         }

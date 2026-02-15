@@ -2,6 +2,7 @@ package com.lunar_prototype.deepwither.api;
 
 import com.lunar_prototype.deepwither.api.database.IDatabaseManager;
 import com.lunar_prototype.deepwither.api.stat.IStatManager;
+import com.lunar_prototype.deepwither.core.playerdata.PlayerDataManager;
 import org.bukkit.entity.Player;
 
 /**
@@ -24,6 +25,20 @@ public final class DW {
      */
     public static IDatabaseManager db() {
         return api.getDatabaseManager();
+    }
+
+    /**
+     * キャッシュ管理APIへアクセスします。
+     */
+    public static com.lunar_prototype.deepwither.core.CacheManager cache() {
+        return api.getCacheManager();
+    }
+
+    /**
+     * プレイヤーデータ管理APIへアクセスします。
+     */
+    public static PlayerDataManager player() {
+        return api.getPlayerDataManager();
     }
 
     /**

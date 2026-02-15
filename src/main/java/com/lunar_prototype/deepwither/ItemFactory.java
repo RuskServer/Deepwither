@@ -515,7 +515,7 @@ public class ItemFactory implements CommandExecutor, TabCompleter, IManager, IIt
             try {
                 int amount = Integer.parseInt(args[1]);
                 UUID uuid = player.getUniqueId();
-                SkilltreeManager.SkillData data = Deepwither.getInstance().getSkilltreeManager().load(uuid);
+                SkillData data = Deepwither.getInstance().getSkilltreeManager().load(uuid);
                 if (data != null) {
                     data.setSkillPoint(data.getSkillPoint() + amount);
                     Deepwither.getInstance().getSkilltreeManager().save(uuid, data);

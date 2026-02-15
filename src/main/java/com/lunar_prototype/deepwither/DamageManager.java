@@ -196,7 +196,7 @@ public class DamageManager implements Listener, IManager {
 
     private void applyComboAndCooldown(Player attacker, DamageContext context) {
         long currentTime = System.currentTimeMillis();
-        SkilltreeManager.SkillData skillData = Deepwither.getInstance().getSkilltreeManager().load(attacker.getUniqueId());
+        SkillData skillData = Deepwither.getInstance().getSkilltreeManager().load(attacker.getUniqueId());
         
         if (skillData.hasSpecialEffect("COMBO_DAMAGE")) {
             double comboValue = skillData.getSpecialEffectValue("COMBO_DAMAGE");

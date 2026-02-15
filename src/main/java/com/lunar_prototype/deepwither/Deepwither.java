@@ -10,9 +10,11 @@ import com.lunar_prototype.deepwither.companion.CompanionCommand;
 import com.lunar_prototype.deepwither.companion.CompanionGuiListener;
 import com.lunar_prototype.deepwither.companion.CompanionListener;
 import com.lunar_prototype.deepwither.companion.CompanionManager;
+import com.lunar_prototype.deepwither.core.CacheManager;
 import com.lunar_prototype.deepwither.core.damage.DamageProcessor;
 import com.lunar_prototype.deepwither.core.listener.MythicMechanicListener;
 import com.lunar_prototype.deepwither.core.listener.PlayerConnectionListener;
+import com.lunar_prototype.deepwither.core.playerdata.PlayerDataManager;
 import com.lunar_prototype.deepwither.crafting.CraftingGUI;
 import com.lunar_prototype.deepwither.crafting.CraftingListener;
 import com.lunar_prototype.deepwither.crafting.CraftingManager;
@@ -118,6 +120,8 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
 
     private ServiceManager serviceManager;
     private FileConfiguration questConfig;
+    private CacheManager cacheManager;
+    private PlayerDataManager playerDataManager;
     private LevelManager levelManager;
     private AttributeManager attributeManager;
     private SkilltreeManager skilltreeManager;
@@ -314,6 +318,14 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
 
     public ArtifactManager getArtifactManager() {
         return artifactManager;
+    }
+
+    public CacheManager getCacheManager() {
+        return cacheManager;
+    }
+
+    public PlayerDataManager getPlayerDataManager() {
+        return playerDataManager;
     }
 
     public ArtifactGUIListener getArtifactGUIListener() {
@@ -582,6 +594,10 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     }
 
     private void setupManagers() {
+        // --- Core ---
+        this.cacheManager = register(new CacheManager());
+        this.playerDataManager = register(new PlayerDataManager(this));
+
         // --- Group A & B & Base ---
         this.attributeManager = register(new AttributeManager(databaseManager));
         this.levelManager = register(new LevelManager(databaseManager));

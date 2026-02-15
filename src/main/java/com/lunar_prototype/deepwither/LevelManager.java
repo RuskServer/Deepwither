@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.api.DW;
+import com.lunar_prototype.deepwither.core.CacheManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
@@ -14,11 +16,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-@DependsOn({DatabaseManager.class})
+@DependsOn({DatabaseManager.class, CacheManager.class})
 public class LevelManager implements IManager {
     private static final int MAX_LEVEL = 50;
 
-    private final Map<UUID, PlayerLevelData> dataMap = new HashMap<>();
     private final DatabaseManager db;
 
     public LevelManager(DatabaseManager db) {
@@ -33,19 +34,21 @@ public class LevelManager implements IManager {
              PreparedStatement ps = conn.prepareStatement("SELECT level, exp FROM player_levels WHERE uuid = ?")) {
             ps.setString(1, uuid.toString());
             try (ResultSet rs = ps.executeQuery()) {
+                PlayerLevelData data;
                 if (rs.next()) {
                     int level = Math.min(rs.getInt("level"), MAX_LEVEL);
                     double exp = rs.getDouble("exp");
-                    dataMap.put(uuid, new PlayerLevelData(level, exp));
+                    data = new PlayerLevelData(level, exp);
                 } else {
-                    dataMap.put(uuid, new PlayerLevelData(1, 0));
+                    data = new PlayerLevelData(1, 0);
                     Deepwither.getInstance().getAttributeManager().givePoints(uuid, 2);
-                    SkilltreeManager.SkillData skilldata = Deepwither.getInstance().getSkilltreeManager().load(uuid);
+                    SkillData skilldata = Deepwither.getInstance().getSkilltreeManager().load(uuid);
                     if (skilldata != null) {
                         skilldata.setSkillPoint(skilldata.getSkillPoint() + 2);
                         Deepwither.getInstance().getSkilltreeManager().save(uuid, skilldata);
                     }
                 }
+                DW.cache().getCache(uuid).set(PlayerLevelData.class, data);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -53,7 +56,7 @@ public class LevelManager implements IManager {
     }
 
     public void save(UUID uuid) {
-        PlayerLevelData data = dataMap.get(uuid);
+        PlayerLevelData data = get(uuid);
         if (data == null) return;
 
         int level = Math.min(data.getLevel(), MAX_LEVEL);
@@ -74,7 +77,7 @@ public class LevelManager implements IManager {
     }
 
     public void addExp(Player player, double amount) {
-        PlayerLevelData data = dataMap.get(player.getUniqueId());
+        PlayerLevelData data = get(player.getUniqueId());
         if (data == null || data.getLevel() >= MAX_LEVEL) return;
 
         int before = data.getLevel();
@@ -116,7 +119,7 @@ public class LevelManager implements IManager {
             Deepwither.getInstance().getAttributeManager().givePoints(player.getUniqueId(), attrPoints);
 
             UUID uuid = player.getUniqueId();
-            SkilltreeManager.SkillData skilldata = Deepwither.getInstance().getSkilltreeManager().load(uuid);
+            SkillData skilldata = Deepwither.getInstance().getSkilltreeManager().load(uuid);
             if (skilldata != null) {
                 skilldata.setSkillPoint(skilldata.getSkillPoint() + skillPoints);
                 Deepwither.getInstance().getSkilltreeManager().save(uuid, skilldata);
@@ -135,7 +138,7 @@ public class LevelManager implements IManager {
     }
 
     public void updatePlayerDisplay(Player player) {
-        PlayerLevelData data = dataMap.get(player.getUniqueId());
+        PlayerLevelData data = get(player.getUniqueId());
         int currentLevel = data.getLevel();
         double currentExp = data.getExp();
         double expToNextLevel = data.getRequiredExp();
@@ -147,7 +150,7 @@ public class LevelManager implements IManager {
     public void resetLevel(Player player) {
         UUID uuid = player.getUniqueId();
         PlayerLevelData initialData = new PlayerLevelData(1, 0);
-        dataMap.put(uuid, initialData);
+        DW.cache().getCache(uuid).set(PlayerLevelData.class, initialData);
         save(uuid);
 
         Component separator = Component.text("--------------------------------------", NamedTextColor.RED).decoration(TextDecoration.STRIKETHROUGH, true);
@@ -163,7 +166,7 @@ public class LevelManager implements IManager {
         updatePlayerDisplay(player);
 
         Deepwither.getInstance().getSkilltreeManager().resetSkillTree(player.getUniqueId());
-        SkilltreeManager.SkillData skilldata = Deepwither.getInstance().getSkilltreeManager().load(player.getUniqueId());
+        SkillData skilldata = Deepwither.getInstance().getSkilltreeManager().load(player.getUniqueId());
         skilldata.setSkillPoint(0);
         Deepwither.getInstance().getSkilltreeManager().save(player.getUniqueId(), skilldata);
         PlayerAttributeData data = Deepwither.getInstance().getAttributeManager().get(uuid);
@@ -176,11 +179,15 @@ public class LevelManager implements IManager {
     }
 
     public PlayerLevelData get(Player player) {
-        return dataMap.get(player.getUniqueId());
+        return get(player.getUniqueId());
+    }
+
+    public PlayerLevelData get(UUID uuid) {
+        return DW.cache().getCache(uuid).get(PlayerLevelData.class);
     }
 
     public void unload(UUID uuid) {
         save(uuid);
-        dataMap.remove(uuid);
+        DW.cache().getCache(uuid).remove(PlayerLevelData.class);
     }
 }

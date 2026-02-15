@@ -2,6 +2,7 @@ package com.lunar_prototype.deepwither.api;
 
 import com.lunar_prototype.deepwither.api.database.IDatabaseManager;
 import com.lunar_prototype.deepwither.api.stat.IStatManager;
+import com.lunar_prototype.deepwither.core.playerdata.PlayerDataManager;
 
 /**
  * Deepwitherの提供する全機能にアクセスするためのメインAPIエントリポイント。
@@ -26,6 +27,18 @@ public interface DeepwitherAPI {
      * @return IDatabaseManager
      */
     IDatabaseManager getDatabaseManager();
+
+    /**
+     * キャッシュ管理マネージャーを取得します。
+     * @return CacheManager
+     */
+    com.lunar_prototype.deepwither.core.CacheManager getCacheManager();
+
+    /**
+     * プレイヤーデータ一括管理マネージャーを取得します。
+     * @return PlayerDataManager
+     */
+    PlayerDataManager getPlayerDataManager();
 
     /**
      * アイテム管理マネージャーを取得します。

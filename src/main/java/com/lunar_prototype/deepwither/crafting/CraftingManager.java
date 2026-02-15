@@ -3,6 +3,8 @@ package com.lunar_prototype.deepwither.crafting;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.FabricationGrade;
 import com.lunar_prototype.deepwither.ItemFactory;
+import com.lunar_prototype.deepwither.api.DW;
+import com.lunar_prototype.deepwither.core.CacheManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
@@ -22,14 +24,13 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-@DependsOn({ItemFactory.class})
+@DependsOn({ItemFactory.class, CacheManager.class})
 public class CraftingManager implements IManager {
 
     private final Deepwither plugin;
     private CraftingDataStore dataStore;
     private PlayerRecipeJsonStore recipeStore;
     private final Map<String, CraftingRecipe> recipes = new HashMap<>();
-    private final Map<UUID, CraftingData> sessionCache = new ConcurrentHashMap<>();
 
     private NamespacedKey customIdKey;
     public static final NamespacedKey BLUEPRINT_KEY = new NamespacedKey(Deepwither.getInstance(), "blueprint_recipe_id");
@@ -48,9 +49,6 @@ public class CraftingManager implements IManager {
 
     @Override
     public void shutdown() {
-        for (UUID uuid : new HashSet<>(sessionCache.keySet())) {
-            saveAndUnloadPlayer(uuid);
-        }
     }
 
     public void loadRecipes() {
@@ -137,21 +135,23 @@ public class CraftingManager implements IManager {
         dataStore.loadData(player.getUniqueId()).thenAccept(data -> {
             recipeStore.loadUnlockedRecipes(player.getUniqueId()).thenAccept(unlocked -> {
                 data.setUnlockedRecipes(unlocked);
-                sessionCache.put(player.getUniqueId(), data);
+                DW.cache().getCache(player.getUniqueId()).set(CraftingData.class, data);
             });
         });
     }
 
     public void saveAndUnloadPlayer(UUID playerId) {
-        CraftingData data = sessionCache.remove(playerId);
+        CraftingData data = DW.cache().getCache(playerId).get(CraftingData.class);
         if (data != null) {
             dataStore.saveData(data);
             recipeStore.saveUnlockedRecipes(playerId, data.getUnlockedRecipes());
+            DW.cache().getCache(playerId).remove(CraftingData.class);
         }
     }
 
     public CraftingData getData(Player player) {
-        return sessionCache.getOrDefault(player.getUniqueId(), new CraftingData(player.getUniqueId()));
+        CraftingData data = DW.cache().getCache(player.getUniqueId()).get(CraftingData.class);
+        return data != null ? data : new CraftingData(player.getUniqueId());
     }
 
     public List<CraftingRecipe> getRecipesByGrade(FabricationGrade grade) {

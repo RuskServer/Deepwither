@@ -45,7 +45,7 @@ public class SkillAssignmentGUI implements Listener, IManager {
     public void open(Player player) {
         Inventory gui = Bukkit.createInventory(null, 54, Component.text("スキル割り当て", NamedTextColor.DARK_GREEN));
 
-        SkilltreeManager.SkillData data = Deepwither.getInstance().getSkilltreeManager().load(player.getUniqueId());
+        SkillData data = Deepwither.getInstance().getSkilltreeManager().load(player.getUniqueId());
         int index = 0;
         for (String skillId : data.getSkills().keySet()) {
             SkillDefinition skill = skillLoader.get(skillId);

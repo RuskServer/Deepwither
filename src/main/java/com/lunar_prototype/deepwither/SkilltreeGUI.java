@@ -182,7 +182,7 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
             return;
         }
 
-        SkilltreeManager.SkillData data = skilltreeManager.load(player.getUniqueId());
+        SkillData data = skilltreeManager.load(player.getUniqueId());
 
         Map<?, ?> starter = (Map<?, ?>) currentTree.get("starter");
         List<Map<?, ?>> nodes = (List<Map<?, ?>>) currentTree.get("nodes");
@@ -296,7 +296,7 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
     }
 
     private void handleSkillUnlock(Player player, String treeId, String skillId, int camX, int camY) {
-        SkilltreeManager.SkillData data = skilltreeManager.load(player.getUniqueId());
+        SkillData data = skilltreeManager.load(player.getUniqueId());
         Map<String, Object> skillNode = getNodeById(treeId, skillId);
 
         if (skillNode == null) return;
@@ -364,7 +364,7 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
         inv.setItem(slot, item);
     }
 
-    private ItemStack createSkillIcon(Map<?, ?> node, SkilltreeManager.SkillData data, String treeId, Player player) {
+    private ItemStack createSkillIcon(Map<?, ?> node, SkillData data, String treeId, Player player) {
         String id = (String) node.get("id");
         String type = (String) node.get("type");
         String name = (String) node.get("name");

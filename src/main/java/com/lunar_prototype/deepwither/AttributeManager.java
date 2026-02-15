@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.api.DW;
+import com.lunar_prototype.deepwither.core.CacheManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 
@@ -9,12 +11,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-@DependsOn({DatabaseManager.class})
+@DependsOn({DatabaseManager.class, CacheManager.class})
 public class AttributeManager implements IManager {
 
     private static final int MAX_PER_STAT = 50;
 
-    private final Map<UUID, PlayerAttributeData> dataMap = new HashMap<>();
     private final DatabaseManager db;
 
     public AttributeManager(DatabaseManager db) {
@@ -23,7 +24,6 @@ public class AttributeManager implements IManager {
 
     @Override
     public void init() {
-        // もし起動時にやりたいことがあればここに書く（なければ空でOK）
     }
 
     public void load(UUID uuid) {
@@ -31,6 +31,7 @@ public class AttributeManager implements IManager {
              PreparedStatement ps = conn.prepareStatement("SELECT * FROM player_attributes WHERE uuid = ?")) {
             ps.setString(1, uuid.toString());
             try (ResultSet rs = ps.executeQuery()) {
+                PlayerAttributeData data;
                 if (rs.next()) {
                     int total = rs.getInt("total_points");
                     EnumMap<StatType, Integer> map = new EnumMap<>(StatType.class);
@@ -40,10 +41,11 @@ public class AttributeManager implements IManager {
                     map.put(StatType.INT, rs.getInt("int"));
                     map.put(StatType.AGI, rs.getInt("agi"));
 
-                    dataMap.put(uuid, new PlayerAttributeData(total, map));
+                    data = new PlayerAttributeData(total, map);
                 } else {
-                    dataMap.put(uuid, new PlayerAttributeData(0)); // 初期値
+                    data = new PlayerAttributeData(0); // 初期値
                 }
+                DW.cache().getCache(uuid).set(PlayerAttributeData.class, data);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -51,7 +53,7 @@ public class AttributeManager implements IManager {
     }
 
     public void save(UUID uuid) {
-        PlayerAttributeData data = dataMap.get(uuid);
+        PlayerAttributeData data = get(uuid);
         if (data == null) return;
 
         try (Connection conn = db.getConnection();
@@ -81,16 +83,16 @@ public class AttributeManager implements IManager {
     }
 
     public PlayerAttributeData get(UUID uuid) {
-        return dataMap.get(uuid);
+        return DW.cache().getCache(uuid).get(PlayerAttributeData.class);
     }
 
     public void unload(UUID uuid) {
         save(uuid);
-        dataMap.remove(uuid);
+        DW.cache().getCache(uuid).remove(PlayerAttributeData.class);
     }
 
     public void addPoint(UUID uuid, StatType type) {
-        PlayerAttributeData data = dataMap.get(uuid);
+        PlayerAttributeData data = get(uuid);
         if (data == null || data.getRemainingPoints() <= 0) return;
 
         int current = data.getAllocated(type);
@@ -100,7 +102,7 @@ public class AttributeManager implements IManager {
     }
 
     public void givePoints(UUID uuid, int amount) {
-        PlayerAttributeData data = dataMap.get(uuid);
+        PlayerAttributeData data = get(uuid);
         if (data != null) {
             data.addPoints(amount);
         }
@@ -110,7 +112,7 @@ public class AttributeManager implements IManager {
      * トレードオフを含めた最大割り振り可能値を取得
      */
     public int getMaxAllocatable(UUID uuid, StatType target) {
-        PlayerAttributeData data = dataMap.get(uuid);
+        PlayerAttributeData data = get(uuid);
         if (data == null) return MAX_PER_STAT;
 
         int penalty = 0;
