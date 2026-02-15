@@ -6,6 +6,7 @@ import com.lunar_prototype.deepwither.booster.BoosterManager;
 import com.lunar_prototype.deepwither.clan.ClanChatManager;
 import com.lunar_prototype.deepwither.clan.ClanManager;
 import com.lunar_prototype.deepwither.command.*;
+import com.lunar_prototype.deepwither.commands.DebugCommand;
 import com.lunar_prototype.deepwither.companion.CompanionCommand;
 import com.lunar_prototype.deepwither.companion.CompanionGuiListener;
 import com.lunar_prototype.deepwither.companion.CompanionListener;
@@ -64,6 +65,7 @@ import com.lunar_prototype.deepwither.util.MythicMobSafeZoneManager;
 import com.lunar_prototype.deepwither.util.ServiceManager;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import io.lumine.mythic.core.mobs.ActiveMob;
+import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -575,6 +577,10 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         getCommand("dq").setExecutor(dqCmd);
         getCommand("dq").setTabCompleter(new com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestTabCompleter());
         getCommand("deepwither").setExecutor(new DeepwitherCommand(this));
+
+        getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
+            event.registrar().register(new DebugCommand().node());
+        });
     }
 
     @Override
