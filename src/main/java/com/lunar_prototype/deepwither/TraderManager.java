@@ -13,7 +13,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.io.File;
 import java.util.*;
 
-@DependsOn({ItemFactory.class})
+@DependsOn({ ItemFactory.class })
 public class TraderManager implements IManager {
 
     private final JavaPlugin plugin;
@@ -49,17 +49,18 @@ public class TraderManager implements IManager {
     }
 
     @Override
-    public void shutdown() {}
+    public void shutdown() {
+    }
 
     public static class QuestData {
         private final String id;
         private final String displayName;
         private final List<String> description;
-        private final String type;   // "KILL", "FETCH"
+        private final String type; // "KILL", "FETCH"
         private final String target; // Mob名 または Material名
         private final int amount;
         private final String requiredQuestId; // 前提条件
-        private final int rewardCredit;       // 完了時の信用度報酬
+        private final int rewardCredit; // 完了時の信用度報酬
 
         // 拡張条件（Conditions）
         private double minDistance = -1;
@@ -67,7 +68,8 @@ public class TraderManager implements IManager {
         private String requiredWeapon = null;
         private String requiredArmor = null;
 
-        public QuestData(String id, String name, List<String> description, String type, String target, int amount, String requires, int rewardCredit) {
+        public QuestData(String id, String name, List<String> description, String type, String target, int amount,
+                String requires, int rewardCredit) {
             this.id = id;
             this.displayName = name;
             this.description = (description != null) ? description : new ArrayList<>();
@@ -79,23 +81,67 @@ public class TraderManager implements IManager {
         }
 
         // セッター (条件設定用)
-        public void setDistance(double min, double max) { this.minDistance = min; this.maxDistance = max; }
-        public void setRequiredWeapon(String weapon) { this.requiredWeapon = weapon; }
-        public void setRequiredArmor(String armor) { this.requiredArmor = armor; }
+        public void setDistance(double min, double max) {
+            this.minDistance = min;
+            this.maxDistance = max;
+        }
+
+        public void setRequiredWeapon(String weapon) {
+            this.requiredWeapon = weapon;
+        }
+
+        public void setRequiredArmor(String armor) {
+            this.requiredArmor = armor;
+        }
 
         // ゲッター
-        public String getId() { return id; }
-        public String getDisplayName() { return displayName; }
-        public List<String> getDescription() { return description; }
-        public String getType() { return type; }
-        public String getTarget() { return target; }
-        public int getAmount() { return amount; }
-        public String getRequiredQuestId() { return requiredQuestId; }
-        public int getRewardCredit() { return rewardCredit; }
-        public double getMinDistance() { return minDistance; }
-        public double getMaxDistance() { return maxDistance; }
-        public String getRequiredWeapon() { return requiredWeapon; }
-        public String getRequiredArmor() { return requiredArmor; }
+        public String getId() {
+            return id;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+
+        public List<String> getDescription() {
+            return description;
+        }
+
+        public String getType() {
+            return type;
+        }
+
+        public String getTarget() {
+            return target;
+        }
+
+        public int getAmount() {
+            return amount;
+        }
+
+        public String getRequiredQuestId() {
+            return requiredQuestId;
+        }
+
+        public int getRewardCredit() {
+            return rewardCredit;
+        }
+
+        public double getMinDistance() {
+            return minDistance;
+        }
+
+        public double getMaxDistance() {
+            return maxDistance;
+        }
+
+        public String getRequiredWeapon() {
+            return requiredWeapon;
+        }
+
+        public String getRequiredArmor() {
+            return requiredArmor;
+        }
     }
 
     // --- トレーダー購入オファーのロード ---
@@ -108,7 +154,8 @@ public class TraderManager implements IManager {
         tierRequirements.clear(); // 新規追加
 
         File[] traderFiles = tradersFolder.listFiles((dir, name) -> name.endsWith(".yml"));
-        if (traderFiles == null) return;
+        if (traderFiles == null)
+            return;
 
         for (File file : traderFiles) {
             String traderId = file.getName().replace(".yml", "");
@@ -160,11 +207,11 @@ public class TraderManager implements IManager {
 
             // 拡張条件（conditionsセクション）の読み込み
             if (section.isConfigurationSection(path + "conditions")) {
-                org.bukkit.configuration.ConfigurationSection cond = section.getConfigurationSection(path + "conditions");
+                org.bukkit.configuration.ConfigurationSection cond = section
+                        .getConfigurationSection(path + "conditions");
                 qData.setDistance(
                         cond.getDouble("min_distance", -1),
-                        cond.getDouble("max_distance", -1)
-                );
+                        cond.getDouble("max_distance", -1));
                 qData.setRequiredWeapon(cond.getString("weapon"));
                 qData.setRequiredArmor(cond.getString("armor"));
             }
@@ -177,7 +224,8 @@ public class TraderManager implements IManager {
     private Map<Integer, List<TraderOffer>> parseBuyOffers(String traderId, YamlConfiguration config) {
         Map<Integer, List<TraderOffer>> tiers = new HashMap<>();
 
-        if (!config.isConfigurationSection("credit_tiers")) return tiers;
+        if (!config.isConfigurationSection("credit_tiers"))
+            return tiers;
 
         // このトレーダーのティア条件を格納する一時マップ
         Map<Integer, String> requirements = new HashMap<>();
@@ -266,7 +314,7 @@ public class TraderManager implements IManager {
 
                 if (reqType.equalsIgnoreCase("CUSTOM")) {
                     String customId = (String) reqMap.get("custom_id");
-                    ItemStack is = Deepwither.getInstance().getItemFactory().getCustomCountItemStack(customId,reqAmount);
+                    ItemStack is = this.itemFactory.getCustomCountItemStack(customId, reqAmount);
                     if (is != null) {
                         is.setAmount(reqAmount);
                         requiredItems.add(is);
@@ -293,7 +341,8 @@ public class TraderManager implements IManager {
         YamlConfiguration config = YamlConfiguration.loadConfiguration(sellFile);
 
         List<Map<?, ?>> sellList = config.getMapList("sell_items");
-        if (sellList == null) return;
+        if (sellList == null)
+            return;
 
         for (Map<?, ?> itemMap : sellList) {
             String itemTypeStr = (String) itemMap.get("item_type");
@@ -333,7 +382,7 @@ public class TraderManager implements IManager {
             // ItemLoader.loadSingleItem(id, this.itemFactory, itemFolder) の処理を想定
             File itemFolder = new File(plugin.getDataFolder(), "items");
 
-            item = ItemLoader.loadSingleItem(offer.getId(), this.itemFactory,itemFolder);
+            item = ItemLoader.loadSingleItem(offer.getId(), this.itemFactory, itemFolder);
             if (item != null) {
                 item.setAmount(offer.getAmount());
             } else {
@@ -355,7 +404,8 @@ public class TraderManager implements IManager {
         List<TraderOffer> allOffers = new ArrayList<>();
         Map<Integer, List<TraderOffer>> tiers = traderOffers.getOrDefault(traderId, null);
 
-        if (tiers == null) return allOffers;
+        if (tiers == null)
+            return allOffers;
 
         // ティアレベルのキーセットを取得し、昇順でソートして処理する
         tiers.keySet().stream()
@@ -370,8 +420,9 @@ public class TraderManager implements IManager {
 
     /**
      * トレーダーIDとアイテムのID(ID/Material)を指定して、最初に見つかったオファーを取得する。
+     * 
      * @param traderId トレーダーID
-     * @param itemId 検索したいアイテムのID (Material名 or custom_id)
+     * @param itemId   検索したいアイテムのID (Material名 or custom_id)
      * @return 該当する TraderOffer、見つからない場合は null
      */
     public TraderOffer getOfferById(String traderId, String itemId) {
@@ -386,7 +437,8 @@ public class TraderManager implements IManager {
      */
     public boolean canAccessTier(Player player, String traderId, int requiredCredit, int playerCredit) {
         // 1. まず信用度が足りているか
-        if (playerCredit < requiredCredit) return false;
+        if (playerCredit < requiredCredit)
+            return false;
 
         // 2. ティア解禁に必要なクエストがあるかチェック
         Map<Integer, String> requirements = tierRequirements.get(traderId);
@@ -401,6 +453,7 @@ public class TraderManager implements IManager {
 
     /**
      * 指定されたトレーダーIDに関連付けられたクエスト一覧を取得します。
+     * 
      * @param traderId トレーダーのID
      * @return クエストIDをキーとしたQuestDataのマップ。存在しない場合は空のマップを返します。
      */
@@ -410,18 +463,21 @@ public class TraderManager implements IManager {
 
     /**
      * 特定のトレーダーの特定のクエストデータを取得します。
+     * 
      * @param traderId トレーダーのID
-     * @param questId クエストのID
+     * @param questId  クエストのID
      * @return QuestData。存在しない場合はnullを返します。
      */
     public QuestData getQuestData(String traderId, String questId) {
         Map<String, QuestData> quests = traderQuests.get(traderId);
-        if (quests == null) return null;
+        if (quests == null)
+            return null;
         return quests.get(questId);
     }
 
     /**
      * 現在ロードされている全トレーダーのクエスト情報を取得します（管理・監視用）。
+     * 
      * @return [TraderID -> [QuestID -> QuestData]] のマップ
      */
     public Map<String, Map<String, QuestData>> getAllQuests() {
@@ -434,6 +490,7 @@ public class TraderManager implements IManager {
 
     /**
      * 指定されたトレーダーIDがロード済みであるかを確認する。
+     * 
      * @param traderId 確認するトレーダーのID
      * @return 存在すれば true
      */
@@ -455,6 +512,7 @@ public class TraderManager implements IManager {
 
     /**
      * ★ 追加: トレーダーの表示名を取得する
+     * 
      * @param traderId トレーダーのID
      * @return 設定された名前、なければID
      */

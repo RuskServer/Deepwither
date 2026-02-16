@@ -23,6 +23,9 @@ public class LegacyModule implements IModule {
         this.serviceManager = new ServiceManager(plugin, container);
         container.registerInstance(ServiceManager.class, this.serviceManager);
         plugin.setServiceManager(this.serviceManager);
+        // Managerの登録 (Deepwither側のメソッドを呼び出し)
+        plugin.getLogger().info("LegacyModule: calling setupManagers()...");
+        plugin.setupManagers();
         plugin.getLogger().info("LegacyModule: ServiceManager set to Deepwither.");
     }
 
@@ -34,10 +37,6 @@ public class LegacyModule implements IModule {
                 plugin.getLogger()
                         .severe("LegacyModule: serviceManager is null in start()! configure() might have failed.");
             }
-
-            // Managerの登録 (Deepwither側のメソッドを呼び出し)
-            plugin.getLogger().info("LegacyModule: calling setupManagers()...");
-            plugin.setupManagers();
 
             // 一括初期化
             plugin.getLogger().info("LegacyModule: calling serviceManager.startAll()...");

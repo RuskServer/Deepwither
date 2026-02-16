@@ -142,7 +142,17 @@ public class ServiceManager {
             for (Class<? extends IManager> depClass : dependencyAnnotation.value()) {
                 // 依存先が登録されているか確認（登録されていない依存先は無視するかエラーにするか。ここではエラーにする）
                 if (!services.containsKey(depClass)) {
-                    // ここでエラーにするのが安全だが、柔軟性を持たせるならログ警告のみにする手もある
+                    // Check if it exists in the Container
+                    if (container != null) {
+                        try {
+                            if (container.get(depClass) != null) {
+                                continue; // Dependency is managed by Container (already init), skip.
+                            }
+                        } catch (Exception e) {
+                            // Ignore, treat as missing
+                        }
+                    }
+
                     throw new IllegalStateException("Service " + serviceClass.getName() + " depends on "
                             + depClass.getName() + " which is not registered.");
                 }
