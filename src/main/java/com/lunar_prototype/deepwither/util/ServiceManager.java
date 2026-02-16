@@ -13,9 +13,16 @@ public class ServiceManager {
     private final Deepwither plugin;
     private final Map<Class<? extends IManager>, IManager> services = new HashMap<>();
     private final List<IManager> orderedServices = new ArrayList<>();
+    private final com.lunar_prototype.deepwither.core.engine.ServiceContainer container; // [NEW] Bridge
 
     public ServiceManager(Deepwither plugin) {
+        this(plugin, null);
+    }
+
+    // [NEW] Constructor with container
+    public ServiceManager(Deepwither plugin, com.lunar_prototype.deepwither.core.engine.ServiceContainer container) {
         this.plugin = plugin;
+        this.container = container;
     }
 
     /**
@@ -33,6 +40,11 @@ public class ServiceManager {
                 services.putIfAbsent((Class<? extends IManager>) iface, service);
             }
         }
+
+        // [Opt] Containerにも登録しておくと、Module側からLegacy Managerを参照できる
+        if (container != null) {
+            container.registerInstance((Class) clazz, service);
+        }
     }
 
     /**
@@ -41,6 +53,16 @@ public class ServiceManager {
     @SuppressWarnings("unchecked")
     public <T> T get(Class<T> clazz) {
         IManager service = services.get(clazz);
+
+        // [NEW] Fallback to Container
+        if (service == null && container != null) {
+            try {
+                return container.get(clazz);
+            } catch (Exception e) {
+                // Containerにもなければ例外へ
+            }
+        }
+
         if (service == null) {
             throw new IllegalArgumentException("Service not found: " + clazz.getName());
         }
@@ -60,7 +82,8 @@ public class ServiceManager {
                 plugin.getLogger().info("Initializing service: " + service.getClass().getSimpleName());
                 service.init();
             } catch (Exception e) {
-                plugin.getLogger().log(Level.SEVERE, "Failed to initialize service: " + service.getClass().getSimpleName(), e);
+                plugin.getLogger().log(Level.SEVERE,
+                        "Failed to initialize service: " + service.getClass().getSimpleName(), e);
                 throw e;
             }
         }
@@ -79,7 +102,8 @@ public class ServiceManager {
                 plugin.getLogger().info("Shutting down service: " + service.getClass().getSimpleName());
                 service.shutdown();
             } catch (Exception e) {
-                plugin.getLogger().log(Level.SEVERE, "Error during shutdown of service: " + service.getClass().getSimpleName(), e);
+                plugin.getLogger().log(Level.SEVERE,
+                        "Error during shutdown of service: " + service.getClass().getSimpleName(), e);
             }
         }
         services.clear();
@@ -101,7 +125,8 @@ public class ServiceManager {
         }
     }
 
-    private void visit(Class<? extends IManager> serviceClass, Set<Class<? extends IManager>> visited, Set<Class<? extends IManager>> path) {
+    private void visit(Class<? extends IManager> serviceClass, Set<Class<? extends IManager>> visited,
+            Set<Class<? extends IManager>> path) {
         if (path.contains(serviceClass)) {
             throw new IllegalStateException("Circular dependency detected involving: " + serviceClass.getName());
         }
@@ -118,7 +143,8 @@ public class ServiceManager {
                 // 依存先が登録されているか確認（登録されていない依存先は無視するかエラーにするか。ここではエラーにする）
                 if (!services.containsKey(depClass)) {
                     // ここでエラーにするのが安全だが、柔軟性を持たせるならログ警告のみにする手もある
-                    throw new IllegalStateException("Service " + serviceClass.getName() + " depends on " + depClass.getName() + " which is not registered.");
+                    throw new IllegalStateException("Service " + serviceClass.getName() + " depends on "
+                            + depClass.getName() + " which is not registered.");
                 }
                 visit(depClass, visited, path);
             }

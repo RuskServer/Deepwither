@@ -63,6 +63,7 @@ import com.lunar_prototype.deepwither.tutorial.TutorialController;
 import com.lunar_prototype.deepwither.util.IManager;
 import com.lunar_prototype.deepwither.util.MythicMobSafeZoneManager;
 import com.lunar_prototype.deepwither.util.ServiceManager;
+import com.lunar_prototype.deepwither.core.engine.DeepwitherBootstrap;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import io.lumine.mythic.core.mobs.ActiveMob;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
@@ -121,6 +122,18 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     }
 
     private ServiceManager serviceManager;
+    private DeepwitherBootstrap bootstrap; // [NEW] Bootstrap
+
+    // [NEW] LegacyModuleから注入される
+    public void setServiceManager(ServiceManager serviceManager) {
+        this.serviceManager = serviceManager;
+    }
+
+    // [NEW] Bootstrap取得用
+    public DeepwitherBootstrap getBootstrap() {
+        return bootstrap;
+    }
+
     private FileConfiguration questConfig;
     private CacheManager cacheManager;
     private PlayerDataManager playerDataManager;
@@ -277,7 +290,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     public MenuItemListener getMenuItemListener() {
         return menuItemListener;
     }
-    
+
     public SafeZoneListener getSafeZoneListener() {
         return safeZoneListener;
     }
@@ -464,18 +477,15 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.asyncExecutor = Executors.newFixedThreadPool(
                 Runtime.getRuntime().availableProcessors());
 
-        this.serviceManager = new ServiceManager(this);
+        // [MODIFY] Bootstrapによる初期化へ移行
+        // this.serviceManager = new ServiceManager(this);
         com.lunar_prototype.deepwither.api.DW._setApi(this);
 
         try {
-            // 1. 基盤の登録
-            this.databaseManager = register(new DatabaseManager(this));
-
-            // 2. マネージャーの登録とインスタンス化
-            setupManagers();
-
-            // 3. 依存関係を解決して一括初期化
-            this.serviceManager.startAll();
+            // Bootstrapの初期化 (ここで LegacyModule -> setupManagers -> serviceManager.startAll
+            // が走る)
+            this.bootstrap = new DeepwitherBootstrap(this);
+            this.bootstrap.onEnable();
 
         } catch (Exception e) {
             getLogger().severe("Service initialization failed!");
@@ -486,7 +496,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
 
         // クエスト設定のロード
         loadGuildQuestConfig();
-
 
         // クエストコンポーネントの初期化
         if (questConfig != null) {
@@ -503,7 +512,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         getCommand("trader").setExecutor(new TraderCommand(traderManager));
         getCommand("credit").setExecutor(new CreditCommand(creditManager));
         getCommand("companion").setExecutor(new CompanionCommand(companionManager));
-
 
         saveDefaultConfig(); // MobExpConfig.yml
 
@@ -573,7 +581,8 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         ClanCommand clanCommand = new ClanCommand(clanManager);
         getCommand("clan").setExecutor(clanCommand);
         getCommand("clan").setTabCompleter(clanCommand);
-        com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestCommand dqCmd = new com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestCommand(dynamicQuestManager);
+        com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestCommand dqCmd = new com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestCommand(
+                dynamicQuestManager);
         getCommand("dq").setExecutor(dqCmd);
         getCommand("dq").setTabCompleter(new com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestTabCompleter());
         getCommand("deepwither").setExecutor(new DeepwitherCommand(this));
@@ -589,20 +598,37 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
             levelManager.unload(p.getUniqueId());
             attributeManager.unload(p.getUniqueId());
         }
-        
+
         // saveSafeZoneSpawns(); // Managed by SafeZoneListener shutdown
 
-        if (serviceManager != null) {
+        // [MODIFY] Bootstrapへ委譲
+        if (bootstrap != null) {
+            bootstrap.onDisable();
+        } else if (serviceManager != null) {
+            // Fallback
             serviceManager.stopAll();
         }
 
         shutdownExecutor();
     }
 
-    private void setupManagers() {
+    // [MODIFY] LegacyModuleから呼ばれるため public に変更
+    public void setupManagers() {
+        // [MOVED] DatabaseManager, CacheManager, PlayerDataManager are now in Modules
+        // Retrieve them from ServiceManager (which delegates to Container)
+        this.databaseManager = serviceManager.get(DatabaseManager.class);
+        this.playerDataManager = serviceManager.get(PlayerDataManager.class);
+
+        // [MOVED (Core Module)]
+        this.cacheManager = serviceManager.get(CacheManager.class); // Explicit fallback check if needed but CoreModule
+                                                                    // is registered early
+        this.statManager = serviceManager.get(StatManager.class);
+        this.itemFactory = serviceManager.get(ItemFactory.class);
+        this.settingsManager = serviceManager.get(PlayerSettingsManager.class);
+        this.chargeManager = serviceManager.get(ChargeManager.class);
+        this.cooldownManager = serviceManager.get(CooldownManager.class);
+
         // --- Core ---
-        this.cacheManager = register(new CacheManager());
-        this.playerDataManager = register(new PlayerDataManager(this));
 
         // --- Group A & B & Base ---
         this.attributeManager = register(new AttributeManager(databaseManager));
@@ -610,30 +636,31 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.skilltreeManager = register(new SkilltreeManager(databaseManager, this));
         this.professionDatabase = register(new ProfessionDatabase(this, databaseManager));
         this.boosterManager = register(new BoosterManager(databaseManager));
-        this.globalMarketManager = register(new GlobalMarketManager(this, databaseManager));
+        this.globalMarketManager = serviceManager.get(GlobalMarketManager.class);
         this.clanManager = register(new ClanManager(databaseManager));
-        this.traderQuestManager = register(new TraderQuestManager(this, databaseManager));
-        
-        this.statManager = register(new StatManager());
+        this.traderQuestManager = serviceManager.get(TraderQuestManager.class);
+
+        // this.statManager = ... handled above
         this.manaManager = register(new ManaManager());
-        this.cooldownManager = register(new CooldownManager());
-        this.itemFactory = register(new ItemFactory(this));
+        // this.cooldownManager = ... handled above
+        // this.itemFactory = ... handled above
         this.itemNameResolver = register(new ItemNameResolver(this));
-        
+
         this.skillLoader = register(new SkillLoader(this));
         this.skillSlotManager = register(new SkillSlotManager(this));
         this.skillCastManager = register(new SkillCastManager());
-        this.chargeManager = register(new ChargeManager(this));
-        this.settingsManager = register(new PlayerSettingsManager(this));
-        this.damageProcessor = register(new DamageProcessor(this, statManager, settingsManager));
-        this.weaponMechanicManager = register(new WeaponMechanicManager(this, statManager, chargeManager, settingsManager));
-        this.damageManager = register(new DamageManager(this, statManager, settingsManager));
+        // this.chargeManager = ... handled above
+        // this.settingsManager = ... handled above
+
+        this.damageProcessor = serviceManager.get(DamageProcessor.class);
+        this.weaponMechanicManager = serviceManager.get(WeaponMechanicManager.class);
+        this.damageManager = serviceManager.get(DamageManager.class);
 
         // --- Group C & D ---
         this.artifactManager = register(new ArtifactManager(this));
         this.backpackManager = register(new BackpackManager(this));
-        this.creditManager = register(new CreditManager(this));
-        this.traderManager = register(new TraderManager(this, itemFactory));
+        this.creditManager = serviceManager.get(CreditManager.class);
+        this.traderManager = serviceManager.get(TraderManager.class);
         this.lootChestManager = register(new LootChestManager(this));
         this.lootLevelManager = register(new LootLevelManager(this));
         this.lootDropManager = register(new LootDropManager(itemFactory));
@@ -645,7 +672,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.raidBossManager = register(new RaidBossManager(this));
         this.layerMoveManager = register(new LayerMoveManager(this));
         this.pvPvEDungeonManager = register(new PvPvEDungeonManager(this));
-        
+
         register(new com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager(this));
         this.dungeonExtractionManager = register(new DungeonExtractionManager(this));
         this.fishingManager = register(new FishingManager(this));
@@ -657,12 +684,13 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.dynamicQuestManager = register(new com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestManager(this));
 
         // --- Group E ---
-        this.fileDailyTaskDataStore = register(new FileDailyTaskDataStore(this, databaseManager));
-        this.dailyTaskManager = register(new DailyTaskManager(this, fileDailyTaskDataStore));
-        this.questDataStore = register(new QuestDataStore(this));
-        this.guildQuestManager = register(new GuildQuestManager(this, questDataStore));
-        this.playerQuestDataStore = (PlayerQuestDataStore) register(new FilePlayerQuestDataStore(databaseManager));
-        this.playerQuestManager = register(new PlayerQuestManager(this, guildQuestManager, playerQuestDataStore));
+        this.fileDailyTaskDataStore = serviceManager.get(FileDailyTaskDataStore.class); // Explicit cast if generic
+                                                                                        // needed
+        this.dailyTaskManager = serviceManager.get(DailyTaskManager.class);
+        this.questDataStore = serviceManager.get(QuestDataStore.class);
+        this.guildQuestManager = serviceManager.get(GuildQuestManager.class);
+        this.playerQuestDataStore = serviceManager.get(PlayerQuestDataStore.class); // cast?
+        this.playerQuestManager = serviceManager.get(PlayerQuestManager.class);
         this.professionManager = register(new ProfessionManager(this, professionDatabase));
         this.ai = register(new EMDALanguageAI(this));
         this.aiEngine = register(new SeekerAIEngine());
@@ -719,7 +747,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         register(new CombatAnalyzer(this));
         this.safeZoneListener = register(new SafeZoneListener(this));
         register(new AnimationListener(this));
-        register(new BackpackListener(this,backpackManager));
+        register(new BackpackListener(this, backpackManager));
         register(new CombatExperienceListener(this));
         register(new SeekerAIEngine());
         this.mobSpawnManager = register(new MobSpawnManager(this, playerQuestManager));
@@ -727,7 +755,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         register(new MarketApiController(this));
         register(new PlayerInventoryRestrictor(this));
     }
-
 
     private <T extends IManager> T register(T manager) {
         serviceManager.register(manager);
