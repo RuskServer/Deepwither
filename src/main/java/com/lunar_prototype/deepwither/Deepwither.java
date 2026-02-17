@@ -93,10 +93,7 @@ import java.util.logging.Logger;
 
 public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
 
-    private Logger log;
-
     private static Deepwither instance;
-    private MarketApiController apiController;
 
     public static Deepwither getInstance() {
         return instance;
@@ -108,15 +105,18 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     }
 
     @Override
+    @Deprecated
     public IStatManager getStatManager() {
         return (IStatManager) serviceManager.get(StatManager.class);
     }
 
     @Override
+    @Deprecated
     public IDatabaseManager getDatabaseManager() {
         return (IDatabaseManager) serviceManager.get(DatabaseManager.class);
     }
 
+    @Deprecated
     public IItemFactory getItemFactoryAPI() {
         return (IItemFactory) serviceManager.get(ItemFactory.class);
     }
@@ -172,6 +172,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     public ArtifactGUI artifactGUI;
     public ItemFactory itemFactory;
 
+    @Deprecated
     public TraderQuestManager getTraderQuestManager() {
         return traderQuestManager;
     }
@@ -351,106 +352,132 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         return artifactGUI;
     }
 
+    @Deprecated
     public ItemFactory getItemFactory() {
         return itemFactory;
     }
 
+    @Deprecated
     public TraderManager getTraderManager() {
         return traderManager;
     }
 
+    @Deprecated
     public CreditManager getCreditManager() {
         return creditManager;
     }
 
+    @Deprecated
     public DailyTaskManager getDailyTaskManager() { // ★ 新規追加
         return dailyTaskManager;
     }
 
+    @Deprecated
     public MobSpawnManager getMobSpawnManager() {
         return mobSpawnManager;
     }
 
+    @Deprecated
     public LootChestManager getLootChestManager() {
         return lootChestManager;
     }
 
+    @Deprecated
     public ItemNameResolver getItemNameResolver() {
         return itemNameResolver;
     }
 
+    @Deprecated
     public PlayerQuestManager getPlayerQuestManager() {
         return playerQuestManager;
     }
 
+    @Deprecated
     public CraftingManager getCraftingManager() {
         return craftingManager;
     }
 
+    @Deprecated
     public CraftingGUI getCraftingGUI() {
         return craftingGUI;
     }
 
+    @Deprecated
     public ProfessionManager getProfessionManager() {
         return professionManager;
     }
 
+    @Deprecated
     public ChargeManager getChargeManager() {
         return chargeManager;
     }
 
+    @Deprecated
     public BackpackManager getBackpackManager() {
         return backpackManager;
     };
 
+    @Deprecated
     public DamageManager getDamageManager() {
         return damageManager;
     }
 
+    @Deprecated
     public DamageProcessor getDamageProcessor() {
         return damageProcessor;
     }
 
+    @Deprecated
     public WeaponMechanicManager getWeaponMechanicManager() {
         return weaponMechanicManager;
     }
 
+    @Deprecated
     public PlayerSettingsManager getSettingsManager() {
         return settingsManager;
     }
 
+    @Deprecated
     public SettingsGUI getSettingsGUI() {
         return settingsGUI;
     }
 
+    @Deprecated
     public CompanionManager getCompanionManager() {
         return companionManager;
     }
 
+    @Deprecated
     public LayerMoveManager getLayerMoveManager() {
         return layerMoveManager;
     }
 
+    @Deprecated
     public FishingManager getFishingManager() {
         return fishingManager;
     }
 
+    @Deprecated
     public MobKillListener getMobKillListener() {
         return mobKillListener;
     }
 
+    @Deprecated
     public MarketSearchHandler getMarketSearchHandler() {
         return marketSearchHandler;
     }
 
+    @Deprecated
     public SkilltreeGUI getSkilltreeGUI() {
         return skilltreeGUI;
     }
 
+    @Deprecated
     public LootDropManager getLootDropManager() {
         return lootDropManager;
     }
 
+    @Deprecated
     public LootLevelManager getLootLevelManager() {
         return lootLevelManager;
     }
@@ -821,9 +848,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     }
 
     // リスポーン地点データをファイルから読み込む
-    private void loadSafeZoneSpawns() {
-        // SafeZoneListener handles loading via init()
-    }
 
     // リスポーン地点データをファイルに保存する
     public void saveSafeZoneSpawns() {
