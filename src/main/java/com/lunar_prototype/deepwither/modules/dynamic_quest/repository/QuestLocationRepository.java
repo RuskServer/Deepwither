@@ -8,10 +8,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class QuestLocationRepository {
 
@@ -77,7 +74,8 @@ public class QuestLocationRepository {
     }
 
     public List<QuestLocation> getLocations(QuestType type) {
-        return questLocations.getOrDefault(type, new ArrayList<>());
+        List<QuestLocation> list = questLocations.get(type);
+        return list != null ? Collections.unmodifiableList(list) : Collections.emptyList();
     }
 
     public QuestLocation getLocation(QuestType type, String name) {

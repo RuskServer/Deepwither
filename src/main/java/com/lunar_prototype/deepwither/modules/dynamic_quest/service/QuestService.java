@@ -7,6 +7,7 @@ import com.lunar_prototype.deepwither.modules.dynamic_quest.obj.DynamicQuest;
 import com.lunar_prototype.deepwither.modules.dynamic_quest.event.SupplyConvoyEvent;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -91,7 +92,12 @@ public class QuestService {
 
             if (quest.isObjectiveMet()) {
                 quest.setStatus(DynamicQuest.QuestStatus.COMPLETED);
-                Deepwither.getEconomy().depositPlayer(player, quest.getRewardAmount());
+                Economy econ = Deepwither.getEconomy();
+                if (econ != null) {
+                    econ.depositPlayer(player, quest.getRewardAmount());
+                } else {
+                    plugin.getLogger().warning("Economy not available, reward not deposited for: " + player.getName());
+                }
                 player.sendMessage(Component.text("クエスト完了！報酬として " + quest.getRewardAmount() + " クレジットを獲得しました。", NamedTextColor.GREEN));
                 npcManager.removeNPC(npc);
             } else {

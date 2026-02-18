@@ -18,7 +18,7 @@ public class MythicMobService implements IMobService {
     @Override
     public String getMobId(LivingEntity entity) {
         return MythicBukkit.inst().getMobManager().getActiveMob(entity.getUniqueId())
-                .map(am -> am.getMobType())
+                .map(am -> am.getType().getInternalName())
                 .orElse(entity.getType().name());
     }
 

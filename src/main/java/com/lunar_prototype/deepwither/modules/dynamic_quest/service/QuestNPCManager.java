@@ -76,7 +76,8 @@ public class QuestNPCManager {
 
     public void refreshNPCs() {
         activeNPCs.removeIf(npc -> {
-            if (npc.getQuest().getStatus() == DynamicQuest.QuestStatus.CREATED) {
+            if (npc.getQuest().getStatus() == DynamicQuest.QuestStatus.CREATED
+                    || npc.getQuest().isExpired()) {
                 npc.despawn();
                 return true;
             }
@@ -213,24 +214,55 @@ public class QuestNPCManager {
         RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
         RegionQuery query = container.createQuery();
         ApplicableRegionSet set = query.getApplicableRegions(BukkitAdapter.adapt(loc));
+        
         int maxTier = 0;
         for (ProtectedRegion region : set) {
-            String id = region.getId().toLowerCase();
-            if (id.contains("safezone")) continue;
-            int tier = 0;
-            int tIdx = id.startsWith("t") ? 0 : id.contains("_t") ? id.indexOf("_t") + 1 : -1;
-            if (tIdx != -1 && tIdx + 1 < id.length()) {
-                char next = id.charAt(tIdx + 1);
-                int startDigit = Character.isDigit(next) ? tIdx + 1 : (next == '_' && tIdx + 2 < id.length() && Character.isDigit(id.charAt(tIdx + 2))) ? tIdx + 2 : -1;
-                if (startDigit != -1) {
-                    StringBuilder numStr = new StringBuilder();
-                    for (int i = startDigit; i < id.length() && Character.isDigit(id.charAt(i)); i++) { numStr.append(id.charAt(i)); }
-                    try { tier = Integer.parseInt(numStr.toString()); } catch (NumberFormatException ignored) {}
-                }
+            int tier = parseTierFromId(region.getId().toLowerCase());
+            if (tier > maxTier) {
+                maxTier = tier;
             }
-            if (tier > maxTier) maxTier = tier;
         }
         return maxTier;
+    }
+
+    private int parseTierFromId(String id) {
+        if (id.contains("safezone")) return 0;
+
+        // "t" の位置を特定 (先頭 または "_t" の直後)
+        int tIdx = -1;
+        if (id.startsWith("t")) {
+            tIdx = 0;
+        } else {
+            int found = id.indexOf("_t");
+            if (found != -1) {
+                tIdx = found + 1; // 't' のインデックス
+            }
+        }
+
+        if (tIdx == -1 || tIdx + 1 >= id.length()) return 0;
+
+        // 数字の開始位置を特定 ("t1" or "t_1")
+        int startDigit = -1;
+        char next = id.charAt(tIdx + 1);
+        if (Character.isDigit(next)) {
+            startDigit = tIdx + 1;
+        } else if (next == '_' && tIdx + 2 < id.length() && Character.isDigit(id.charAt(tIdx + 2))) {
+            startDigit = tIdx + 2;
+        }
+
+        if (startDigit == -1) return 0;
+
+        // 連続する数字を抽出
+        StringBuilder numStr = new StringBuilder();
+        for (int i = startDigit; i < id.length() && Character.isDigit(id.charAt(i)); i++) {
+            numStr.append(id.charAt(i));
+        }
+
+        try {
+            return Integer.parseInt(numStr.toString());
+        } catch (NumberFormatException ignored) {
+            return 0;
+        }
     }
 
     private void cleanupOldNPCs() {
@@ -252,25 +284,20 @@ public class QuestNPCManager {
                 BlockVector3 min = region.getMinimumPoint();
                 BlockVector3 max = region.getMaximumPoint();
 
-                // リージョン内のチャンクを走査してロードし、エンティティを削除
+                // リージョン内のチャンクを非同期でロードし、古いエンティティを削除
                 for (int x = min.x() >> 4; x <= max.x() >> 4; x++) {
                     for (int z = min.z() >> 4; z <= max.z() >> 4; z++) {
-                        boolean loadedBefore = world.isChunkLoaded(x, z);
-                        if (!loadedBefore) {
-                            world.getChunkAt(x, z).load();
-                        }
-                        
-                        // そのチャンク内のエンティティを確認
-                        for (Entity entity : world.getChunkAt(x, z).getEntities()) {
-                            if (entity.getPersistentDataContainer().has(key, PersistentDataType.BYTE)) {
-                                entity.remove();
+                        world.getChunkAtAsync(x, z).thenAccept(chunk -> {
+                            for (Entity entity : chunk.getEntities()) {
+                                if (entity.getPersistentDataContainer().has(key, PersistentDataType.BYTE)) {
+                                    // 起動直後のクリーンアップだが、非同期のため新しく生成されたNPCを消さないようガード
+                                    boolean isActive = activeNPCs.stream().anyMatch(npc -> npc.isEntity(entity.getUniqueId()));
+                                    if (!isActive) {
+                                        entity.remove();
+                                    }
+                                }
                             }
-                        }
-
-                        // 元々ロードされていなかった場合はアンロードしてメモリを節約
-                        if (!loadedBefore) {
-                            world.getChunkAt(x, z).unload();
-                        }
+                        });
                     }
                 }
             }

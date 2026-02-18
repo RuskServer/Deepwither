@@ -12,6 +12,7 @@ import com.lunar_prototype.deepwither.ItemFactory;
 public class EconomyModule implements IModule {
 
     private final Deepwither plugin;
+    private ServiceContainer container;
 
     public EconomyModule(Deepwither plugin) {
         this.plugin = plugin;
@@ -19,6 +20,7 @@ public class EconomyModule implements IModule {
 
     @Override
     public void configure(ServiceContainer container) {
+        this.container = container;
         plugin.getLogger().info("EconomyModule: configure()");
 
         try {
@@ -50,7 +52,6 @@ public class EconomyModule implements IModule {
 
     @Override
     public void start() {
-        ServiceContainer container = plugin.getBootstrap().getContainer();
         try {
             plugin.getLogger().info("Initializing Economy Managers...");
             container.get(GlobalMarketManager.class).init();
@@ -64,12 +65,12 @@ public class EconomyModule implements IModule {
 
     @Override
     public void stop() {
-        ServiceContainer container = plugin.getBootstrap().getContainer();
         try {
             container.get(TraderManager.class).shutdown();
             container.get(CreditManager.class).shutdown();
             container.get(GlobalMarketManager.class).shutdown();
         } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }
