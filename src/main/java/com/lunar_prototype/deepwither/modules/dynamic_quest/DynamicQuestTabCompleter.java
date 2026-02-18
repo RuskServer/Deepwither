@@ -1,6 +1,6 @@
-package com.lunar_prototype.deepwither.dynamic_quest;
+package com.lunar_prototype.deepwither.modules.dynamic_quest;
 
-import com.lunar_prototype.deepwither.dynamic_quest.enums.QuestType;
+import com.lunar_prototype.deepwither.modules.dynamic_quest.enums.QuestType;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;

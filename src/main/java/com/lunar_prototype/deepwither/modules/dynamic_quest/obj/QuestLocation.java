@@ -1,4 +1,4 @@
-package com.lunar_prototype.deepwither.dynamic_quest.obj;
+package com.lunar_prototype.deepwither.modules.dynamic_quest.obj;
 
 import org.bukkit.Location;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;

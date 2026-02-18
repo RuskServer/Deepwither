@@ -268,11 +268,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     }
 
     private ClanManager clanManager;
-    private com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestManager dynamicQuestManager;
-
-    public com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestManager getDynamicQuestManager() {
-        return dynamicQuestManager;
-    }
 
     private static Economy econ = null;
     private final java.util.Random random = new java.util.Random();
@@ -490,7 +485,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         ConfigurationSerialization.registerClass(LocationDetails.class);
         ConfigurationSerialization.registerClass(GeneratedQuest.class);
         ConfigurationSerialization.registerClass(DailyTaskData.class);
-        ConfigurationSerialization.registerClass(com.lunar_prototype.deepwither.dynamic_quest.obj.QuestLocation.class);
+        ConfigurationSerialization.registerClass(com.lunar_prototype.deepwither.modules.dynamic_quest.obj.QuestLocation.class);
 
         // loadSafeZoneSpawns(); // Moved to SafeZoneListener
 
@@ -608,10 +603,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         ClanCommand clanCommand = new ClanCommand(clanManager);
         getCommand("clan").setExecutor(clanCommand);
         getCommand("clan").setTabCompleter(clanCommand);
-        com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestCommand dqCmd = new com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestCommand(
-                dynamicQuestManager);
-        getCommand("dq").setExecutor(dqCmd);
-        getCommand("dq").setTabCompleter(new com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestTabCompleter());
         getCommand("deepwither").setExecutor(new DeepwitherCommand(this));
 
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
@@ -708,7 +699,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.partyManager = register(new PartyManager(this));
         this.roguelikeBuffManager = register(new RoguelikeBuffManager(this));
         this.roguelikeBuffGUI = register(new RoguelikeBuffGUI(this));
-        this.dynamicQuestManager = register(new com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestManager(this));
 
         // --- Group E ---
         this.fileDailyTaskDataStore = serviceManager.get(FileDailyTaskDataStore.class); // Explicit cast if generic
@@ -722,7 +712,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.ai = register(new EMDALanguageAI(this));
         this.aiEngine = register(new SeekerAIEngine());
         this.outpostManager = register(new OutpostManager(this));
-        this.dynamicQuestManager = register(new com.lunar_prototype.deepwither.dynamic_quest.DynamicQuestManager(this));
 
         // --- UI & Listeners (Managed) ---
         this.artifactGUI = register(new ArtifactGUI());

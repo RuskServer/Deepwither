@@ -1,6 +1,6 @@
-package com.lunar_prototype.deepwither.dynamic_quest.npc;
+package com.lunar_prototype.deepwither.modules.dynamic_quest.npc;
 
-import com.lunar_prototype.deepwither.dynamic_quest.obj.DynamicQuest;
+import com.lunar_prototype.deepwither.modules.dynamic_quest.obj.DynamicQuest;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;

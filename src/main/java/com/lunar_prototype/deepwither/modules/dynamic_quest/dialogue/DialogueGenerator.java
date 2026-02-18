@@ -1,7 +1,7 @@
-package com.lunar_prototype.deepwither.dynamic_quest.dialogue;
+package com.lunar_prototype.deepwither.modules.dynamic_quest.dialogue;
 
-import com.lunar_prototype.deepwither.dynamic_quest.enums.QuestPersona;
-import com.lunar_prototype.deepwither.dynamic_quest.enums.QuestType;
+import com.lunar_prototype.deepwither.modules.dynamic_quest.enums.QuestPersona;
+import com.lunar_prototype.deepwither.modules.dynamic_quest.enums.QuestType;
 import org.bukkit.Location;
 
 import java.util.Random;

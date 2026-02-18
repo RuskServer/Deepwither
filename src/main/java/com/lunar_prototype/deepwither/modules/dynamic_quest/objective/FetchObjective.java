@@ -1,0 +1,34 @@
+package com.lunar_prototype.deepwither.modules.dynamic_quest.objective;
+
+import com.lunar_prototype.deepwither.modules.dynamic_quest.obj.DynamicQuest;
+import org.bukkit.Material;
+import org.bukkit.event.Event;
+import org.bukkit.inventory.ItemStack;
+
+public class FetchObjective implements IQuestObjective {
+    private final Material material;
+    private final int amount;
+
+    public FetchObjective(Material material, int amount) {
+        this.material = material;
+        this.amount = amount;
+    }
+
+    @Override
+    public String getDescription() {
+        return material.name() + " を " + amount + "個持ってくる";
+    }
+
+    @Override
+    public boolean isMet(DynamicQuest quest) {
+        // Fetch is typically checked at the NPC interaction (reporting)
+        // so we don't necessarily track it via events in real-time if we check inventory at report.
+        // But we can mark it met if we want.
+        return quest.isObjectiveMet();
+    }
+
+    @Override
+    public void onAction(DynamicQuest quest, Event event) {
+        // Inventory checking is done at reportQuest
+    }
+}
