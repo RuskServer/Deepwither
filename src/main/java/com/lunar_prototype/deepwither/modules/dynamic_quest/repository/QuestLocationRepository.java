@@ -29,7 +29,10 @@ public class QuestLocationRepository {
         locationsFile = new File(plugin.getDataFolder(), "dynamic_quest_locations.yml");
         if (!locationsFile.exists()) {
             try {
-                locationsFile.createNewFile();
+                boolean created = locationsFile.createNewFile();
+                if (!created) {
+                    plugin.getLogger().warning("[DynamicQuest] Failed to create dynamic_quest_locations.yml (file not created).");
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }

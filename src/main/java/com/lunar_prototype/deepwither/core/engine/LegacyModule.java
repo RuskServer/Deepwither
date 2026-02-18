@@ -42,6 +42,7 @@ public class LegacyModule implements IModule {
             if (serviceManager == null) {
                 plugin.getLogger()
                         .severe("LegacyModule: serviceManager is null in start()! configure() might have failed.");
+                return;
             }
 
             // 一括初期化
@@ -53,11 +54,16 @@ public class LegacyModule implements IModule {
         }
     }
 
-    @Override
+    `@Override`
     public void stop() {
         plugin.getLogger().info("Stopping Legacy Module (ServiceManager)...");
         if (serviceManager != null) {
-            serviceManager.stopAll();
+            try {
+                serviceManager.stopAll();
+            } catch (Exception e) {
+                plugin.getLogger().severe("LegacyModule: error during stopAll()!");
+                plugin.getLogger().severe(e.toString());
+            }
         }
     }
 }
