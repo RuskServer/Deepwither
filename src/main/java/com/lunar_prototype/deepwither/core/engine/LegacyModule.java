@@ -54,7 +54,7 @@ public class LegacyModule implements IModule {
         }
     }
 
-    `@Override`
+    @Override
     public void stop() {
         plugin.getLogger().info("Stopping Legacy Module (ServiceManager)...");
         if (serviceManager != null) {
