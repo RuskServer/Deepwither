@@ -36,6 +36,7 @@ public class LegacyModule implements IModule {
             if (serviceManager == null) {
                 plugin.getLogger()
                         .severe("LegacyModule: serviceManager is null in start()! configure() might have failed.");
+                return;
             }
 
             // 一括初期化
