@@ -14,10 +14,22 @@ public class DynamicQuestModule implements IModule {
 
     private final Deepwither plugin;
 
+    /**
+     * Create a DynamicQuestModule bound to the provided Deepwither plugin.
+     *
+     * @param plugin the main plugin instance used to access the bootstrap, service container, and plugin registration facilities
+     */
     public DynamicQuestModule(Deepwither plugin) {
         this.plugin = plugin;
     }
 
+    /**
+     * Registers dynamic quest components into the provided service container.
+     *
+     * <p>Creates and registers a QuestLocationRepository, retrieves an existing IMobService
+     * from the container to construct a QuestNPCManager, and creates and registers a QuestService.
+     * The method expects an IMobService instance to already be registered in the container.
+     */
     @Override
     public void configure(ServiceContainer container) {
         QuestLocationRepository repository = new QuestLocationRepository(plugin);
@@ -32,6 +44,12 @@ public class DynamicQuestModule implements IModule {
         container.registerInstance(QuestService.class, questService);
     }
 
+    /**
+     * Starts the dynamic quest subsystem: loads quest locations, initializes the NPC manager,
+     * registers event listeners, and wires the "dq" command with its executor and tab completer.
+     *
+     * <p>If the "dq" command is not declared in plugin.yml, a warning is logged instead of registering it.</p>
+     */
     @Override
     public void start() {
         ServiceContainer container = plugin.getBootstrap().getContainer();
@@ -57,6 +75,12 @@ public class DynamicQuestModule implements IModule {
         }
     }
 
+    /**
+     * Stops dynamic-quest NPC processing and releases related resources.
+     *
+     * Retrieves the application's service container and invokes shutdown on the registered
+     * QuestNPCManager to cleanly stop NPC-related routines.
+     */
     @Override
     public void stop() {
         ServiceContainer container = plugin.getBootstrap().getContainer();

@@ -14,10 +14,26 @@ public class EconomyModule implements IModule {
     private final Deepwither plugin;
     private ServiceContainer container;
 
+    /**
+     * Create a new EconomyModule bound to the given plugin instance.
+     *
+     * @param plugin the main Deepwither plugin instance used for registering managers and accessing plugin services
+     */
     public EconomyModule(Deepwither plugin) {
         this.plugin = plugin;
     }
 
+    /**
+     * Creates and registers the economy-related manager instances (global market, credit,
+     * trader, and trader quest managers) into the provided service container.
+     *
+     * Instances are added to the container so they can be retrieved and initialized elsewhere.
+     *
+     * @param container the service container used to retrieve dependencies and register instances
+     *
+     * If instantiation or registration fails, a severe log message is written and the exception
+     * stack trace is printed.
+     */
     @Override
     public void configure(ServiceContainer container) {
         this.container = container;
@@ -50,6 +66,13 @@ public class EconomyModule implements IModule {
         }
     }
 
+    /**
+     * Initializes the economy managers and starts their runtime behavior.
+     *
+     * Logs an informational message and calls `init()` on the GlobalMarketManager, CreditManager,
+     * TraderManager, and TraderQuestManager instances retrieved from the service container.
+     * Any exception thrown during initialization is caught and its stack trace is printed.
+     */
     @Override
     public void start() {
         try {
@@ -63,6 +86,11 @@ public class EconomyModule implements IModule {
         }
     }
 
+    /**
+     * Shuts down economy-related managers obtained from the service container.
+     *
+     * Invokes `shutdown()` on TraderManager, CreditManager, and GlobalMarketManager. Any exceptions thrown during shutdown are caught and their stack traces are printed.
+     */
     @Override
     public void stop() {
         try {

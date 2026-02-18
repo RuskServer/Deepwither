@@ -9,10 +9,23 @@ public class InfrastructureModule implements IModule {
 
     private final Deepwither plugin;
 
+    /**
+     * Creates a new InfrastructureModule tied to the given plugin instance.
+     *
+     * @param plugin the Deepwither plugin used to access logging and bootstrap/service container facilities
+     */
     public InfrastructureModule(Deepwither plugin) {
         this.plugin = plugin;
     }
 
+    /**
+     * Register infrastructure services required by this module into the provided service container.
+     *
+     * Specifically, creates and registers a DatabaseManager instance for later retrieval.
+     *
+     * @param container the service container where module services will be registered
+     * @throws RuntimeException if the DatabaseManager cannot be created or registered
+     */
     @Override
     public void configure(ServiceContainer container) {
         plugin.getLogger().info("InfrastructureModule: configure()");
@@ -49,6 +62,11 @@ public class InfrastructureModule implements IModule {
         }
     }
 
+    /**
+     * Starts the infrastructure module by initializing the DatabaseManager retrieved from the service container.
+     *
+     * If the DatabaseManager cannot be initialized, the method logs a severe error and suppresses the exception.
+     */
     @Override
     public void start() {
         // Module固有のstart処理
@@ -74,6 +92,13 @@ public class InfrastructureModule implements IModule {
         }
     }
 
+    /**
+     * Shuts down the DatabaseManager obtained from the module's service container, if present.
+     *
+     * <p>Retrieves the ServiceContainer from the plugin bootstrap, fetches the DatabaseManager
+     * instance and invokes its {@code shutdown()} method. Any exceptions thrown during retrieval
+     * or shutdown are caught and suppressed (e.g., if the manager is already disposed).</p>
+     */
     @Override
     public void stop() {
         ServiceContainer container = plugin.getBootstrap().getContainer();

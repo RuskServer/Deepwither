@@ -95,27 +95,57 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
 
     private static Deepwither instance;
 
+    /**
+     * Access the global Deepwither plugin instance.
+     *
+     * @return the singleton Deepwither instance, or {@code null} if the plugin has not been initialized
+     */
     public static Deepwither getInstance() {
         return instance;
     }
 
+    /**
+     * Retrieve a registered component or service by its class.
+     *
+     * @param <T>   the type of the requested component
+     * @param clazz the class object of the component to retrieve
+     * @return the registered instance for the given class, or `null` if none is registered
+     */
     @Override
     public <T> T get(Class<T> clazz) {
         return serviceManager.get(clazz);
     }
 
+    /**
+     * Accessor for the registered stat manager kept for legacy callers.
+     *
+     * @deprecated Use {@link #get(Class) get(StatManager.class)} to obtain the manager from the service registry.
+     * @return the registered {@link IStatManager} instance, or {@code null} if none is registered
+     */
     @Override
     @Deprecated
     public IStatManager getStatManager() {
         return (IStatManager) serviceManager.get(StatManager.class);
     }
 
+    /**
+     * Accesses the registered database manager.
+     *
+     * @deprecated Use {@code get(DatabaseManager.class)} to obtain the database manager from the service registry.
+     * @return the registered {@code IDatabaseManager} instance, or {@code null} if none is registered
+     */
     @Override
     @Deprecated
     public IDatabaseManager getDatabaseManager() {
         return (IDatabaseManager) serviceManager.get(DatabaseManager.class);
     }
 
+    /**
+     * Accesses the registered item factory implementation.
+     *
+     * @deprecated Use {@code get(ItemFactory.class)} (or the generic {@code get(Class)} API) to obtain the item factory from the service manager.
+     * @return the registered {@link IItemFactory} instance, or {@code null} if no item factory is registered
+     */
     @Deprecated
     public IItemFactory getItemFactoryAPI() {
         return (IItemFactory) serviceManager.get(ItemFactory.class);
@@ -124,12 +154,20 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     private ServiceManager serviceManager;
     private DeepwitherBootstrap bootstrap; // [NEW] Bootstrap
 
-    // [NEW] LegacyModuleから注入される
+    /**
+     * Injects the ServiceManager instance used by the plugin, supporting legacy module-based initialization.
+     *
+     * @param serviceManager the ServiceManager provided by legacy modules or external bootstrapping; stored for later use
+     */
     public void setServiceManager(ServiceManager serviceManager) {
         this.serviceManager = serviceManager;
     }
 
-    // [NEW] Bootstrap取得用
+    /**
+     * Access the plugin's DeepwitherBootstrap instance.
+     *
+     * @return the current DeepwitherBootstrap instance, or `null` if it has not been initialized
+     */
     public DeepwitherBootstrap getBootstrap() {
         return bootstrap;
     }
@@ -172,6 +210,12 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     public ArtifactGUI artifactGUI;
     public ItemFactory itemFactory;
 
+    /**
+     * Accesses the registered TraderQuestManager.
+     *
+     * @deprecated Use {@link Deepwither#get(Class)} or the ServiceManager to obtain a TraderQuestManager instance.
+     * @return the TraderQuestManager instance
+     */
     @Deprecated
     public TraderQuestManager getTraderQuestManager() {
         return traderQuestManager;
@@ -263,6 +307,11 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         return raidBossManager;
     }
 
+    /**
+     * Gets the plugin's ClanManager.
+     *
+     * @return the registered ClanManager, or null if it has not been initialized
+     */
     public ClanManager getClanManager() {
         return clanManager;
     }
@@ -283,10 +332,20 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         return resetGUI;
     }
 
+    /**
+     * Provides the MenuItemListener responsible for handling menu item interactions.
+     *
+     * @return the MenuItemListener instance used to handle menu item interactions
+     */
     public MenuItemListener getMenuItemListener() {
         return menuItemListener;
     }
 
+    /**
+     * Provides the SafeZoneListener instance used to handle safe-zone related events.
+     *
+     * @return the SafeZoneListener responsible for safe-zone event handling
+     */
     public SafeZoneListener getSafeZoneListener() {
         return safeZoneListener;
     }
@@ -343,140 +402,306 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         return artifactGUIListener;
     }
 
+    /**
+     * Provides access to the plugin's Artifact GUI manager.
+     *
+     * @return the ArtifactGUI instance that manages artifact-related GUIs and player interactions
+     */
     public ArtifactGUI getArtifactGUI() {
         return artifactGUI;
     }
 
+    /**
+     * Deprecated accessor for the plugin's ItemFactory.
+     *
+     * @deprecated Retained for legacy compatibility; use the service registry–based API instead.
+     * @return the registered ItemFactory
+     */
     @Deprecated
     public ItemFactory getItemFactory() {
         return itemFactory;
     }
 
+    /**
+     * Access the registered TraderManager.
+     *
+     * @return the TraderManager instance, or null if it has not been initialized
+     * @deprecated Deprecated — retained for binary compatibility.
+     */
     @Deprecated
     public TraderManager getTraderManager() {
         return traderManager;
     }
 
+    /**
+     * Provides access to the plugin's CreditManager.
+     *
+     * @deprecated Use {@link #get(Class)} to obtain the CreditManager from the service container instead.
+     * @return the CreditManager instance
+     */
     @Deprecated
     public CreditManager getCreditManager() {
         return creditManager;
     }
 
+    /**
+     * Provides access to the plugin's DailyTaskManager.
+     *
+     * @deprecated Access managers through {@link #get(Class)} or the ServiceManager; this compatibility accessor may be removed in a future release.
+     * @return the DailyTaskManager instance used by the plugin
+     */
     @Deprecated
     public DailyTaskManager getDailyTaskManager() { // ★ 新規追加
         return dailyTaskManager;
     }
 
+    /**
+     * Accessor for the plugin's MobSpawnManager.
+     *
+     * @deprecated Managers are now provided via the service registry; obtain MobSpawnManager from the service registry instead of using this legacy accessor.
+     * @return the registered MobSpawnManager, or {@code null} if it has not been initialized
+     */
     @Deprecated
     public MobSpawnManager getMobSpawnManager() {
         return mobSpawnManager;
     }
 
+    /**
+     * Accesses the plugin's LootChestManager instance.
+     *
+     * @return the registered LootChestManager
+     * @deprecated Use {@link Deepwither#get(Class)} or obtain the manager from the ServiceManager instead.
+     */
     @Deprecated
     public LootChestManager getLootChestManager() {
         return lootChestManager;
     }
 
+    /**
+     * Accesses the plugin's item name resolver used to determine display names for items.
+     *
+     * @deprecated Use the service lookup API instead, e.g. {@code Deepwither.getInstance().get(ItemNameResolver.class)}.
+     * @return the registered ItemNameResolver, or {@code null} if none is set
+     */
     @Deprecated
     public ItemNameResolver getItemNameResolver() {
         return itemNameResolver;
     }
 
+    /**
+     * Access the plugin's PlayerQuestManager.
+     *
+     * @deprecated Use {@code get(PlayerQuestManager.class)} or obtain the manager from the ServiceManager instead.
+     * @return the PlayerQuestManager instance, or {@code null} if it has not been registered
+     */
     @Deprecated
     public PlayerQuestManager getPlayerQuestManager() {
         return playerQuestManager;
     }
 
+    /**
+     * Accesses the plugin's CraftingManager instance.
+     *
+     * @deprecated Use {@link #get(Class)} with {@code CraftingManager.class} (service lookup) instead.
+     * @return the CraftingManager instance, or {@code null} if it has not been initialized
+         */
     @Deprecated
     public CraftingManager getCraftingManager() {
         return craftingManager;
     }
 
+    /**
+     * Accesses the cached CraftingGUI instance.
+     *
+     * @deprecated This legacy accessor is retained for backward compatibility; obtain the CraftingGUI from the service registry or the bootstrap-provided components instead.
+     * @return the cached CraftingGUI instance, or {@code null} if it has not been initialized
+     */
     @Deprecated
     public CraftingGUI getCraftingGUI() {
         return craftingGUI;
     }
 
+    /**
+     * Access the legacy ProfessionManager instance.
+     *
+     * @return the registered ProfessionManager instance, or {@code null} if it has not been initialized
+     * @deprecated Use the service registry via {@link #get(Class)} (for example, {@code get(ProfessionManager.class)}) to obtain the ProfessionManager.
+     */
     @Deprecated
     public ProfessionManager getProfessionManager() {
         return professionManager;
     }
 
+    /**
+     * Access the plugin's ChargeManager instance.
+     *
+     * @return the registered ChargeManager instance, or {@code null} if it has not been initialized
+     * @deprecated Managers are now provided via the service manager; use {@code Deepwither#get(Class)} or obtain the manager from the ServiceManager instead.
+     */
     @Deprecated
     public ChargeManager getChargeManager() {
         return chargeManager;
     }
 
+    /**
+     * Access the plugin's BackpackManager.
+     *
+     * @deprecated Use {@link #get(Class)} to obtain the manager from the service manager instead.
+     * @return the registered BackpackManager instance, or null if not available
+     */
     @Deprecated
     public BackpackManager getBackpackManager() {
         return backpackManager;
     };
 
+    /**
+     * Accesses the plugin's DamageManager instance.
+     *
+     * @return the registered DamageManager instance
+     * @deprecated Use the service registry (for example, {@code get(DamageManager.class)}) to obtain managers instead of direct getters.
+     */
     @Deprecated
     public DamageManager getDamageManager() {
         return damageManager;
     }
 
+    /**
+     * Accessor for the plugin's DamageProcessor instance.
+     *
+     * @deprecated DamageProcessor instances are provided by the service manager; this legacy accessor will be removed.
+     * @return the DamageProcessor used by the plugin, or `null` if it has not been initialized.
+     */
     @Deprecated
     public DamageProcessor getDamageProcessor() {
         return damageProcessor;
     }
 
+    /**
+     * Access the configured WeaponMechanicManager instance.
+     *
+     * @return the registered WeaponMechanicManager instance
+     * @deprecated Obtain the manager from the service container instead, e.g. {@code Deepwither.get(WeaponMechanicManager.class)}.
+     */
     @Deprecated
     public WeaponMechanicManager getWeaponMechanicManager() {
         return weaponMechanicManager;
     }
 
+    /**
+     * Access the plugin's PlayerSettingsManager.
+     *
+     * @return the PlayerSettingsManager instance
+     * @deprecated Use the service lookup API (for example, {@code get(PlayerSettingsManager.class)}) instead of this legacy accessor.
+     */
     @Deprecated
     public PlayerSettingsManager getSettingsManager() {
         return settingsManager;
     }
 
+    /**
+     * Retrieves the SettingsGUI instance used by the plugin.
+     *
+     * @deprecated Use {@link #get(Class)} (for example, {@code get(SettingsGUI.class)}) or obtain the component from the ServiceManager.
+     * @return the SettingsGUI instance
+     */
     @Deprecated
     public SettingsGUI getSettingsGUI() {
         return settingsGUI;
     }
 
+    /**
+     * Provides access to the plugin's CompanionManager instance.
+     *
+     * @deprecated Use Deepwither#get(Class) or the ServiceManager to obtain the CompanionManager; this getter will be removed in a future release.
+     * @return the CompanionManager instance used by the plugin
+     */
     @Deprecated
     public CompanionManager getCompanionManager() {
         return companionManager;
     }
 
+    /**
+     * Access the LayerMoveManager instance.
+     *
+     * @return the LayerMoveManager held by this plugin instance
+     * @deprecated Managers are now provided and retrieved via the service container/bootstrap. Use {@code Deepwither.get(LayerMoveManager.class)} (or obtain the manager from the ServiceManager/DeepwitherBootstrap) instead.
+     */
     @Deprecated
     public LayerMoveManager getLayerMoveManager() {
         return layerMoveManager;
     }
 
+    /**
+     * Gets the plugin's FishingManager instance.
+     *
+     * @return the FishingManager instance, or null if not initialized
+     * @deprecated Manager instances are provided via the service manager/bootstrap; obtain the FishingManager from the service registry or API instead of using this deprecated accessor.
+     */
     @Deprecated
     public FishingManager getFishingManager() {
         return fishingManager;
     }
 
+    /**
+     * Gets the registered MobKillListener.
+     *
+     * @return the registered {@link MobKillListener}, or {@code null} if it has not been initialized
+     * @deprecated Deprecated; obtain listeners from the plugin's service manager or API instead
+     */
     @Deprecated
     public MobKillListener getMobKillListener() {
         return mobKillListener;
     }
 
+    /**
+     * Accesses the legacy MarketSearchHandler instance.
+     *
+     * @deprecated Retrieve the handler from the service manager or via {@code get(Class)} on the Deepwither API instead of using this legacy accessor.
+     * @return the registered MarketSearchHandler, or {@code null} if none is set
+     */
     @Deprecated
     public MarketSearchHandler getMarketSearchHandler() {
         return marketSearchHandler;
     }
 
+    /**
+     * Accesses the plugin's Skilltree GUI instance.
+     *
+     * @deprecated Use service-managed retrieval (for example via Deepwither#get(Class)) instead of this legacy accessor.
+     * @return the SkilltreeGUI instance, or null if it has not been initialized
+     */
     @Deprecated
     public SkilltreeGUI getSkilltreeGUI() {
         return skilltreeGUI;
     }
 
+    /**
+     * Access the plugin's LootDropManager instance.
+     *
+     * @deprecated Obtain the manager from the service container instead of using this legacy accessor; use the ServiceManager or Deepwither#get(Class) to retrieve `LootDropManager`.
+     * @return the registered LootDropManager, or `null` if it has not been initialized
+     */
     @Deprecated
     public LootDropManager getLootDropManager() {
         return lootDropManager;
     }
 
+    /**
+     * Provides access to the plugin's LootLevelManager.
+     *
+     * @return the LootLevelManager instance, or null if it has not been initialized or registered
+     * @deprecated Direct accessors are deprecated; obtain managers from the service registry instead
+     */
     @Deprecated
     public LootLevelManager getLootLevelManager() {
         return lootLevelManager;
     }
 
+    /**
+     * Initializes the plugin: registers configuration serializers, ensures economy is available, initializes bootstrap and core subsystems, schedules recurring tasks, and registers commands and integrations.
+     *
+     * <p>On successful startup this method sets the global plugin instance, configures the async executor, loads guild quest configuration and quest components, initializes the party API, registers PlaceholderAPI expansions when present, schedules mana regeneration and attack-speed reset tasks, starts the MythicBukkit AI tick loop for bandits, and registers all plugin commands and lifecycle command handlers.</p>
+     */
     @Override
     public void onEnable() {
         // Plugin startup logic
@@ -612,6 +837,11 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         });
     }
 
+    /**
+     * Performs plugin shutdown tasks: unloads level and attribute data for online players,
+     * delegates shutdown to the bootstrap if present (falling back to the service manager),
+     * and shuts down the asynchronous executor.
+     */
     @Override
     public void onDisable() {
         for (Player p : Bukkit.getOnlinePlayers()) {
@@ -632,7 +862,15 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         shutdownExecutor();
     }
 
-    // [MODIFY] LegacyModuleから呼ばれるため public に変更
+    /**
+     * Initializes core subsystems, UI components, and event listeners for the plugin.
+     *
+     * <p>Retrieves required services from the configured ServiceManager and constructs or
+     * registers remaining manager, GUI, and listener instances so they are available
+     * through the plugin's service container.</p>
+     *
+     * <p>This method is public to allow invocation by legacy modules during bootstrap.</p>
+     */
     public void setupManagers() {
         // [MOVED] DatabaseManager, CacheManager, PlayerDataManager are now in Modules
         // Retrieve them from ServiceManager (which delegates to Container)
@@ -774,6 +1012,13 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         register(new PlayerInventoryRestrictor(this));
     }
 
+    /**
+     * Register the given manager with the plugin's service container and return it.
+     *
+     * @param manager the manager instance to register with the ServiceManager
+     * @param <T>     the manager type
+     * @return        the same manager instance that was registered
+     */
     private <T extends IManager> T register(T manager) {
         serviceManager.register(manager);
         return manager;
@@ -833,14 +1078,23 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         return safeZoneListener.getSafeZoneSpawn(playerUUID);
     }
 
-    // リスポーン地点を設定
+    /**
+     * Set the respawn location for a player inside a safe zone.
+     *
+     * @param playerUUID the UUID of the player whose safe-zone spawn will be set
+     * @param location   the world location to use as the player's safe-zone respawn point
+     */
     public void setSafeZoneSpawn(UUID playerUUID, Location location) {
         safeZoneListener.setSafeZoneSpawn(playerUUID, location);
     }
 
     // リスポーン地点データをファイルから読み込む
 
-    // リスポーン地点データをファイルに保存する
+    /**
+     * Persists safe-zone respawn point data to disk.
+     *
+     * Writes the current safe-zone spawn locations into the plugin's storage so they are preserved across restarts.
+     */
     public void saveSafeZoneSpawns() {
         safeZoneListener.saveSafeZoneSpawns();
     }

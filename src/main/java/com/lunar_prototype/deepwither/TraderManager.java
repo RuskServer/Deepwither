@@ -36,6 +36,12 @@ public class TraderManager implements IManager {
         this.itemFactory = itemFactory;
     }
 
+    /**
+     * Initializes trader data paths and loads trader and sell-offer configurations.
+     *
+     * Creates the traders directory if it does not exist, then loads all trader definitions
+     * and the trader sell-offers file into memory.
+     */
     @Override
     public void init() {
         this.tradersFolder = new File(plugin.getDataFolder(), "traders");
@@ -48,6 +54,11 @@ public class TraderManager implements IManager {
         loadSellOffers();
     }
 
+    /**
+     * Performs shutdown and cleanup operations for the TraderManager.
+     *
+     * <p>Invoked when the plugin is disabling to allow the manager to release resources or persist state.
+     */
     @Override
     public void shutdown() {
     }
@@ -68,6 +79,18 @@ public class TraderManager implements IManager {
         private String requiredWeapon = null;
         private String requiredArmor = null;
 
+        /**
+         * Create a QuestData instance that holds the quest's core attributes and reward.
+         *
+         * @param id           unique identifier for the quest
+         * @param name         display name for the quest
+         * @param description  list of description lines; if null an empty list will be used
+         * @param type         quest type identifier (defines how the quest is evaluated)
+         * @param target       identifier of the quest target (entity, item, or other target value)
+         * @param amount       quantity required to complete the quest
+         * @param requires     quest id that must be completed before this quest is unlocked, or null if none
+         * @param rewardCredit credit awarded to the player when the quest is completed
+         */
         public QuestData(String id, String name, List<String> description, String type, String target, int amount,
                 String requires, int rewardCredit) {
             this.id = id;
@@ -80,71 +103,152 @@ public class TraderManager implements IManager {
             this.rewardCredit = rewardCredit;
         }
 
-        // セッター (条件設定用)
+        /**
+         * Sets distance constraints for the quest target.
+         *
+         * @param min minimum distance constraint
+         * @param max maximum distance constraint
+         */
         public void setDistance(double min, double max) {
             this.minDistance = min;
             this.maxDistance = max;
         }
 
+        /**
+         * Sets the identifier of the weapon a player must have to satisfy the quest's requirement.
+         *
+         * @param weapon the weapon id or material name required to complete the quest, or `null` to clear the requirement
+         */
         public void setRequiredWeapon(String weapon) {
             this.requiredWeapon = weapon;
         }
 
+        /**
+         * Sets the armor requirement for the quest; this value is used to enforce that a player has a specific armor equipped.
+         *
+         * @param armor the armor identifier or material name required for the quest, or {@code null} to clear the requirement
+         */
         public void setRequiredArmor(String armor) {
             this.requiredArmor = armor;
         }
 
-        // ゲッター
+        /**
+         * Gets the trader's unique identifier.
+         *
+         * @return the trader's identifier
+         */
         public String getId() {
             return id;
         }
 
+        /**
+         * Gets the display name for this quest.
+         *
+         * @return the quest's display name.
+         */
         public String getDisplayName() {
             return displayName;
         }
 
+        /**
+         * Get the quest's description lines.
+         *
+         * @return the quest description as a list of lines
+         */
         public List<String> getDescription() {
             return description;
         }
 
+        /**
+         * Gets the quest type identifier.
+         *
+         * @return the quest type (for example, "KILL")
+         */
         public String getType() {
             return type;
         }
 
+        /**
+         * Returns the quest's target identifier or subject.
+         *
+         * @return the quest's target identifier or subject
+         */
         public String getTarget() {
             return target;
         }
 
+        /**
+         * Get the target count required by this quest.
+         *
+         * @return the target count for the quest
+         */
         public int getAmount() {
             return amount;
         }
 
+        /**
+         * Gets the quest ID that must be completed to unlock this quest.
+         *
+         * @return the required quest ID, or `null` if no prerequisite is configured
+         */
         public String getRequiredQuestId() {
             return requiredQuestId;
         }
 
+        /**
+         * The credit reward awarded for completing this quest.
+         *
+         * @return the number of credits granted upon quest completion
+         */
         public int getRewardCredit() {
             return rewardCredit;
         }
 
+        /**
+         * Minimum distance constraint for the quest.
+         *
+         * @return the minimum distance constraint for the quest, or a negative value if unset
+         */
         public double getMinDistance() {
             return minDistance;
         }
 
+        /**
+         * Gets the configured maximum distance constraint for the quest.
+         *
+         * @return the maximum distance value; 0 if no maximum was configured
+         */
         public double getMaxDistance() {
             return maxDistance;
         }
 
+        /**
+         * Gets the identifier of the weapon required for the quest, or null if no weapon is required.
+         *
+         * @return the required weapon identifier, or null if not specified
+         */
         public String getRequiredWeapon() {
             return requiredWeapon;
         }
 
+        /**
+         * The armor item required to complete the quest, if any.
+         *
+         * @return the required armor identifier, or null if the quest does not require specific armor
+         */
         public String getRequiredArmor() {
             return requiredArmor;
         }
     }
 
-    // --- トレーダー購入オファーのロード ---
+    /**
+     * Loads all trader configuration files from the configured traders folder and populates
+     * internal maps for trader offers, daily task limits, display names, quests, and tier
+     * unlock requirements.
+     *
+     * Clears existing trader-related caches before loading. If the traders folder contains no
+     * YAML files or cannot be listed, the method returns without modifying state.
+     */
 
     private void loadAllTraders() {
         traderOffers.clear();
@@ -186,7 +290,11 @@ public class TraderManager implements IManager {
     }
 
     /**
-     * YAMLのquestsセクションをパースする
+     * Parse a trader's "quests" configuration section into QuestData objects.
+     *
+     * @param traderId identifier of the trader owning the quests
+     * @param section  the ConfigurationSection representing the "quests" subsection for the trader
+     * @return a map of quest ID to QuestData preserving the definition order
      */
     private Map<String, QuestData> parseQuests(String traderId, org.bukkit.configuration.ConfigurationSection section) {
         Map<String, QuestData> quests = new LinkedHashMap<>(); // 順番を保持
@@ -221,6 +329,17 @@ public class TraderManager implements IManager {
         return quests;
     }
 
+    /**
+     * Parse the trader's "credit_tiers" configuration into credit-level offer lists and record tier unlock requirements.
+     *
+     * Parses the "credit_tiers" section of the provided YAML config into a map keyed by credit level (integer)
+     * with each value being the list of TraderOffer objects for that tier. Each offer's associated ItemStack is loaded,
+     * and any configured required quest IDs for unlocking tiers are stored in this instance's tierRequirements for the trader.
+     *
+     * @param traderId the identifier of the trader whose config is being parsed
+     * @param config the YAML configuration containing a "credit_tiers" section
+     * @return a map from credit level to the list of TraderOffer objects for that level; empty if no "credit_tiers" section exists
+     */
     private Map<Integer, List<TraderOffer>> parseBuyOffers(String traderId, YamlConfiguration config) {
         Map<Integer, List<TraderOffer>> tiers = new HashMap<>();
 
@@ -263,6 +382,24 @@ public class TraderManager implements IManager {
         return tiers;
     }
 
+    /**
+     * Constructs a TraderOffer from a configuration map.
+     *
+     * Parses item type and identifier, amount, cost, required credit, and an optional
+     * list of required items (vanilla materials or custom items via the ItemFactory).
+     *
+     * Default behavior for missing fields:
+     * - amount defaults to 1
+     * - cost defaults to 0
+     * - required_credit defaults to 0
+     *
+     * When a "required_items" section is present, each entry may specify a "type"
+     * ("CUSTOM" or "VANILLA"), an item identifier ("custom_id" or "material"), and
+     * an "amount". Custom required items are resolved through the manager's ItemFactory.
+     *
+     * @param offerMap configuration map describing the offer
+     * @return a populated TraderOffer reflecting the provided configuration
+     */
     private TraderOffer createTraderOffer(Map<?, ?> offerMap) {
         String itemTypeStr = (String) offerMap.get("item_type");
         TraderOffer.ItemType type = ItemType.valueOf(itemTypeStr.toUpperCase());
@@ -331,7 +468,14 @@ public class TraderManager implements IManager {
         return offer;
     }
 
-    // --- 売却オファーのロード ---
+    /**
+     * Loads sell-item price mappings from the configured sell file into the manager's sellPrices map.
+     *
+     * Reads the "sell_items" list from the YAML file and stores each entry's item identifier (material name for
+     * vanilla items or custom_id for custom items) mapped to its sell price. If the sell file does not exist
+     * or the list is absent, the method returns without modifying state. If an entry's price is missing or not
+     * numeric, a price of 0 is stored.
+     */
 
     private void loadSellOffers() {
         if (!sellFile.exists()) {
@@ -366,7 +510,11 @@ public class TraderManager implements IManager {
     // --- ユーティリティメソッド ---
 
     /**
-     * TraderOfferのアイテムをロードし、ItemStackをセットする
+     * Loads an ItemStack for the given TraderOffer and assigns it to the offer when resolved.
+     *
+     * Supports VANILLA and CUSTOM offer item types; if the item cannot be resolved, the offer's loaded item is left unset.
+     *
+     * @param offer the TraderOffer whose loaded ItemStack will be set when successfully loaded
      */
     private void loadOfferItem(TraderOffer offer) {
         ItemStack item = null;
@@ -398,7 +546,10 @@ public class TraderManager implements IManager {
     // --- ゲッター ---
 
     /**
-     * プレイヤーの信用度に関係なく、指定されたトレーダーの全オファーを信用度ティアレベルの低い順に取得する。
+     * Get all offers for the given trader ordered by credit tier from lowest to highest.
+     *
+     * @param traderId the identifier of the trader
+     * @return a list of the trader's offers ordered by ascending credit tier; an empty list if the trader is not found
      */
     public List<TraderOffer> getAllOffers(String traderId) {
         List<TraderOffer> allOffers = new ArrayList<>();
@@ -419,11 +570,11 @@ public class TraderManager implements IManager {
     }
 
     /**
-     * トレーダーIDとアイテムのID(ID/Material)を指定して、最初に見つかったオファーを取得する。
-     * 
-     * @param traderId トレーダーID
-     * @param itemId   検索したいアイテムのID (Material名 or custom_id)
-     * @return 該当する TraderOffer、見つからない場合は null
+     * Finds the first trader offer for the given trader that matches the specified item ID.
+     *
+     * @param traderId the trader's identifier
+     * @param itemId   the item identifier to search for (Material name or custom_id)
+     * @return the matching {@link TraderOffer}, or `null` if no matching offer is found
      */
     public TraderOffer getOfferById(String traderId, String itemId) {
         return getAllOffers(traderId).stream()
@@ -433,7 +584,16 @@ public class TraderManager implements IManager {
     }
 
     /**
-     * プレイヤーがそのティアにアクセス可能か判定する
+     * Determines whether a player may access a specific trader credit tier.
+     *
+     * Checks that the player's credit meets or exceeds the tier's required credit and,
+     * if the tier has an associated unlock quest, that the player has completed that quest.
+     *
+     * @param player         the player to check
+     * @param traderId       the trader identifier
+     * @param requiredCredit the credit level required to access the tier
+     * @param playerCredit   the player's current credit with the trader
+     * @return               `true` if the player may access the tier, `false` otherwise
      */
     public boolean canAccessTier(Player player, String traderId, int requiredCredit, int playerCredit) {
         // 1. まず信用度が足りているか
@@ -462,11 +622,11 @@ public class TraderManager implements IManager {
     }
 
     /**
-     * 特定のトレーダーの特定のクエストデータを取得します。
-     * 
-     * @param traderId トレーダーのID
-     * @param questId  クエストのID
-     * @return QuestData。存在しない場合はnullを返します。
+     * Retrieve the QuestData for a specific trader's quest.
+     *
+     * @param traderId the trader's identifier
+     * @param questId  the quest's identifier
+     * @return the QuestData for the given trader and quest ID, or `null` if none exists
      */
     public QuestData getQuestData(String traderId, String questId) {
         Map<String, QuestData> quests = traderQuests.get(traderId);
@@ -476,9 +636,9 @@ public class TraderManager implements IManager {
     }
 
     /**
-     * 現在ロードされている全トレーダーのクエスト情報を取得します（管理・監視用）。
-     * 
-     * @return [TraderID -> [QuestID -> QuestData]] のマップ
+     * Provides an unmodifiable map of all loaded traders to their quest data.
+     *
+     * @return a map from trader ID to a map of quest ID -> QuestData; the returned outer map and its nested maps are unmodifiable
      */
     public Map<String, Map<String, QuestData>> getAllQuests() {
         return Collections.unmodifiableMap(traderQuests);

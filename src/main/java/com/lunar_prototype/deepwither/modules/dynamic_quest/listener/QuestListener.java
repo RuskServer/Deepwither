@@ -30,11 +30,28 @@ public class QuestListener implements Listener {
     private final Deepwither plugin;
     private final QuestNPCManager npcManager;
 
+    /**
+     * Creates a QuestListener and wires it to the given plugin and QuestNPC manager.
+     *
+     * @param plugin   the main Deepwither plugin instance used for scheduling and messaging
+     * @param npcManager the manager that provides access to active QuestNPC instances
+     */
     public QuestListener(Deepwither plugin, QuestNPCManager npcManager) {
         this.plugin = plugin;
         this.npcManager = npcManager;
     }
 
+    /**
+     * Handles player right-clicks on entities: routes interactions to active quest NPCs or
+     * removes and notifies about invalidated quest NPC entities.
+     *
+     * <p>If the clicked entity corresponds to an active QuestNPC, the event is cancelled
+     * and the interaction is delegated to the quest-handling logic. If the entity carries
+     * the plugin's "quest_npc" persistent data marker but is not an active NPC, the event
+     * is cancelled, the entity is removed, and the player is notified.
+     *
+     * @param event the player interact-entity event containing the clicked entity and player
+     */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onInteract(PlayerInteractEntityEvent event) {
         Entity clicked = event.getRightClicked();
@@ -56,6 +73,17 @@ public class QuestListener implements Listener {
         }
     }
 
+    /**
+     * Render quest dialogue and interactive choices to the player for the given QuestNPC.
+     *
+     * <p>Sends a header and the quest persona, then displays content based on the quest status:
+     * for CREATED quests, shows generated dialogue and clickable accept/decline options;
+     * for ACTIVE quests, if the player is the assignee and the objective is met, shows a clickable report option to complete the quest;
+     * if the assignee has not met the objective, shows progress and target location; if another player is the assignee, notifies the player.</p>
+     *
+     * @param player the player who interacted with the NPC
+     * @param npc the QuestNPC that was interacted with (provides the associated DynamicQuest)
+     */
     private void handleNPCInteraction(Player player, QuestNPC npc) {
         DynamicQuest quest = npc.getQuest();
         
@@ -97,6 +125,15 @@ public class QuestListener implements Listener {
         player.sendMessage(Component.text("--------------------------------", NamedTextColor.GRAY));
     }
 
+    /**
+     * Forwards player movement events (when the player changes block) to active quest objectives.
+     *
+     * <p>Ignores movements that remain within the same block. For each active QuestNPC whose quest
+     * status is ACTIVE and that has a non-null objective, invokes the objective's onAction with the
+     * quest and the movement event.
+     *
+     * @param event the player movement event
+     */
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
         if (event.getFrom().getBlockX() == event.getTo().getBlockX()
@@ -112,6 +149,11 @@ public class QuestListener implements Listener {
         }
     }
 
+    /**
+     * Forwards an entity death event to each active quest's objective for potential handling.
+     *
+     * @param event the entity death event to dispatch to active quest objectives
+     */
     @EventHandler
     public void onEntityDeath(EntityDeathEvent event) {
         for (QuestNPC npc : npcManager.getActiveNPCs()) {

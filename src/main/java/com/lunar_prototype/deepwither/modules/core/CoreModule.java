@@ -17,10 +17,21 @@ public class CoreModule implements IModule {
 
     private final Deepwither plugin;
 
+    /**
+     * Creates a CoreModule tied to the specified plugin.
+     *
+     * @param plugin the Deepwither plugin used to obtain runtime services and configuration
+     */
     public CoreModule(Deepwither plugin) {
         this.plugin = plugin;
     }
 
+    /**
+     * Registers and wires the core manager instances required by the plugin into the given service container.
+     *
+     * @param container the ServiceContainer used to register manager instances (CacheManager, PlayerDataManager,
+     *                  ItemFactory, StatManager, PlayerSettingsManager, ChargeManager, and CooldownManager)
+     */
     @Override
     public void configure(ServiceContainer container) {
         plugin.getLogger().info("CoreModule: configure()");
@@ -50,6 +61,13 @@ public class CoreModule implements IModule {
         container.registerInstance(CooldownManager.class, cooldownManager);
     }
 
+    /**
+     * Initializes the core manager components from the plugin's service container.
+     *
+     * <p>Each registered core manager is located in the ServiceContainer and has its `init()` invoked:
+     * CacheManager, PlayerDataManager, ItemFactory, StatManager, PlayerSettingsManager, ChargeManager,
+     * and CooldownManager.</p>
+     */
     @Override
     public void start() {
         ServiceContainer container = plugin.getBootstrap().getContainer();
@@ -64,6 +82,14 @@ public class CoreModule implements IModule {
         initSafely(container, CooldownManager.class);
     }
 
+    /**
+     * Shuts down the module's core managers by invoking `shutdown()` on each managed component.
+     *
+     * Retrieves manager instances from the plugin's ServiceContainer and calls `shutdown()` in the
+     * following sequence: CooldownManager, ChargeManager, PlayerSettingsManager, StatManager,
+     * ItemFactory, PlayerDataManager, CacheManager. Any exception thrown during shutdown is caught
+     * and suppressed. 
+     */
     @Override
     public void stop() {
         ServiceContainer container = plugin.getBootstrap().getContainer();
@@ -79,6 +105,14 @@ public class CoreModule implements IModule {
         }
     }
 
+    /**
+     * Initializes the manager of the specified type retrieved from the given ServiceContainer.
+     *
+     * If initialization throws an exception, the error is logged and the exception is suppressed.
+     *
+     * @param container the ServiceContainer to obtain the manager instance from
+     * @param clazz the manager class to initialize
+     */
     private <T extends IManager> void initSafely(ServiceContainer container, Class<T> clazz) {
         try {
             container.get(clazz).init();

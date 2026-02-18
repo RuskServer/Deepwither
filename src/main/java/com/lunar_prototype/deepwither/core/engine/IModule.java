@@ -11,24 +11,24 @@ package com.lunar_prototype.deepwither.core.engine;
 public interface IModule {
 
     /**
-     * モジュールの構成を行います。
-     * このフェーズでは、自身のクラスや依存するコンポーネントを
-     * {@link ServiceContainer} に登録します。
-     * 
-     * @param container DIコンテナ
-     */
+ * Configure the module by registering its services and required components into the provided service container.
+ *
+ * @param container the dependency-injection container used to register the module's own classes and any dependencies
+ */
     void configure(ServiceContainer container);
 
     /**
-     * モジュールの開始処理を行います。
-     * コンテナによって依存関係が解決された後に呼び出されます。
-     * リスナーの登録や初期化処理はここで行います。
-     */
+ * Start the module and perform startup initialization.
+ *
+ * Called after the ServiceContainer has resolved the module's dependencies.
+ * Register event listeners and perform any initialization required for the module here.
+ */
     void start();
 
     /**
-     * モジュールの停止処理を行います。
-     * プラグインの無効化時に呼び出されます。
-     */
+ * Performs module shutdown and cleanup.
+ *
+ * Called when the plugin is disabled; implementations should unregister listeners, stop background tasks, and release resources acquired during startup.
+ */
     void stop();
 }

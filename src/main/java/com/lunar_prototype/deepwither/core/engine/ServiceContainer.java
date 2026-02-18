@@ -24,21 +24,35 @@ public class ServiceContainer {
     private final Set<Class<?>> currentlyCreating = new HashSet<>();
     private final Logger logger;
 
+    /**
+     * Create a new ServiceContainer and register the container instance for dependency resolution.
+     *
+     * @param logger the Logger used to report warnings and informational messages
+     */
     public ServiceContainer(Logger logger) {
         this.logger = logger;
         // 自分自身を登録
         registerInstance(ServiceContainer.class, this);
     }
 
+    /**
+     * Checks whether an instance for the given class is available in the container.
+     *
+     * @param clazz the service or implementation class to check for
+     * @return `true` if an instantiated or explicitly registered instance exists for the class, `false` otherwise
+     */
     public boolean has(Class<?> clazz) {
         return instances.containsKey(clazz) || registeredInstances.containsKey(clazz);
     }
 
     /**
-     * 既存のインスタンスをコンテナに登録します。
-     * 
-     * @param clazz    登録するクラスの型
-     * @param instance 登録するインスタンス
+     * Registers a pre-existing instance for the specified class in the container.
+     *
+     * After registration, subsequent requests for the class will return the provided instance.
+     * If an existing registration or instance is present, a warning is logged and the registration is overwritten.
+     *
+     * @param clazz    the class key under which to register the instance
+     * @param instance the instance to register and return for future lookups
      */
     public <T> void registerInstance(Class<T> clazz, T instance) {
         if (instances.containsKey(clazz) || registeredInstances.containsKey(clazz)) {
@@ -49,12 +63,11 @@ public class ServiceContainer {
     }
 
     /**
-     * 指定されたクラスのインスタンスを取得します。
-     * まだ生成されていない場合は、依存関係を解決して生成します。
-     * 
-     * @param clazz 取得したいクラス
-     * @return インスタンス
-     * @throws RuntimeException インスタンス化に失敗した場合、または循環依存が検出された場合
+     * Retrieve or create the singleton instance for the specified class.
+     *
+     * @param clazz the class whose instance is requested
+     * @return the singleton instance for the specified class
+     * @throws RuntimeException if instantiation fails or a circular dependency is detected
      */
     public <T> T get(Class<T> clazz) {
         if (instances.containsKey(clazz)) {
@@ -70,7 +83,13 @@ public class ServiceContainer {
     }
 
     /**
-     * インスタンスを生成し、依存関係を解決します。
+     * Instantiate the given class and resolve its constructor dependencies.
+     *
+     * @param clazz the class to instantiate
+     * @return the created instance of the requested class
+     * @throws IllegalStateException   if a circular dependency involving the class is detected
+     * @throws IllegalArgumentException if the class has no public constructor and cannot be instantiated
+     * @throws RuntimeException        if instantiation or dependency resolution fails for any other reason
      */
     private <T> T createInstance(Class<T> clazz) {
         if (currentlyCreating.contains(clazz)) {
@@ -120,7 +139,9 @@ public class ServiceContainer {
     }
 
     /**
-     * コンテナ内の全インスタンスをクリアします。
+     * Clears the container's state, removing all registered and instantiated services and resetting creation tracking.
+     *
+     * After this call the container will have no registered instances, no stored created instances, and no classes marked as currently being created.
      */
     public void clear() {
         instances.clear();

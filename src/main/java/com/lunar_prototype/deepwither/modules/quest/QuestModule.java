@@ -16,10 +16,24 @@ public class QuestModule implements IModule {
 
     private final Deepwither plugin;
 
+    /**
+     * Creates a QuestModule bound to the given Deepwither plugin instance.
+     *
+     * @param plugin the main Deepwither plugin instance used by this module for lifecycle management and access to shared services
+     */
     public QuestModule(Deepwither plugin) {
         this.plugin = plugin;
     }
 
+    /**
+     * Registers and configures quest-related data stores and managers into the provided service container.
+     *
+     * <p>The method creates and registers the following components:
+     * FileDailyTaskDataStore, QuestDataStore, FilePlayerQuestDataStore (registered as PlayerQuestDataStore),
+     * DailyTaskManager, GuildQuestManager, and PlayerQuestManager.</p>
+     *
+     * @param container the service container used to register the module's components
+     */
     @Override
     public void configure(ServiceContainer container) {
         plugin.getLogger().info("QuestModule: configure()");
@@ -55,6 +69,13 @@ public class QuestModule implements IModule {
         }
     }
 
+    /**
+     * Initializes quest-related data stores and manager components retrieved from the service container.
+     *
+     * <p>This method obtains the service container from the plugin bootstrap and calls initialization on
+     * the registered quest data stores and managers so they are ready for use. Exceptions thrown during
+     * initialization are caught and their stack traces are printed.</p>
+     */
     @Override
     public void start() {
         ServiceContainer container = plugin.getBootstrap().getContainer();
@@ -77,6 +98,14 @@ public class QuestModule implements IModule {
         }
     }
 
+    /**
+     * Shuts down quest-related managers and data stores retrieved from the plugin's service container.
+     *
+     * Shutdown is performed in this order: PlayerQuestManager, GuildQuestManager, DailyTaskManager,
+     * FilePlayerQuestDataStore (cast from PlayerQuestDataStore), QuestDataStore, FileDailyTaskDataStore.
+     *
+     * Any exception encountered during shutdown is logged and the stack trace is printed.
+     */
     @Override
     public void stop() {
         ServiceContainer container = plugin.getBootstrap().getContainer();
