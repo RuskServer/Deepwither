@@ -99,6 +99,11 @@ public class QuestListener implements Listener {
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
+        if (event.getFrom().getBlockX() == event.getTo().getBlockX()
+                && event.getFrom().getBlockY() == event.getTo().getBlockY()
+                && event.getFrom().getBlockZ() == event.getTo().getBlockZ()) {
+            return;
+        }
         for (QuestNPC npc : npcManager.getActiveNPCs()) {
             DynamicQuest quest = npc.getQuest();
             if (quest.getStatus() == DynamicQuest.QuestStatus.ACTIVE && quest.getObjective() != null) {

@@ -11,6 +11,7 @@ import com.lunar_prototype.deepwither.StatManager;
 import com.lunar_prototype.deepwither.PlayerSettingsManager;
 import com.lunar_prototype.deepwither.ChargeManager;
 import com.lunar_prototype.deepwither.CooldownManager;
+import com.lunar_prototype.deepwither.util.IManager;
 
 public class CoreModule implements IModule {
 
@@ -53,20 +54,14 @@ public class CoreModule implements IModule {
     public void start() {
         ServiceContainer container = plugin.getBootstrap().getContainer();
 
-        try {
-            plugin.getLogger().info("Initializing Core Managers...");
-
-            container.get(CacheManager.class).init();
-            container.get(PlayerDataManager.class).init();
-            container.get(ItemFactory.class).init();
-            container.get(StatManager.class).init();
-            container.get(PlayerSettingsManager.class).init();
-            container.get(ChargeManager.class).init();
-            container.get(CooldownManager.class).init();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        plugin.getLogger().info("Initializing Core Managers...");
+        initSafely(container, CacheManager.class);
+        initSafely(container, PlayerDataManager.class);
+        initSafely(container, ItemFactory.class);
+        initSafely(container, StatManager.class);
+        initSafely(container, PlayerSettingsManager.class);
+        initSafely(container, ChargeManager.class);
+        initSafely(container, CooldownManager.class);
     }
 
     @Override
@@ -81,6 +76,15 @@ public class CoreModule implements IModule {
             container.get(PlayerDataManager.class).shutdown();
             container.get(CacheManager.class).shutdown();
         } catch (Exception e) {
+        }
+    }
+
+    private <T extends IManager> void initSafely(ServiceContainer container, Class<T> clazz) {
+        try {
+            container.get(clazz).init();
+        } catch (Exception e) {
+            plugin.getLogger().severe("Failed to initialize " + clazz.getSimpleName());
+            e.printStackTrace();
         }
     }
 }

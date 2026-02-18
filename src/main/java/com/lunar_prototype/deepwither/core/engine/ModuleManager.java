@@ -1,7 +1,9 @@
 package com.lunar_prototype.deepwither.core.engine;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.logging.Logger;
 
 /**
@@ -12,6 +14,7 @@ public class ModuleManager {
     private final ServiceContainer container;
     private final Logger logger;
     private final List<IModule> modules = new ArrayList<>();
+    private final Set<IModule> failedModules = new HashSet<>();
 
     public ModuleManager(ServiceContainer container, Logger logger) {
         this.container = container;
@@ -44,6 +47,7 @@ public class ModuleManager {
             } catch (Exception e) {
                 logger.severe("Failed to configure module: " + module.getClass().getSimpleName());
                 e.printStackTrace();
+                failedModules.add(module);
             }
         }
     }
@@ -55,6 +59,10 @@ public class ModuleManager {
     public void startModules() {
         logger.info("Starting modules...");
         for (IModule module : modules) {
+            if (failedModules.contains(module)) {
+                logger.warning("Skipping failed module: " + module.getClass().getSimpleName());
+                continue;
+            }
             try {
                 logger.info("Starting module: " + module.getClass().getSimpleName());
                 module.start();

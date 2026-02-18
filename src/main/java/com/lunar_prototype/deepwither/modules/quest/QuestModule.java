@@ -89,6 +89,8 @@ public class QuestModule implements IModule {
             container.get(QuestDataStore.class).shutdown();
             container.get(FileDailyTaskDataStore.class).shutdown();
         } catch (Exception e) {
+            plugin.getLogger().severe("Failed to stop QuestModule components.");
+            e.printStackTrace();
         }
     }
 }

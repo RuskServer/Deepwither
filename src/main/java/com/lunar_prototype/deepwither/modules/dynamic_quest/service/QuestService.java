@@ -93,8 +93,7 @@ public class QuestService {
                 quest.setStatus(DynamicQuest.QuestStatus.COMPLETED);
                 Deepwither.getEconomy().depositPlayer(player, quest.getRewardAmount());
                 player.sendMessage(Component.text("クエスト完了！報酬として " + quest.getRewardAmount() + " クレジットを獲得しました。", NamedTextColor.GREEN));
-                npcManager.getActiveNPCs().remove(npc);
-                npc.despawn();
+                npcManager.removeNPC(npc);
             } else {
                 player.sendMessage(Component.text("まだ報告できる段階ではありません。", NamedTextColor.RED));
             }

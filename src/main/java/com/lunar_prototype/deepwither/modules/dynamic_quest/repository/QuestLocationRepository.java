@@ -52,6 +52,10 @@ public class QuestLocationRepository {
     }
 
     public void save() {
+        if (locationsConfig == null || locationsFile == null) {
+            plugin.getLogger().warning("[DynamicQuest] save() called before load(); skipping.");
+            return;
+        }
         for (Map.Entry<QuestType, List<QuestLocation>> entry : questLocations.entrySet()) {
             locationsConfig.set("locations." + entry.getKey().name(), entry.getValue());
         }

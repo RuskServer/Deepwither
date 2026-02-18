@@ -19,14 +19,20 @@ public class LegacyModule implements IModule {
     @Override
     public void configure(ServiceContainer container) {
         plugin.getLogger().info("LegacyModule: configure() called.");
-        // ServiceManagerを生成し、Deepwitherにセット
-        this.serviceManager = new ServiceManager(plugin, container);
-        container.registerInstance(ServiceManager.class, this.serviceManager);
-        plugin.setServiceManager(this.serviceManager);
-        // Managerの登録 (Deepwither側のメソッドを呼び出し)
-        plugin.getLogger().info("LegacyModule: calling setupManagers()...");
-        plugin.setupManagers();
-        plugin.getLogger().info("LegacyModule: ServiceManager set to Deepwither.");
+        try {
+            // ServiceManagerを生成し、Deepwitherにセット
+            this.serviceManager = new ServiceManager(plugin, container);
+            container.registerInstance(ServiceManager.class, this.serviceManager);
+            plugin.setServiceManager(this.serviceManager);
+            // Managerの登録 (Deepwither側のメソッドを呼び出し)
+            plugin.getLogger().info("LegacyModule: calling setupManagers()...");
+            plugin.setupManagers();
+            plugin.getLogger().info("LegacyModule: ServiceManager set to Deepwither.");
+        } catch (Exception e) {
+            plugin.getLogger().severe("LegacyModule: configure() failed! ServiceManager will be reset.");
+            this.serviceManager = null;
+            throw e;
+        }
     }
 
     @Override

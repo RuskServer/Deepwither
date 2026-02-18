@@ -32,11 +32,16 @@ public class ReachLocationObjective implements IQuestObjective {
     @Override
     public void onAction(DynamicQuest quest, Event event) {
         if (!(event instanceof PlayerMoveEvent)) return;
+        if (quest.isObjectiveMet()) return;
+
         PlayerMoveEvent e = (PlayerMoveEvent) event;
         Player player = e.getPlayer();
         if (!player.getUniqueId().equals(quest.getAssignee())) return;
 
-        if (player.getLocation().distanceSquared(targetLocation) < radiusSquared) {
+        Location playerLoc = player.getLocation();
+        if (playerLoc.getWorld() != targetLocation.getWorld()) return;
+
+        if (playerLoc.distanceSquared(targetLocation) < radiusSquared) {
             quest.setObjectiveMet(true);
             player.sendMessage(Component.text(">> クエスト目標地点に到達しました！NPCに報告してください。", NamedTextColor.GOLD));
         }

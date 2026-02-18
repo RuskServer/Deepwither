@@ -30,6 +30,10 @@ public class ServiceContainer {
         registerInstance(ServiceContainer.class, this);
     }
 
+    public boolean has(Class<?> clazz) {
+        return instances.containsKey(clazz) || registeredInstances.containsKey(clazz);
+    }
+
     /**
      * 既存のインスタンスをコンテナに登録します。
      * 

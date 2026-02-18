@@ -144,12 +144,8 @@ public class ServiceManager {
                 if (!services.containsKey(depClass)) {
                     // Check if it exists in the Container
                     if (container != null) {
-                        try {
-                            if (container.get(depClass) != null) {
-                                continue; // Dependency is managed by Container (already init), skip.
-                            }
-                        } catch (Exception e) {
-                            // Ignore, treat as missing
+                        if (container.has(depClass)) {
+                            continue; // Dependency is managed by Container (already init), skip.
                         }
                     }
 

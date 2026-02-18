@@ -45,7 +45,7 @@ public class InfrastructureModule implements IModule {
 
         } catch (Exception e) {
             plugin.getLogger().severe("Failed to create DatabaseManager");
-            e.printStackTrace();
+            throw new RuntimeException("Failed to create DatabaseManager", e);
         }
     }
 

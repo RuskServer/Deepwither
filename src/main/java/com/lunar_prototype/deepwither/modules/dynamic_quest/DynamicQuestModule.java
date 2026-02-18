@@ -45,8 +45,13 @@ public class DynamicQuestModule implements IModule {
         // Register commands
         QuestService questService = container.get(QuestService.class);
         DynamicQuestCommand command = new DynamicQuestCommand(npcManager, questService, repository);
-        plugin.getCommand("dq").setExecutor(command);
-        plugin.getCommand("dq").setTabCompleter(new DynamicQuestTabCompleter());
+        var dqCommand = plugin.getCommand("dq");
+        if (dqCommand != null) {
+            dqCommand.setExecutor(command);
+            dqCommand.setTabCompleter(new DynamicQuestTabCompleter());
+        } else {
+            plugin.getLogger().warning("DynamicQuestModule: 'dq' command not found in plugin.yml");
+        }
     }
 
     @Override

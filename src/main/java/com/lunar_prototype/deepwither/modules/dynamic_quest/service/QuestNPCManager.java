@@ -284,7 +284,13 @@ public class QuestNPCManager {
         activeNPCs.clear();
     }
 
+    public void removeNPC(QuestNPC npc) {
+        if (activeNPCs.remove(npc)) {
+            npc.despawn();
+        }
+    }
+
     public List<QuestNPC> getActiveNPCs() {
-        return activeNPCs;
+        return new ArrayList<>(activeNPCs);
     }
 }
