@@ -1,8 +1,7 @@
 package com.lunar_prototype.deepwither.modules.dynamic_quest.objective;
 
 import com.lunar_prototype.deepwither.modules.dynamic_quest.obj.DynamicQuest;
-import io.lumine.mythic.bukkit.MythicBukkit;
-import org.bukkit.Bukkit;
+import com.lunar_prototype.deepwither.modules.integration.service.IMobService;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
@@ -13,10 +12,12 @@ import net.kyori.adventure.text.format.NamedTextColor;
 public class EliminateObjective implements IQuestObjective {
     private final String targetMobId;
     private final int targetAmount;
+    private final IMobService mobService;
 
-    public EliminateObjective(String targetMobId, int targetAmount) {
+    public EliminateObjective(String targetMobId, int targetAmount, IMobService mobService) {
         this.targetMobId = targetMobId;
         this.targetAmount = targetAmount;
+        this.mobService = mobService;
     }
 
     @Override
@@ -37,13 +38,7 @@ public class EliminateObjective implements IQuestObjective {
         Player killer = victim.getKiller();
         if (killer == null || !killer.getUniqueId().equals(quest.getAssignee())) return;
 
-        String killedMobId = victim.getType().name();
-        if (Bukkit.getPluginManager().isPluginEnabled("MythicMobs")) {
-            var activeMob = MythicBukkit.inst().getMobManager().getActiveMob(victim.getUniqueId());
-            if (activeMob.isPresent()) {
-                killedMobId = activeMob.get().getMobType();
-            }
-        }
+        String killedMobId = mobService.getMobId(victim);
 
         if (killedMobId.equalsIgnoreCase(targetMobId)) {
             quest.setProgressCount(quest.getProgressCount() + 1);

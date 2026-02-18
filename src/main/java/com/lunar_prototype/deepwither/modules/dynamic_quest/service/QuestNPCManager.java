@@ -10,8 +10,7 @@ import com.lunar_prototype.deepwither.modules.dynamic_quest.obj.QuestLocation;
 import com.lunar_prototype.deepwither.modules.dynamic_quest.repository.QuestLocationRepository;
 import com.lunar_prototype.deepwither.modules.dynamic_quest.dialogue.DialogueGenerator;
 import com.lunar_prototype.deepwither.modules.dynamic_quest.objective.*;
-import com.lunar_prototype.deepwither.MobSpawnManager;
-import com.lunar_prototype.deepwither.api.DW;
+import com.lunar_prototype.deepwither.modules.integration.service.IMobService;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldguard.WorldGuard;
@@ -40,6 +39,7 @@ public class QuestNPCManager {
 
     private final Deepwither plugin;
     private final QuestLocationRepository repository;
+    private final IMobService mobService;
     private final DialogueGenerator dialogueGenerator = new DialogueGenerator();
     private final List<QuestNPC> activeNPCs = new ArrayList<>();
     private final Random random = new Random();
@@ -48,9 +48,10 @@ public class QuestNPCManager {
     private static final int NPCS_PER_REGION = 1;
     private static final long REFRESH_INTERVAL_TICKS = 20L * 60 * 10;
 
-    public QuestNPCManager(Deepwither plugin, QuestLocationRepository repository) {
+    public QuestNPCManager(Deepwither plugin, QuestLocationRepository repository, IMobService mobService) {
         this.plugin = plugin;
         this.repository = repository;
+        this.mobService = mobService;
     }
 
     public void init() {
@@ -185,11 +186,10 @@ public class QuestNPCManager {
                 quest.setTargetItem(item);
                 break;
             case ELIMINATE:
-                MobSpawnManager mobManager = DW.get(MobSpawnManager.class);
-                List<String> candidates = mobManager != null ? mobManager.getQuestCandidateMobIdsByTier(npcLayer) : new ArrayList<>();
+                List<String> candidates = mobService.getQuestCandidateMobIdsByTier(npcLayer);
                 String targetMob = candidates.isEmpty() ? "ZOMBIE" : candidates.get(random.nextInt(candidates.size()));
                 int killCount = 5 + random.nextInt(6);
-                quest.setObjective(new EliminateObjective(targetMob, killCount));
+                quest.setObjective(new EliminateObjective(targetMob, killCount, mobService));
                 break;
             case SCOUT:
                 quest.setObjective(new ReachLocationObjective("指定地点の状況を確認する", target, 10.0));

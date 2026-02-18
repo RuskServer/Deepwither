@@ -7,6 +7,7 @@ import com.lunar_prototype.deepwither.modules.dynamic_quest.repository.QuestLoca
 import com.lunar_prototype.deepwither.modules.dynamic_quest.service.QuestNPCManager;
 import com.lunar_prototype.deepwither.modules.dynamic_quest.service.QuestService;
 import com.lunar_prototype.deepwither.modules.dynamic_quest.listener.QuestListener;
+import com.lunar_prototype.deepwither.modules.integration.service.IMobService;
 import org.bukkit.Bukkit;
 
 public class DynamicQuestModule implements IModule {
@@ -21,8 +22,10 @@ public class DynamicQuestModule implements IModule {
     public void configure(ServiceContainer container) {
         QuestLocationRepository repository = new QuestLocationRepository(plugin);
         container.registerInstance(QuestLocationRepository.class, repository);
-        
-        QuestNPCManager npcManager = new QuestNPCManager(plugin, repository);
+
+        // Get IMobService from container (registered by IntegrationModule)
+        IMobService mobService = container.get(IMobService.class);
+        QuestNPCManager npcManager = new QuestNPCManager(plugin, repository, mobService);
         container.registerInstance(QuestNPCManager.class, npcManager);
         
         QuestService questService = new QuestService(plugin, npcManager);
