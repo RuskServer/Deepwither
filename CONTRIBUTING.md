@@ -7,136 +7,126 @@ Deepwitherプロジェクトへの貢献を検討していただきありがと�
 
 ## 🏗 アーキテクチャガイドライン (Architecture Guidelines)
 
-本プロジェクトでは、`onEnable` の肥大化を防ぎ、依存関係を安全に管理するために、独自の**依存関係解決システム**と**モダンなAPIアクセス層**を採用しています。
+本プロジェクトでは、拡張性と保守性を高めるために **Modular Monolith** アーキテクチャを採用しています。
+機能は「モジュール (`Module`)」単位で分割され、`ServiceContainer` (DIコンテナ) によって疎結合に管理されます。
 
-### 1. 依存関係管理システム (Dependency Injection System)
+### 1. モジュールシステム (Module System)
+すべての機能は `IModule` インターフェースを実装したモジュールクラスとして定義されます。
+モジュールには以下のライフサイクルがあります：
 
-すべての主要な機能は「マネージャー (`Manager`)」として実装され、`ServiceManager` によって管理されます。`ServiceManager` は起動時に依存関係グラフ（トポロジカルソート）に基づいて適切な順序でマネージャーの初期化 (`init`) を行い、終了時には逆順で停止 (`shutdown`) させます。
+- **configure(ServiceContainer container)**: 
+    - 自身が提供するサービス（Manager等）をコンテナに登録します。
+    - 他のモジュールが登録したサービスに依存してはいけません（まだ登録されていない可能性があるため）。
+- **start()**:
+    - コンテナから依存するサービスを取得し、初期化処理を行います。
+    - イベントリスナーの登録やタスクのスケジュールなど、機能の有効化を行います。
+- **stop()**:
+    - 機能の停止、リソースの解放を行います。
 
-### 2. スマートAPI (Smart API / DW Class)
+### 2. 依存関係注入 (Dependency Injection)
+`ServiceContainer` を使用して、コンストラクタインジェクションにより依存関係を解消します。
+`Deepwither.getManager()` のような静的アクセサの使用は推奨されません（互換性のために一部残っていますが `@Deprecated` です）。
 
-開発効率とコードの可読性を最大化するため、`DW` クラスをエントリポイントとした **スタティック・ファサード** パターンを採用しています。
-
-#### プレイヤー操作の自動補完 (Fluent API)
-特定のプレイヤーに対して操作を行う場合、`DW.stats(player)` のように対象を先に指定することで、利用可能なメソッドが自動的に絞り込まれます。
+#### 手動登録 (Manual Registration)
+明示的に `new` してインスタンスを登録する方法です。
 
 ```java
-// 推奨される書き方
-DW.stats(player).heal(10.0);           // HP回復
-double hp = DW.stats(player).getHP();  // 現在のHP取得
-DW.stats(player).update();             // ステータス更新
+// コンテナへの登録 (Module.configure内)
+container.registerInstance(MyManager.class, new MyManager(plugin));
 ```
 
-#### サービス・ロケーター (Service Locator)
-インターフェースを指定するだけで、実装クラス（Manager）を自動的に取得できます。`DeepwitherAPI` にメソッドを手動で追加する必要はありません。
+#### 自動解決 (Auto-wiring)
+コンテナにクラスの生成を任せることで、依存関係を自動的に注入できます。
+コンストラクタの引数に指定された型がコンテナ内に存在すれば、自動的に渡されます。
 
 ```java
-// インターフェース名で取得（実装クラスを意識する必要がない）
-IStatManager statAPI = DW.get(IStatManager.class);
+// Module.start内などで取得する際、未生成なら依存関係を解決して生成される
+MyManager manager = container.get(MyManager.class);
 ```
+※ 自動解決を使う場合、依存先のインスタンスが先に `configure` されているか、あるいは具象クラスとして解決可能である必要があります。
 
-## 📝 新しい機能の追加手順 (How to Add a New Manager)
+---
 
-Deepwitherに新しい機能（例：マナ管理システム）を追加する際の標準的な手順です。
+## 📝 新しい機能の追加手順 (How to Add a New Module/Manager)
 
-### 1. APIインターフェースの定義
-まず、`com.lunar_prototype.deepwither.api` 配下の適切なパッケージにインターフェースを作成します。これが外部（リスナーや他のプラグイン）から見える「窓口」になります。
+### 1. モジュールの作成
+`com.lunar_prototype.deepwither.modules.[feature_name]` パッケージを作成し、`IModule` を実装したクラスを作成します。
 
 ```java
-package com.lunar_prototype.deepwither.api.mana;
+public class MyFeatureModule implements IModule {
+    private final Deepwither plugin;
 
-import org.bukkit.entity.Player;
+    public MyFeatureModule(Deepwither plugin) {
+        this.plugin = plugin;
+    }
 
-public interface IManaManager {
-    /** プレイヤーのマナを取得 */
-    double getMana(Player player);
+    @Override
+    public void configure(ServiceContainer container) {
+        // Managerの登録
+        container.registerInstance(MyManager.class, new MyManager(plugin));
+    }
+
+    @Override
+    public void start() {
+        // ...
+    }
     
-    /** マナを消費 */
-    void consume(Player player, double amount);
-
-    /** プレイヤー専用の操作コンテキストを返す（推奨） */
-    PlayerMana of(Player player);
-
-    interface PlayerMana {
-        double get();
-        void consume(double amount);
+    @Override
+    public void stop() {
+        // ...
     }
 }
 ```
 
-### 2. マネージャークラスの実装
-次に、`src/main/java/com/lunar_prototype/deepwither` 配下の内部パッケージで実装クラスを作成します。
+### 2. ブートストラップへの登録
+`com.lunar_prototype.deepwither.core.engine.DeepwitherBootstrap` の `registerModules()` メソッドに、作成したモジュールを追加します。
 
 ```java
-package com.lunar_prototype.deepwither.mana;
+moduleManager.registerModule(new MyFeatureModule(plugin));
+```
 
-import com.lunar_prototype.deepwither.DatabaseManager;
-import com.lunar_prototype.deepwither.api.mana.IManaManager;
-import com.lunar_prototype.deepwither.util.DependsOn;
+### 3. Managerの実装 (Manager Implementation)
+Managerは、モジュール内のロジックをカプセル化したクラスです。
+必須ではありませんが、ライフサイクル管理のために `com.lunar_prototype.deepwither.util.IManager` インターフェースの実装を推奨します。
+
+```java
 import com.lunar_prototype.deepwither.util.IManager;
+import com.lunar_prototype.deepwither.util.DependsOn;
 
-// 1. IManager と定義したAPIインターフェースを実装
-// 2. 依存関係を宣言（この場合 DatabaseManager が初期化された後に init が呼ばれる）
+// 特定のManagerに依存する場合、@DependsOnで順序制御が可能（ServiceManager経由の場合）
+// ※ Constructor Injectionを使う場合はServiceContainerが自動解決するため不要ですが、
+//    LegacyModuleとの互換性のために残すことがあります。
 @DependsOn({DatabaseManager.class})
-public class ManaManager implements IManaManager, IManager {
+public class MyManager implements IManager {
 
-    private final DatabaseManager db;
+    private final Deepwither plugin;
 
-    // 3. コンストラクタで依存オブジェクトを受け取る
-    public ManaManager(DatabaseManager db) {
-        this.db = db;
+    public MyManager(Deepwither plugin) {
+        this.plugin = plugin;
     }
 
+    /**
+     * 初期化処理 (onEnable相当)
+     * イベントリスナーの登録や、データのロードを行います。
+     * @throws Exception 初期化に失敗した場合、プラグイン全体が安全に停止します。
+     */
     @Override
     public void init() throws Exception {
-        // 4. 初期化処理 (リスナー登録、テーブル準備など)
+        plugin.getLogger().info("MyManager initialized!");
     }
 
+    /**
+     * 終了処理 (onDisable相当)
+     * データの保存やリソースの解放を行います。
+     */
     @Override
     public void shutdown() {
-        // 5. 終了処理 (データの保存など)
-    }
-
-    // --- APIインターフェースの実装 ---
-    @Override
-    public double getMana(Player player) { /* ... */ return 0; }
-
-    @Override
-    public PlayerMana of(Player player) {
-        return new PlayerMana() {
-            @Override public double get() { return getMana(player); }
-            @Override public void consume(double amount) { /* ... */ }
-        };
+        plugin.getLogger().info("MyManager shutdown!");
     }
 }
 ```
 
-### 3. Deepwither.java への登録
-`setupManagers()` メソッド内で登録を行います。
-
-```java
-private void setupManagers() {
-    // ...
-    this.manaManager = register(new ManaManager(databaseManager));
-}
-```
-※ `register()` メソッドを使うことで、`ServiceManager` が自動的に `IManaManager` インターフェースでも検索できるようにインデックスを張ります。
-
-### 4. DW クラスへのショートカット追加（オプション）
-頻繁に使用する機能であれば、`DW` クラスに短いアクセス用メソッドを追加します。
-
-```java
-// DW.java
-public static IManaManager mana() {
-    return get(IManaManager.class);
-}
-
-public static IManaManager.PlayerMana mana(Player player) {
-    return mana().of(player);
-}
-```
-
-これにより、開発者は `DW.mana(player).consume(10)` といった極めて簡潔なコードで新機能を利用できるようになります。
+※ **注意**: `IManager` を実装したクラスは、モジュールの `start()` / `stop()` メソッド内で明示的に `init()` / `shutdown()` を呼ぶか、`ServiceManager` に登録して管理させる必要があります。新アーキテクチャでは、可能な限り `ServiceContainer` と `Module` のライフサイクルに統合することを推奨します。
 
 ## 💾 データベースアクセス (Database Access)
 
@@ -188,6 +178,7 @@ List<String> clanNames = DW.db().queryList(
 
 ## 🚫 禁止事項
 
+*   **Deepwitherクラスへのゲッター追加**: `Deepwither.java` にこれ以上 `public Manager getManager()` のようなメソッドを追加しないでください。新しい機能は `ServiceContainer` 経由で取得するか、モジュール内で完結させる必要があります。既存のゲッターは互換性のために残されていますが、新規追加は厳禁です。
 *   **`onEnable` への直接記述**: デバッグ目的以外で、`onEnable` メソッド内に直接ロジックを書くことは避けてください。
 *   **手動初期化**: `manager.init()` を手動で呼び出さないでください。`ServiceManager` に任せてください。
 *   **循環依存**: AがBに依存し、BがAに依存するような設計は避けてください。`ServiceManager` は循環依存を検出するとエラーをスローします。
