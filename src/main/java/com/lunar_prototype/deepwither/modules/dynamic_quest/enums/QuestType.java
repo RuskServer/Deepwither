@@ -1,6 +1,6 @@
-package com.lunar_prototype.deepwither.dynamic_quest.enums;
+package com.lunar_prototype.deepwither.modules.dynamic_quest.enums;
 
-import com.lunar_prototype.deepwither.dynamic_quest.obj.DynamicQuest;
+import com.lunar_prototype.deepwither.modules.dynamic_quest.obj.DynamicQuest;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 

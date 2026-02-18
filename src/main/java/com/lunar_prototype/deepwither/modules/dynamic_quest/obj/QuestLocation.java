@@ -1,12 +1,14 @@
-package com.lunar_prototype.deepwither.dynamic_quest.obj;
+package com.lunar_prototype.deepwither.modules.dynamic_quest.obj;
 
 import org.bukkit.Location;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
+import org.bukkit.configuration.serialization.SerializableAs;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
 import java.util.Map;
 
+@SerializableAs("QuestLocation")
 public class QuestLocation implements ConfigurationSerializable {
     private final String name;
     private final Location pos;

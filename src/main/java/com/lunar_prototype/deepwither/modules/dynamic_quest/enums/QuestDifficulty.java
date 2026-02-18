@@ -1,4 +1,4 @@
-package com.lunar_prototype.deepwither.dynamic_quest.enums;
+package com.lunar_prototype.deepwither.modules.dynamic_quest.enums;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;

@@ -1,4 +1,4 @@
-package com.lunar_prototype.deepwither.dynamic_quest.enums;
+package com.lunar_prototype.deepwither.modules.dynamic_quest.enums;
 
 public enum QuestPersona {
     T_01_VETERAN("ベテラン", "軍隊式、簡潔、専門用語多用。無駄がない。"),
