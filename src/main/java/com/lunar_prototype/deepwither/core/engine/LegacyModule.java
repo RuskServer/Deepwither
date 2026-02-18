@@ -25,7 +25,7 @@ public class LegacyModule implements IModule {
      * Initializes and registers the legacy ServiceManager and triggers the plugin's manager setup.
      *
      * @param container the ServiceContainer used to register the created ServiceManager
-     * @throws Exception if creating or registering the ServiceManager or running the plugin setup fails;
+     * @throws RuntimeException if creating or registering the ServiceManager or running the plugin setup fails;
      *                   in that case the module's ServiceManager reference is reset to null
      */
     @Override
@@ -43,7 +43,7 @@ public class LegacyModule implements IModule {
         } catch (Exception e) {
             plugin.getLogger().severe("LegacyModule: configure() failed! ServiceManager will be reset.");
             this.serviceManager = null;
-            throw e;
+            throw new RuntimeException("Failed to configure LegacyModule", e);
         }
     }
 

@@ -30,7 +30,7 @@ public class EliminateObjective implements IQuestObjective {
     /**
      * Provides a human-readable description of this objective in Japanese.
      *
-     * @return a string in the form "<targetMobId> を <targetAmount>体討伐する" describing the target mob and required count
+     * @return a string in the form "{@code <targetMobId>} を {@code <targetAmount>}体討伐する" describing the target mob and required count
      */
     @Override
     public String getDescription() {

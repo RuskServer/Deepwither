@@ -43,10 +43,10 @@ public class DynamicQuestCommand implements CommandExecutor {
      * - spawn: force-spawn an NPC at the player's current location
      * - reload: reload location data and refresh NPCs
      * - status: show the number of active NPCs
-     * - addloc <type> <name> [1|2]: add or update a quest location position (pos 1 or 2)
-     * - accept <questId>: accept the specified quest
-     * - decline <questId>: decline the specified quest
-     * - report <questId>: report the specified quest
+     * - addloc {@code <type>} {@code <name>} [1|2]: add or update a quest location position (pos 1 or 2)
+     * - accept {@code <questid>}: accept the specified quest
+     * - decline {@code <questid>}: decline the specified quest
+     * - report {@code <questid>}: report the specified quest
      *
      * @param sender the source of the command; only Player senders are accepted (non-player senders receive a "Players only." message)
      * @param command the command being executed

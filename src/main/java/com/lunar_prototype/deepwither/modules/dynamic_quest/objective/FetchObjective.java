@@ -24,7 +24,7 @@ public class FetchObjective implements IQuestObjective {
      * Constructs a localized description of the fetch objective.
      *
      * @return A string describing the required material and quantity in the format
-     *         "MATERIAL_NAME を <amount>個持ってくる".
+     *         "MATERIAL_NAME を {@code <amount>}個持ってくる".
      */
     @Override
     public String getDescription() {
