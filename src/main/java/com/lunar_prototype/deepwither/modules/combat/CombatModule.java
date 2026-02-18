@@ -14,10 +14,29 @@ public class CombatModule implements IModule {
 
     private final Deepwither plugin;
 
+    /**
+     * Create a CombatModule tied to the main plugin instance.
+     *
+     * Stores the provided Deepwither instance for use when configuring, starting,
+     * and stopping the module (accessing bootstrap, container, and logging).
+     *
+     * @param plugin the main plugin instance used to access the bootstrap, service container, and logging
+     */
     public CombatModule(Deepwither plugin) {
         this.plugin = plugin;
     }
 
+    /**
+     * Instantiates and registers combat-related managers and processors in the provided service container.
+     *
+     * Retrieves required dependencies (StatManager, PlayerSettingsManager, ChargeManager) from the container,
+     * constructs DamageProcessor, WeaponMechanicManager, and DamageManager using those dependencies and the plugin,
+     * and registers each instance back into the container.
+     *
+     * If dependency retrieval or instantiation fails, a severe error is logged and the exception stack trace is printed.
+     *
+     * @param container the ServiceContainer used to retrieve dependencies and register the created components
+     */
     @Override
     public void configure(ServiceContainer container) {
         plugin.getLogger().info("CombatModule: configure()");
@@ -53,6 +72,12 @@ public class CombatModule implements IModule {
         }
     }
 
+    /**
+     * Initializes combat-related managers retrieved from the service container in the order:
+     * DamageProcessor, WeaponMechanicManager, then DamageManager.
+     *
+     * Any exceptions thrown during initialization are caught and printed to standard error.
+     */
     @Override
     public void start() {
         ServiceContainer container = plugin.getBootstrap().getContainer();
@@ -66,6 +91,13 @@ public class CombatModule implements IModule {
         }
     }
 
+    /**
+     * Shuts down combat-related managers in reverse initialization order.
+     *
+     * Retrieves the service container and calls `shutdown()` on DamageManager, then
+     * WeaponMechanicManager, and finally DamageProcessor. Any exception thrown
+     * during shutdown is caught and suppressed.
+     */
     @Override
     public void stop() {
         ServiceContainer container = plugin.getBootstrap().getContainer();

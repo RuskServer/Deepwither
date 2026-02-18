@@ -10,6 +10,12 @@ public class DeepwitherBootstrap {
     private final ModuleManager moduleManager;
     private final Logger logger;
 
+    /**
+     * Creates a bootstrapper that wires core services, prepares the service container and module manager,
+     * and registers foundational instances for the Deepwither engine.
+     *
+     * @param plugin the main Deepwither plugin instance used to obtain configuration and logging
+     */
     public DeepwitherBootstrap(Deepwither plugin) {
         this.plugin = plugin;
         this.logger = plugin.getLogger();
@@ -21,6 +27,12 @@ public class DeepwitherBootstrap {
         container.registerInstance(Logger.class, logger);
     }
 
+    /**
+     * Bootstraps and starts the Deepwither engine by registering, configuring, and starting modules.
+     *
+     * Performs module discovery and registration, runs module configuration, and starts all modules.
+     * Logs initialization progress and completion.
+     */
     public void onEnable() {
         logger.info("Initializing Deepwither Engine...");
 
@@ -36,6 +48,11 @@ public class DeepwitherBootstrap {
         logger.info("Deepwither Engine initialized successfully.");
     }
 
+    /**
+     * Initiates shutdown of the Deepwither engine.
+     *
+     * Stops all registered modules to perform an orderly shutdown and release associated resources. 
+     */
     public void onDisable() {
         logger.info("Shutting down Deepwither Engine...");
 
@@ -45,6 +62,16 @@ public class DeepwitherBootstrap {
         logger.info("Deepwither Engine shutdown complete.");
     }
 
+    /**
+     * Registers the built-in engine modules with the ModuleManager in the bootstrap order.
+     *
+     * <p>The following modules are registered in sequence: Core, Infrastructure, Combat, Economy,
+     * Quest, Integration, DynamicQuest, and Legacy (wrapper for existing functionality). The
+     * registration order is intentional to ensure dependencies between modules are satisfied.
+     *
+     * <p>Currently modules are registered explicitly; future implementations may support classpath
+     * scanning or loading modules from external JARs.
+     */
     private void registerModules() {
         logger.info("Registering modules...");
         // ここにモジュールを登録していく
@@ -66,6 +93,11 @@ public class DeepwitherBootstrap {
         logger.info("Modules registered.");
     }
 
+    /**
+     * Provides access to the internal ServiceContainer used for dependency registration and retrieval.
+     *
+     * @return the bootstrap's ServiceContainer instance
+     */
     public ServiceContainer getContainer() {
         return container;
     }

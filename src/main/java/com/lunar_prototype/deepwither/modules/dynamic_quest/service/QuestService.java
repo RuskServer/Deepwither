@@ -20,11 +20,32 @@ public class QuestService {
     private final Deepwither plugin;
     private final QuestNPCManager npcManager;
 
+    /**
+     * Create a new QuestService that manages dynamic quests for the given plugin instance.
+     *
+     * @param plugin    the main Deepwither plugin instance used for scheduling, logging, and access to services
+     * @param npcManager manager for active Quest NPCs used to locate and remove quest-related NPCs
+     */
     public QuestService(Deepwither plugin, QuestNPCManager npcManager) {
         this.plugin = plugin;
         this.npcManager = npcManager;
     }
 
+    /**
+     * Accepts the dynamic quest identified by {@code questId} on behalf of {@code player}.
+     *
+     * <p>Finds the active QuestNPC for the given questId and, if the quest is in the CREATED
+     * state, marks it ACTIVE and assigns it to the player. Sends player-facing messages for
+     * success or failure and performs quest-type-specific start actions:
+     * <ul>
+     *   <li>RAID: starts a supply convoy event (uses quest start location or a computed spawn near the player).</li>
+     *   <li>DELIVERY: gives the player the quest's target item if defined.</li>
+     *   <li>Other types: notifies the player of the quest objective.</li>
+     * </ul>
+     *
+     * @param player the player accepting the quest
+     * @param questId the UUID of the quest to accept
+     */
     public void acceptQuest(Player player, UUID questId) {
         Optional<QuestNPC> npcOpt = npcManager.getActiveNPCs().stream()
                 .filter(n -> n.getQuest().getQuestId().equals(questId))
@@ -66,6 +87,17 @@ public class QuestService {
         }
     }
 
+    /**
+     * Processes a player's report for the specified quest and completes it when its objective is satisfied.
+     *
+     * If the quest is active and assigned to the reporting player, this will validate and consume required fetch
+     * items (for FETCH quests), mark the objective met, set the quest to COMPLETED, deposit the configured reward
+     * to the player when an economy is available, send a confirmation message, and remove the quest NPC. If the
+     * objective is not yet met, an appropriate message is sent to the player.
+     *
+     * @param player  the player reporting the quest
+     * @param questId the UUID of the quest being reported
+     */
     public void reportQuest(Player player, UUID questId) {
         Optional<QuestNPC> npcOpt = npcManager.getActiveNPCs().stream()
                 .filter(n -> n.getQuest().getQuestId().equals(questId))

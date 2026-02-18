@@ -12,10 +12,22 @@ public class LegacyModule implements IModule {
     private final Deepwither plugin;
     private ServiceManager serviceManager;
 
+    /**
+     * Creates a LegacyModule bound to the given plugin instance.
+     *
+     * @param plugin the main Deepwither plugin instance this module will adapt for legacy ServiceManager integration
+     */
     public LegacyModule(Deepwither plugin) {
         this.plugin = plugin;
     }
 
+    /**
+     * Initializes and registers the legacy ServiceManager and triggers the plugin's manager setup.
+     *
+     * @param container the ServiceContainer used to register the created ServiceManager
+     * @throws Exception if creating or registering the ServiceManager or running the plugin setup fails;
+     *                   in that case the module's ServiceManager reference is reset to null
+     */
     @Override
     public void configure(ServiceContainer container) {
         plugin.getLogger().info("LegacyModule: configure() called.");
@@ -35,6 +47,11 @@ public class LegacyModule implements IModule {
         }
     }
 
+    /**
+     * Starts the legacy ServiceManager and its managed services.
+     *
+     * If the ServiceManager has not been configured, this method returns without performing any action.
+     */
     @Override
     public void start() {
         plugin.getLogger().info("Starting Legacy Module (ServiceManager)...");
@@ -54,6 +71,12 @@ public class LegacyModule implements IModule {
         }
     }
 
+    /**
+     * Stops all services managed by the adapter's ServiceManager.
+     *
+     * If the internal ServiceManager is null this method does nothing. Any exception
+     * thrown while stopping services is caught and logged; it is not propagated.
+     */
     @Override
     public void stop() {
         plugin.getLogger().info("Stopping Legacy Module (ServiceManager)...");

@@ -16,6 +16,14 @@ public class ModuleManager {
     private final List<IModule> modules = new ArrayList<>();
     private final Set<IModule> failedModules = new HashSet<>();
 
+    /**
+     * Creates a ModuleManager, stores the provided ServiceContainer and Logger, and registers this
+     * ModuleManager instance in the given container.
+     *
+     * @param container the ServiceContainer used for dependency registration and access; this
+     *                  ModuleManager will be registered into it
+     * @param logger    the Logger used for recording lifecycle events and errors
+     */
     public ModuleManager(ServiceContainer container, Logger logger) {
         this.container = container;
         this.logger = logger;
@@ -24,11 +32,12 @@ public class ModuleManager {
     }
 
     /**
-     * モジュールを登録します。
-     * 登録順序が初期化順序（configure順）になりますが、
-     * 実際の依存解決はServiceContainerが行います。
-     * 
-     * @param module モジュールインスタンス
+     * Registers a module for lifecycle management.
+     *
+     * Registration order determines the order modules are configured and started;
+     * actual dependency resolution is performed by the ServiceContainer.
+     *
+     * @param module the module to register; it will be configured, started, and stopped following registration order
      */
     public void registerModule(IModule module) {
         modules.add(module);
@@ -36,8 +45,9 @@ public class ModuleManager {
     }
 
     /**
-     * 全モジュールの configure() を呼び出します。
-     * このフェーズで各モジュールは自身のクラスをコンテナに登録します。
+     * Calls each registered module's configure method so modules can register their services in the container.
+     *
+     * Modules that throw an exception during configuration are recorded as failed; a severe log entry is made and the exception's stack trace is printed.
      */
     public void configureModules() {
         logger.info("Configuring modules...");
@@ -53,8 +63,10 @@ public class ModuleManager {
     }
 
     /**
-     * 全モジュールの start() を呼び出します。
-     * インスタンス化とstart処理が行われます。
+     * Starts all registered modules in registration order.
+     *
+     * Invokes each module's {@code start()} method; modules present in the manager's failedModules set are skipped.
+     * Exceptions thrown by an individual module are caught so remaining modules continue to be started; such failures are recorded via error logging and the module's stack trace is printed.
      */
     public void startModules() {
         logger.info("Starting modules...");
@@ -74,7 +86,11 @@ public class ModuleManager {
     }
 
     /**
-     * 全モジュールの stop() を逆順で呼び出します。
+     * Stops all registered modules in reverse registration order.
+     *
+     * Each module's {@code stop()} is invoked; exceptions thrown by a module are caught and do not prevent
+     * remaining modules from being stopped. After all modules have been processed, the internal modules list
+     * is cleared and the service container is cleared.
      */
     public void stopModules() {
         logger.info("Stopping modules...");

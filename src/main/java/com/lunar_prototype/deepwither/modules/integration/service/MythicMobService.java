@@ -15,6 +15,12 @@ import java.util.List;
  */
 public class MythicMobService implements IMobService {
 
+    /**
+     * Retrieves the internal mob ID for the specified entity.
+     *
+     * @param entity the entity to resolve the mob ID for
+     * @return the internal MythicMobs type name if the entity is an active MythicMob, otherwise the entity's Bukkit type name
+     */
     @Override
     public String getMobId(LivingEntity entity) {
         return MythicBukkit.inst().getMobManager().getActiveMob(entity.getUniqueId())
@@ -22,6 +28,12 @@ public class MythicMobService implements IMobService {
                 .orElse(entity.getType().name());
     }
 
+    /**
+     * Retrieve quest candidate mob IDs for the specified tier.
+     *
+     * @param tier the tier used to filter candidate mob IDs
+     * @return a list of mob ID strings eligible for quests at the specified tier; an empty list if the MobSpawnManager is unavailable or no candidates exist
+     */
     @Override
     public List<String> getQuestCandidateMobIdsByTier(int tier) {
         MobSpawnManager mobManager = DW.get(MobSpawnManager.class);

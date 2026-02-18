@@ -48,32 +48,66 @@ public class QuestNPCManager {
     private static final int NPCS_PER_REGION = 1;
     private static final long REFRESH_INTERVAL_TICKS = 20L * 60 * 10;
 
+    /**
+     * Creates a QuestNPCManager and wires required services for managing dynamic quest NPCs.
+     *
+     * @param plugin      main plugin instance used for scheduling, server context, and plugin APIs
+     * @param repository  repository providing quest location lookup by type and layer
+     * @param mobService  service used to select candidate mobs for combat-type quests
+     */
     public QuestNPCManager(Deepwither plugin, QuestLocationRepository repository, IMobService mobService) {
         this.plugin = plugin;
         this.repository = repository;
         this.mobService = mobService;
     }
 
+    /**
+     * Initializes the manager by removing stale quest NPCs and scheduling the periodic spawn/refresh task.
+     *
+     * Performs an immediate cleanup of old NPC entities and starts the repeating task that spawns and refreshes NPCs.
+     */
     public void init() {
         cleanupOldNPCs();
         startSpawnTask();
     }
 
+    /**
+     * Stops the recurring spawn task and despawns all active quest NPCs, performing manager shutdown cleanup.
+     */
     public void shutdown() {
         stopSpawnTask();
         despawnAll();
     }
 
+    /**
+     * Schedules and starts the repeating spawn/refresh task that periodically updates dynamic quest NPCs.
+     *
+     * The scheduled task invokes refreshNPCs() on the configured interval and stores the task handle
+     * so it can be cancelled later.
+     */
     public void startSpawnTask() {
         spawnTask = Bukkit.getScheduler().runTaskTimer(plugin, this::refreshNPCs, 100L, REFRESH_INTERVAL_TICKS);
     }
 
+    /**
+     * Cancels the scheduled NPC spawn/refresh task if it is active.
+     *
+     * If no task is scheduled or it is already cancelled, this method does nothing.
+     */
     public void stopSpawnTask() {
         if (spawnTask != null && !spawnTask.isCancelled()) {
             spawnTask.cancel();
         }
     }
 
+    /**
+     * Cleans up inactive quest NPCs and spawns new NPCs inside configured safezone regions.
+     *
+     * Removes and despawns any active NPC whose quest is still in the CREATED state or has expired.
+     * If WorldGuard is available, finds regions with IDs containing "safezone" (case-insensitive)
+     * across all worlds and attempts to spawn up to NPCS_PER_REGION NPCs at random valid locations
+     * inside each safezone by delegating to getRandomLocationInRegion and spawnNPC.
+     */
     public void refreshNPCs() {
         activeNPCs.removeIf(npc -> {
             if (npc.getQuest().getStatus() == DynamicQuest.QuestStatus.CREATED
@@ -108,6 +142,13 @@ public class QuestNPCManager {
         }
     }
 
+    /**
+     * Selects a random location inside the given WorldGuard region that is suitable for spawning an NPC.
+     *
+     * @param world  the World containing the region
+     * @param region the ProtectedRegion to sample the location from
+     * @return a Location within the region whose block below is solid and whose current and above blocks are passable, or `null` if no suitable location is found
+     */
     private Location getRandomLocationInRegion(World world, ProtectedRegion region) {
         BlockVector3 min = region.getMinimumPoint();
         BlockVector3 max = region.getMaximumPoint();
@@ -131,6 +172,16 @@ public class QuestNPCManager {
         return null;
     }
 
+    /**
+     * Spawns a quest-giving NPC at the specified location and sets up its associated DynamicQuest.
+     *
+     * <p>The method selects a persona, quest type, and difficulty, determines a quest target (from repository
+     * locations for the current layer or by picking a distant random location), generates dialogue, constructs
+     * a DynamicQuest with a type-specific objective and reward, creates and spawns a QuestNPC, and registers it
+     * with the manager's active NPC list.</p>
+     *
+     * @param location the world location where the NPC will be spawned
+     */
     public void spawnNPC(Location location) {
         QuestPersona persona = QuestPersona.values()[random.nextInt(QuestPersona.values().length)];
         QuestType type = QuestType.values()[random.nextInt(QuestType.values().length)];
@@ -209,6 +260,12 @@ public class QuestNPCManager {
         activeNPCs.add(npc);
     }
 
+    /**
+     * Determine the applicable region layer (tier) for a location by parsing WorldGuard region IDs.
+     *
+     * @param loc the location to evaluate
+     * @return the highest numeric tier parsed from WorldGuard region IDs that apply to the location (for example, `t3` -> 3); returns 0 if no tier is found or if WorldGuard is unavailable
+     */
     public int getLayerId(Location loc) {
         if (!Bukkit.getPluginManager().isPluginEnabled("WorldGuard")) return 0;
         RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
@@ -225,6 +282,14 @@ public class QuestNPCManager {
         return maxTier;
     }
 
+    /**
+     * Parse the numeric tier from a region ID following patterns like `t<number>` or `_t<number>`.
+     *
+     * <p>Examples: `t2` -> `2`, `region_t3_extra` -> `3`.</p>
+     *
+     * @param id the region identifier to parse
+     * @return the parsed tier number, or `0` if no valid tier is present or the id indicates a safezone
+     */
     private int parseTierFromId(String id) {
         if (id.contains("safezone")) return 0;
 
@@ -265,6 +330,15 @@ public class QuestNPCManager {
         }
     }
 
+    /**
+     * Removes leftover quest NPC entities found inside WorldGuard "safezone" regions.
+     *
+     * <p>Scans each world's WorldGuard region manager for regions whose id contains "safezone" and
+     * asynchronously inspects chunks in those regions; any entity marked with the quest NPC key
+     * that does not correspond to a currently tracked active NPC will be removed.</p>
+     *
+     * <p>If the WorldGuard plugin is not enabled, the method returns without performing any action.</p>
+     */
     private void cleanupOldNPCs() {
         if (!Bukkit.getPluginManager().isPluginEnabled("WorldGuard")) return;
 
@@ -304,6 +378,11 @@ public class QuestNPCManager {
         }
     }
 
+    /**
+     * Despawns every currently tracked quest NPC and clears the manager's active NPC list.
+     *
+     * Calls each tracked NPC's despawn method and removes all references so no NPCs remain active.
+     */
     private void despawnAll() {
         for (QuestNPC npc : activeNPCs) {
             npc.despawn();
@@ -311,12 +390,24 @@ public class QuestNPCManager {
         activeNPCs.clear();
     }
 
+    /**
+     * Removes the specified QuestNPC from the manager's active list and despawns it if it was tracked.
+     *
+     * @param npc the QuestNPC to remove; if it is currently active it will be despawned
+     */
     public void removeNPC(QuestNPC npc) {
         if (activeNPCs.remove(npc)) {
             npc.despawn();
         }
     }
 
+    /**
+     * Returns a snapshot of the currently spawned quest NPCs.
+     *
+     * The returned list is a new ArrayList containing the active QuestNPC instances; modifying it does not affect the manager's internal state.
+     *
+     * @return a new List of currently active QuestNPC objects
+     */
     public List<QuestNPC> getActiveNPCs() {
         return new ArrayList<>(activeNPCs);
     }

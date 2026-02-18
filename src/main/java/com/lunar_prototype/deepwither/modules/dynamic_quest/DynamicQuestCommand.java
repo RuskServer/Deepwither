@@ -22,12 +22,38 @@ public class DynamicQuestCommand implements CommandExecutor {
     private final QuestService questService;
     private final QuestLocationRepository repository;
 
+    /**
+     * Create a DynamicQuestCommand with its required collaborators.
+     *
+     * @param npcManager   manager responsible for spawning and refreshing quest NPCs and querying NPC layers
+     * @param questService service that handles quest actions (accepting and reporting)
+     * @param repository   repository for loading, retrieving, and storing quest locations
+     */
     public DynamicQuestCommand(QuestNPCManager npcManager, QuestService questService, QuestLocationRepository repository) {
         this.npcManager = npcManager;
         this.questService = questService;
         this.repository = repository;
     }
 
+    /**
+     * Handles the "/dq" dynamic quest command for players, dispatching subcommands for NPC management,
+     * location configuration, and quest interactions.
+     *
+     * Supported subcommands:
+     * - spawn: force-spawn an NPC at the player's current location
+     * - reload: reload location data and refresh NPCs
+     * - status: show the number of active NPCs
+     * - addloc <type> <name> [1|2]: add or update a quest location position (pos 1 or 2)
+     * - accept <questId>: accept the specified quest
+     * - decline <questId>: decline the specified quest
+     * - report <questId>: report the specified quest
+     *
+     * @param sender the source of the command; only Player senders are accepted (non-player senders receive a "Players only." message)
+     * @param command the command being executed
+     * @param label the alias of the command used
+     * @param args the command arguments where args[0] is the subcommand and subsequent elements are subcommand parameters
+     * @return `true` if the command was handled (including when usage or error messages were sent), `false` to indicate that the default usage message should be displayed
+     */
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (!(sender instanceof Player)) {
