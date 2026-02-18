@@ -234,11 +234,44 @@ public class QuestNPCManager {
     }
 
     private void cleanupOldNPCs() {
+        if (!Bukkit.getPluginManager().isPluginEnabled("WorldGuard")) return;
+
         NamespacedKey key = new NamespacedKey(plugin, "quest_npc");
+        RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+
         for (World world : Bukkit.getWorlds()) {
-            for (Entity entity : world.getEntities()) {
-                if (entity.getPersistentDataContainer().has(key, PersistentDataType.BYTE)) {
-                    entity.remove();
+            RegionManager regionManager = container.get(BukkitAdapter.adapt(world));
+            if (regionManager == null) continue;
+
+            // safezoneリージョンを取得
+            List<ProtectedRegion> safeRegions = regionManager.getRegions().values().stream()
+                    .filter(r -> r.getId().toLowerCase().contains("safezone"))
+                    .collect(Collectors.toList());
+
+            for (ProtectedRegion region : safeRegions) {
+                BlockVector3 min = region.getMinimumPoint();
+                BlockVector3 max = region.getMaximumPoint();
+
+                // リージョン内のチャンクを走査してロードし、エンティティを削除
+                for (int x = min.x() >> 4; x <= max.x() >> 4; x++) {
+                    for (int z = min.z() >> 4; z <= max.z() >> 4; z++) {
+                        boolean loadedBefore = world.isChunkLoaded(x, z);
+                        if (!loadedBefore) {
+                            world.getChunkAt(x, z).load();
+                        }
+                        
+                        // そのチャンク内のエンティティを確認
+                        for (Entity entity : world.getChunkAt(x, z).getEntities()) {
+                            if (entity.getPersistentDataContainer().has(key, PersistentDataType.BYTE)) {
+                                entity.remove();
+                            }
+                        }
+
+                        // 元々ロードされていなかった場合はアンロードしてメモリを節約
+                        if (!loadedBefore) {
+                            world.getChunkAt(x, z).unload();
+                        }
+                    }
                 }
             }
         }
