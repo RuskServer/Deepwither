@@ -41,7 +41,7 @@ public class CoreModule implements IModule {
         container.registerInstance(CacheManager.class, cacheManager);
 
         // PlayerDataManager
-        PlayerDataManager playerDataManager = new PlayerDataManager(plugin);
+        PlayerDataManager playerDataManager = new PlayerDataManager(plugin, cacheManager);
         container.registerInstance(PlayerDataManager.class, playerDataManager);
 
         // Dependencies for other modules

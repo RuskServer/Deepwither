@@ -23,9 +23,9 @@ public class PlayerDataManager implements IManager {
     private final Deepwither plugin;
     private final CacheManager cache;
 
-    public PlayerDataManager(Deepwither plugin) {
+    public PlayerDataManager(Deepwither plugin, CacheManager cache) {
         this.plugin = plugin;
-        this.cache = plugin.getCacheManager();
+        this.cache = cache;
     }
 
     @Override
