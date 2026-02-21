@@ -49,8 +49,13 @@ public class BlacksmithListener implements Listener, IManager {
         Component displayName = clickedItem.getItemMeta().displayName();
         if (displayName == null) return;
 
+        // 装飾（ITALIC=false）を含めて比較対象を作成
+        Component repairName = Component.text("武器修理", NamedTextColor.GREEN).decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC, false);
+        Component upgradeName = Component.text("装備強化", NamedTextColor.AQUA).decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC, false);
+        Component craftName = Component.text("アイテムクラフト", NamedTextColor.AQUA).decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC, false);
+
         // --- 修理ボタンの処理 ---
-        if (displayName.equals(Component.text("武器修理", NamedTextColor.GREEN))) {
+        if (displayName.equals(repairName)) {
             ItemStack mainHand = player.getInventory().getItemInMainHand();
 
             if (mainHand.getType().isAir()) {
@@ -60,15 +65,15 @@ public class BlacksmithListener implements Listener, IManager {
             }
 
             // RepairManagerの修理ロジックを実行
-            new RepairManager(Deepwither.getInstance()).repairItem(player,mainHand);
+            new RepairManager(Deepwither.getInstance()).repairItem(player, mainHand);
             player.closeInventory(); // 修理後はGUIを閉じる
 
         }
         // --- 未実装ボタンのフィードバック ---
-        else if (displayName.equals(Component.text("装備強化", NamedTextColor.AQUA))) {
+        else if (displayName.equals(upgradeName)) {
             player.sendMessage(Component.text("この機能はまだ実装されていません。", NamedTextColor.YELLOW));
         }
-        else if (displayName.equals(Component.text("アイテムクラフト", NamedTextColor.AQUA))) {
+        else if (displayName.equals(craftName)) {
             // ★変更: クラフトGUIを開く
             Deepwither.getInstance().getCraftingGUI().openRecipeList(player);
         }
