@@ -2,6 +2,7 @@ package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.companion.CompanionGui;
 import com.lunar_prototype.deepwither.data.DailyTaskData;
+import com.lunar_prototype.deepwither.modules.economy.trader.DailyTaskManager;
 import com.lunar_prototype.deepwither.profession.PlayerProfessionData;
 import com.lunar_prototype.deepwither.profession.ProfessionManager;
 import com.lunar_prototype.deepwither.profession.ProfessionType;
@@ -14,7 +15,6 @@ import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;

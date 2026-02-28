@@ -4,6 +4,7 @@ import com.lunar_prototype.deepwither.aethelgard.PlayerQuestData;
 import com.lunar_prototype.deepwither.aethelgard.PlayerQuestManager;
 import com.lunar_prototype.deepwither.aethelgard.QuestProgress;
 import com.lunar_prototype.deepwither.data.DailyTaskData;
+import com.lunar_prototype.deepwither.modules.economy.trader.DailyTaskManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;

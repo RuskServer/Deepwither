@@ -4,7 +4,7 @@ import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.core.engine.IModule;
 import com.lunar_prototype.deepwither.core.engine.ServiceContainer;
 import com.lunar_prototype.deepwither.CreditManager;
-import com.lunar_prototype.deepwither.TraderManager;
+import com.lunar_prototype.deepwither.modules.economy.trader.TraderManager;
 import com.lunar_prototype.deepwither.market.GlobalMarketManager;
 import com.lunar_prototype.deepwither.DatabaseManager;
 import com.lunar_prototype.deepwither.ItemFactory;
