@@ -1,7 +1,6 @@
 package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.data.DailyTaskData;
-import com.lunar_prototype.deepwither.data.PlayerQuestData;
 import com.lunar_prototype.deepwither.data.TraderOffer;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
@@ -29,7 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-@DependsOn({TraderManager.class, DailyTaskManager.class, TraderQuestManager.class})
+@DependsOn({TraderManager.class, DailyTaskManager.class})
 public class TraderGUI implements Listener, IManager {
 
     private final JavaPlugin plugin;
@@ -55,6 +54,18 @@ public class TraderGUI implements Listener, IManager {
     private static final String CUSTOM_ID_KEY = "custom_id";
     private static final String TRADER_ID_KEY = "trader_id";
 
+    /**
+     * Opens a purchase GUI for the specified trader and presents the trader's offers to the player.
+     *
+     * <p>The GUI lists available offers with price, required items, and required credit; offers the
+     * player cannot access are shown as locked (non-purchasable) and visually replaced with a gray pane.
+     * A sell button and a daily-task button are added to the GUI.</p>
+     *
+     * @param player the player who will see the GUI
+     * @param traderId identifier of the trader whose offers are displayed
+     * @param playerCredit the player's current credit used to determine offer access
+     * @param manager manager used to retrieve offers and access checks for the trader
+     */
     public void openBuyGUI(Player player, String traderId, int playerCredit, TraderManager manager) {
         List<TraderOffer> allOffers = manager.getAllOffers(traderId);
         int offerRows = (int) Math.ceil(allOffers.size() / 9.0);
@@ -124,7 +135,6 @@ public class TraderGUI implements Listener, IManager {
 
         addSellButton(gui, size - 1);
         addDailyTaskButton(player, gui, size - 2, traderId, Deepwither.getInstance().getDailyTaskManager());
-        addQuestListButton(gui, size - 3, traderId);
 
         player.openInventory(gui);
     }
@@ -181,6 +191,13 @@ public class TraderGUI implements Listener, IManager {
         gui.setItem(slot, taskButton);
     }
 
+    /**
+     * Handles clicks inside the trader "buy" inventory: cancels interactions, routes clicks on the sell button to the sell GUI, processes the daily-task button (start/complete/notify based on task state), and delegates purchases to the purchase handler.
+     *
+     * The handler ignores non-player clicks and clicks on empty slots or outside inventories.
+     *
+     * @param e the inventory click event for the buy GUI
+     */
     @EventHandler
     public void onInventoryClick(InventoryClickEvent e) {
         if (!(e.getWhoClicked() instanceof Player player)) return;
@@ -197,12 +214,6 @@ public class TraderGUI implements Listener, IManager {
 
             if (e.getSlot() == e.getInventory().getSize() - 1 && dispName.contains("売却画面へ")) {
                 SellGUI.openSellGUI(player, Deepwither.getInstance().getTraderManager());
-                return;
-            }
-
-            if (dispName.contains("トレーダークエスト")) {
-                String traderId = meta.getPersistentDataContainer().get(new NamespacedKey(Deepwither.getInstance(), TRADER_ID_KEY), PersistentDataType.STRING);
-                openQuestGUI(player, traderId);
                 return;
             }
 
@@ -228,34 +239,16 @@ public class TraderGUI implements Listener, IManager {
 
             handlePurchase(player, e.getCurrentItem(), Deepwither.getInstance().getTraderManager());
         }
-
-        if (title.startsWith("[クエスト]")) {
-            e.setCancelled(true);
-            ItemStack clicked = e.getCurrentItem();
-            if (clicked == null || !clicked.hasItemMeta()) return;
-
-            ItemMeta meta = clicked.getItemMeta();
-            String qId = meta.getPersistentDataContainer().get(new NamespacedKey(Deepwither.getInstance(), "quest_id"), PersistentDataType.STRING);
-            String tId = meta.getPersistentDataContainer().get(new NamespacedKey(Deepwither.getInstance(), TRADER_ID_KEY), PersistentDataType.STRING);
-
-            if (qId == null || tId == null) return;
-
-            TraderQuestManager tqm = Deepwither.getInstance().getTraderQuestManager();
-            TraderManager tm = Deepwither.getInstance().getTraderManager();
-            TraderManager.QuestData quest = tm.getQuestsForTrader(tId).get(qId);
-
-            if (clicked.getType() == Material.BOOK) {
-                tqm.acceptQuest(player, tId, qId);
-                openQuestGUI(player, tId);
-            } else if (clicked.getType() == Material.WRITABLE_BOOK) {
-                if ("FETCH".equalsIgnoreCase(quest.getType())) {
-                    tqm.handleDelivery(player, tId, qId);
-                }
-                openQuestGUI(player, tId);
-            }
-        }
     }
 
+    /**
+     * Processes a player's purchase from a trader GUI item: validates price, offer, balance, required items,
+     * inventory space, determines the item to give, performs the transaction, and notifies the player.
+     *
+     * @param player the player attempting the purchase
+     * @param clickedItem the ItemStack clicked in the trader GUI representing the offer
+     * @param manager the TraderManager used to look up the corresponding TraderOffer
+     */
     private static void handlePurchase(Player player, ItemStack clickedItem, TraderManager manager) {
         Economy econ = Deepwither.getEconomy();
         ItemMeta meta = clickedItem.getItemMeta();
@@ -340,89 +333,5 @@ public class TraderGUI implements Listener, IManager {
 
         Component itemDisplayName = itemToGive.hasItemMeta() && itemToGive.getItemMeta().hasDisplayName() ? itemToGive.getItemMeta().displayName() : Component.text(itemToGive.getType().name());
         player.sendMessage(Component.text("", NamedTextColor.GREEN).append(itemDisplayName).append(Component.text(" を " + econ.format(cost) + " で購入しました。", NamedTextColor.GREEN)));
-    }
-
-    private void addQuestListButton(Inventory gui, int slot, String traderId) {
-        ItemStack button = new ItemStack(Material.BOOK);
-        ItemMeta meta = button.getItemMeta();
-        meta.displayName(Component.text("トレーダークエスト", NamedTextColor.GOLD, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false));
-        meta.lore(List.of(
-                Component.text("このトレーダーから受けられる", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false),
-                Component.text("永続的なタスクを確認します。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false)
-        ));
-        meta.getPersistentDataContainer().set(new NamespacedKey(Deepwither.getInstance(), TRADER_ID_KEY), PersistentDataType.STRING, traderId);
-        button.setItemMeta(meta);
-        gui.setItem(slot, button);
-    }
-
-    public void openQuestGUI(Player player, String traderId) {
-        TraderManager tm = Deepwither.getInstance().getTraderManager();
-        TraderQuestManager tqm = Deepwither.getInstance().getTraderQuestManager();
-        Map<String, TraderManager.QuestData> quests = tm.getQuestsForTrader(traderId);
-
-        int rowCount = (int) Math.ceil(quests.size() / 9.0) + 1;
-        int size = Math.min(Math.max(rowCount, 3), 6) * 9;
-
-        Component title = Component.text("[クエスト] ", NamedTextColor.DARK_GRAY).append(Component.text(tm.getTraderName(traderId), NamedTextColor.WHITE)).decoration(TextDecoration.ITALIC, false);
-        Inventory gui = Bukkit.createInventory(player, size, title);
-
-        for (TraderManager.QuestData quest : quests.values()) {
-            ItemStack item;
-            ItemMeta meta;
-            List<Component> lore = new ArrayList<>();
-
-            boolean isCompleted = tqm.isQuestCompleted(player, traderId, quest.getId());
-            boolean canAccept = tqm.canAcceptQuest(player, traderId, quest);
-
-            String progressKey = traderId + ":" + quest.getId();
-            PlayerQuestData data = tqm.getPlayerData(player);
-            boolean isActive = data != null && data.getCurrentProgress().containsKey(progressKey);
-
-            if (quest.getDescription() != null && !quest.getDescription().isEmpty()) {
-                for (String line : quest.getDescription()) {
-                    lore.add(Component.text(line, NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
-                }
-                lore.add(Component.empty());
-            }
-
-            if (isCompleted) {
-                item = new ItemStack(Material.ENCHANTED_BOOK);
-                meta = item.getItemMeta();
-                meta.displayName(Component.text("✔ ", NamedTextColor.GREEN, TextDecoration.BOLD).append(Component.text(quest.getDisplayName(), NamedTextColor.WHITE)).decoration(TextDecoration.ITALIC, false));
-                lore.add(Component.text("ステータス: ", NamedTextColor.GRAY).append(Component.text("完了済み", NamedTextColor.GREEN)).decoration(TextDecoration.ITALIC, false));
-            } else if (!canAccept) {
-                item = new ItemStack(Material.BARRIER);
-                meta = item.getItemMeta();
-                meta.displayName(Component.text("[ロック中] ", NamedTextColor.RED, TextDecoration.BOLD).append(Component.text(quest.getDisplayName(), NamedTextColor.GRAY)).decoration(TextDecoration.ITALIC, false));
-                lore.add(Component.text("ステータス: ", NamedTextColor.GRAY).append(Component.text("未開放", NamedTextColor.RED)).decoration(TextDecoration.ITALIC, false));
-                lore.add(Component.text("前提条件: ", NamedTextColor.GRAY).append(Component.text((quest.getRequiredQuestId() != null ? quest.getRequiredQuestId() : "なし"), NamedTextColor.YELLOW)).decoration(TextDecoration.ITALIC, false));
-            } else {
-                item = new ItemStack(isActive ? Material.WRITABLE_BOOK : Material.BOOK);
-                meta = item.getItemMeta();
-                Component prefix = isActive ? Component.text("[進行中] ", NamedTextColor.YELLOW, TextDecoration.BOLD) : Component.text("[受領可能] ", NamedTextColor.GOLD, TextDecoration.BOLD);
-                meta.displayName(prefix.append(Component.text(quest.getDisplayName(), NamedTextColor.WHITE)).decoration(TextDecoration.ITALIC, false));
-
-                lore.add(Component.text("タイプ: ", NamedTextColor.GRAY).append(Component.text((quest.getType().equalsIgnoreCase("KILL") ? "討伐" : "納品"), NamedTextColor.WHITE)).decoration(TextDecoration.ITALIC, false));
-                lore.add(Component.text("目標: ", NamedTextColor.GRAY).append(Component.text(quest.getTarget(), NamedTextColor.WHITE)).append(Component.text(" を ", NamedTextColor.GRAY)).append(Component.text(quest.getAmount() + "個", NamedTextColor.WHITE)).decoration(TextDecoration.ITALIC, false));
-
-                if (isActive) {
-                    int current = data.getCurrentProgress().getOrDefault(progressKey, 0);
-                    lore.add(Component.text("現在の進捗: ", NamedTextColor.GREEN).append(Component.text(current + " / " + quest.getAmount(), NamedTextColor.WHITE)).decoration(TextDecoration.ITALIC, false));
-                    lore.add(Component.empty());
-                    lore.add(Component.text("▶ クリックして報告/納品", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
-                } else {
-                    lore.add(Component.empty());
-                    lore.add(Component.text("▶ クリックして受領する", NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false));
-                }
-            }
-
-            meta.getPersistentDataContainer().set(new NamespacedKey(Deepwither.getInstance(), "quest_id"), PersistentDataType.STRING, quest.getId());
-            meta.getPersistentDataContainer().set(new NamespacedKey(Deepwither.getInstance(), TRADER_ID_KEY), PersistentDataType.STRING, traderId);
-
-            meta.lore(lore);
-            item.setItemMeta(meta);
-            gui.addItem(item);
-        }
-        player.openInventory(gui);
     }
 }

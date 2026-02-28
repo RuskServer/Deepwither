@@ -24,15 +24,13 @@ public class EconomyModule implements IModule {
     }
 
     /**
-     * Creates and registers the economy-related manager instances (global market, credit,
-     * trader, and trader quest managers) into the provided service container.
+     * Creates and registers economy managers (GlobalMarketManager, CreditManager, and TraderManager)
+     * in the provided service container so they can be retrieved and initialized elsewhere.
      *
-     * Instances are added to the container so they can be retrieved and initialized elsewhere.
+     * On failure to instantiate or register any manager, a severe log message is written and the
+     * exception stack trace is printed.
      *
-     * @param container the service container used to retrieve dependencies and register instances
-     *
-     * If instantiation or registration fails, a severe log message is written and the exception
-     * stack trace is printed.
+     * @param container the service container used to obtain dependencies and register manager instances
      */
     @Override
     public void configure(ServiceContainer container) {
@@ -55,11 +53,6 @@ public class EconomyModule implements IModule {
             TraderManager traderManager = new TraderManager(plugin, itemFactory);
             container.registerInstance(TraderManager.class, traderManager);
 
-            // TraderQuestManager
-            com.lunar_prototype.deepwither.TraderQuestManager traderQuestManager = new com.lunar_prototype.deepwither.TraderQuestManager(
-                    plugin, dbManager);
-            container.registerInstance(com.lunar_prototype.deepwither.TraderQuestManager.class, traderQuestManager);
-
         } catch (Exception e) {
             plugin.getLogger().severe("Failed to configure EconomyModule components.");
             e.printStackTrace();
@@ -70,7 +63,7 @@ public class EconomyModule implements IModule {
      * Initializes the economy managers and starts their runtime behavior.
      *
      * Logs an informational message and calls `init()` on the GlobalMarketManager, CreditManager,
-     * TraderManager, and TraderQuestManager instances retrieved from the service container.
+     * and TraderManager instances retrieved from the service container.
      * Any exception thrown during initialization is caught and its stack trace is printed.
      */
     @Override
@@ -80,7 +73,6 @@ public class EconomyModule implements IModule {
             container.get(GlobalMarketManager.class).init();
             container.get(CreditManager.class).init();
             container.get(TraderManager.class).init();
-            container.get(com.lunar_prototype.deepwither.TraderQuestManager.class).init();
         } catch (Exception e) {
             e.printStackTrace();
         }
