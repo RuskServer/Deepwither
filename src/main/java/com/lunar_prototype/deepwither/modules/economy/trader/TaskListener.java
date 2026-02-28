@@ -1,5 +1,6 @@
-package com.lunar_prototype.deepwither;
+package com.lunar_prototype.deepwither.modules.economy.trader;
 
+import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.data.DailyTaskData;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;

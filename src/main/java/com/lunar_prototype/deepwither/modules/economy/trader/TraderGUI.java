@@ -1,5 +1,6 @@
-package com.lunar_prototype.deepwither;
+package com.lunar_prototype.deepwither.modules.economy.trader;
 
+import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.data.DailyTaskData;
 import com.lunar_prototype.deepwither.data.TraderOffer;
 import com.lunar_prototype.deepwither.util.DependsOn;
@@ -7,7 +8,6 @@ import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
@@ -23,18 +23,18 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 @DependsOn({TraderManager.class, DailyTaskManager.class})
 public class TraderGUI implements Listener, IManager {
 
     private final JavaPlugin plugin;
+    private final PurchaseService purchaseService;
 
     public TraderGUI(JavaPlugin plugin) {
         this.plugin = plugin;
+        this.purchaseService = new PurchaseService();
     }
 
     @Override
@@ -232,101 +232,8 @@ public class TraderGUI implements Listener, IManager {
                 return;
             }
 
-            handlePurchase(player, e.getCurrentItem(), Deepwither.getInstance().getTraderManager());
+            if (!e.getClickedInventory().equals(e.getView().getTopInventory())) return;
+            purchaseService.processPurchase(player, e.getCurrentItem(), Deepwither.getInstance().getTraderManager());
         }
-    }
-
-    /**
-     * Processes a player's purchase from a trader GUI item: validates price, offer, balance, required items,
-     * inventory space, determines the item to give, performs the transaction, and notifies the player.
-     *
-     * @param player the player attempting the purchase
-     * @param clickedItem the ItemStack clicked in the trader GUI representing the offer
-     * @param manager the TraderManager used to look up the corresponding TraderOffer
-     */
-    private static void handlePurchase(Player player, ItemStack clickedItem, TraderManager manager) {
-        Economy econ = Deepwither.getEconomy();
-        ItemMeta meta = clickedItem.getItemMeta();
-        if (meta == null) {
-            player.sendMessage(Component.text("アイテムメタデータがありません。", NamedTextColor.RED));
-            return;
-        }
-
-        NamespacedKey sellIdKey = new NamespacedKey(Deepwither.getInstance(), SELL_ID_KEY);
-        int cost = meta.getPersistentDataContainer().getOrDefault(sellIdKey, PersistentDataType.INTEGER, 0);
-
-        String traderid = meta.getPersistentDataContainer().get(new NamespacedKey(Deepwither.getInstance(), TRADER_ID_KEY), PersistentDataType.STRING);
-        String offerid = meta.getPersistentDataContainer().get(new NamespacedKey(Deepwither.getInstance(), OFFER_ID_KEY), PersistentDataType.STRING);
-
-        if (cost <= 0) {
-            player.sendMessage(Component.text("このアイテムは購入できません。（価格設定なし）", NamedTextColor.RED));
-            return;
-        }
-
-        TraderOffer offer = manager.getOfferById(traderid, offerid);
-        if (offer == null) {
-            player.sendMessage(Component.text("エラー: 指定された商品が見つかりませんでした。", NamedTextColor.RED));
-            return;
-        }
-
-        if (!econ.has(player, cost)) {
-            player.sendMessage(Component.text("残高が不足しています！ 必要額: " + econ.format(cost), NamedTextColor.RED));
-            return;
-        }
-
-        List<ItemStack> requiredItems = offer.getRequiredItems();
-        if (requiredItems != null) {
-            for (ItemStack req : requiredItems) {
-                if (req == null) continue;
-                if (!player.getInventory().containsAtLeast(req, req.getAmount())) {
-                    String itemName = req.hasItemMeta() && req.getItemMeta().hasDisplayName()
-                            ? PlainTextComponentSerializer.plainText().serialize(req.getItemMeta().displayName())
-                            : req.getType().name();
-                    player.sendMessage(Component.text("必要なアイテムが不足しています: " + itemName + " ×" + req.getAmount(), NamedTextColor.RED));
-                    return;
-                }
-            }
-        }
-
-        if (player.getInventory().firstEmpty() == -1) {
-            player.sendMessage(Component.text("インベントリに空きがありません。", NamedTextColor.RED));
-            return;
-        }
-
-        ItemStack itemToGive;
-        NamespacedKey customIdKey = new NamespacedKey(Deepwither.getInstance(), CUSTOM_ID_KEY);
-
-        if (meta.getPersistentDataContainer().has(customIdKey, PersistentDataType.STRING)) {
-            String customId = meta.getPersistentDataContainer().get(customIdKey, PersistentDataType.STRING);
-            itemToGive = ItemLoader.loadSingleItem(customId, Deepwither.getInstance().getItemFactory(), new File(Deepwither.getInstance().getDataFolder(), "items"));
-        } else {
-            Material material = clickedItem.getType();
-            if (material != Material.AIR && material.isItem()) {
-                itemToGive = clickedItem.clone();
-                ItemMeta itemToGiveMeta = itemToGive.getItemMeta();
-                if (itemToGiveMeta != null) {
-                    itemToGiveMeta.displayName(null);
-                    itemToGiveMeta.lore(null);
-                    itemToGive.setItemMeta(itemToGiveMeta);
-                }
-            } else {
-                player.sendMessage(Component.text("アイテムの取得に失敗しました。(無効なマテリアル)", NamedTextColor.RED));
-                return;
-            }
-        }
-
-        if (itemToGive == null) {
-            player.sendMessage(Component.text("アイテムの取得に失敗しました。", NamedTextColor.RED));
-            return;
-        }
-
-        econ.withdrawPlayer(player, cost);
-        if (requiredItems != null) {
-            for (ItemStack req : requiredItems) player.getInventory().removeItem(req);
-        }
-        player.getInventory().addItem(itemToGive);
-
-        Component itemDisplayName = itemToGive.hasItemMeta() && itemToGive.getItemMeta().hasDisplayName() ? itemToGive.getItemMeta().displayName() : Component.text(itemToGive.getType().name());
-        player.sendMessage(Component.text("", NamedTextColor.GREEN).append(itemDisplayName).append(Component.text(" を " + econ.format(cost) + " で購入しました。", NamedTextColor.GREEN)));
     }
 }

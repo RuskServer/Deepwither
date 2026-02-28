@@ -1,5 +1,7 @@
-package com.lunar_prototype.deepwither;
+package com.lunar_prototype.deepwither.modules.economy.trader;
 
+import com.lunar_prototype.deepwither.CreditManager;
+import com.lunar_prototype.deepwither.Deepwither;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;

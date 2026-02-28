@@ -1,5 +1,6 @@
-package com.lunar_prototype.deepwither;
+package com.lunar_prototype.deepwither.modules.economy.trader;
 
+import com.lunar_prototype.deepwither.ItemFactory;
 import com.lunar_prototype.deepwither.data.TraderOffer;
 import com.lunar_prototype.deepwither.data.TraderOffer.ItemType;
 import com.lunar_prototype.deepwither.util.DependsOn;
@@ -290,11 +291,7 @@ public class TraderManager implements IManager {
                 plugin.getLogger().warning("不明なマテリアル: " + offer.getId());
             }
         } else if (offer.getItemType() == ItemType.CUSTOM) {
-            // ItemLoaderを使ってカスタムアイテムをロード
-            // ItemLoader.loadSingleItem(id, this.itemFactory, itemFolder) の処理を想定
-            File itemFolder = new File(plugin.getDataFolder(), "items");
-
-            item = ItemLoader.loadSingleItem(offer.getId(), this.itemFactory, itemFolder);
+            item = this.itemFactory.getCustomCountItemStack(offer.getId(), offer.getAmount());
             if (item != null) {
                 item.setAmount(offer.getAmount());
             } else {

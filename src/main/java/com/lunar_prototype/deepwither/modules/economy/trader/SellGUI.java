@@ -1,11 +1,14 @@
-package com.lunar_prototype.deepwither;
+package com.lunar_prototype.deepwither.modules.economy.trader;
 
+import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.StatManager;
+import com.lunar_prototype.deepwither.StatMap;
+import com.lunar_prototype.deepwither.StatType;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -27,9 +30,11 @@ import java.util.Map;
 public class SellGUI implements Listener, IManager {
 
     private final JavaPlugin plugin;
+    private final PriceCalculator priceCalculator;
 
     public SellGUI(JavaPlugin plugin) {
         this.plugin = plugin;
+        this.priceCalculator = new PriceCalculator();
     }
 
     @Override
@@ -41,23 +46,6 @@ public class SellGUI implements Listener, IManager {
     public void shutdown() {}
 
     public static final Component SELL_GUI_TITLE = Component.text("[売却] ", NamedTextColor.DARK_GRAY).append(Component.text("総合売却所", NamedTextColor.WHITE)).decoration(TextDecoration.ITALIC, false);
-    private static final String CUSTOM_ID_KEY = "custom_id";
-
-    private static final Map<StatType, Double> FLAT_PRICE_MULTIPLIERS = new EnumMap<>(StatType.class);
-    private static final Map<StatType, Double> PERCENT_PRICE_MULTIPLIERS = new EnumMap<>(StatType.class);
-
-    static {
-        FLAT_PRICE_MULTIPLIERS.put(StatType.ATTACK_DAMAGE, 20.0);
-        FLAT_PRICE_MULTIPLIERS.put(StatType.DEFENSE, 20.0);
-        FLAT_PRICE_MULTIPLIERS.put(StatType.MAX_HEALTH, 20.0);
-        FLAT_PRICE_MULTIPLIERS.put(StatType.PROJECTILE_DAMAGE, 20.0);
-        FLAT_PRICE_MULTIPLIERS.put(StatType.MAGIC_DAMAGE, 20.0);
-        FLAT_PRICE_MULTIPLIERS.put(StatType.MAGIC_RESIST, 40.0);
-        FLAT_PRICE_MULTIPLIERS.put(StatType.MAGIC_PENETRATION, 50.0);
-
-        PERCENT_PRICE_MULTIPLIERS.put(StatType.MAX_HEALTH, 100.0);
-        PERCENT_PRICE_MULTIPLIERS.put(StatType.CRIT_DAMAGE, 75.0);
-    }
 
     public static void openSellGUI(Player player, TraderManager manager) {
         Inventory gui = Bukkit.createInventory(player, 27, SELL_GUI_TITLE);
@@ -126,8 +114,7 @@ public class SellGUI implements Listener, IManager {
 
     private void processSell(Player player, ItemStack itemToSell, TraderManager manager, Economy econ, InventoryClickEvent e) {
         int amount = itemToSell.getAmount();
-        String itemId = getItemId(itemToSell);
-        int pricePerItem = manager.getSellPrice(itemId);
+        int pricePerItem = priceCalculator.calculateSellPrice(itemToSell, manager);
 
         if (pricePerItem > 0) {
             int totalCost = pricePerItem * amount;
@@ -142,47 +129,7 @@ public class SellGUI implements Listener, IManager {
                     .append(Component.text(" x" + amount + " を売却し、" + econ.format(totalCost) + " を獲得しました。", NamedTextColor.GREEN)));
 
         } else {
-            pricePerItem = calculatePriceByStats(itemToSell);
-            if (pricePerItem > 0) {
-                int totalCost = pricePerItem * amount;
-                econ.depositPlayer(player, totalCost);
-
-                if (e.isShiftClick()) e.setCurrentItem(null);
-                else e.getCursor().setAmount(0);
-
-                Component itemDisplayName = itemToSell.hasItemMeta() && itemToSell.getItemMeta().hasDisplayName() ? itemToSell.getItemMeta().displayName() : Component.text(itemToSell.getType().name());
-                player.sendMessage(Component.text("", NamedTextColor.GREEN)
-                        .append(itemDisplayName)
-                        .append(Component.text(" x" + amount + " を ", NamedTextColor.GREEN))
-                        .append(Component.text("ステータス評価", NamedTextColor.YELLOW))
-                        .append(Component.text("により売却し、" + econ.format(totalCost) + " を獲得しました。", NamedTextColor.GREEN)));
-            } else {
-                player.sendMessage(Component.text("このアイテムは売却できません。", NamedTextColor.RED));
-            }
+            player.sendMessage(Component.text("このアイテムは売却できません。", NamedTextColor.RED));
         }
-    }
-
-    private String getItemId(ItemStack item) {
-        if (item == null || item.getType() == Material.AIR) return "";
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) return item.getType().name();
-        
-        NamespacedKey key = new NamespacedKey(Deepwither.getInstance(), CUSTOM_ID_KEY);
-        if (meta.getPersistentDataContainer().has(key, PersistentDataType.STRING)) {
-            return meta.getPersistentDataContainer().get(key, PersistentDataType.STRING);
-        }
-        return item.getType().name();
-    }
-
-    private int calculatePriceByStats(ItemStack item) {
-        final StatMap stats = StatManager.readStatsFromItem(item);
-        double totalValue = 0;
-        for (StatType type : StatType.values()) {
-            double flatValue = stats.getFlat(type);
-            double percentValue = stats.getPercent(type);
-            if (flatValue > 0) totalValue += flatValue * FLAT_PRICE_MULTIPLIERS.getOrDefault(type, 0.0);
-            if (percentValue > 0) totalValue += percentValue * PERCENT_PRICE_MULTIPLIERS.getOrDefault(type, 0.0);
-        }
-        return Math.max(1, (int) Math.round(totalValue));
     }
 }
