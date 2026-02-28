@@ -124,6 +124,13 @@ public class PurchaseService {
                 .append(Component.text(" を " + econ.format(cost) + " で購入しました。", NamedTextColor.GREEN)));
     }
 
+    /**
+     * Resolve the ItemStack to grant to the player for a purchase.
+     *
+     * @param clickedItem the GUI item that was clicked; used as a fallback source when no custom identifier is present
+     * @param meta the ItemMeta of the clicked item, checked for a custom item identifier in its persistent data container
+     * @return the ItemStack to give (either the item referenced by the custom identifier or a cleaned clone of the clicked item), or `null` if no valid item could be resolved
+     */
     private ItemStack resolveItemToGive(ItemStack clickedItem, ItemMeta meta) {
         NamespacedKey customIdKey = new NamespacedKey(Deepwither.getInstance(), CUSTOM_ID_KEY);
         if (meta.getPersistentDataContainer().has(customIdKey, PersistentDataType.STRING)) {

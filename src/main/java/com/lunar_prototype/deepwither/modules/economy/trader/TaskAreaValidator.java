@@ -18,7 +18,14 @@ import org.bukkit.entity.Player;
 public class TaskAreaValidator {
 
     /**
-     * 現在地の WorldGuard リージョンからティア（難易度レベル）を判定します。
+     * Determine the highest numeric tier encoded in WorldGuard region IDs that contain the given location.
+     *
+     * The method scans each applicable region's ID for a sequence of digits immediately following the character 't'
+     * (for example, "area_t3" yields tier 3) and returns the largest parsed tier. Regions without a valid "t<digits>"
+     * pattern are ignored.
+     *
+     * @param loc the location to inspect for overlapping WorldGuard regions
+     * @return the highest tier number found in region IDs, or 0 if none are present
      */
     public int getTierFromLocation(Location loc) {
         RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
@@ -49,7 +56,14 @@ public class TaskAreaValidator {
     }
 
     /**
-     * プレイヤーが指定されたタスクの対象エリア内にいるかを確認します。
+     * Determines whether a player is located inside the task area defined by the configuration.
+     *
+     * <p>The configuration should contain "x", "y", and "z" for the target location. It may include
+     * "world" (defaults to "world") and "radius" (defaults to 3.0).
+     *
+     * @param player the player to check
+     * @param taskConfig configuration specifying the task area
+     * @return `true` if the player is in the same world and within the configured radius of the target location, `false` otherwise
      */
     public boolean isInTaskArea(Player player, ConfigurationSection taskConfig) {
         if (taskConfig == null) return false;

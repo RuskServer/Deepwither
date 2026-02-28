@@ -36,8 +36,11 @@ public class PriceCalculator {
     }
 
     /**
-     * 指定されたアイテムの売却価格を決定します。
-     * 固定価格設定がある場合はそれを優先し、ない場合はステータスに基づいた査定を行います。
+     * Determines the sell price for the given item using the provided trader manager.
+     *
+     * @param item    the item to price; if the item has a custom identifier or stats, those are used in valuation
+     * @param manager the trader manager used to resolve a configured fixed sell price for the item
+     * @return the sell price for the item (uses the manager's configured fixed price when positive, otherwise a price computed from the item's stats); always zero or greater
      */
     public int calculateSellPrice(ItemStack item, TraderManager manager) {
         String itemId = getItemId(item);
@@ -50,6 +53,12 @@ public class PriceCalculator {
         return calculatePriceByStats(item);
     }
 
+    /**
+     * Resolve an item's custom identifier stored under the PersistentDataContainer or fall back to the item's material name.
+     *
+     * @param item the ItemStack to inspect; may be null or AIR
+     * @return the stored custom id if present, the item's material name if metadata or key is absent, or an empty string when `item` is null or AIR
+     */
     public String getItemId(ItemStack item) {
         if (item == null || item.getType() == Material.AIR) return "";
         ItemMeta meta = item.getItemMeta();
@@ -62,6 +71,12 @@ public class PriceCalculator {
         return item.getType().name();
     }
 
+    /**
+     * Computes an item's sell price by aggregating its stat modifiers and applying configured multipliers.
+     *
+     * @param item the ItemStack whose stats are used to compute the price
+     * @return the computed sell price as a non-negative integer (rounded to the nearest whole number)
+     */
     private int calculatePriceByStats(ItemStack item) {
         final StatMap stats = StatManager.readStatsFromItem(item);
         double totalValue = 0;

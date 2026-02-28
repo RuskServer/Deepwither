@@ -32,11 +32,19 @@ public class TraderGUI implements Listener, IManager {
     private final JavaPlugin plugin;
     private final PurchaseService purchaseService;
 
+    /**
+     * Creates a TraderGUI bound to the given plugin and initializes its purchase handling.
+     *
+     * @param plugin the hosting JavaPlugin instance used for registering listeners and interacting with the server
+     */
     public TraderGUI(JavaPlugin plugin) {
         this.plugin = plugin;
         this.purchaseService = new PurchaseService();
     }
 
+    /**
+     * Registers this object as an event listener with the Bukkit plugin manager using the configured plugin.
+     */
     @Override
     public void init() {
         Bukkit.getPluginManager().registerEvents(this, plugin);

@@ -34,12 +34,21 @@ public class DailyTaskManager implements IManager {
     private final TaskAreaValidator areaValidator;
     private FileConfiguration taskConfig;
 
+    /**
+     * Creates a DailyTaskManager that manages players' daily tasks and initializes area validation.
+     *
+     * @param plugin   the main Deepwither plugin instance used for scheduling, configuration, and services
+     * @param dataStore the persistence backend for loading and saving per-player daily task data
+     */
     public DailyTaskManager(Deepwither plugin, DailyTaskDataStore dataStore) {
         this.plugin = plugin;
         this.dataStore = dataStore;
         this.areaValidator = new TaskAreaValidator();
     }
 
+    /**
+     * Loads the task configuration for daily tasks.
+     */
     @Override
     public void init() {
         loadTaskConfig();
@@ -100,6 +109,14 @@ public class DailyTaskManager implements IManager {
         return data;
     }
 
+    /**
+     * Assigns a new daily task to the player from the given trader based on the player's current location and task configuration.
+     *
+     * Initializes either an area-investigation task or a mob-kill task appropriate to the player's tier, updates the player's task progress/target, sends in-game notifications to the player, and persists the assigned task.
+     *
+     * @param player   the player who will receive the task
+     * @param traderId the configuration key identifying the trader assigning the task
+     */
     public void startNewTask(Player player, String traderId) {
         DailyTaskData data = getTaskData(player);
         int currentTier = areaValidator.getTierFromLocation(player.getLocation());
@@ -159,6 +176,14 @@ public class DailyTaskManager implements IManager {
         dataStore.saveTaskData(data);
     }
 
+    /**
+     * Advances the player's kill-count progress for the specified trader's task, notifies the player, and persists the updated data.
+     *
+     * If the trader has an active target, increments the current kill count; when the target is reached sends a completion prompt, otherwise sends a progress update showing current/target and the target mob's name.
+     *
+     * @param player the player whose task progress to update
+     * @param traderId identifier of the trader whose task progress is tracked
+     */
     public void updateKillProgress(Player player, String traderId) {
         DailyTaskData data = getTaskData(player);
         int[] progress = data.getProgress(traderId);
@@ -258,6 +283,13 @@ public class DailyTaskManager implements IManager {
         return activeTraders;
     }
 
+    /**
+     * Check whether the player is currently inside the trader's active AREA task area.
+     *
+     * @param player   the player to check
+     * @param traderId identifier of the trader whose active task should be evaluated
+     * @return `true` if the player is inside the configured task area for the trader's active `AREA_TASK`, `false` otherwise
+     */
     public boolean isInTaskArea(Player player, String traderId) {
         DailyTaskData data = getTaskData(player);
         String targetMob = data.getTargetMob(traderId);

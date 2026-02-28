@@ -32,21 +32,43 @@ public class SellGUI implements Listener, IManager {
     private final JavaPlugin plugin;
     private final PriceCalculator priceCalculator;
 
+    /**
+     * Creates a SellGUI associated with the provided plugin and initializes the price calculator.
+     *
+     * @param plugin the main JavaPlugin instance used to register events and create inventories
+     */
     public SellGUI(JavaPlugin plugin) {
         this.plugin = plugin;
         this.priceCalculator = new PriceCalculator();
     }
 
+    /**
+     * Registers this SellGUI instance with the Bukkit plugin manager so it will receive event callbacks.
+     */
     @Override
     public void init() {
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
+    /**
+     * Performs shutdown and cleanup for this SellGUI.
+     *
+     * <p>No cleanup actions are necessary for this implementation.</p>
+     */
     @Override
     public void shutdown() {}
 
     public static final Component SELL_GUI_TITLE = Component.text("[売却] ", NamedTextColor.DARK_GRAY).append(Component.text("総合売却所", NamedTextColor.WHITE)).decoration(TextDecoration.ITALIC, false);
 
+    /**
+     * Opens the selling GUI for the specified player.
+     *
+     * Creates a 27-slot inventory titled with SELL_GUI_TITLE, fills the top and bottom borders
+     * with filler panes, places a back button at slot 22, and opens the inventory for the player.
+     *
+     * @param player  the player who will receive and view the sell GUI
+     * @param manager the TraderManager providing context for subsequent GUI interactions
+     */
     public static void openSellGUI(Player player, TraderManager manager) {
         Inventory gui = Bukkit.createInventory(player, 27, SELL_GUI_TITLE);
 
@@ -112,6 +134,16 @@ public class SellGUI implements Listener, IManager {
         }
     }
 
+    /**
+     * Credits the player's account for selling the provided item stack, updates the inventory or cursor,
+     * and sends a confirmation or failure message to the player.
+     *
+     * @param player the player performing the sale
+     * @param itemToSell the item stack to sell (its amount and display name are used)
+     * @param manager the TraderManager providing context needed to determine sell price
+     * @param econ the Economy implementation used to deposit funds and format amounts
+     * @param e the inventory click event used to determine click type and update the inventory/cursor
+     */
     private void processSell(Player player, ItemStack itemToSell, TraderManager manager, Economy econ, InventoryClickEvent e) {
         int amount = itemToSell.getAmount();
         int pricePerItem = priceCalculator.calculateSellPrice(itemToSell, manager);
