@@ -210,6 +210,11 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     public ArtifactGUI artifactGUI;
     public ItemFactory itemFactory;
 
+    /**
+     * Accesses the plugin's manager responsible for dungeon extraction operations.
+     *
+     * @return the DungeonExtractionManager instance used to manage dungeon extraction tasks and state
+     */
     public DungeonExtractionManager getDungeonExtractionManager() {
         return dungeonExtractionManager;
     }

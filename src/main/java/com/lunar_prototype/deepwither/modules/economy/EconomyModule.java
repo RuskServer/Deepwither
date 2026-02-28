@@ -24,15 +24,13 @@ public class EconomyModule implements IModule {
     }
 
     /**
-     * Creates and registers the economy-related manager instances (global market, credit,
-     * and trader managers) into the provided service container.
+     * Creates and registers economy managers (GlobalMarketManager, CreditManager, and TraderManager)
+     * in the provided service container so they can be retrieved and initialized elsewhere.
      *
-     * Instances are added to the container so they can be retrieved and initialized elsewhere.
+     * On failure to instantiate or register any manager, a severe log message is written and the
+     * exception stack trace is printed.
      *
-     * @param container the service container used to retrieve dependencies and register instances
-     *
-     * If instantiation or registration fails, a severe log message is written and the exception
-     * stack trace is printed.
+     * @param container the service container used to obtain dependencies and register manager instances
      */
     @Override
     public void configure(ServiceContainer container) {

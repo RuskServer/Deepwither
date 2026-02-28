@@ -26,6 +26,12 @@ public class TraderManager implements IManager {
     private File tradersFolder;
     private File sellFile;
 
+    /**
+     * Creates a TraderManager and stores references to the hosting plugin and item factory.
+     *
+     * @param plugin the JavaPlugin instance used for plugin context (configuration and logging)
+     * @param itemFactory factory for creating or retrieving custom item instances
+     */
     public TraderManager(JavaPlugin plugin, ItemFactory itemFactory) {
         this.plugin = plugin;
         this.itemFactory = itemFactory;
@@ -59,12 +65,16 @@ public class TraderManager implements IManager {
     }
 
     /**
-     * Loads all trader configuration files from the configured traders folder and populates
-     * internal maps for trader offers, daily task limits, display names, quests, and tier
-     * unlock requirements.
+     * Load trader YAML files and populate in-memory trader data.
      *
-     * Clears existing trader-related caches before loading. If the traders folder contains no
-     * YAML files or cannot be listed, the method returns without modifying state.
+     * Clears existing trader caches for offers, daily task limits, and display names,
+     * then scans the traders folder for files ending with ".yml". For each file found,
+     * the trader ID is derived from the filename, the display name is read (defaults
+     * to the trader ID), the daily task limit is read and normalized to at least 1,
+     * and buy offers are parsed and stored.
+     *
+     * If the traders folder cannot be listed or contains no YAML files, the method
+     * returns without modifying state beyond clearing the caches.
      */
 
     private void loadAllTraders() {
@@ -97,16 +107,15 @@ public class TraderManager implements IManager {
     }
 
     /**
-     * Parse the trader's "credit_tiers" configuration into credit-level offer lists and record tier unlock requirements.
-     *
-     * Parses the "credit_tiers" section of the provided YAML config into a map keyed by credit level (integer)
-     * with each value being the list of TraderOffer objects for that tier. Each offer's associated ItemStack is loaded,
-     * and any configured required quest IDs for unlocking tiers are stored in this instance's tierRequirements for the trader.
-     *
-     * @param traderId the identifier of the trader whose config is being parsed
-     * @param config the YAML configuration containing a "credit_tiers" section
-     * @return a map from credit level to the list of TraderOffer objects for that level; empty if no "credit_tiers" section exists
-     */
+         * Parse the configuration's "credit_tiers" section into a map of credit level to offer lists.
+         *
+         * Each credit tier key is parsed as an integer and its "buy_offers" entries are converted into
+         * TraderOffer instances with their items loaded. Invalid (non-integer) tier keys are ignored.
+         *
+         * @param traderId the identifier of the trader whose configuration is being parsed
+         * @param config the YAML configuration containing a "credit_tiers" section
+         * @return a map from credit level to the list of TraderOffer objects for that level; empty if no "credit_tiers" section exists
+         */
     private Map<Integer, List<TraderOffer>> parseBuyOffers(String traderId, YamlConfiguration config) {
         Map<Integer, List<TraderOffer>> tiers = new HashMap<>();
 
@@ -339,18 +348,24 @@ public class TraderManager implements IManager {
     }
 
     /**
-     * Determines whether a player may access a specific trader credit tier.
+     * Check whether a player meets the credit requirement to access a trader tier.
      *
      * @param player         the player to check
      * @param traderId       the trader identifier
      * @param requiredCredit the credit level required to access the tier
      * @param playerCredit   the player's current credit with the trader
-     * @return               `true` if the player may access the tier, `false` otherwise
+     * @return               `true` if playerCredit is greater than or equal to requiredCredit, `false` otherwise
      */
     public boolean canAccessTier(Player player, String traderId, int requiredCredit, int playerCredit) {
         return playerCredit >= requiredCredit;
     }
 
+    /**
+     * Get the configured sell price for an item identifier.
+     *
+     * @param id the item identifier (vanilla material name or custom item id)
+     * @return the sell price for the given item id, or 0 if no price is configured
+     */
     public int getSellPrice(String id) {
         return sellPrices.getOrDefault(id, 0);
     }

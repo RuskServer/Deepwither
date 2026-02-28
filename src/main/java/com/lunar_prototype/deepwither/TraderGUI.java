@@ -50,6 +50,18 @@ public class TraderGUI implements Listener, IManager {
     private static final String CUSTOM_ID_KEY = "custom_id";
     private static final String TRADER_ID_KEY = "trader_id";
 
+    /**
+     * Opens a purchase GUI for the specified trader and presents the trader's offers to the player.
+     *
+     * <p>The GUI lists available offers with price, required items, and required credit; offers the
+     * player cannot access are shown as locked (non-purchasable) and visually replaced with a gray pane.
+     * A sell button and a daily-task button are added to the GUI.</p>
+     *
+     * @param player the player who will see the GUI
+     * @param traderId identifier of the trader whose offers are displayed
+     * @param playerCredit the player's current credit used to determine offer access
+     * @param manager manager used to retrieve offers and access checks for the trader
+     */
     public void openBuyGUI(Player player, String traderId, int playerCredit, TraderManager manager) {
         List<TraderOffer> allOffers = manager.getAllOffers(traderId);
         int offerRows = (int) Math.ceil(allOffers.size() / 9.0);
@@ -174,6 +186,13 @@ public class TraderGUI implements Listener, IManager {
         gui.setItem(slot, taskButton);
     }
 
+    /**
+     * Handles clicks inside the trader "buy" inventory: cancels interactions, routes clicks on the sell button to the sell GUI, processes the daily-task button (start/complete/notify based on task state), and delegates purchases to the purchase handler.
+     *
+     * The handler ignores non-player clicks and clicks on empty slots or outside inventories.
+     *
+     * @param e the inventory click event for the buy GUI
+     */
     @EventHandler
     public void onInventoryClick(InventoryClickEvent e) {
         if (!(e.getWhoClicked() instanceof Player player)) return;
@@ -217,6 +236,14 @@ public class TraderGUI implements Listener, IManager {
         }
     }
 
+    /**
+     * Processes a player's purchase from a trader GUI item: validates price, offer, balance, required items,
+     * inventory space, determines the item to give, performs the transaction, and notifies the player.
+     *
+     * @param player the player attempting the purchase
+     * @param clickedItem the ItemStack clicked in the trader GUI representing the offer
+     * @param manager the TraderManager used to look up the corresponding TraderOffer
+     */
     private static void handlePurchase(Player player, ItemStack clickedItem, TraderManager manager) {
         Economy econ = Deepwither.getEconomy();
         ItemMeta meta = clickedItem.getItemMeta();
