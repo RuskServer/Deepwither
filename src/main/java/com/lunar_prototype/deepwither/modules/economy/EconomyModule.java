@@ -55,11 +55,6 @@ public class EconomyModule implements IModule {
             TraderManager traderManager = new TraderManager(plugin, itemFactory);
             container.registerInstance(TraderManager.class, traderManager);
 
-            // TraderQuestManager
-            com.lunar_prototype.deepwither.TraderQuestManager traderQuestManager = new com.lunar_prototype.deepwither.TraderQuestManager(
-                    plugin, dbManager);
-            container.registerInstance(com.lunar_prototype.deepwither.TraderQuestManager.class, traderQuestManager);
-
         } catch (Exception e) {
             plugin.getLogger().severe("Failed to configure EconomyModule components.");
             e.printStackTrace();
@@ -70,7 +65,7 @@ public class EconomyModule implements IModule {
      * Initializes the economy managers and starts their runtime behavior.
      *
      * Logs an informational message and calls `init()` on the GlobalMarketManager, CreditManager,
-     * TraderManager, and TraderQuestManager instances retrieved from the service container.
+     * and TraderManager instances retrieved from the service container.
      * Any exception thrown during initialization is caught and its stack trace is printed.
      */
     @Override
@@ -80,7 +75,6 @@ public class EconomyModule implements IModule {
             container.get(GlobalMarketManager.class).init();
             container.get(CreditManager.class).init();
             container.get(TraderManager.class).init();
-            container.get(com.lunar_prototype.deepwither.TraderQuestManager.class).init();
         } catch (Exception e) {
             e.printStackTrace();
         }

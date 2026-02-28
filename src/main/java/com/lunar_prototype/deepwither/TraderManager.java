@@ -26,11 +26,6 @@ public class TraderManager implements IManager {
     private File tradersFolder;
     private File sellFile;
 
-    // クエスト情報を保持するマップ [TraderID -> [QuestID -> QuestData]]
-    private final Map<String, Map<String, QuestData>> traderQuests = new HashMap<>();
-    // ティアの解禁条件を保持するマップ [TraderID -> [CreditLevel -> RequiredQuestID]]
-    private final Map<String, Map<Integer, String>> tierRequirements = new HashMap<>();
-
     public TraderManager(JavaPlugin plugin, ItemFactory itemFactory) {
         this.plugin = plugin;
         this.itemFactory = itemFactory;
@@ -63,184 +58,6 @@ public class TraderManager implements IManager {
     public void shutdown() {
     }
 
-    public static class QuestData {
-        private final String id;
-        private final String displayName;
-        private final List<String> description;
-        private final String type; // "KILL", "FETCH"
-        private final String target; // Mob名 または Material名
-        private final int amount;
-        private final String requiredQuestId; // 前提条件
-        private final int rewardCredit; // 完了時の信用度報酬
-
-        // 拡張条件（Conditions）
-        private double minDistance = -1;
-        private double maxDistance = -1;
-        private String requiredWeapon = null;
-        private String requiredArmor = null;
-
-        /**
-         * Create a QuestData instance that holds the quest's core attributes and reward.
-         *
-         * @param id           unique identifier for the quest
-         * @param name         display name for the quest
-         * @param description  list of description lines; if null an empty list will be used
-         * @param type         quest type identifier (defines how the quest is evaluated)
-         * @param target       identifier of the quest target (entity, item, or other target value)
-         * @param amount       quantity required to complete the quest
-         * @param requires     quest id that must be completed before this quest is unlocked, or null if none
-         * @param rewardCredit credit awarded to the player when the quest is completed
-         */
-        public QuestData(String id, String name, List<String> description, String type, String target, int amount,
-                String requires, int rewardCredit) {
-            this.id = id;
-            this.displayName = name;
-            this.description = (description != null) ? description : new ArrayList<>();
-            this.type = type;
-            this.target = target;
-            this.amount = amount;
-            this.requiredQuestId = requires;
-            this.rewardCredit = rewardCredit;
-        }
-
-        /**
-         * Sets distance constraints for the quest target.
-         *
-         * @param min minimum distance constraint
-         * @param max maximum distance constraint
-         */
-        public void setDistance(double min, double max) {
-            this.minDistance = min;
-            this.maxDistance = max;
-        }
-
-        /**
-         * Sets the identifier of the weapon a player must have to satisfy the quest's requirement.
-         *
-         * @param weapon the weapon id or material name required to complete the quest, or `null` to clear the requirement
-         */
-        public void setRequiredWeapon(String weapon) {
-            this.requiredWeapon = weapon;
-        }
-
-        /**
-         * Sets the armor requirement for the quest; this value is used to enforce that a player has a specific armor equipped.
-         *
-         * @param armor the armor identifier or material name required for the quest, or {@code null} to clear the requirement
-         */
-        public void setRequiredArmor(String armor) {
-            this.requiredArmor = armor;
-        }
-
-        /**
-         * Gets the trader's unique identifier.
-         *
-         * @return the trader's identifier
-         */
-        public String getId() {
-            return id;
-        }
-
-        /**
-         * Gets the display name for this quest.
-         *
-         * @return the quest's display name.
-         */
-        public String getDisplayName() {
-            return displayName;
-        }
-
-        /**
-         * Get the quest's description lines.
-         *
-         * @return the quest description as a list of lines
-         */
-        public List<String> getDescription() {
-            return description;
-        }
-
-        /**
-         * Gets the quest type identifier.
-         *
-         * @return the quest type (for example, "KILL")
-         */
-        public String getType() {
-            return type;
-        }
-
-        /**
-         * Returns the quest's target identifier or subject.
-         *
-         * @return the quest's target identifier or subject
-         */
-        public String getTarget() {
-            return target;
-        }
-
-        /**
-         * Get the target count required by this quest.
-         *
-         * @return the target count for the quest
-         */
-        public int getAmount() {
-            return amount;
-        }
-
-        /**
-         * Gets the quest ID that must be completed to unlock this quest.
-         *
-         * @return the required quest ID, or `null` if no prerequisite is configured
-         */
-        public String getRequiredQuestId() {
-            return requiredQuestId;
-        }
-
-        /**
-         * The credit reward awarded for completing this quest.
-         *
-         * @return the number of credits granted upon quest completion
-         */
-        public int getRewardCredit() {
-            return rewardCredit;
-        }
-
-        /**
-         * Minimum distance constraint for the quest.
-         *
-         * @return the minimum distance constraint for the quest, or a negative value if unset
-         */
-        public double getMinDistance() {
-            return minDistance;
-        }
-
-        /**
-         * Gets the configured maximum distance constraint for the quest.
-         *
-         * @return the maximum distance value; 0 if no maximum was configured
-         */
-        public double getMaxDistance() {
-            return maxDistance;
-        }
-
-        /**
-         * Gets the identifier of the weapon required for the quest, or null if no weapon is required.
-         *
-         * @return the required weapon identifier, or null if not specified
-         */
-        public String getRequiredWeapon() {
-            return requiredWeapon;
-        }
-
-        /**
-         * The armor item required to complete the quest, if any.
-         *
-         * @return the required armor identifier, or null if the quest does not require specific armor
-         */
-        public String getRequiredArmor() {
-            return requiredArmor;
-        }
-    }
-
     /**
      * Loads all trader configuration files from the configured traders folder and populates
      * internal maps for trader offers, daily task limits, display names, quests, and tier
@@ -254,8 +71,6 @@ public class TraderManager implements IManager {
         traderOffers.clear();
         dailyTaskLimits.clear();
         traderNames.clear();
-        traderQuests.clear(); // 新規追加
-        tierRequirements.clear(); // 新規追加
 
         File[] traderFiles = tradersFolder.listFiles((dir, name) -> name.endsWith(".yml"));
         if (traderFiles == null)
@@ -273,60 +88,12 @@ public class TraderManager implements IManager {
             int limit = config.getInt("task_limit", 1);
             dailyTaskLimits.put(traderId, Math.max(1, limit));
 
-            // 2. トレーダークエスト(永続タスク)の読み込み
-            if (config.isConfigurationSection("quests")) {
-                Map<String, QuestData> quests = parseQuests(traderId, config.getConfigurationSection("quests"));
-                traderQuests.put(traderId, quests);
-            }
-
-            // 3. 購入オファーとティア解禁条件の読み込み
-            // parseBuyOffersを拡張して、ティアごとのrequired_questも取得するように修正
+            // 2. 購入オファーの読み込み
             Map<Integer, List<TraderOffer>> creditTiers = parseBuyOffers(traderId, config);
             traderOffers.put(traderId, creditTiers);
 
-            plugin.getLogger().info("Trader loaded: " + traderId +
-                    " (Quests: " + (traderQuests.containsKey(traderId) ? traderQuests.get(traderId).size() : 0) + ")");
+            plugin.getLogger().info("Trader loaded: " + traderId);
         }
-    }
-
-    /**
-     * Parse a trader's "quests" configuration section into QuestData objects.
-     *
-     * @param traderId identifier of the trader owning the quests
-     * @param section  the ConfigurationSection representing the "quests" subsection for the trader
-     * @return a map of quest ID to QuestData preserving the definition order
-     */
-    private Map<String, QuestData> parseQuests(String traderId, org.bukkit.configuration.ConfigurationSection section) {
-        Map<String, QuestData> quests = new LinkedHashMap<>(); // 順番を保持
-
-        for (String questId : section.getKeys(false)) {
-            String path = questId + ".";
-
-            String name = section.getString(path + "display_name", questId);
-            List<String> description = section.getStringList(path + "description");
-            String type = section.getString(path + "type", "KILL");
-            String target = section.getString(path + "target", "");
-            int amount = section.getInt(path + "amount", 1);
-            String requires = section.getString(path + "requires"); // 前提クエストID
-            int rewardCredit = section.getInt(path + "reward_credit", 0);
-
-            // クエスト本体の生成
-            QuestData qData = new QuestData(questId, name, description, type, target, amount, requires, rewardCredit);
-
-            // 拡張条件（conditionsセクション）の読み込み
-            if (section.isConfigurationSection(path + "conditions")) {
-                org.bukkit.configuration.ConfigurationSection cond = section
-                        .getConfigurationSection(path + "conditions");
-                qData.setDistance(
-                        cond.getDouble("min_distance", -1),
-                        cond.getDouble("max_distance", -1));
-                qData.setRequiredWeapon(cond.getString("weapon"));
-                qData.setRequiredArmor(cond.getString("armor"));
-            }
-
-            quests.put(questId, qData);
-        }
-        return quests;
     }
 
     /**
@@ -346,19 +113,10 @@ public class TraderManager implements IManager {
         if (!config.isConfigurationSection("credit_tiers"))
             return tiers;
 
-        // このトレーダーのティア条件を格納する一時マップ
-        Map<Integer, String> requirements = new HashMap<>();
-
         for (String creditStr : config.getConfigurationSection("credit_tiers").getKeys(false)) {
             try {
                 int creditLevel = Integer.parseInt(creditStr);
                 String path = "credit_tiers." + creditStr;
-
-                // ★ 追加: ティアの解禁に必要なクエストIDを読み込む
-                String reqQuest = config.getString(path + ".required_quest");
-                if (reqQuest != null) {
-                    requirements.put(creditLevel, reqQuest);
-                }
 
                 // --- 既存のアイテム読み込みロジック ---
                 List<TraderOffer> offers = new ArrayList<>();
@@ -375,9 +133,6 @@ public class TraderManager implements IManager {
                 plugin.getLogger().warning("Trader " + traderId + ": 無効な信用度レベル: " + creditStr);
             }
         }
-
-        // 全てのティアを読み終わった後、条件マップを保存
-        tierRequirements.put(traderId, requirements);
 
         return tiers;
     }
@@ -586,9 +341,6 @@ public class TraderManager implements IManager {
     /**
      * Determines whether a player may access a specific trader credit tier.
      *
-     * Checks that the player's credit meets or exceeds the tier's required credit and,
-     * if the tier has an associated unlock quest, that the player has completed that quest.
-     *
      * @param player         the player to check
      * @param traderId       the trader identifier
      * @param requiredCredit the credit level required to access the tier
@@ -596,52 +348,7 @@ public class TraderManager implements IManager {
      * @return               `true` if the player may access the tier, `false` otherwise
      */
     public boolean canAccessTier(Player player, String traderId, int requiredCredit, int playerCredit) {
-        // 1. まず信用度が足りているか
-        if (playerCredit < requiredCredit)
-            return false;
-
-        // 2. ティア解禁に必要なクエストがあるかチェック
-        Map<Integer, String> requirements = tierRequirements.get(traderId);
-        if (requirements == null || !requirements.containsKey(requiredCredit)) {
-            return true; // 必要クエスト設定なし
-        }
-
-        String reqQuestId = requirements.get(requiredCredit);
-        // TraderQuestManager を通じて完了状況を確認
-        return Deepwither.getInstance().getTraderQuestManager().isQuestCompleted(player, traderId, reqQuestId);
-    }
-
-    /**
-     * 指定されたトレーダーIDに関連付けられたクエスト一覧を取得します。
-     * 
-     * @param traderId トレーダーのID
-     * @return クエストIDをキーとしたQuestDataのマップ。存在しない場合は空のマップを返します。
-     */
-    public Map<String, QuestData> getQuestsForTrader(String traderId) {
-        return traderQuests.getOrDefault(traderId, Collections.emptyMap());
-    }
-
-    /**
-     * Retrieve the QuestData for a specific trader's quest.
-     *
-     * @param traderId the trader's identifier
-     * @param questId  the quest's identifier
-     * @return the QuestData for the given trader and quest ID, or `null` if none exists
-     */
-    public QuestData getQuestData(String traderId, String questId) {
-        Map<String, QuestData> quests = traderQuests.get(traderId);
-        if (quests == null)
-            return null;
-        return quests.get(questId);
-    }
-
-    /**
-     * Provides an unmodifiable map of all loaded traders to their quest data.
-     *
-     * @return a map from trader ID to a map of quest ID -> QuestData; the returned outer map and its nested maps are unmodifiable
-     */
-    public Map<String, Map<String, QuestData>> getAllQuests() {
-        return Collections.unmodifiableMap(traderQuests);
+        return playerCredit >= requiredCredit;
     }
 
     public int getSellPrice(String id) {
