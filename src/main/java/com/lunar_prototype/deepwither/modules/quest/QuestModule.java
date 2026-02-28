@@ -3,7 +3,7 @@ package com.lunar_prototype.deepwither.modules.quest;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.core.engine.IModule;
 import com.lunar_prototype.deepwither.core.engine.ServiceContainer;
-import com.lunar_prototype.deepwither.DailyTaskManager;
+import com.lunar_prototype.deepwither.modules.economy.trader.DailyTaskManager;
 import com.lunar_prototype.deepwither.aethelgard.GuildQuestManager;
 import com.lunar_prototype.deepwither.aethelgard.PlayerQuestManager;
 import com.lunar_prototype.deepwither.data.QuestDataStore;

@@ -40,6 +40,7 @@ import com.lunar_prototype.deepwither.market.GlobalMarketManager;
 import com.lunar_prototype.deepwither.market.MarketGui;
 import com.lunar_prototype.deepwither.market.MarketSearchHandler;
 import com.lunar_prototype.deepwither.market.api.MarketApiController;
+import com.lunar_prototype.deepwither.modules.economy.trader.*;
 import com.lunar_prototype.deepwither.mythic.CustomDropListener;
 import com.lunar_prototype.deepwither.outpost.OutpostDamageListener;
 import com.lunar_prototype.deepwither.outpost.OutpostManager;
@@ -89,7 +90,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
 

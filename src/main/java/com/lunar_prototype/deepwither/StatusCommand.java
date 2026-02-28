@@ -1,6 +1,7 @@
 package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.api.stat.IStatManager;
+import com.lunar_prototype.deepwither.modules.economy.trader.TraderManager;
 import com.lunar_prototype.deepwither.profession.PlayerProfessionData;
 import com.lunar_prototype.deepwither.profession.ProfessionManager;
 import com.lunar_prototype.deepwither.profession.ProfessionType;

@@ -1,5 +1,6 @@
-package com.lunar_prototype.deepwither;
+package com.lunar_prototype.deepwither.modules.economy.trader;
 
+import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.core.CacheManager;
 import com.lunar_prototype.deepwither.data.DailyTaskData;
@@ -7,12 +8,6 @@ import com.lunar_prototype.deepwither.data.DailyTaskDataStore;
 import com.lunar_prototype.deepwither.data.FileDailyTaskDataStore;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
-import com.sk89q.worldedit.bukkit.BukkitAdapter;
-import com.sk89q.worldguard.WorldGuard;
-import com.sk89q.worldguard.protection.ApplicableRegionSet;
-import com.sk89q.worldguard.protection.regions.ProtectedRegion;
-import com.sk89q.worldguard.protection.regions.RegionContainer;
-import com.sk89q.worldguard.protection.regions.RegionQuery;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -36,11 +31,13 @@ public class DailyTaskManager implements IManager {
     private final Deepwither plugin;
     private final DailyTaskDataStore dataStore;
     private final Map<UUID, BukkitTask> activeCountdowns = new ConcurrentHashMap<>();
+    private final TaskAreaValidator areaValidator;
     private FileConfiguration taskConfig;
 
     public DailyTaskManager(Deepwither plugin, DailyTaskDataStore dataStore) {
         this.plugin = plugin;
         this.dataStore = dataStore;
+        this.areaValidator = new TaskAreaValidator();
     }
 
     @Override
@@ -105,7 +102,7 @@ public class DailyTaskManager implements IManager {
 
     public void startNewTask(Player player, String traderId) {
         DailyTaskData data = getTaskData(player);
-        int currentTier = getTierFromLocation(player.getLocation());
+        int currentTier = areaValidator.getTierFromLocation(player.getLocation());
         if (currentTier == 0) currentTier = 1;
 
         List<String> areaTaskKeys = new ArrayList<>();
@@ -160,34 +157,6 @@ public class DailyTaskManager implements IManager {
         }
 
         dataStore.saveTaskData(data);
-    }
-
-    public int getTierFromLocation(Location loc) {
-        RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
-        RegionQuery query = container.createQuery();
-        ApplicableRegionSet set = query.getApplicableRegions(BukkitAdapter.adapt(loc));
-
-        int maxTier = 0;
-        for (ProtectedRegion region : set) {
-            String id = region.getId().toLowerCase();
-            int tierIndex = id.indexOf("t");
-            if (tierIndex != -1 && tierIndex + 1 < id.length()) {
-                char nextChar = id.charAt(tierIndex + 1);
-                if (Character.isDigit(nextChar)) {
-                    StringBuilder tierStr = new StringBuilder();
-                    int i = tierIndex + 1;
-                    while (i < id.length() && Character.isDigit(id.charAt(i))) {
-                        tierStr.append(id.charAt(i));
-                        i++;
-                    }
-                    try {
-                        int tier = Integer.parseInt(tierStr.toString());
-                        if (tier > maxTier) maxTier = tier;
-                    } catch (NumberFormatException ignored) {}
-                }
-            }
-        }
-        return maxTier;
     }
 
     public void updateKillProgress(Player player, String traderId) {
@@ -296,17 +265,7 @@ public class DailyTaskManager implements IManager {
 
         String taskKey = targetMob.replace("AREA_TASK:", "");
         ConfigurationSection config = getTaskConfig().getConfigurationSection("tasks." + traderId + "." + taskKey);
-        if (config == null) return false;
-
-        Location targetLoc = new Location(
-                Bukkit.getWorld(config.getString("world", "world")),
-                config.getDouble("x"),
-                config.getDouble("y"),
-                config.getDouble("z")
-        );
-        double radius = config.getDouble("radius", 3.0);
-
-        return player.getWorld().equals(targetLoc.getWorld()) &&
-                player.getLocation().distanceSquared(targetLoc) <= (radius * radius);
+        
+        return areaValidator.isInTaskArea(player, config);
     }
 }
