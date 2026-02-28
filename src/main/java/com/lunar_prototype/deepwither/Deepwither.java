@@ -211,23 +211,16 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     public ItemFactory itemFactory;
 
     /**
-     * Accesses the registered TraderQuestManager.
+     * Accesses the plugin's manager responsible for dungeon extraction operations.
      *
-     * @deprecated Use {@link Deepwither#get(Class)} or the ServiceManager to obtain a TraderQuestManager instance.
-     * @return the TraderQuestManager instance
+     * @return the DungeonExtractionManager instance used to manage dungeon extraction tasks and state
      */
-    @Deprecated
-    public TraderQuestManager getTraderQuestManager() {
-        return traderQuestManager;
-    }
-
     public DungeonExtractionManager getDungeonExtractionManager() {
         return dungeonExtractionManager;
     }
 
     private DungeonExtractionManager dungeonExtractionManager;
 
-    private TraderQuestManager traderQuestManager;
     public StatManager statManager;
     private DailyTaskManager dailyTaskManager;
     private MobSpawnManager mobSpawnManager;
@@ -896,7 +889,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.boosterManager = register(new BoosterManager(databaseManager));
         this.globalMarketManager = serviceManager.get(GlobalMarketManager.class);
         this.clanManager = register(new ClanManager(databaseManager));
-        this.traderQuestManager = serviceManager.get(TraderQuestManager.class);
 
         // this.statManager = ... handled above
         this.manaManager = register(new ManaManager());
