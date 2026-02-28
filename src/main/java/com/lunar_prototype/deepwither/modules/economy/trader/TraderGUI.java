@@ -232,6 +232,7 @@ public class TraderGUI implements Listener, IManager {
                 return;
             }
 
+            if (!e.getClickedInventory().equals(e.getView().getTopInventory())) return;
             purchaseService.processPurchase(player, e.getCurrentItem(), Deepwither.getInstance().getTraderManager());
         }
     }

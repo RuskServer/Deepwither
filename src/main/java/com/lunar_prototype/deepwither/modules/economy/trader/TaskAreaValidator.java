@@ -8,6 +8,7 @@ import com.sk89q.worldguard.protection.regions.RegionContainer;
 import com.sk89q.worldguard.protection.regions.RegionQuery;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 
@@ -52,16 +53,19 @@ public class TaskAreaValidator {
      */
     public boolean isInTaskArea(Player player, ConfigurationSection taskConfig) {
         if (taskConfig == null) return false;
+        String worldName = taskConfig.getString("world", "world");
+        org.bukkit.World world = Bukkit.getWorld(worldName);
+        if (world == null) return false;
 
         Location targetLoc = new Location(
-                Bukkit.getWorld(taskConfig.getString("world", "world")),
+                world,
                 taskConfig.getDouble("x"),
                 taskConfig.getDouble("y"),
                 taskConfig.getDouble("z")
         );
         double radius = taskConfig.getDouble("radius", 3.0);
 
-        return player.getWorld().equals(targetLoc.getWorld()) &&
+        return player.getWorld().equals(world) &&
                 player.getLocation().distanceSquared(targetLoc) <= (radius * radius);
     }
 }

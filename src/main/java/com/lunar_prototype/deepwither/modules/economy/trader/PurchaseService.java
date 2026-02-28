@@ -6,6 +6,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.milkbowl.vault.economy.Economy;
+import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
@@ -14,6 +15,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * トレーダーとの購入取引を実行するサービス
@@ -34,26 +36,28 @@ public class PurchaseService {
      */
     public void processPurchase(Player player, ItemStack clickedItem, TraderManager manager) {
         Economy econ = Deepwither.getEconomy();
+        if (econ == null) {
+            player.sendMessage(Component.text("経済システムが利用できません。", NamedTextColor.RED));
+            return;
+        }
         ItemMeta meta = clickedItem.getItemMeta();
         if (meta == null) {
             player.sendMessage(Component.text("アイテムメタデータがありません。", NamedTextColor.RED));
             return;
         }
 
-        NamespacedKey sellIdKey = new NamespacedKey(Deepwither.getInstance(), SELL_ID_KEY);
-        int cost = meta.getPersistentDataContainer().getOrDefault(sellIdKey, PersistentDataType.INTEGER, 0);
-
         String traderId = meta.getPersistentDataContainer().get(new NamespacedKey(Deepwither.getInstance(), TRADER_ID_KEY), PersistentDataType.STRING);
         String offerId = meta.getPersistentDataContainer().get(new NamespacedKey(Deepwither.getInstance(), OFFER_ID_KEY), PersistentDataType.STRING);
-
-        if (cost <= 0) {
-            player.sendMessage(Component.text("このアイテムは購入できません。（価格設定なし）", NamedTextColor.RED));
-            return;
-        }
 
         TraderOffer offer = manager.getOfferById(traderId, offerId);
         if (offer == null) {
             player.sendMessage(Component.text("エラー: 指定された商品が見つかりませんでした。", NamedTextColor.RED));
+            return;
+        }
+
+        int cost = offer.getCost();
+        if (cost <= 0) {
+            player.sendMessage(Component.text("このアイテムは購入できません。（価格設定なし）", NamedTextColor.RED));
             return;
         }
 
@@ -92,11 +96,25 @@ public class PurchaseService {
         }
 
         // 取引完了
-        econ.withdrawPlayer(player, cost);
+        EconomyResponse withdraw = econ.withdrawPlayer(player, cost);
+        if (!withdraw.transactionSuccess()) {
+                player.sendMessage(Component.text("決済に失敗しました。時間をおいて再試行してください。", NamedTextColor.RED));
+                return;
+        }
+
         if (requiredItems != null) {
             for (ItemStack req : requiredItems) player.getInventory().removeItem(req);
         }
-        player.getInventory().addItem(itemToGive);
+
+        Map<Integer, ItemStack> leftovers = player.getInventory().addItem(itemToGive);
+        if (!leftovers.isEmpty()) {
+            econ.depositPlayer(player, cost);
+            if (requiredItems != null) {
+                for (ItemStack req : requiredItems) player.getInventory().addItem(req.clone());
+            }
+            player.sendMessage(Component.text("インベントリ容量不足のため取引を取り消しました。", NamedTextColor.RED));
+            return;
+        }
 
         Component itemDisplayName = itemToGive.hasItemMeta() && itemToGive.getItemMeta().hasDisplayName()
                 ? itemToGive.getItemMeta().displayName()
