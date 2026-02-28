@@ -45,10 +45,6 @@ public class TraderGUI implements Listener, IManager {
     @Override
     public void shutdown() {}
 
-    public static final String BUY_GUI_TITLE = "[購入] %s";
-    public static final String SELL_GUI_TITLE = "[売却] 総合売却所";
-    public static final String QUEST_GUI_TITLE = "[クエスト] %s";
-
     private static final String SELL_ID_KEY = "sell_price";
     private static final String OFFER_ID_KEY = "offer_id";
     private static final String CUSTOM_ID_KEY = "custom_id";
@@ -122,8 +118,7 @@ public class TraderGUI implements Listener, IManager {
                     displayItem.setType(Material.GRAY_STAINED_GLASS_PANE);
                     lore.add(Component.empty());
                     lore.add(Component.text("【 ⚠ ロック中 】", NamedTextColor.RED, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false));
-                    lore.add(Component.text("信用度が不足しているか、", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
-                    lore.add(Component.text("特定のクエストを完了する必要があります。", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
+                    lore.add(Component.text("信用度が不足しています。", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
                     meta.getPersistentDataContainer().set(new NamespacedKey(Deepwither.getInstance(), SELL_ID_KEY), PersistentDataType.INTEGER, 0);
                 }
 
