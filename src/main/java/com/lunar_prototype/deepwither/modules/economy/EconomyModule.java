@@ -25,7 +25,7 @@ public class EconomyModule implements IModule {
 
     /**
      * Creates and registers the economy-related manager instances (global market, credit,
-     * trader, and trader quest managers) into the provided service container.
+     * and trader managers) into the provided service container.
      *
      * Instances are added to the container so they can be retrieved and initialized elsewhere.
      *
