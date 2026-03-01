@@ -41,71 +41,14 @@ public class DeepwitherCommand implements CommandExecutor, TabCompleter {
 
         switch (subCommand) {
             case "dungeon" -> handleDungeon(sender, args);
-            case "train" -> handleTrain(sender, args);
             case "reload" -> {
                 sender.sendMessage(Component.text("Deepwitherの設定をリロードしました。", NamedTextColor.GREEN));
                 Deepwither.getInstance().getSkilltreeGUI().reload();
             }
-            case "talk" -> handleTalk(sender, args);
             default -> sendHelp(sender);
         }
 
         return true;
-    }
-
-    private void handleTrain(CommandSender sender, String[] args) {
-        if (args.length < 2) {
-            sender.sendMessage(Component.text("使用法: /dw train <ファイル名.csv>", NamedTextColor.RED));
-            return;
-        }
-
-        String fileName = args[1];
-        if (!fileName.endsWith(".csv")) fileName += ".csv";
-
-        File trainingDir = new File(plugin.getDataFolder(), "training");
-        if (!trainingDir.exists()) trainingDir.mkdirs();
-
-        File csvFile = new File(trainingDir, fileName);
-
-        if (!csvFile.exists()) {
-            sender.sendMessage(Component.text("ファイルが見つかりません: " + csvFile.getPath(), NamedTextColor.RED));
-            return;
-        }
-
-        sender.sendMessage(Component.text("[EMDA-AI] ", NamedTextColor.LIGHT_PURPLE).append(Component.text("学習を開始します。進捗はコンソールを確認してください...", NamedTextColor.WHITE)));
-        plugin.getAi().trainFromCSVAsync(csvFile);
-    }
-
-    private void handleTalk(CommandSender sender, String[] args) {
-        if (!(sender instanceof Player player)) return;
-
-        if (args.length < 4) {
-            player.sendMessage(Component.text("使用法: /dw talk <ColorID> <Urgency(0-1)> <メッセージ...>", NamedTextColor.RED));
-            return;
-        }
-
-        try {
-            double colorId = Double.parseDouble(args[1]);
-            double urgency = Double.parseDouble(args[2]);
-            String message = String.join(" ", Arrays.copyOfRange(args, 3, args.length));
-            var ai = plugin.getAi();
-
-            long startTime = System.nanoTime();
-            String response = ai.generateResponse(message,colorId,urgency);
-            long endTime = System.nanoTime();
-            double microSeconds = (endTime - startTime) / 1000.0;
-
-            player.sendMessage(Component.text("[EMDA-AI] ", NamedTextColor.LIGHT_PURPLE).append(Component.text(response, NamedTextColor.WHITE)));
-
-            if (microSeconds > 1000) {
-                player.sendMessage(Component.text(String.format("[Debug] DSR再編発生: %.2f ms", microSeconds / 1000.0), NamedTextColor.DARK_GRAY));
-            } else {
-                player.sendMessage(Component.text(String.format("[Debug] 推論時間: %.2f μs", microSeconds), NamedTextColor.DARK_GRAY));
-            }
-
-        } catch (NumberFormatException e) {
-            player.sendMessage(Component.text("数値の指定が不正です。", NamedTextColor.RED));
-        }
     }
 
     private void handleDungeon(CommandSender sender, String[] args) {
@@ -177,7 +120,7 @@ public class DeepwitherCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias,
             @NotNull String[] args) {
-        if (args.length == 1) return Arrays.asList("dungeon", "reload", "talk");
+        if (args.length == 1) return Arrays.asList("dungeon", "reload");
         if (args.length == 2 && args[0].equalsIgnoreCase("dungeon")) return Arrays.asList("generate", "join", "leave","enter");
         if (args.length == 3 && args[1].equalsIgnoreCase("generate")) {
             return Arrays.asList("silent_terrarium_ruins", "ancient_city");

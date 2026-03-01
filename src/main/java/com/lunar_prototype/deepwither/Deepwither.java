@@ -58,7 +58,6 @@ import com.lunar_prototype.deepwither.raidboss.RaidBossListener;
 import com.lunar_prototype.deepwither.raidboss.RaidBossManager;
 import com.lunar_prototype.deepwither.seeker.CombatExperienceListener;
 import com.lunar_prototype.deepwither.seeker.SeekerAIEngine;
-import com.lunar_prototype.deepwither.textai.EMDALanguageAI;
 import com.lunar_prototype.deepwither.town.TownBurstManager;
 import com.lunar_prototype.deepwither.tutorial.TutorialController;
 import com.lunar_prototype.deepwither.util.IManager;
@@ -200,11 +199,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
 
     public TraderGUI traderGUI;
 
-    public EMDALanguageAI getAi() {
-        return ai;
-    }
-
-    private EMDALanguageAI ai;
     private TraderManager traderManager;
     private CreditManager creditManager;
     public ArtifactGUI artifactGUI;
@@ -945,7 +939,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.playerQuestDataStore = serviceManager.get(PlayerQuestDataStore.class); // cast?
         this.playerQuestManager = serviceManager.get(PlayerQuestManager.class);
         this.professionManager = register(new ProfessionManager(this, professionDatabase));
-        this.ai = register(new EMDALanguageAI(this));
         this.aiEngine = register(new SeekerAIEngine());
         this.outpostManager = register(new OutpostManager(this));
 
