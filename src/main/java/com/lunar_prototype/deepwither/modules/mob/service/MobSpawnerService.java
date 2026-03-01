@@ -146,6 +146,7 @@ public class MobSpawnerService implements IManager {
 
         List<Player> nearbyPlayers = loc.getWorld().getPlayers().stream()
                 .filter(p -> p.getGameMode() == GameMode.SURVIVAL)
+                .filter(p -> loc.getWorld().equals(p.getLocation().getWorld()))
                 .filter(p -> p.getLocation().distance(loc) <= 20)
                 .toList();
 
@@ -212,6 +213,7 @@ public class MobSpawnerService implements IManager {
     }
 
     private boolean trySpawnQuestMob(Player player, Location playerLoc, int currentMobs) {
+        if (playerQuestManager == null) return false;
         PlayerQuestData playerData = playerQuestManager.getPlayerData(player.getUniqueId());
         if (playerData == null || playerData.getActiveQuests().isEmpty()) return false;
 

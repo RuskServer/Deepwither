@@ -11,6 +11,7 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Transformation;
 
 import java.util.*;
@@ -21,6 +22,7 @@ public class MobTraitService implements IManager {
     private final Deepwither plugin;
     private final NamespacedKey TRAIT_KEY;
     private static final double TRAIT_SPAWN_CHANCE = 0.15;
+    private BukkitTask spawnTask;
 
     public MobTraitService(Deepwither plugin) {
         this.plugin = plugin;
@@ -34,7 +36,10 @@ public class MobTraitService implements IManager {
 
     @Override
     public void shutdown() {
-        // Cleanup if necessary
+        if (spawnTask != null) {
+            spawnTask.cancel();
+            spawnTask = null;
+        }
     }
 
     public enum MobTrait {
@@ -90,7 +95,7 @@ public class MobTraitService implements IManager {
     }
 
     private void startGlobalTraitTicker() {
-        new BukkitRunnable() {
+        spawnTask = new BukkitRunnable() {
             @Override
             public void run() {
                 for (World world : plugin.getServer().getWorlds()) {

@@ -38,6 +38,9 @@ public class MobModule implements IModule {
 
             // SpawnerService depends on others
             PlayerQuestManager playerQuestManager = container.get(PlayerQuestManager.class);
+            if (playerQuestManager == null) {
+                plugin.getLogger().warning("PlayerQuestManager not available, quest-based spawning will be disabled.");
+            }
             MobSpawnerService spawnerService = new MobSpawnerService(
                     plugin, configService, registryService, regionService, traitService, levelService, playerQuestManager
             );
