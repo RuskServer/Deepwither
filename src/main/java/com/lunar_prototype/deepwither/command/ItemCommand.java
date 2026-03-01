@@ -93,9 +93,9 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
             Bukkit.getScheduler().runTaskAsynchronously(this.plugin, () -> {
                 try {
                     GeneratedQuest quest = new QuestGenerator().generateQuest(5);
-                    Player p = Bukkit.getPlayer(playerUuid);
-                    if (p == null || !p.isOnline()) return;
                     Bukkit.getScheduler().runTask(this.plugin, () -> {
+                        Player p = Bukkit.getPlayer(playerUuid);
+                        if (p == null || !p.isOnline()) return;
                         p.sendMessage(Component.text("---", NamedTextColor.GOLD).append(Component.text("冒険者ギルドからの緊急依頼", NamedTextColor.GOLD)));
                         p.sendMessage(Component.text("タイトル：「", NamedTextColor.WHITE).append(Component.text(quest.getTitle(), NamedTextColor.AQUA)).append(Component.text("」", NamedTextColor.WHITE)));
                         p.sendMessage(Component.text("[場所] ", NamedTextColor.YELLOW).append(Component.text(quest.getLocationDetails().getLlmLocationText(), NamedTextColor.WHITE)));
