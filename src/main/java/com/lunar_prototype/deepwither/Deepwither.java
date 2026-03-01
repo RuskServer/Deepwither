@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.api.DeepwitherPartyAPI;
 import com.lunar_prototype.deepwither.api.IItemFactory;
 import com.lunar_prototype.deepwither.booster.BoosterManager;
@@ -442,15 +443,9 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         return dailyTaskManager;
     }
 
-    /**
-     * Accessor for the plugin's MobSpawnManager.
-     *
-     * @deprecated Managers are now provided via the service registry; obtain MobSpawnManager from the service registry instead of using this legacy accessor.
-     * @return the registered MobSpawnManager, or {@code null} if it has not been initialized
-     */
     @Deprecated
     public MobSpawnManager getMobSpawnManager() {
-        return mobSpawnManager;
+        return DW.get(MobSpawnManager.class);
     }
 
     /**
@@ -995,7 +990,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         register(new BackpackListener(this, backpackManager));
         register(new CombatExperienceListener(this));
         register(new SeekerAIEngine());
-        this.mobSpawnManager = register(new MobSpawnManager(this, playerQuestManager));
         register(new RegenTask(this));
         register(new MarketApiController(this));
         register(new PlayerInventoryRestrictor(this));

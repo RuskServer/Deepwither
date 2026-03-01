@@ -1,8 +1,8 @@
-package com.lunar_prototype.deepwither;
+package com.lunar_prototype.deepwither.modules.mob.service;
 
+import com.lunar_prototype.deepwither.util.IManager;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import io.lumine.mythic.core.mobs.ActiveMob;
-import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
@@ -16,7 +16,7 @@ import org.bukkit.event.entity.EntityRegainHealthEvent;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
-public class MobLevelManager implements Listener {
+public class MobLevelService implements IManager, Listener {
 
     private final JavaPlugin plugin;
     private boolean enabled;
@@ -24,14 +24,21 @@ public class MobLevelManager implements Listener {
     private double damageMult;
     private String nameFormat;
 
-    // PDC用のキー (レベル保存用)
     private final NamespacedKey LEVEL_KEY;
 
-    public MobLevelManager(JavaPlugin plugin) {
+    public MobLevelService(JavaPlugin plugin) {
         this.plugin = plugin;
         this.LEVEL_KEY = new NamespacedKey(plugin, "mob_level");
-        loadConfig();
     }
+
+    @Override
+    public void init() {
+        loadConfig();
+        plugin.getServer().getPluginManager().registerEvents(this, plugin);
+    }
+
+    @Override
+    public void shutdown() {}
 
     public void loadConfig() {
         FileConfiguration config = plugin.getConfig();
@@ -66,7 +73,9 @@ public class MobLevelManager implements Listener {
 
     public void updateMobName(LivingEntity entity) {
         if (!entity.getPersistentDataContainer().has(LEVEL_KEY, PersistentDataType.INTEGER)) return;
-        int level = entity.getPersistentDataContainer().get(LEVEL_KEY, PersistentDataType.INTEGER);
+        Integer levelObj = entity.getPersistentDataContainer().get(LEVEL_KEY, PersistentDataType.INTEGER);
+        if (levelObj == null) return;
+        int level = levelObj;
 
         ActiveMob am = MythicBukkit.inst().getMobManager().getMythicMobInstance(entity);
         String baseName = (am != null) ? am.getType().getDisplayName().get() : entity.getName();
@@ -76,7 +85,8 @@ public class MobLevelManager implements Listener {
 
     private void updateMobName(LivingEntity entity, String baseName, int level) {
         int currentHp = (int) entity.getHealth();
-        int maxHp = (int) entity.getAttribute(Attribute.MAX_HEALTH).getValue();
+        AttributeInstance maxHealthAttr = entity.getAttribute(Attribute.MAX_HEALTH);
+        int maxHp = (maxHealthAttr != null) ? (int) maxHealthAttr.getValue() : 1;
 
         String displayName = nameFormat
                 .replace("{level}", String.valueOf(level))
