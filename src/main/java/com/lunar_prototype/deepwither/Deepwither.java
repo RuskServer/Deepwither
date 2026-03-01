@@ -6,7 +6,7 @@ import com.lunar_prototype.deepwither.booster.BoosterManager;
 import com.lunar_prototype.deepwither.clan.ClanChatManager;
 import com.lunar_prototype.deepwither.clan.ClanManager;
 import com.lunar_prototype.deepwither.command.*;
-import com.lunar_prototype.deepwither.commands.DebugCommand;
+import com.lunar_prototype.deepwither.command.DebugCommand;
 import com.lunar_prototype.deepwither.companion.CompanionCommand;
 import com.lunar_prototype.deepwither.companion.CompanionGuiListener;
 import com.lunar_prototype.deepwither.companion.CompanionListener;
