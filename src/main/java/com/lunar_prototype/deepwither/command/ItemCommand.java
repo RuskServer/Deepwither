@@ -28,6 +28,12 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
     private final Deepwither plugin;
     private final ItemFactory itemFactory;
 
+    /**
+     * Constructs an ItemCommand and resolves required services from the given plugin.
+     *
+     * @param plugin the Deepwither plugin used to obtain required services
+     * @throws IllegalStateException if the plugin does not provide an ItemFactory
+     */
     public ItemCommand(Deepwither plugin) {
         this.plugin = plugin;
         this.itemFactory = plugin.get(ItemFactory.class);
@@ -36,6 +42,25 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
         }
     }
 
+    /**
+     * Handle the plugin's item/quest/stat-related command and its subcommands.
+     *
+     * Supported subcommands:
+     * - reload: reload item configurations.
+     * - setwarp <id>: record the player's current location as a warp with the given id.
+     * - genquest: asynchronously generate a quest and deliver a formatted quest notice to the player.
+     * - resetpoints: reset the player's allocated stat points and return them to the pool.
+     * - reset: reset the player's level.
+     * - skilltreeresets: reset the player's skill tree.
+     * - addpoints <amount>: add the specified number of stat points to the player.
+     * - addskillpoints <amount>: add the specified number of skill points to the player.
+     * - spawnoutpost: start a random outpost event.
+     * - <id> [player] [grade]: give an item by id (optionally to another player and with a fabrication grade).
+     *
+     * The command also supports console usage for granting an item to a specified player.
+     *
+     * @return `true` if the command was processed
+     */
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         Player player = (sender instanceof Player) ? (Player) sender : null;
@@ -248,6 +273,12 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    /**
+     * Provide tab-completion candidates for the command based on the current arguments.
+     *
+     * @return a list of completion candidates that start with the current first-argument prefix,
+     *         or specific suggestions for second-argument contexts; returns an empty list if no candidates apply.
+     */
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
         if (args.length == 1) {
