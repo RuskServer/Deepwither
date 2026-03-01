@@ -755,6 +755,10 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         getCommand("credit").setExecutor(new CreditCommand(creditManager));
         getCommand("companion").setExecutor(new CompanionCommand(companionManager));
 
+        ItemCommand itemCommand = new ItemCommand(this);
+        getCommand("giveitem").setExecutor(itemCommand);
+        getCommand("giveitem").setTabCompleter(itemCommand);
+
         saveDefaultConfig(); // MobExpConfig.yml
 
         this.getCommand("status")
