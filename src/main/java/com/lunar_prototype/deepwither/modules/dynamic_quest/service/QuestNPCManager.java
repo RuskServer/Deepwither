@@ -103,15 +103,19 @@ public class QuestNPCManager {
     /**
      * Cleans up inactive quest NPCs and spawns new NPCs inside configured safezone regions.
      *
-     * Removes and despawns any active NPC whose quest is still in the CREATED state or has expired.
-     * If WorldGuard is available, finds regions with IDs containing "safezone" (case-insensitive)
-     * across all worlds and attempts to spawn up to NPCS_PER_REGION NPCs at random valid locations
-     * inside each safezone by delegating to getRandomLocationInRegion and spawnNPC.
+     * <p>First, performs a logical cleanup by removing NPCs that are expired, completed, or still in
+     * the CREATED state (not accepted yet) from the tracked list and despawning them.
+     * Then, iterates through all safezone regions, performing a physical cleanup of ghost NPC entities
+     * and spawning new NPCs up to the limit defined by NPCS_PER_REGION, ensuring that total NPCs
+     * in each region (including those currently ACTIVE) do not exceed the limit.</p>
      */
     public void refreshNPCs() {
+        // 1. Logical Cleanup: Remove expired, completed, or unaccepted NPCs from tracking
         activeNPCs.removeIf(npc -> {
-            if (npc.getQuest().getStatus() == DynamicQuest.QuestStatus.CREATED
-                    || npc.getQuest().isExpired()) {
+            boolean shouldRemove = npc.getQuest().getStatus() == DynamicQuest.QuestStatus.CREATED
+                    || npc.getQuest().isExpired()
+                    || npc.getQuest().getStatus() == DynamicQuest.QuestStatus.COMPLETED;
+            if (shouldRemove) {
                 npc.despawn();
                 return true;
             }
@@ -123,6 +127,8 @@ public class QuestNPCManager {
         }
 
         RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+        NamespacedKey key = new NamespacedKey(plugin, "quest_npc");
+
         for (World world : Bukkit.getWorlds()) {
             RegionManager regionManager = container.get(BukkitAdapter.adapt(world));
             if (regionManager == null) continue;
@@ -132,7 +138,17 @@ public class QuestNPCManager {
                     .collect(Collectors.toList());
 
             for (ProtectedRegion region : safeRegions) {
-                for (int i = 0; i < NPCS_PER_REGION; i++) {
+                // 2. Physical Cleanup: Remove ghost NPCs in this specific region that aren't in activeNPCs
+                cleanupRegionPhysical(world, region, key);
+
+                // 3. Count remaining tracked NPCs in this region (now only contains ACTIVE ones)
+                long currentCount = activeNPCs.stream()
+                        .filter(npc -> isLocationInRegion(npc.getLocation(), region))
+                        .count();
+
+                // 4. Spawn new NPCs if we are below the limit
+                int toSpawn = NPCS_PER_REGION - (int) currentCount;
+                for (int i = 0; i < toSpawn; i++) {
                     Location spawnLoc = getRandomLocationInRegion(world, region);
                     if (spawnLoc != null) {
                         spawnNPC(spawnLoc);
@@ -140,6 +156,54 @@ public class QuestNPCManager {
                 }
             }
         }
+    }
+
+    /**
+     * Physically removes any NPC entities in a region that are marked as quest NPCs but are not
+     * tracked by this manager's active NPC list.
+     *
+     * @param world  the world containing the region
+     * @param region the ProtectedRegion to scan for ghost NPCs
+     * @param key    the NamespacedKey used to identify quest NPC entities
+     */
+    private void cleanupRegionPhysical(World world, ProtectedRegion region, NamespacedKey key) {
+        BlockVector3 min = region.getMinimumPoint();
+        BlockVector3 max = region.getMaximumPoint();
+        
+        // Use a conservative radius for getNearbyEntities based on region size
+        double centerX = (min.x() + max.x()) / 2.0;
+        double centerY = (min.y() + max.y()) / 2.0;
+        double centerZ = (min.z() + max.z()) / 2.0;
+        double radiusX = (max.x() - min.x()) / 2.0 + 2.0;
+        double radiusY = (max.y() - min.y()) / 2.0 + 2.0;
+        double radiusZ = (max.z() - min.z()) / 2.0 + 2.0;
+
+        Location center = new Location(world, centerX, centerY, centerZ);
+        Collection<Entity> entities = world.getNearbyEntities(center, radiusX, radiusY, radiusZ);
+
+        for (Entity entity : entities) {
+            if (entity.getPersistentDataContainer().has(key, PersistentDataType.BYTE)) {
+                // Check if it's actually inside the region
+                if (region.contains(BukkitAdapter.asBlockVector(entity.getLocation()))) {
+                    boolean isActive = activeNPCs.stream().anyMatch(npc -> npc.isEntity(entity.getUniqueId()));
+                    if (!isActive) {
+                        entity.remove();
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Checks whether a location is within the bounds of a WorldGuard region.
+     *
+     * @param loc    the location to check
+     * @param region the ProtectedRegion to check against
+     * @return true if the location is inside the region, false otherwise
+     */
+    private boolean isLocationInRegion(Location loc, ProtectedRegion region) {
+        if (loc == null || loc.getWorld() == null) return false;
+        return region.contains(BukkitAdapter.asBlockVector(loc));
     }
 
     /**

@@ -89,4 +89,8 @@ public class QuestNPC {
     public LivingEntity getEntity() {
         return entity;
     }
+
+    public Location getLocation() {
+        return location;
+    }
 }
