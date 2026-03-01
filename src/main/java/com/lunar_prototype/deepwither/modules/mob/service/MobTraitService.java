@@ -26,6 +26,7 @@ public class MobTraitService implements IManager {
         this.plugin = plugin;
     }
 
+    @Override
     public void init() {
         startGlobalTraitTicker();
     }
