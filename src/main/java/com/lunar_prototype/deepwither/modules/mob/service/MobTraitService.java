@@ -27,6 +27,7 @@ public class MobTraitService implements IManager {
         this.TRAIT_KEY = new NamespacedKey(plugin, "mob_traits");
     }
 
+    @Override
     public void init() {
         startGlobalTraitTicker();
     }
