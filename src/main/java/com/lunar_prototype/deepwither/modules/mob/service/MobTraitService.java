@@ -19,17 +19,19 @@ import java.util.stream.Collectors;
 public class MobTraitService implements IManager {
 
     private final Deepwither plugin;
-    private static final NamespacedKey TRAIT_KEY = new NamespacedKey(Deepwither.getInstance(), "mob_traits");
+    private final NamespacedKey TRAIT_KEY;
     private static final double TRAIT_SPAWN_CHANCE = 0.15;
 
     public MobTraitService(Deepwither plugin) {
         this.plugin = plugin;
+        this.TRAIT_KEY = new NamespacedKey(plugin, "mob_traits");
     }
 
     public void init() {
         startGlobalTraitTicker();
     }
 
+    @Override
     public void shutdown() {
         // Cleanup if necessary
     }
@@ -99,8 +101,13 @@ public class MobTraitService implements IManager {
                                     .filter(e -> e instanceof Player)
                                     .forEach(p -> ((Player)p).addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 40, 0)));
                         }
-                        if (traits.contains("SUMMONER") && Math.random() < 0.05) {
-                            entity.getWorld().spawnEntity(entity.getLocation(), EntityType.SILVERFISH);
+                        if (traits.contains("SUMMONER") && plugin.getRandom().nextDouble() < 0.05) {
+                            long nearbySilverfish = entity.getNearbyEntities(8, 4, 8).stream()
+                                    .filter(e -> e.getType() == EntityType.SILVERFISH)
+                                    .count();
+                            if (nearbySilverfish < 3) {
+                                entity.getWorld().spawnEntity(entity.getLocation(), EntityType.SILVERFISH);
+                            }
                         }
                     }
                 }

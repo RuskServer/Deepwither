@@ -46,8 +46,20 @@ public class MobSpawnManager implements IManager {
 
     public UUID spawnDungeonMob(Location loc, String mobId, int level) {
         MobSpawnerService spawner = getSpawner();
-        if (spawner == null) return null;
-        return spawner.spawnMythicMob(mobId, loc, getRegion().getTierFromLocation(loc));
+        MobRegionService region = getRegion();
+        MobLevelService levelService = getLevel();
+        if (spawner == null || region == null || loc == null) return null;
+
+        UUID mobUuid = spawner.spawnMythicMob(mobId, loc, region.getTierFromLocation(loc));
+        if (mobUuid == null) return null;
+
+        if (levelService != null) {
+            Entity entity = plugin.getServer().getEntity(mobUuid);
+            if (entity instanceof LivingEntity livingEntity) {
+                levelService.applyLevel(livingEntity, mobId, Math.max(1, level));
+            }
+        }
+        return mobUuid;
     }
 
     public void disableNormalSpawning(String regionId) {

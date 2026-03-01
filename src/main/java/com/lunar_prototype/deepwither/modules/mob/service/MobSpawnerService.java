@@ -104,7 +104,7 @@ public class MobSpawnerService implements IManager {
         if (mobType.equalsIgnoreCase("bandit")) {
             spawnBanditGroup(playerId, config, spawnLoc, tier);
         } else {
-            registryService.trackSpawnedMob(playerId, spawnMythicMob(mobType, spawnLoc, tier));
+            trackSpawnedMobIfPresent(playerId, spawnMythicMob(mobType, spawnLoc, tier));
         }
     }
 
@@ -120,7 +120,7 @@ public class MobSpawnerService implements IManager {
 
         for (int i = 0; i < numBandits; i++) {
             String banditMobId = banditList.get(plugin.getRandom().nextInt(banditList.size()));
-            registryService.trackSpawnedMob(playerId, spawnMythicMob(banditMobId, spawnLoc, tier));
+            trackSpawnedMobIfPresent(playerId, spawnMythicMob(banditMobId, spawnLoc, tier));
         }
     }
 
@@ -192,7 +192,7 @@ public class MobSpawnerService implements IManager {
                 Location spawnLoc = getRandomSpawnLocation(centerLoc, 15);
                 if (spawnLoc != null) {
                     UUID mobUuid = spawnMythicMob(mobId, spawnLoc, regionService.getTierFromLocation(spawnLoc));
-                    registryService.trackSpawnedMob(playerId, mobUuid);
+                    trackSpawnedMobIfPresent(playerId, mobUuid);
                     notifyNearbyPlayers(centerLoc, mobId);
                     return true;
                 }
@@ -214,21 +214,23 @@ public class MobSpawnerService implements IManager {
     private boolean trySpawnQuestMob(Player player, Location playerLoc, int currentMobs) {
         PlayerQuestData playerData = playerQuestManager.getPlayerData(player.getUniqueId());
         if (playerData == null || playerData.getActiveQuests().isEmpty()) return false;
-        
-        QuestProgress progress = playerData.getActiveQuests().values().iterator().next();
-        LocationDetails locationDetails = progress.getQuestDetails().getLocationDetails();
-        Location objectiveLoc = locationDetails.toBukkitLocation();
-        
-        if (objectiveLoc == null || !objectiveLoc.getWorld().equals(playerLoc.getWorld())) return false;
-        
-        if (objectiveLoc.distanceSquared(playerLoc) <= QUEST_AREA_RADIUS_SQUARED) {
+
+        for (QuestProgress progress : playerData.getActiveQuests().values()) {
+            LocationDetails locationDetails = progress.getQuestDetails().getLocationDetails();
+            Location objectiveLoc = locationDetails.toBukkitLocation();
+            if (objectiveLoc == null || !objectiveLoc.getWorld().equals(playerLoc.getWorld())) continue;
+            if (objectiveLoc.distanceSquared(playerLoc) > QUEST_AREA_RADIUS_SQUARED) continue;
+
             if (currentMobs >= MOB_CAP_PER_PLAYER) return true;
             String questMobId = progress.getQuestDetails().getTargetMobId();
             Location spawnLoc = getRandomSpawnLocation(playerLoc, 8);
             if (spawnLoc != null) {
                 UUID mobUuid = spawnMythicMob(questMobId, spawnLoc, regionService.getTierFromLocation(spawnLoc));
-                registryService.trackSpawnedMob(player.getUniqueId(), mobUuid);
-                player.sendMessage(Component.text("[クエストエリア] ", NamedTextColor.GREEN).append(Component.text("目標 Mob がスポーンしました！", NamedTextColor.YELLOW)));
+                if (mobUuid != null) {
+                    trackSpawnedMobIfPresent(player.getUniqueId(), mobUuid);
+                }
+                player.sendMessage(Component.text("[クエストエリア] ", NamedTextColor.GREEN)
+                        .append(Component.text("目標 Mob がスポーンしました！", NamedTextColor.YELLOW)));
             }
             return true;
         }
@@ -245,8 +247,13 @@ public class MobSpawnerService implements IManager {
             for (int attempt = 0; attempt < maxRetries; attempt++) {
                 Location candidate = regionService.getRandomLocationInRegion(world, regionId, fixedY);
                 if (candidate == null) break;
-                spawnLoc = candidate;
-                if (!candidate.getBlock().getType().isSolid() && !candidate.clone().add(0, 1, 0).getBlock().getType().isSolid()) break;
+                boolean hasSpace = !candidate.getBlock().getType().isSolid()
+                        && !candidate.clone().add(0, 1, 0).getBlock().getType().isSolid();
+                boolean hasGround = candidate.clone().subtract(0, 1, 0).getBlock().getType().isSolid();
+                if (hasSpace && hasGround) {
+                    spawnLoc = candidate;
+                    break;
+                }
             }
             if (spawnLoc != null) {
                 UUID mobUuid = spawnMythicMob(mobId, spawnLoc, regionService.getTierFromLocation(spawnLoc));
@@ -257,5 +264,11 @@ public class MobSpawnerService implements IManager {
             }
         }
         return spawnedCount;
+    }
+
+    private void trackSpawnedMobIfPresent(UUID playerId, UUID mobUuid) {
+        if (mobUuid != null) {
+            registryService.trackSpawnedMob(playerId, mobUuid);
+        }
     }
 }

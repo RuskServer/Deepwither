@@ -106,6 +106,11 @@ public class MobRegionService implements IManager {
     public boolean isSpawnLocked(UUID playerId, Location currentLoc) {
         Location lockLoc = spawnLockLocations.get(playerId);
         if (lockLoc != null) {
+            if (currentLoc.getWorld() == null || lockLoc.getWorld() == null
+                    || !currentLoc.getWorld().equals(lockLoc.getWorld())) {
+                spawnLockLocations.remove(playerId);
+                return false;
+            }
             if (currentLoc.distanceSquared(lockLoc) < MOVE_UNLOCK_DISTANCE_SQUARED) {
                 return true;
             } else {

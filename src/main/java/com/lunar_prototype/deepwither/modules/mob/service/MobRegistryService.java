@@ -36,7 +36,7 @@ public class MobRegistryService implements IManager {
     }
 
     public void trackSpawnedMob(UUID playerId, UUID mobUuid) {
-        if (mobUuid == null) return;
+        if (playerId == null || mobUuid == null) return;
         spawnedMobsTracker.computeIfAbsent(playerId, k -> ConcurrentHashMap.newKeySet()).add(mobUuid);
     }
 
@@ -55,6 +55,7 @@ public class MobRegistryService implements IManager {
     }
 
     public void trackOutpostMob(UUID mobUuid, String regionId) {
+        if (mobUuid == null || regionId == null) return;
         outpostMobTracker.put(mobUuid, regionId);
     }
 
@@ -67,6 +68,7 @@ public class MobRegistryService implements IManager {
     }
 
     public List<UUID> getOutpostMobsInRegion(String regionId) {
+        if (regionId == null) return Collections.emptyList();
         List<UUID> mobs = new ArrayList<>();
         for (Map.Entry<UUID, String> entry : outpostMobTracker.entrySet()) {
             if (regionId.equalsIgnoreCase(entry.getValue())) {
@@ -77,14 +79,17 @@ public class MobRegistryService implements IManager {
     }
 
     public void disableNormalSpawning(String regionId) {
+        if (regionId == null) return;
         spawnDisabledRegions.add(regionId.toLowerCase());
     }
 
     public void enableNormalSpawning(String regionId) {
+        if (regionId == null) return;
         spawnDisabledRegions.remove(regionId.toLowerCase());
     }
 
     public boolean isSpawnDisabledInRegion(String regionId) {
+        if (regionId == null) return false;
         return spawnDisabledRegions.contains(regionId.toLowerCase());
     }
 }

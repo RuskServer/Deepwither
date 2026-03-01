@@ -49,7 +49,7 @@ public class MobModule implements IModule {
 
         } catch (Exception e) {
             plugin.getLogger().severe("Failed to configure MobModule components.");
-            e.printStackTrace();
+            throw new IllegalStateException("MobModule configure failed", e);
         }
     }
 
@@ -68,7 +68,7 @@ public class MobModule implements IModule {
 
         } catch (Exception e) {
             plugin.getLogger().severe("Failed to start MobModule components.");
-            e.printStackTrace();
+            throw new IllegalStateException("MobModule start failed", e);
         }
     }
 
@@ -84,7 +84,7 @@ public class MobModule implements IModule {
             container.get(MobConfigService.class).shutdown();
         } catch (Exception e) {
             plugin.getLogger().severe("Failed to stop MobModule components.");
-            e.printStackTrace();
+            throw new IllegalStateException("MobModule stop failed", e);
         }
     }
 }
