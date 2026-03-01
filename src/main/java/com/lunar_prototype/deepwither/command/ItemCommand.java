@@ -148,7 +148,7 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
         if (args.length == 1 && args[0].equalsIgnoreCase("skilltreeresets")) {
             UUID uuid = player.getUniqueId();
             plugin.getSkilltreeManager().resetSkillTree(uuid);
-            player.sendMessage(Component.text("すべてのステータスポイントをリセットしました。", NamedTextColor.GOLD));
+            player.sendMessage(Component.text("スキルツリーをリセットしました。", NamedTextColor.GOLD));
             return true;
         }
 
