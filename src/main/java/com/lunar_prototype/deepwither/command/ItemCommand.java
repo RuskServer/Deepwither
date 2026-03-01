@@ -194,8 +194,9 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
 
         if (args.length >= 2) {
             Player found = Bukkit.getPlayer(args[1]);
-            if (found != null) targetPlayer = found;
-            else if (player == null) {
+            if (found != null) {
+                targetPlayer = found;
+            } else {
                 sender.sendMessage(Component.text("プレイヤー ", NamedTextColor.RED).append(Component.text(args[1], NamedTextColor.YELLOW)).append(Component.text(" は見つかりませんでした。", NamedTextColor.RED)));
                 return true;
             }
