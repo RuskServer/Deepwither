@@ -31,6 +31,9 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
     public ItemCommand(Deepwither plugin) {
         this.plugin = plugin;
         this.itemFactory = plugin.get(ItemFactory.class);
+        if (this.itemFactory == null) {
+            throw new IllegalStateException("ItemFactoryが見つかりませんでした。");
+        }
     }
 
     @Override
@@ -86,21 +89,24 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 1 && args[0].equalsIgnoreCase("genquest")) {
+            final UUID playerUuid = player.getUniqueId();
             Bukkit.getScheduler().runTaskAsynchronously(this.plugin, () -> {
                 try {
                     GeneratedQuest quest = new QuestGenerator().generateQuest(5);
+                    Player p = Bukkit.getPlayer(playerUuid);
+                    if (p == null || !p.isOnline()) return;
                     Bukkit.getScheduler().runTask(this.plugin, () -> {
-                        player.sendMessage(Component.text("---", NamedTextColor.GOLD).append(Component.text("冒険者ギルドからの緊急依頼", NamedTextColor.GOLD)));
-                        player.sendMessage(Component.text("タイトル：「", NamedTextColor.WHITE).append(Component.text(quest.getTitle(), NamedTextColor.AQUA)).append(Component.text("」", NamedTextColor.WHITE)));
-                        player.sendMessage(Component.text("[場所] ", NamedTextColor.YELLOW).append(Component.text(quest.getLocationDetails().getLlmLocationText(), NamedTextColor.WHITE)));
-                        player.sendMessage(Component.text("[目標] ", NamedTextColor.YELLOW).append(Component.text(quest.getTargetMobId() + "を" + quest.getRequiredQuantity() + "体", NamedTextColor.WHITE)));
-                        player.sendMessage(Component.empty());
+                        p.sendMessage(Component.text("---", NamedTextColor.GOLD).append(Component.text("冒険者ギルドからの緊急依頼", NamedTextColor.GOLD)));
+                        p.sendMessage(Component.text("タイトル：「", NamedTextColor.WHITE).append(Component.text(quest.getTitle(), NamedTextColor.AQUA)).append(Component.text("」", NamedTextColor.WHITE)));
+                        p.sendMessage(Component.text("[場所] ", NamedTextColor.YELLOW).append(Component.text(quest.getLocationDetails().getLlmLocationText(), NamedTextColor.WHITE)));
+                        p.sendMessage(Component.text("[目標] ", NamedTextColor.YELLOW).append(Component.text(quest.getTargetMobId() + "を" + quest.getRequiredQuantity() + "体", NamedTextColor.WHITE)));
+                        p.sendMessage(Component.empty());
                         for (String line : quest.getQuestText().split(" ")) {
-                            player.sendMessage(Component.text(line, NamedTextColor.GRAY));
+                            p.sendMessage(Component.text(line, NamedTextColor.GRAY));
                         }
-                        player.sendMessage(Component.empty());
-                        player.sendMessage(Component.text("[報酬] ", NamedTextColor.GREEN).append(Component.text("200 ゴールド、経験値 500、小さな回復薬 x1", NamedTextColor.WHITE)));
-                        player.sendMessage(Component.text("-------------------------------------", NamedTextColor.GOLD));
+                        p.sendMessage(Component.empty());
+                        p.sendMessage(Component.text("[報酬] ", NamedTextColor.GREEN).append(Component.text("200 ゴールド、経験値 500、小さな回復薬 x1", NamedTextColor.WHITE)));
+                        p.sendMessage(Component.text("-------------------------------------", NamedTextColor.GOLD));
                     });
                 } catch (Exception e) {
                     Bukkit.getScheduler().runTask(this.plugin, () -> {
@@ -159,7 +165,7 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        if (args.length == 2 && args[0].equalsIgnoreCase("spawnoutpost")) {
+        if (args.length == 1 && args[0].equalsIgnoreCase("spawnoutpost")) {
             OutpostManager.getInstance().startRandomOutpost();
             return true;
         }
@@ -199,11 +205,6 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage(Component.text("プレイヤー ", NamedTextColor.RED).append(Component.text(args[1], NamedTextColor.YELLOW)).append(Component.text(" は見つかりませんでした。", NamedTextColor.RED)));
                 return true;
             }
-        }
-
-        if (targetPlayer == null) {
-            sender.sendMessage(Component.text("コンソールから実行する場合はプレイヤー名を指定してください。", NamedTextColor.RED));
-            return true;
         }
 
         if (args.length >= 3) {
