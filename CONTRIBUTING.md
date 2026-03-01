@@ -5,6 +5,8 @@ Deepwitherプロジェクトへの貢献を検討していただきありがと�
 
 [📖 Javadocs (API Reference)](https://ruskserver.github.io/Deepwither/)
 
+[🧭 全機能統合シーケンス図](docs/system-sequence-diagram.md)
+
 ## 🏗 アーキテクチャガイドライン (Architecture Guidelines)
 
 本プロジェクトでは、拡張性と保守性を高めるために **Modular Monolith** アーキテクチャを採用しています。
