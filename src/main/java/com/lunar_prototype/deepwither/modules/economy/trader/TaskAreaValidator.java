@@ -21,7 +21,7 @@ public class TaskAreaValidator {
      * Determine the highest numeric tier encoded in WorldGuard region IDs that contain the given location.
      *
      * The method scans each applicable region's ID for a sequence of digits immediately following the character 't'
-     * (for example, "area_t3" yields tier 3) and returns the largest parsed tier. Regions without a valid "t<digits>"
+     * (for example, "area_t3" yields tier 3) and returns the largest parsed tier. Regions without a valid "t{@code <digits>}"
      * pattern are ignored.
      *
      * @param loc the location to inspect for overlapping WorldGuard regions

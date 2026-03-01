@@ -47,15 +47,15 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
      *
      * Supported subcommands:
      * - reload: reload item configurations.
-     * - setwarp <id>: record the player's current location as a warp with the given id.
+     * - setwarp {@code <id>}: record the player's current location as a warp with the given id.
      * - genquest: asynchronously generate a quest and deliver a formatted quest notice to the player.
      * - resetpoints: reset the player's allocated stat points and return them to the pool.
      * - reset: reset the player's level.
      * - skilltreeresets: reset the player's skill tree.
-     * - addpoints <amount>: add the specified number of stat points to the player.
-     * - addskillpoints <amount>: add the specified number of skill points to the player.
+     * - addpoints {@code <amount>}: add the specified number of stat points to the player.
+     * - addskillpoints {@code <amount>}: add the specified number of skill points to the player.
      * - spawnoutpost: start a random outpost event.
-     * - <id> [player] [grade]: give an item by id (optionally to another player and with a fabrication grade).
+     * - {@code <id>} [player] [grade]: give an item by id (optionally to another player and with a fabrication grade).
      *
      * The command also supports console usage for granting an item to a specified player.
      *
