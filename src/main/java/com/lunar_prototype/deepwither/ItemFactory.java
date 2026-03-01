@@ -133,15 +133,28 @@ public class ItemFactory implements IManager, IItemFactory {
         this.plugin = plugin;
     }
 
+    /**
+     * Initializes the ItemFactory by loading all item definitions from the plugin's items folder into the internal cache.
+     */
     @Override
     public void init() {
         loadAllItems();
     }
 
+    /**
+     * Retrieves the set of all loaded custom item ids.
+     *
+     * @return an unmodifiable set of all loaded custom item ids
+     */
     public Set<String> getAllItemIds() {
         return Collections.unmodifiableSet(itemMap.keySet());
     }
 
+    /**
+     * Called when the manager is shutting down to perform any necessary cleanup.
+     *
+     * <p>No-op default implementation; override to release resources or persist state as needed.
+     */
     @Override
     public void shutdown() {}
 
@@ -365,6 +378,12 @@ public class ItemFactory implements IManager, IItemFactory {
         return modifiers;
     }
 
+    /**
+     * Extracts stored flat and percent stat values from an ItemStack's persistent data into a StatMap.
+     *
+     * @param item the ItemStack to read stats from; may be null or have no meta
+     * @return a StatMap containing any flat and percent values found for each StatType; if none are present an empty StatMap is returned
+     */
     public StatMap readStatsFromItem(ItemStack item) {
         StatMap stats = new StatMap();
         if (item == null || !item.hasItemMeta()) return stats;
@@ -378,6 +397,15 @@ public class ItemFactory implements IManager, IItemFactory {
         return stats;
     }
 
+    /**
+     * Gives a custom item to the specified player by item id.
+     *
+     * If an item with the given id is found, it is added to the player's inventory;
+     * otherwise the player receives a red error message indicating the item does not exist.
+     *
+     * @param player        the player who will receive the item
+     * @param customitemid  the custom item identifier to look up and give
+     */
     public void getCustomItem(Player player, String customitemid) {
         File itemFolder = new File(plugin.getDataFolder(), "items");
         ItemStack item = ItemLoader.loadSingleItem(customitemid, this, itemFolder);

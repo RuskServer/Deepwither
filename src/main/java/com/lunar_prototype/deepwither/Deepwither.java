@@ -691,9 +691,9 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     }
 
     /**
-     * Initializes the plugin: registers configuration serializers, ensures economy is available, initializes bootstrap and core subsystems, schedules recurring tasks, and registers commands and integrations.
+     * Initializes the plugin and boots core subsystems, command handlers, scheduled tasks, and external integrations.
      *
-     * <p>On successful startup this method sets the global plugin instance, configures the async executor, loads guild quest configuration and quest components, initializes the party API, registers PlaceholderAPI expansions when present, schedules mana regeneration and attack-speed reset tasks, starts the MythicBukkit AI tick loop for bandits, and registers all plugin commands and lifecycle command handlers.</p>
+     * <p>On success this sets the global plugin instance, configures the async executor, initializes the bootstrap and service layer, loads guild quest configuration and components, initializes the party API, registers command executors and tab completers, schedules recurring mana regeneration and attack-speed reset tasks, starts the MythicBukkit AI tick loop for bandits, and registers PlaceholderAPI expansions when available.</p>
      */
     @Override
     public void onEnable() {
