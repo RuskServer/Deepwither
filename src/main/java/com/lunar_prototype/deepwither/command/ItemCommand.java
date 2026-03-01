@@ -101,7 +101,7 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
                         p.sendMessage(Component.text("[場所] ", NamedTextColor.YELLOW).append(Component.text(quest.getLocationDetails().getLlmLocationText(), NamedTextColor.WHITE)));
                         p.sendMessage(Component.text("[目標] ", NamedTextColor.YELLOW).append(Component.text(quest.getTargetMobId() + "を" + quest.getRequiredQuantity() + "体", NamedTextColor.WHITE)));
                         p.sendMessage(Component.empty());
-                        for (String line : quest.getQuestText().split(" ")) {
+                        for (String line : quest.getQuestText().split("\\n")) {
                             p.sendMessage(Component.text(line, NamedTextColor.GRAY));
                         }
                         p.sendMessage(Component.empty());
@@ -110,7 +110,12 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
                     });
                 } catch (Exception e) {
                     Bukkit.getScheduler().runTask(this.plugin, () -> {
-                        player.sendMessage(Component.text("[ギルド受付] ", NamedTextColor.RED).append(Component.text("依頼の生成中にエラーが発生しました。時間を置いて再度お試しください。", NamedTextColor.WHITE)));
+                        Player p = Bukkit.getPlayer(playerUuid);
+                        if (p == null || !p.isOnline()) {
+                            this.plugin.getLogger().log(Level.WARNING, "クエスト生成エラー時にプレイヤーがオフライン");
+                            return;
+                        }
+                        p.sendMessage(Component.text("[ギルド受付] ", NamedTextColor.RED).append(Component.text("依頼の生成中にエラーが発生しました。時間を置いて再度お試しください。", NamedTextColor.WHITE)));
                         this.plugin.getLogger().log(Level.SEVERE, "LLMクエスト生成中にエラー:", e);
                     });
                 }
