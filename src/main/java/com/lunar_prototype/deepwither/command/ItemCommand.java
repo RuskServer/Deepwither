@@ -54,7 +54,6 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
                             .append(Component.text(" は見つかりませんでした。", NamedTextColor.RED)));
                     return true;
                 }
-                File itemFolder = new File(plugin.getDataFolder(), "items");
                 ItemStack item = itemFactory.getItem(id);
                 if (item == null) {
                     sender.sendMessage(Component.text("そのIDのアイテムは存在しません。", NamedTextColor.RED));
