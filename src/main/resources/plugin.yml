@@ -77,3 +77,6 @@ commands:
   dq:
     description: Dynamic Quest Command
     usage: /dq <accept|decline> <id>
+  rune:
+    description: ルーン装着GUIを開きます。
+    usage: /rune [set_sockets|set_rune]

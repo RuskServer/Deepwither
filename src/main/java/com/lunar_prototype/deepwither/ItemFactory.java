@@ -238,7 +238,35 @@ public class ItemFactory implements IManager, IItemFactory {
             meta.getPersistentDataContainer().set(FLAVOR_TEXT_KEY, PersistentDataType.STRING, joinedFlavor);
         }
 
-        meta.lore(LoreBuilder.build(finalStats, false, itemType, flavorText, tracker, rarity, modifiers, grade));
+        // --- Rune Integration ---
+        List<Component> runeLore = new ArrayList<>();
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        NamespacedKey socketsMaxKey = new NamespacedKey("deepwither", "sockets_max");
+        if (pdc.has(socketsMaxKey, PersistentDataType.INTEGER)) {
+            int max = pdc.getOrDefault(socketsMaxKey, PersistentDataType.INTEGER, 0);
+            for (int i = 0; i < max; i++) {
+                NamespacedKey runeKey = new NamespacedKey("deepwither", "rune_" + i);
+                if (pdc.has(runeKey, PersistentDataType.STRING)) {
+                    String runeId = pdc.get(runeKey, PersistentDataType.STRING);
+                    ItemStack runeSample = getItem(runeId);
+                    if (runeSample != null) {
+                        StatMap runeStats = getStats(runeSample);
+                        finalStats.add(runeStats);
+                        
+                        Component runeDisplayName = runeSample.getItemMeta().hasDisplayName() 
+                            ? runeSample.getItemMeta().displayName()
+                            : Component.text(runeId);
+                        runeLore.add(Component.text("◆ ", NamedTextColor.AQUA).append(runeDisplayName));
+                    } else {
+                        runeLore.add(Component.text("◇ 空きソケット", NamedTextColor.GRAY));
+                    }
+                } else {
+                    runeLore.add(Component.text("◇ 空きソケット", NamedTextColor.GRAY));
+                }
+            }
+        }
+
+        meta.lore(LoreBuilder.build(finalStats, false, itemType, flavorText, tracker, rarity, modifiers, grade, runeLore));
 
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE);
@@ -504,6 +532,30 @@ class ItemLoader {
         return modifiers;
     }
 
+    private static int generateRandomSocketCount(String rarity) {
+        double chance = 0.2; // 基本20%
+        int max = 1;
+
+        if (rarity.contains("アンコモン")) {
+            chance = 0.3;
+            max = 1;
+        } else if (rarity.contains("レア")) {
+            chance = 0.4;
+            max = 2;
+        } else if (rarity.contains("エピック")) {
+            chance = 0.5;
+            max = 2;
+        } else if (rarity.contains("レジェンダリー")) {
+            chance = 0.6;
+            max = 3;
+        }
+
+        if (random.nextDouble() < chance) {
+            return 1 + random.nextInt(max);
+        }
+        return 0;
+    }
+
     // ランダムステータスの理論値＆実際値を管理するクラス
     static class RandomStatTracker {
         private double maxTotal = 0;
@@ -694,40 +746,68 @@ class ItemLoader {
                     }
                 }
 
+                String itemType = config.getString(key + ".type", null);
+                String normalizedType = (itemType != null) ? itemType.trim().toLowerCase() : "";
+                boolean isGear = itemType != null
+                        && !normalizedType.contains("素材")
+                        && !normalizedType.contains("アーティファクト")
+                        && !normalizedType.contains("スクロール")
+                        && !normalizedType.contains("消費アイテム")
+                        && !normalizedType.contains("コンパニオン");
+
                 // ----------------------------------------------------
-                // --- 新規追加: レアリティに基づくモディファイアー処理 ---
+                // --- ランダム生成ロジック (モディファイアー & ソケット) ---
                 // ----------------------------------------------------
                 boolean disableModifiers = config.getBoolean(key + ".disable_modifiers", false);
                 Map<StatType, Double> modifiers = new HashMap<>();
                 String rarity = config.getString(key + ".rarity", "コモン");
+                int socketsMax = config.getInt(key + ".sockets_max", 0);
 
-                if (!disableModifiers) {
-                    int maxModifiers = MAX_MODIFIERS_BY_RARITY.getOrDefault(rarity, 1);
-                    int modifiersToApply = random.nextInt(maxModifiers) + 1;
-
-                    // (省略: Weighted List 生成ロジックは元のコードと同じ)
-                    List<ModifierDefinition> weightedModifiers = new ArrayList<>();
-                    for (ModifierDefinition def : MODIFIER_DEFINITIONS) {
-                        for (int j = 0; j < (int) (def.weight * 10); j++) weightedModifiers.add(def);
-                    }
-                    Set<StatType> appliedTypes = new HashSet<>();
-
-                    for (int m = 0; m < modifiersToApply; m++) {
-                        if (weightedModifiers.isEmpty()) break;
-                        ModifierDefinition selectedDef = weightedModifiers.get(random.nextInt(weightedModifiers.size()));
-                        if (appliedTypes.contains(selectedDef.type)) {
-                            weightedModifiers.removeIf(def -> def.type == selectedDef.type);
-                            m--; continue;
+                if (!disableModifiers && isGear) {
+                    // 1. 刻印レアリティの判定 (約3%)
+                    if (random.nextDouble() < 0.03) {
+                        rarity = "&7&l刻印";
+                        socketsMax = 3 + random.nextInt(3); // 3-5個
+                        Bukkit.getConsoleSender().sendMessage(Component.text("[RuneSystem] 刻印アイテムを生成しました: " + key + " (ソケット: " + socketsMax + ")", NamedTextColor.YELLOW));
+                    } else {
+                        // 2. 通常のモディファイアー生成
+                        String lookupKey = rarity;
+                        if (!lookupKey.startsWith("&")) {
+                            if (lookupKey.equals("コモン")) lookupKey = "&f&lコモン";
+                            else if (lookupKey.equals("アンコモン")) lookupKey = "&a&lアンコモン";
+                            else if (lookupKey.equals("レア")) lookupKey = "&b&lレア";
+                            else if (lookupKey.equals("エピック")) lookupKey = "&d&lエピック";
+                            else if (lookupKey.equals("レジェンダリー")) lookupKey = "&6&lレジェンダリー";
                         }
-                        double modifierValue = selectedDef.minFlat + random.nextDouble() * (selectedDef.maxFlat - selectedDef.minFlat);
-
-                        // Modifier Map に追加 (Base Stats には足さない)
-                        modifiers.put(selectedDef.type, modifierValue);
-
-                        appliedTypes.add(selectedDef.type);
-                        weightedModifiers.removeIf(def -> def.type == selectedDef.type);
+                        
+                        int maxModifiers = MAX_MODIFIERS_BY_RARITY.getOrDefault(lookupKey, 1);
+                        int modifiersToApply = random.nextInt(maxModifiers) + 1;
+                        List<ModifierDefinition> weightedModifiers = new ArrayList<>();
+                        for (ModifierDefinition def : MODIFIER_DEFINITIONS) {
+                            for (int j = 0; j < (int) (def.weight * 10); j++) weightedModifiers.add(def);
+                        }
+                        Set<StatType> appliedTypes = new HashSet<>();
+                        for (int m = 0; m < modifiersToApply; m++) {
+                            if (weightedModifiers.isEmpty()) break;
+                            ModifierDefinition selectedDef = weightedModifiers.get(random.nextInt(weightedModifiers.size()));
+                            if (appliedTypes.contains(selectedDef.type)) {
+                                weightedModifiers.removeIf(def -> def.type == selectedDef.type);
+                                m--; continue;
+                            }
+                            modifiers.put(selectedDef.type, selectedDef.minFlat + random.nextDouble() * (selectedDef.maxFlat - selectedDef.minFlat));
+                            appliedTypes.add(selectedDef.type);
+                            weightedModifiers.removeIf(def -> def.type == selectedDef.type);
+                        }
+                        // 3. 通常のランダムソケット生成
+                        if (socketsMax == 0) {
+                            socketsMax = generateRandomSocketCount(rarity);
+                            if (socketsMax > 0) {
+                                Bukkit.getConsoleSender().sendMessage(Component.text("[RuneSystem] ソケットを付与しました: " + key + " (" + rarity + " / " + socketsMax + "個)", NamedTextColor.GRAY));
+                            }
+                        }
                     }
                 }
+
                 // 品質ランク判定
                 QualityRank rank = QualityRank.fromRatio(tracker.getRatio());
 
@@ -736,48 +816,42 @@ class ItemLoader {
                     factory.rarityPools.computeIfAbsent(rarity, k -> new ArrayList<>()).add(key);
                 }
 
-                // 名前に品質名をプレフィックス付け
-                String originalName = config.getString(key + ".name", key);
-                String newName = originalName;
-                meta.setDisplayName(newName);
-                NamespacedKey pdc_key = new NamespacedKey(Deepwither.getInstance(), CUSTOM_ID_KEY);
-                meta.getPersistentDataContainer().set(pdc_key,PersistentDataType.STRING,key);
+                // PDCに保存 (Lore生成の前に必要)
+                NamespacedKey customIdKey = new NamespacedKey(Deepwither.getInstance(), "custom_id");
+                meta.getPersistentDataContainer().set(customIdKey, PersistentDataType.STRING, key);
 
-                String unbreaking = config.getString(key + ".unbreaking","false");
-                if ("true".equalsIgnoreCase(unbreaking)){
-                    meta.setUnbreakable(true);
+                if (socketsMax > 0) {
+                    meta.getPersistentDataContainer().set(new NamespacedKey("deepwither", "sockets_max"), PersistentDataType.INTEGER, socketsMax);
+                }
+                if (config.getBoolean(key + ".is_rune", false)) {
+                    meta.getPersistentDataContainer().set(new NamespacedKey("deepwither", "is_rune"), PersistentDataType.BYTE, (byte) 1);
                 }
 
-                String chargeType = config.getString(key + ".charge_type", null); // YMLで charge_type: hammer と設定
+                // 名前の設定
+                meta.setDisplayName(config.getString(key + ".name", key));
+
+                if (config.getBoolean(key + ".unbreaking", false)) {
+                    meta.setUnbreakable(true);
+                }
+                String chargeType = config.getString(key + ".charge_type", null); 
                 if (chargeType != null) {
                     meta.getPersistentDataContainer().set(CHARGE_ATTACK_KEY, PersistentDataType.STRING, chargeType);
                 }
-
                 String companiontype = config.getString(key + ".companion_type", null);
                 if (companiontype != null){
                     meta.getPersistentDataContainer().set(Deepwither.getInstance().getCompanionManager().COMPANION_ID_KEY,PersistentDataType.STRING, companiontype);
                 }
-
                 String raid_boss_id = config.getString(key + ".raid_boss_id", null);
                 if (raid_boss_id != null){
-                    NamespacedKey raid_boss_id_key = new NamespacedKey(Deepwither.getInstance(), "raid_boss_id");
-                    meta.getPersistentDataContainer().set(raid_boss_id_key,PersistentDataType.STRING, raid_boss_id);
+                    meta.getPersistentDataContainer().set(new NamespacedKey(Deepwither.getInstance(), "raid_boss_id"), PersistentDataType.STRING, raid_boss_id);
                 }
-
                 String specialAction = config.getString(key + ".special_action");
                 if (specialAction != null) {
                     meta.getPersistentDataContainer().set(SPECIAL_ACTION_KEY, PersistentDataType.STRING, specialAction.toUpperCase());
                 }
-
-                String itemType = config.getString(key + ".type", null);
-
-                // カテゴリが「杖」または設定で is_wand: true の場合
-                if ((itemType != null && itemType.equalsIgnoreCase("杖")) || config.getBoolean(key + ".is_wand")) {
-                    if (meta != null) {
-                        meta.getPersistentDataContainer().set(IS_WAND, PersistentDataType.BOOLEAN, true);
-                    }
+                if ((itemType != null && itemType.contains("杖")) || config.getBoolean(key + ".is_wand")) {
+                    meta.getPersistentDataContainer().set(IS_WAND, PersistentDataType.BOOLEAN, true);
                 }
-
                 String setPartner = config.getString(key + ".set_partner");
                 if (setPartner != null) {
                     meta.getPersistentDataContainer().set(ItemFactory.SET_PARTNER_KEY, PersistentDataType.STRING, setPartner);
@@ -785,9 +859,12 @@ class ItemLoader {
 
                 item.setItemMeta(meta);
                 List<String> flavorText = config.getStringList(key + ".flavor");
-                // Lore + PDC 書き込みをItemFactory側で処理
+                
+                // 重要: Lore + PDC 書き込み
                 item = factory.applyStatsToItem(item, baseStats, modifiers, itemType, flavorText, tracker, rarity, grade);
 
+                // --- 以下の古い冗長な処理は削除 ---
+                
                 double recoveryAmount = config.getDouble(key + ".recovery-amount", 0.0);
                 int cooldownSeconds = config.getInt(key + ".cooldown-seconds", 0);
 

@@ -105,12 +105,12 @@ class LoreBuilder {
         ItemMeta meta = item.getItemMeta();
         // Metaがない、またはLoreがない場合は新規作成（build）へ
         if (meta == null || !meta.hasLore()) {
-            return build(newStats, false, null, null, null, null, null, null);
+            return build(newStats, false, null, null, null, null, null, null, null);
         }
 
         List<Component> existingLore = meta.lore();
         if (existingLore == null) {
-            return build(newStats, false, null, null, null, null, null, null);
+            return build(newStats, false, null, null, null, null, null, null, null);
         }
 
         List<Component> newLore = new ArrayList<>();
@@ -130,7 +130,7 @@ class LoreBuilder {
         // 区切り線が2つ未満の場合は構造が特殊なため、安全策として既存buildを呼ぶか、
         // あるいは構造を維持できないため新規作成する
         if (separatorIndices.size() < 2) {
-            return build(newStats, false, null, null, null, null, null, null);
+            return build(newStats, false, null, null, null, null, null, null, null);
         }
 
         // --- 2. セクションの特定 ---
@@ -193,7 +193,7 @@ class LoreBuilder {
      */
     public static List<Component> build(StatMap stats, boolean compact, String itemType, List<String> flavorText, 
                                      ItemLoader.RandomStatTracker tracker, String rarity, Map<StatType, Double> appliedModifiers, 
-                                     FabricationGrade grade) {
+                                     FabricationGrade grade, List<Component> runeLore) {
         List<Component> lore = new ArrayList<>();
         LegacyComponentSerializer serializer = LegacyComponentSerializer.legacySection();
 
@@ -229,6 +229,15 @@ class LoreBuilder {
         }
 
         lore.add(Component.text("-----------------------------", NamedTextColor.DARK_GRAY).decoration(TextDecoration.STRIKETHROUGH, true).decoration(TextDecoration.ITALIC, false));
+
+        // --- [ルーン] セクション ---
+        if (runeLore != null && !runeLore.isEmpty()) {
+            lore.add(Component.text(" [ソケット]", NamedTextColor.AQUA, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false));
+            for (Component rune : runeLore) {
+                lore.add(Component.text(" ").append(rune).decoration(TextDecoration.ITALIC, false));
+            }
+            lore.add(Component.empty());
+        }
 
         // --- [付加能力] セクション ---
         if (appliedModifiers != null && !appliedModifiers.isEmpty()) {
