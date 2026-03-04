@@ -38,14 +38,6 @@ public class TaskListener implements Listener, IManager {
     public void shutdown() {}
 
     @EventHandler(priority = EventPriority.MONITOR)
-    public void onEntityDeath(EntityDeathEvent e) {
-        if (e.getEntityType() == EntityType.PLAYER) return;
-        Player killer = e.getEntity().getKiller();
-        if (killer == null) return;
-        taskManager.updateKillProgress(killer, DEFAULT_TASK_TRADER);
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR)
     public void onMythicMobDeath(MythicMobDeathEvent e) {
         Player killer = e.getKiller() instanceof Player ? (Player) e.getKiller() : null;
         if (killer == null) return;
