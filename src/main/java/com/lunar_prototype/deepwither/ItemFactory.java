@@ -306,7 +306,7 @@ public class ItemFactory implements IManager, IItemFactory {
         List<String> flavorText = new ArrayList<>();
         String joinedFlavor = pdc.get(FLAVOR_TEXT_KEY, PersistentDataType.STRING);
         if (joinedFlavor != null) {
-            flavorText = Arrays.asList(joinedFlavor.split("|~|"));
+            flavorText = Arrays.asList(joinedFlavor.split(java.util.regex.Pattern.quote("|~|")));
         }
 
         StatMap baseStats = new StatMap();
@@ -361,7 +361,7 @@ public class ItemFactory implements IManager, IItemFactory {
         FabricationGrade grade = FabricationGrade.fromId(pdc.getOrDefault(GRADE_KEY, PersistentDataType.INTEGER, 1));
         List<String> flavorText = new ArrayList<>();
         String joinedFlavor = pdc.get(FLAVOR_TEXT_KEY, PersistentDataType.STRING);
-        if (joinedFlavor != null) flavorText = Arrays.asList(joinedFlavor.split("|~|"));
+        if (joinedFlavor != null) flavorText = Arrays.asList(joinedFlavor.split(java.util.regex.Pattern.quote("|~|")));
         Map<StatType, Double> newModifiers = ItemLoader.generateRandomModifiers(rarity);
         ItemLoader.RandomStatTracker tracker = new ItemLoader.RandomStatTracker();
         return applyStatsToItem(item, baseStats, newModifiers, itemType, flavorText, tracker, rarity, grade);
@@ -378,7 +378,7 @@ public class ItemFactory implements IManager, IItemFactory {
         FabricationGrade grade = FabricationGrade.fromId(pdc.getOrDefault(GRADE_KEY, PersistentDataType.INTEGER, 1));
         List<String> flavorText = new ArrayList<>();
         String joinedFlavor = pdc.get(FLAVOR_TEXT_KEY, PersistentDataType.STRING);
-        if (joinedFlavor != null) flavorText = Arrays.asList(joinedFlavor.split("|~|"));
+        if (joinedFlavor != null) flavorText = Arrays.asList(joinedFlavor.split(java.util.regex.Pattern.quote("|~|")));
         if (isPercent) baseStats.setPercent(type, baseStats.getPercent(type) + value); else baseStats.setFlat(type, baseStats.getFlat(type) + value);
         ItemLoader.RandomStatTracker tracker = new ItemLoader.RandomStatTracker();
         return applyStatsToItem(item, baseStats, modifiers, itemType, flavorText, tracker, rarity, grade);
