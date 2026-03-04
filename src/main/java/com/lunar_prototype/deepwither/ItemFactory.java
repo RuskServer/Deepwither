@@ -768,7 +768,7 @@ class ItemLoader {
                     if (random.nextDouble() < 0.03) {
                         rarity = "&7&l刻印";
                         socketsMax = 3 + random.nextInt(3); // 3-5個
-                        Bukkit.getConsoleSender().sendMessage(Component.text("[RuneSystem] 刻印アイテムを生成しました: " + key + " (ソケット: " + socketsMax + ")", NamedTextColor.YELLOW));
+                        //Bukkit.getConsoleSender().sendMessage(Component.text("[RuneSystem] 刻印アイテムを生成しました: " + key + " (ソケット: " + socketsMax + ")", NamedTextColor.YELLOW));
                     } else {
                         // 2. 通常のモディファイアー生成
                         String lookupKey = rarity;
@@ -802,7 +802,7 @@ class ItemLoader {
                         if (socketsMax == 0) {
                             socketsMax = generateRandomSocketCount(rarity);
                             if (socketsMax > 0) {
-                                Bukkit.getConsoleSender().sendMessage(Component.text("[RuneSystem] ソケットを付与しました: " + key + " (" + rarity + " / " + socketsMax + "個)", NamedTextColor.GRAY));
+                                //Bukkit.getConsoleSender().sendMessage(Component.text("[RuneSystem] ソケットを付与しました: " + key + " (" + rarity + " / " + socketsMax + "個)", NamedTextColor.GRAY));
                             }
                         }
                     }

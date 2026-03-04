@@ -57,6 +57,7 @@ public class TraderGUI implements Listener, IManager {
     private static final String OFFER_ID_KEY = "offer_id";
     private static final String CUSTOM_ID_KEY = "custom_id";
     private static final String TRADER_ID_KEY = "trader_id";
+    private static final int GLOBAL_TASK_LIMIT = 5;
 
     /**
      * Opens a purchase GUI for the specified trader and presents the trader's offers to the player.
@@ -160,8 +161,7 @@ public class TraderGUI implements Listener, IManager {
         String targetMobId = data.getTargetMob(traderId);
         String displayMobName = targetMobId.equals("bandit") ? "バンディット" : targetMobId;
 
-        int completedCount = data.getCompletionCount(traderId);
-        int limit = Deepwither.getInstance().getTraderManager().getDailyTaskLimit(traderId);
+        int totalCompleted = data.getTotalCompletionCount();
 
         ItemStack taskButton = new ItemStack(Material.WRITABLE_BOOK);
         ItemMeta meta = taskButton.getItemMeta();
@@ -170,11 +170,11 @@ public class TraderGUI implements Listener, IManager {
         meta.displayName(Component.text("デイリータスク (" + traderId + ")", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
         meta.getPersistentDataContainer().set(new NamespacedKey(Deepwither.getInstance(), TRADER_ID_KEY), PersistentDataType.STRING, traderId);
 
-        lore.add(Component.text("残りのタスク完了回数: ", NamedTextColor.GRAY).append(Component.text((limit - completedCount) + "/" + limit, NamedTextColor.AQUA)).decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text("本日の全トレーダー合計達成数: ", NamedTextColor.GRAY).append(Component.text(totalCompleted + "/" + GLOBAL_TASK_LIMIT, NamedTextColor.AQUA)).decoration(TextDecoration.ITALIC, false));
 
-        if (completedCount >= limit) {
+        if (totalCompleted >= GLOBAL_TASK_LIMIT && target == 0) {
             lore.add(Component.empty());
-            lore.add(Component.text(">> 本日のタスク制限に達しました <<", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
+            lore.add(Component.text(">> 本日の合計タスク制限に達しました <<", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
             taskButton.setType(Material.BARRIER);
         } else if (target != 0) {
             lore.add(Component.text("--- 現在の目標 ---", NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false));
@@ -230,8 +230,12 @@ public class TraderGUI implements Listener, IManager {
                 }
 
                 DailyTaskData data = taskManager.getTaskData(player);
-                if (data.getProgress(traderId)[1] == 0 && data.getCompletionCount(traderId) <= Deepwither.getInstance().getTraderManager().getDailyTaskLimit(traderId)) {
-                    taskManager.startNewTask(player, traderId);
+                if (data.getProgress(traderId)[1] == 0) {
+                    if (data.getTotalCompletionCount() < GLOBAL_TASK_LIMIT) {
+                        taskManager.startNewTask(player, traderId);
+                    } else {
+                        player.sendMessage(Component.text("[タスク] 本日の合計タスク制限（" + GLOBAL_TASK_LIMIT + "回）に達しました。", NamedTextColor.RED));
+                    }
                 } else if (data.getProgress(traderId)[0] >= data.getProgress(traderId)[1] && data.getProgress(traderId)[1] > 0) {
                     taskManager.completeTask(player, traderId);
                 } else {

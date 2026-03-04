@@ -94,6 +94,11 @@ public class DailyTaskData implements ConfigurationSerializable {
         return completionCounts.getOrDefault(traderId, 0);
     }
 
+    public int getTotalCompletionCount() {
+        checkAndReset();
+        return completionCounts.values().stream().mapToInt(Integer::intValue).sum();
+    }
+
     public void incrementCompletionCount(String traderId) {
         checkAndReset();
         completionCounts.put(traderId, completionCounts.getOrDefault(traderId, 0) + 1);
