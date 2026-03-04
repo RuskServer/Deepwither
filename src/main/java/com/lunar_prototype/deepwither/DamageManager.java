@@ -161,19 +161,29 @@ public class DamageManager implements Listener, IManager {
             context.setFinalDamage(context.getFinalDamage() * distMult);
         }
 
-        // 4. 防御力計算
-        double defenseDivisor = (targetLiving instanceof Player) ? PLAYER_DEFENSE_DIVISOR : DEFENSE_DIVISOR;
-        context.setFinalDamage(DamageCalculator.applyDefense(context.getFinalDamage(), defenderStats.getFinal(StatType.DEFENSE), defenseDivisor));
+        // 4. 武器メカニクスとOn-Hit (防御計算前に適用する必要があるもの)
+        dw.getWeaponMechanicManager().handleWeaponMechanics(context, processor);
 
-        // 5. 特殊効果 (コンボ、クールダウン)
+        // 5. 防御力計算
+        double defenseDivisor = (targetLiving instanceof Player) ? PLAYER_DEFENSE_DIVISOR : DEFENSE_DIVISOR;
+        double defenseValue = defenderStats.getFinal(StatType.DEFENSE);
+        
+        // 防御貫通タグのチェック
+        if (context.hasTag("DEFENSE_BYPASS")) {
+            defenseValue *= 0.5; // 50% 防御貫通
+        }
+        
+        context.setFinalDamage(DamageCalculator.applyDefense(context.getFinalDamage(), defenseValue, defenseDivisor));
+
+        // 6. 特殊効果 (コンボ、クールダウン)
         applyComboAndCooldown(attacker, context);
 
-        // 6. 盾防御
+        // 7. 盾防御
         if (targetLiving instanceof Player playerVictim && playerVictim.isBlocking()) {
             handleShieldBlock(attacker, playerVictim, context, defenderStats);
         }
 
-        // 7. 最終ダメージ確定とエフェクト
+        // 8. 最終ダメージ確定とエフェクト
         double finalDamageValue = Math.max(0.1, context.getFinalDamage());
         context.setFinalDamage(finalDamageValue);
         
@@ -182,15 +192,14 @@ public class DamageManager implements Listener, IManager {
 
         playHitEffects(attacker, targetLiving, context);
 
-        // 8. ダメージ適用
+        // 9. ダメージ適用
         iFrameEndTimes.put(targetLiving.getUniqueId(), System.currentTimeMillis() + DAMAGE_I_FRAME_MS);
         processor.process(context);
 
-        // 9. 武器メカニクスとOn-Hit
-        dw.getWeaponMechanicManager().handleWeaponMechanics(context, processor);
+        // 10. 武器メカニクスとOn-Hit (事後処理用、現状は斧以外は事後でも問題ないが、統一して前に移動したのでここではOn-Hitのみ)
         tryTriggerOnHitSkill(attacker, targetLiving, item);
 
-        // 10. 吸収・状態異常
+        // 11. 吸収・状態異常
         handlePostDamageEffects(attacker, targetLiving, attackerStats, context.getFinalDamage());
     }
 
