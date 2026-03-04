@@ -310,56 +310,32 @@ public class WeaponMechanicManager implements IManager {
         }
     }
 
-    private boolean isHalberdWeapon(ItemStack item) {
+    private boolean hasCategory(ItemStack item, String category) {
         if (item == null || !item.hasItemMeta()) return false;
-        List<Component> lore = item.lore();
-        if (lore == null) return false;
-        for (Component line : lore) {
-            if (PlainTextComponentSerializer.plainText().serialize(line).contains("カテゴリ:ハルバード")) return true;
-        }
-        return false;
+        ItemMeta meta = item.getItemMeta();
+        if (!meta.getPersistentDataContainer().has(ItemFactory.ITEM_TYPE_KEY, PersistentDataType.STRING)) return false;
+
+        String type = meta.getPersistentDataContainer().get(ItemFactory.ITEM_TYPE_KEY, PersistentDataType.STRING);
+        return category.equals(type);
+    }
+
+    private boolean isHalberdWeapon(ItemStack item) {
+        return hasCategory(item, "ハルバード");
     }
 
     private boolean isSpearWeapon(ItemStack item) {
-        if (item == null || !item.hasItemMeta()) return false;
-        List<Component> lore = item.lore();
-        if (lore == null) return false;
-        for (Component line : lore) {
-            if (PlainTextComponentSerializer.plainText().serialize(line).contains("カテゴリ:槍")) return true;
-        }
-        return false;
+        return hasCategory(item, "槍");
     }
 
     private boolean isAxeWeapon(ItemStack item) {
-        if (item == null || !item.hasItemMeta()) return false;
-        List<Component> lore = item.lore();
-        if (lore == null) return false;
-        for (Component line : lore) {
-            String plain = PlainTextComponentSerializer.plainText().serialize(line);
-            if (plain.contains("カテゴリ:斧")) return true;
-        }
-        return false;
+        return hasCategory(item, "斧");
     }
 
     private boolean isSwordWeapon(ItemStack item) {
-        if (item == null || !item.hasItemMeta()) return false;
-        List<Component> lore = item.lore();
-        if (lore == null) return false;
-        for (Component line : lore) {
-            String plain = PlainTextComponentSerializer.plainText().serialize(line);
-            if (plain.contains("カテゴリ:剣")) return true;
-        }
-        return false;
+        return hasCategory(item, "剣");
     }
 
     private boolean isGreatswordWeapon(ItemStack item) {
-        if (item == null || !item.hasItemMeta()) return false;
-        List<Component> lore = item.lore();
-        if (lore == null) return false;
-        for (Component line : lore) {
-            String plain = PlainTextComponentSerializer.plainText().serialize(line);
-            if (plain.contains("カテゴリ:大剣")) return true;
-        }
-        return false;
+        return hasCategory(item, "大剣");
     }
 }
