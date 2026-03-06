@@ -1,7 +1,5 @@
 package com.lunar_prototype.deepwither.seeker;
 
-import com.lunar_prototype.dark_singularity_api.Singularity;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,7 +21,7 @@ public class BanditKnowledgeBase {
     private static final int ACT_BURST_DASH = 6;
     private static final int ACT_ORBITAL_SLIDE = 7;
 
-    public static void inject(Singularity singularity) {
+    public static void inject(NativeQEngine engine) {
         List<Integer> conditions = new ArrayList<>();
         List<Integer> actions = new ArrayList<>();
         List<Float> strengths = new ArrayList<>();
@@ -77,7 +75,7 @@ public class BanditKnowledgeBase {
         float[] sArray = new float[strengths.size()];
         for (int i = 0; i < strengths.size(); i++) sArray[i] = strengths.get(i);
 
-        singularity.registerHamiltonianRules(cArray, aArray, sArray);
+        engine.registerHamiltonianRules(cArray, aArray, sArray);
     }
 
     private static void addRule(List<Integer> c, List<Integer> a, List<Float> s, int state, int action, float strength) {
