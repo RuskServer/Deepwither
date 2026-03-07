@@ -67,8 +67,9 @@ public class DatabaseManager implements IManager, IDatabaseManager {
 
         // プール設定の読み込み
         if (type.equals("sqlite")) {
-            // SQLiteは同時書き込み制限のため、最大1に固定するのが最も安全
-            hikariConfig.setMaximumPoolSize(1);
+            // SQLiteは同時書き込み制限があるが、WALモードを有効にするため複数接続(読込)は可能。
+            // 接続数1ではメインスレッドが他スレッドの処理待ちでフリーズするため、緩和する。
+            hikariConfig.setMaximumPoolSize(config.getInt("database.pool.maximum-pool-size", 10));
         } else {
             hikariConfig.setMaximumPoolSize(config.getInt("database.pool.maximum-pool-size", 10));
         }
@@ -87,6 +88,7 @@ public class DatabaseManager implements IManager, IDatabaseManager {
             try (Connection conn = dataSource.getConnection();
                  Statement stmt = conn.createStatement()) {
                 stmt.execute("PRAGMA journal_mode=WAL;");
+                stmt.execute("PRAGMA synchronous=NORMAL;");
             }
         }
 

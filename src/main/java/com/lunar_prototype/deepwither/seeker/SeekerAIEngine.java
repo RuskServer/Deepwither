@@ -63,16 +63,21 @@ public class SeekerAIEngine implements IManager {
         double durationMs = (endTime - startTime) / 1_000_000.0; // ナノ秒をミリ秒に変換
         // -----------------------
 
-        // 4. ログ出力 (推論時間を追加)
+        // 4. ログ出力 (v5 Native Metrics)
         String uuidShort = uuid.toString().substring(0, 4);
-        // 0.05ms以下なら非常に軽量、1.0msを超え始めると最適化の検討が必要な目安です
-        System.out.println(String.format("[%s-%s][%s] Action: %s | Time: %.3fms | %s",
+        double qScore = brain.getNativeScore(brain.lastActionIdx); // 行動の期待値
+
+        System.out.println(String.format("[%s-%s][%s] Action: %s (Q:%.2f) | Time: %.3fms | T:%.2f F:%.2f Adr:%.2f Adv:%.2f",
                 activeMob.getType().getInternalName(),
                 uuidShort,
                 decision.engine_version,
                 decision.decision.action_type,
+                qScore,
                 durationMs,
-                decision.reasoning));
+                brain.systemTemperature,
+                brain.frustration,
+                brain.adrenaline,
+                brain.tacticalMemory.combatAdvantage));
 
         // 5. 行動実行
         if (!bukkitMob.isDead()) {
