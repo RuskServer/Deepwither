@@ -52,31 +52,42 @@ public class SkilltreeManager implements IManager {
             return cached;
         }
 
-        try (Connection conn = db.getConnection();
-             PreparedStatement ps = conn.prepareStatement(
-                "SELECT skill_point, skills FROM player_skilltree WHERE uuid = ?")) {
-            ps.setString(1, uuid.toString());
-            try (ResultSet rs = ps.executeQuery()) {
-                SkillData data;
-                if (rs.next()) {
-                    int skillPoint = rs.getInt("skill_point");
-                    String skillsJson = rs.getString("skills");
-                    Map<String, Integer> skillsMap = new HashMap<>();
+        // 二重ロード防止のための簡易的な同期化。
+        // キャッシュにない場合はDBから読み込む。
+        synchronized (this) {
+            cached = DW.cache().getCache(uuid).get(SkillData.class);
+            if (cached != null) return cached;
 
-                    if (skillsJson != null && !skillsJson.isEmpty()) {
-                        skillsMap = gson.fromJson(skillsJson, new TypeToken<Map<String, Integer>>(){}.getType());
-                    }
-
-                    data = new SkillData(skillPoint, skillsMap);
-                } else {
-                    data = new SkillData(1, new HashMap<>());
-                }
-                data.recalculatePassiveStats(treeConfig);
-                DW.cache().getCache(uuid).set(SkillData.class, data);
-                return data;
+            if (org.bukkit.Bukkit.isPrimaryThread()) {
+                plugin.getLogger().warning("Blocking database call for SkillData on main thread for " + uuid + ". This may cause lag.");
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
+
+            try (Connection conn = db.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(
+                    "SELECT skill_point, skills FROM player_skilltree WHERE uuid = ?")) {
+                ps.setString(1, uuid.toString());
+                try (ResultSet rs = ps.executeQuery()) {
+                    SkillData data;
+                    if (rs.next()) {
+                        int skillPoint = rs.getInt("skill_point");
+                        String skillsJson = rs.getString("skills");
+                        Map<String, Integer> skillsMap = new HashMap<>();
+
+                        if (skillsJson != null && !skillsJson.isEmpty()) {
+                            skillsMap = gson.fromJson(skillsJson, new TypeToken<Map<String, Integer>>(){}.getType());
+                        }
+
+                        data = new SkillData(skillPoint, skillsMap);
+                    } else {
+                        data = new SkillData(1, new HashMap<>());
+                    }
+                    data.recalculatePassiveStats(treeConfig);
+                    DW.cache().getCache(uuid).set(SkillData.class, data);
+                    return data;
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
         
         SkillData newData = new SkillData(1, new HashMap<>());
