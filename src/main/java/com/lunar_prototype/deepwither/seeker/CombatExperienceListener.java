@@ -93,7 +93,7 @@ public class CombatExperienceListener implements Listener, IManager {
         getBrain(mob).ifPresent(brain -> {
             brain.accumulatedReward += amount;
             // 自己攻撃リズムの記録
-            brain.recordSelfAttack(mob.getTicksLived());
+            //brain.recordSelfAttack(mob.getTicksLived());
         });
     }
 

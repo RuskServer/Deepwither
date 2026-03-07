@@ -53,6 +53,11 @@ public class LiquidCombatEngine {
         inputs[3] = isRecovering ? 1.0f : 0.0f;
         inputs[4] = Math.min(enemies.size(), 5);
 
+        // 敵の攻撃予測を更新
+        if (targetPlayer != null) {
+            brain.updateEnemyPrediction(targetPlayer.getUniqueId(), (double) enemyDist);
+        }
+
         // [TQH-Bootstrap] 現在の状態を量子化
         int stateId = packState(advantage, enemyDist, inputs[2], isRecovering, enemies.size());
         brain.setCondition(stateId);

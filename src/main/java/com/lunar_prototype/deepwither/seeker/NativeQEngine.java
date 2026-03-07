@@ -17,6 +17,7 @@ public class NativeQEngine {
     private float systemTemperature = 0.5f;
     private float frustration = 0.0f;
     private float adrenaline = 0.0f;
+    private float enemyAttackImminence = 0.0f; // 敵の攻撃予測 (0.0 - 1.0)
     private final float[] neuronStates = new float[4]; // Aggression, Fear, Tactical, Reflex
 
     private int lastState = -1;
@@ -130,10 +131,18 @@ public class NativeQEngine {
     }
 
     private float calculateEmotionalBias(int actionIdx) {
+        // 攻撃が予測される瞬間のバイアス
+        float predictiveBias = 0.0f;
+        if (enemyAttackImminence > 0.5f) {
+            if (actionIdx == 1) predictiveBias = enemyAttackImminence * 0.8f; // EVADE: 回避率アップ
+            if (actionIdx == 3) predictiveBias = enemyAttackImminence * 0.6f; // COUNTER: カウンター率アップ
+        }
+
         // ACTIONS = {"ATTACK", "EVADE", "BAITING", "COUNTER", "OBSERVE", "RETREAT", "BURST_DASH", "ORBITAL_SLIDE"}
         return switch (actionIdx) {
             case 0 -> neuronStates[0] * 0.3f; // ATTACK: Aggression
-            case 1 -> neuronStates[1] * 0.3f; // EVADE: Fear
+            case 1 -> (neuronStates[1] * 0.3f) + predictiveBias; // EVADE: Fear + Prediction
+            case 3 -> predictiveBias; // COUNTER: Prediction
             case 5 -> neuronStates[1] * 0.5f; // RETREAT: Fear
             case 6 -> neuronStates[0] * 0.4f; // BURST_DASH: Aggression
             default -> 0.0f;
@@ -141,6 +150,7 @@ public class NativeQEngine {
     }
 
     // Getters & Setters
+    public void setEnemyAttackImminence(float imminence) { this.enemyAttackImminence = imminence; }
     public float getSystemTemperature() { return systemTemperature; }
     public void setSystemTemperature(float temp) { this.systemTemperature = temp; }
     public float getFrustration() { return frustration; }

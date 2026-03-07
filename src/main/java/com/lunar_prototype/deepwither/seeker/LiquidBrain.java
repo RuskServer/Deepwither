@@ -112,6 +112,14 @@ public class LiquidBrain {
         reflex.update(0, 0.1, temp);
     }
 
+    /**
+     * エンジンに対して敵の攻撃予測値を通知する
+     */
+    public void updateEnemyPrediction(UUID targetId, double currentDist) {
+        float imminence = calculateAttackImminence(targetId, currentDist);
+        engine.setEnemyAttackImminence(imminence);
+    }
+
     public int think(float[] inputs) {
         return cycle(inputs);
     }
@@ -141,13 +149,26 @@ public class LiquidBrain {
         if (isMiss) tacticalMemory.myMisses++; else tacticalMemory.myHits++;
     }
 
-    public void recordSelfAttack(long currentTick) {
-        if (selfPattern.lastAttackTick > 0) {
-            double interval = (currentTick - selfPattern.lastAttackTick);
-            selfPattern.averageInterval = (selfPattern.averageInterval * 0.8) + (interval * 0.2);
+    /**
+     * ターゲットの攻撃リズムを解析し、次の一撃が来る「切迫度」を算出する (0.0 - 1.0)
+     */
+    public float calculateAttackImminence(UUID targetId, double currentDist) {
+        AttackPattern p = enemyPatterns.get(targetId);
+        if (p == null || p.sampleCount < 3) return 0.0f; // データ不足
+
+        long ticksSinceLast = (System.currentTimeMillis() - p.lastAttackTick) / 50;
+        
+        // 1. リズムによる予測: 平均インターバルに近づくほど数値が上がる
+        double rhythmFactor = 0.0;
+        if (ticksSinceLast > p.averageInterval * 0.7) {
+            // インターバルの 70% を過ぎたあたりから警戒度を上げる
+            rhythmFactor = Math.min(1.0, (ticksSinceLast / p.averageInterval));
         }
-        selfPattern.lastAttackTick = currentTick;
-        selfPattern.sampleCount++;
+
+        // 2. 距離による補正: プレイヤーの得意なリーチにいる場合は更に危険
+        double distFactor = 1.0 - Math.min(1.0, Math.abs(currentDist - p.preferredDist) / 3.0);
+
+        return (float) (rhythmFactor * distFactor);
     }
 
     public void recordSnapshot(String action) {
