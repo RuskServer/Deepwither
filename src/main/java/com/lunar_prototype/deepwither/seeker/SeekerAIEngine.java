@@ -37,6 +37,18 @@ public class SeekerAIEngine implements IManager {
         brainStorage.clear();
     }
 
+    /**
+     * アクティブなMobを対象に環境を感知し、近隣の影響を学習して適切なエンジン版で推論を行い、その決定に基づいて行動を実行する。
+     *
+     * <p>処理内容:
+     * - センサーで環境情報と近接の隠れ場所を取得する。
+     * - 対象のUUIDに紐づく脳 (LiquidBrain) を取得または生成し、観察と学習を行う。
+     * - 対象のレベルに応じて推論エンジンのバージョンを選択し、推論時間を計測する。
+     * - 推論結果と脳のネイティブメトリクス（Q値、体温、フラストレーション、アドレナリン、戦闘優位など）をログ出力する。
+     * - 対象が生存していればアクチュエータで行動を実行し、死亡していれば脳を破棄してストレージから削除する。
+     *
+     * @param activeMob 処理対象のアクティブMob。Bukkitエンティティが存在し、かつMobでない場合は何も行わず戻る。
+     */
     public void tick(ActiveMob activeMob) {
         if (activeMob.getEntity() == null || !(activeMob.getEntity().getBukkitEntity() instanceof Mob)) return;
         Mob bukkitMob = (Mob) activeMob.getEntity().getBukkitEntity();

@@ -46,6 +46,16 @@ public class SkilltreeManager implements IManager {
         DW.cache().getCache(uuid).remove(SkillData.class);
     }
 
+    /**
+     * 指定したプレイヤーのスキルデータをキャッシュから取得し、存在しない場合は永続化層から読み込んで返します。
+     *
+     * キャッシュに見つからない場合はデータベースから読み込み、読み込んだデータに対してツリー設定を基に受動効果を再計算してキャッシュに格納します。
+     * 読み込みに失敗した場合はスキルポイント1、空の習得スキルを持つデフォルトの SkillData を生成して同様に再計算・キャッシュして返します。
+     * メインスレッドからの呼び出しでブロッキングな読み込みが発生する場合は警告を出力します。
+     *
+     * @param uuid 対象プレイヤーの UUID
+     * @return 取得したまたは生成してキャッシュした SkillData
+     */
     public SkillData load(UUID uuid) {
         SkillData cached = DW.cache().getCache(uuid).get(SkillData.class);
         if (cached != null) {

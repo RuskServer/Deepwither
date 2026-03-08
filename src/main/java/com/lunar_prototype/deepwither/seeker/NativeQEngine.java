@@ -28,7 +28,11 @@ public class NativeQEngine {
     // ハイパーパラメータ
     private static final float BASE_ALPHA = 0.1f;    // 学習率
     private static final float GAMMA = 0.9f;         // 割引率
-    private static final float BASE_EPSILON = 0.1f;  // 探索率
+    private static final float BASE_EPSILON = 0.1f;  /**
+     * Qテーブルとハミルトニアン作用強度を保持する配列を初期化するコンストラクタ。
+     *
+     * qTable と actionStrengths を、STATE_COUNT と ACTION_COUNT の積の長さを持つ float 配列として割り当てる。
+     */
 
     public NativeQEngine() {
         this.qTable = new float[STATE_COUNT * ACTION_COUNT];
@@ -36,7 +40,13 @@ public class NativeQEngine {
     }
 
     /**
-     * ハミルトニアン規則（本能）を注入する
+     * 各状態・行動ペアに対してハミルトニアン規則（本能）によるバイアスを注入し、対応する初期Q値を設定する。
+     *
+     * @param conditions 各エントリが対応する状態インデックスを表す配列（ループはこの配列長で行われ、同インデックスのactionsおよびstrengthsが参照される）
+     * @param actions    各エントリが対応する行動インデックスを表す配列
+     * @param strengths  各エントリが注入するバイアス強度を表す配列（対応するactionStrengthsに格納され、qTableには strength * 0.5f を初期値として設定される）
+     * 
+     * 無効な状態／行動インデックス（範囲外）は無視される。
      */
     public void registerHamiltonianRules(int[] conditions, int[] actions, float[] strengths) {
         for (int i = 0; i < conditions.length; i++) {
@@ -52,7 +62,15 @@ public class NativeQEngine {
     }
 
     /**
-     * 前回の行動に対する報酬を学習し、次の行動を選択する
+     * 前回の遷移に対するQ値を更新し、与えられた現在状態に基づいて次の行動を選択する。
+     *
+     * <p>処理順序:
+     * 1) 前回の状態・行動が存在すればTD学習でQ値を更新する。2) 内部状態（温度・フラストレーション・アドレナリンなど）を入力と報酬に基づいて更新する。3) 更新後の状態に基づき行動選択（探索と活用のトレードオフ）を行う。</p>
+     *
+     * @param currentState 現在の状態インデックス（0 以上 STATE_COUNT-1 以下）
+     * @param reward 前回の遷移で観測した報酬（正の値は好ましい結果、負の値は望ましくない結果を示す）
+     * @param inputs センサーや外部入力の配列。長さが5以上の場合は inputs[4] がアドレナリン更新に使用される可能性がある（null または短い配列は許容される）
+     * @return 選択された行動のインデックス（0 から ACTION_COUNT-1 の範囲）
      */
     public int update(int currentState, float reward, float[] inputs) {
         // 1. TD学習 (前回の遷移を評価)
@@ -81,6 +99,17 @@ public class NativeQEngine {
         return selectedAction;
     }
 
+    /**
+     * 報酬と外部入力に基づいて内部状態（systemTemperature、frustration、adrenaline）を更新する。
+     *
+     * ポジティブな報酬では systemTemperature を下げ（最小 0.1）、frustration を減らし、
+     * ネガティブな報酬では systemTemperature と frustration を増加させ（それぞれ上限 2.0／1.0）。
+     * 更新後は systemTemperature と frustration に自然減衰を適用し、inputs の 5 番目要素が存在する場合は
+     * その値（上限 5 ）に基づいて adrenaline を漸近的に増やす。
+     *
+     * @param reward 即時の報酬（正で好結果、負で罰則）
+     * @param inputs センサーや環境情報の配列。length >= 5 のとき inputs[4] がアドレナリン調整に使われる（値は 5 を上限として正規化される）
+     */
     private void updateInternalState(float reward, float[] inputs) {
         // 報酬による冷却、ペナルティによる加熱
         if (reward > 0) {
@@ -102,6 +131,12 @@ public class NativeQEngine {
         }
     }
 
+    /**
+     * 状態に応じて行動を選択する。温度で拡張されたε-greedy戦略を用い、Q値・Hamiltonianバイアス・感情バイアスの合計スコアで最良アクションを決定する。
+     *
+     * @param state 選択対象の状態インデックス（0 以上 STATE_COUNT-1 以下を想定）
+     * @return 選択されたアクションのインデックス（0..ACTION_COUNT-1） 
+     */
     private int selectAction(int state) {
         // GAS状態 (温度が高い) 時はランダム性を増やす
         float epsilon = BASE_EPSILON * (1.0f + systemTemperature);
@@ -130,6 +165,12 @@ public class NativeQEngine {
         return bestAction;
     }
 
+    /**
+     * 指定した行動に対する感情的および予測に基づくバイアスを計算する。
+     *
+     * @param actionIdx 0〜7の行動インデックス
+     * @return 指定された行動に対するバイアス値。正の値はその行動を促進し、負の値は抑制する。 
+     */
     private float calculateEmotionalBias(int actionIdx) {
         // 攻撃が予測される瞬間のバイアス
         float predictiveBias = 0.0f;
@@ -149,15 +190,65 @@ public class NativeQEngine {
         };
     }
 
-    // Getters & Setters
+    /**
+ * 敵の攻撃が差し迫っている度合い（臨近度）を設定する。
+ *
+ * @param imminence 攻撃の臨近度を表す値。通常は 0.0（無）〜1.0（非常に差し迫っている）の範囲で扱われ、値が大きいほど防御的・回避的なバイアスが強くなります。
+ */
     public void setEnemyAttackImminence(float imminence) { this.enemyAttackImminence = imminence; }
-    public float getSystemTemperature() { return systemTemperature; }
-    public void setSystemTemperature(float temp) { this.systemTemperature = temp; }
-    public float getFrustration() { return frustration; }
-    public float getAdrenaline() { return adrenaline; }
-    public float[] getNeuronStates() { return neuronStates; }
-    public void setNeuronState(int idx, float val) { if (idx >= 0 && idx < 4) neuronStates[idx] = val; }
-    public float getGliaActivity() { return frustration * 0.5f; } // 簡易実装
+    /**
+ * エンジンの現在のシステム温度を取得する。
+ *
+ * @return 現在のシステム温度（行動選択や学習率の調整に用いるスカラー値）。
+ */
+public float getSystemTemperature() { return systemTemperature; }
+    /**
+ * エージェントの内部「systemTemperature」を設定する。
+ *
+ * 値は学習率や探索率のスケーリングに使われる内部温度として扱われる。
+ *
+ * @param temp 新しい内部温度（特別な検証は行わないので必要に応じて呼び出し側で範囲を管理する）
+ */
+public void setSystemTemperature(float temp) { this.systemTemperature = temp; }
+    /**
+ * 現在のフラストレーション値を取得する。
+ *
+ * @return 現在のフラストレーション（通常は 0.0 から 1.0 の範囲）
+ */
+public float getFrustration() { return frustration; }
+    /**
+ * アドレナリンの現在値を取得する。
+ *
+ * @return 現在のアドレナリン値
+ */
+public float getAdrenaline() { return adrenaline; }
+    /**
+ * 攻撃性・恐怖・戦術・反射の4つのニューロン様状態を取得する。
+ *
+ * @return 長さ4のfloat配列 `[攻撃性, 恐怖, 戦術, 反射]`。配列は内部状態の参照を返すため、要素を変更するとエンジン内部の状態も変更される。
+ */
+public float[] getNeuronStates() { return neuronStates; }
+    /**
+ * 指定したインデックスのニューロン状態（攻撃、恐怖、戦術、反射の順）を設定する。
+ *
+ * @param idx  ニューロンのインデックス（0: 攻撃, 1: 恐怖, 2: 戦術, 3: 反射）。範囲外の値は無視される。
+ * @param val  設定する状態値
+ */
+public void setNeuronState(int idx, float val) { if (idx >= 0 && idx < 4) neuronStates[idx] = val; }
+    /**
+ * グリア活動の簡易的な指標を取得する。
+ *
+ * <p>内部状態 `frustration` の値に基づく単純なプロキシとして振る舞う。</p>
+ *
+ * @return 内部の `frustration` 値の 0.5 倍
+ */
+public float getGliaActivity() { return frustration * 0.5f; } /**
+     * 指定した状態と行動に対応するQ値を取得する。
+     *
+     * @param state 対象の状態インデックス（有効範囲: 0〜511）
+     * @param actionIdx 対象の行動インデックス（有効範囲: 0〜7）
+     * @return 指定した状態と行動のQ値。stateが有効範囲外の場合は0.0を返す。
+     */
     public double getActionScore(int state, int actionIdx) {
         if (state < 0 || state >= STATE_COUNT) return 0.0;
         return qTable[state * ACTION_COUNT + actionIdx];
