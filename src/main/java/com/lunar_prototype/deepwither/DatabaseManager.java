@@ -30,6 +30,16 @@ public class DatabaseManager implements IManager, IDatabaseManager {
         this.plugin = plugin;
     }
 
+    /**
+     * データベース接続プールを構成・作成し、必要なテーブルおよびSQLite固有の設定を初期化する。
+     *
+     * <p>プラグイン設定からデータベース種別（MySQLまたはSQLite）と接続設定を読み取り、
+     * HikariCP の設定を作成してデータソースを生成します。SQLite の場合はデータベースファイルを
+     * プラグインフォルダに作成し、WALモードと `synchronous=NORMAL` を有効化します。最後にテーブル
+     * 作成処理を呼び出してスキーマを初期化します。</p>
+     *
+     * @throws Exception 初期化処理中に接続確立、JDBC設定適用、PRAGMA実行、またはテーブル初期化でエラーが発生した場合
+     */
     @Override
     public void init() throws Exception {
         org.bukkit.configuration.file.FileConfiguration config = plugin.getConfig();
