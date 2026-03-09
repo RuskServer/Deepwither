@@ -1,7 +1,5 @@
 package com.lunar_prototype.deepwither.seeker;
 
-import com.lunar_prototype.dark_singularity_api.Singularity;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,7 +21,15 @@ public class BanditKnowledgeBase {
     private static final int ACT_BURST_DASH = 6;
     private static final int ACT_ORBITAL_SLIDE = 7;
 
-    public static void inject(Singularity singularity) {
+    /**
+     * 量子化された全状態空間を走査してハミルトニアン規則（状態→行動＋強度）を生成し、指定したエンジンに登録する。
+     *
+     * このメソッドは内部で各状態をデコードし（優位度・距離・HP・回復中フラグ・敵数など）、生存、本能的攻撃、接近、包囲対策、回復時防御の一連のルールに基づいてルール群を構築してから
+     * NativeQEngine#registerHamiltonianRules に配列として渡します。
+     *
+     * @param engine ルールを受け取る対象の NativeQEngine インスタンス
+     */
+    public static void inject(NativeQEngine engine) {
         List<Integer> conditions = new ArrayList<>();
         List<Integer> actions = new ArrayList<>();
         List<Float> strengths = new ArrayList<>();
@@ -77,9 +83,19 @@ public class BanditKnowledgeBase {
         float[] sArray = new float[strengths.size()];
         for (int i = 0; i < strengths.size(); i++) sArray[i] = strengths.get(i);
 
-        singularity.registerHamiltonianRules(cArray, aArray, sArray);
+        engine.registerHamiltonianRules(cArray, aArray, sArray);
     }
 
+    /**
+     * 状態と対応する行動および強度を与えられたリストへ追加する。
+     *
+     * @param c      ルールの条件（状態インデックス）を格納する整数リスト
+     * @param a      ルールの行動（行動インデックス）を格納する整数リスト
+     * @param s      ルールの強度を格納する浮動小数点リスト
+     * @param state  追加する状態のインデックス
+     * @param action 追加する行動のインデックス
+     * @param strength 追加するルールの強度（影響度）
+     */
     private static void addRule(List<Integer> c, List<Integer> a, List<Float> s, int state, int action, float strength) {
         c.add(state);
         a.add(action);

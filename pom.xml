@@ -213,10 +213,6 @@
             <version>1.28.0</version>
             <scope>provided</scope>
         </dependency>
-        <dependency>
-            <groupId>com.lunar_prototype</groupId>
-            <artifactId>dark_singularity_api</artifactId>
-            <version>1.3.2</version> <!-- 最新バージョン -->
-        </dependency>
+
     </dependencies>
 </project>

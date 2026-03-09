@@ -37,6 +37,18 @@ public class SeekerAIEngine implements IManager {
         brainStorage.clear();
     }
 
+    /**
+     * アクティブなMobを対象に環境を感知し、近隣の影響を学習して適切なエンジン版で推論を行い、その決定に基づいて行動を実行する。
+     *
+     * <p>処理内容:
+     * - センサーで環境情報と近接の隠れ場所を取得する。
+     * - 対象のUUIDに紐づく脳 (LiquidBrain) を取得または生成し、観察と学習を行う。
+     * - 対象のレベルに応じて推論エンジンのバージョンを選択し、推論時間を計測する。
+     * - 推論結果と脳のネイティブメトリクス（Q値、体温、フラストレーション、アドレナリン、戦闘優位など）をログ出力する。
+     * - 対象が生存していればアクチュエータで行動を実行し、死亡していれば脳を破棄してストレージから削除する。
+     *
+     * @param activeMob 処理対象のアクティブMob。Bukkitエンティティが存在し、かつMobでない場合は何も行わず戻る。
+     */
     public void tick(ActiveMob activeMob) {
         if (activeMob.getEntity() == null || !(activeMob.getEntity().getBukkitEntity() instanceof Mob)) return;
         Mob bukkitMob = (Mob) activeMob.getEntity().getBukkitEntity();
@@ -63,16 +75,21 @@ public class SeekerAIEngine implements IManager {
         double durationMs = (endTime - startTime) / 1_000_000.0; // ナノ秒をミリ秒に変換
         // -----------------------
 
-        // 4. ログ出力 (推論時間を追加)
+        // 4. ログ出力 (v5 Native Metrics)
         String uuidShort = uuid.toString().substring(0, 4);
-        // 0.05ms以下なら非常に軽量、1.0msを超え始めると最適化の検討が必要な目安です
-        System.out.println(String.format("[%s-%s][%s] Action: %s | Time: %.3fms | %s",
+        double qScore = brain.getNativeScore(brain.lastActionIdx); // 行動の期待値
+
+        System.out.println(String.format("[%s-%s][%s] Action: %s (Q:%.2f) | Time: %.3fms | T:%.2f F:%.2f Adr:%.2f Adv:%.2f",
                 activeMob.getType().getInternalName(),
                 uuidShort,
                 decision.engine_version,
                 decision.decision.action_type,
+                qScore,
                 durationMs,
-                decision.reasoning));
+                brain.systemTemperature,
+                brain.frustration,
+                brain.adrenaline,
+                brain.tacticalMemory.combatAdvantage));
 
         // 5. 行動実行
         if (!bukkitMob.isDead()) {

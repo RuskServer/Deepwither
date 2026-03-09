@@ -89,11 +89,19 @@ public class CombatExperienceListener implements Listener, IManager {
         }
     }
 
+    /**
+     * 指定したモブの脳に報酬を加算する。
+     *
+     * 指定された量を脳の `accumulatedReward` に加え、存在する場合のみ適用する。
+     *
+     * @param mob    報酬を適用する対象のモブ
+     * @param amount 加算する報酬量（正の値で報酬、負の値でペナルティ相当）
+     */
     private void handleReward(Mob mob, float amount) {
         getBrain(mob).ifPresent(brain -> {
             brain.accumulatedReward += amount;
             // 自己攻撃リズムの記録
-            brain.recordSelfAttack(mob.getTicksLived());
+            //brain.recordSelfAttack(mob.getTicksLived());
         });
     }
 

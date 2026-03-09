@@ -13,6 +13,7 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.*;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 @DependsOn({DatabaseManager.class, CacheManager.class})
 public class SkilltreeManager implements IManager {
@@ -46,46 +47,81 @@ public class SkilltreeManager implements IManager {
         DW.cache().getCache(uuid).remove(SkillData.class);
     }
 
+    /**
+     * 非同期でスキルデータをロードします。
+     * @param uuid 対象プレイヤーの UUID
+     * @return SkillData を含む CompletableFuture
+     */
+    public CompletableFuture<SkillData> loadAsync(UUID uuid) {
+        SkillData cached = DW.cache().getCache(uuid).get(SkillData.class);
+        if (cached != null) {
+            return CompletableFuture.completedFuture(cached);
+        }
+
+        return CompletableFuture.supplyAsync(() -> load(uuid), Deepwither.getInstance().getAsyncExecutor());
+    }
+
+    /**
+     * 指定したプレイヤーのスキルデータをキャッシュから取得し、存在しない場合は永続化層から読み込んで返します。
+     *
+     * <p>注意: メインスレッドから呼び出すとサーバーラグの原因となります。可能な限り {@link #loadAsync(UUID)} を使用してください。</p>
+     *
+     * @param uuid 対象プレイヤーの UUID
+     * @return 取得したまたは生成してキャッシュした SkillData
+     */
     public SkillData load(UUID uuid) {
         SkillData cached = DW.cache().getCache(uuid).get(SkillData.class);
         if (cached != null) {
             return cached;
         }
 
-        try (Connection conn = db.getConnection();
-             PreparedStatement ps = conn.prepareStatement(
-                "SELECT skill_point, skills FROM player_skilltree WHERE uuid = ?")) {
-            ps.setString(1, uuid.toString());
-            try (ResultSet rs = ps.executeQuery()) {
-                SkillData data;
-                if (rs.next()) {
-                    int skillPoint = rs.getInt("skill_point");
-                    String skillsJson = rs.getString("skills");
-                    Map<String, Integer> skillsMap = new HashMap<>();
+        db.checkMainThread();
 
-                    if (skillsJson != null && !skillsJson.isEmpty()) {
-                        skillsMap = gson.fromJson(skillsJson, new TypeToken<Map<String, Integer>>(){}.getType());
+        // 二重ロード防止のための同期化。
+        synchronized (this) {
+            cached = DW.cache().getCache(uuid).get(SkillData.class);
+            if (cached != null) return cached;
+
+            try (Connection conn = db.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(
+                    "SELECT skill_point, skills FROM player_skilltree WHERE uuid = ?")) {
+                ps.setString(1, uuid.toString());
+                try (ResultSet rs = ps.executeQuery()) {
+                    SkillData data;
+                    if (rs.next()) {
+                        int skillPoint = rs.getInt("skill_point");
+                        String skillsJson = rs.getString("skills");
+                        Map<String, Integer> skillsMap = new HashMap<>();
+
+                        if (skillsJson != null && !skillsJson.isEmpty()) {
+                            skillsMap = gson.fromJson(skillsJson, new TypeToken<Map<String, Integer>>(){}.getType());
+                        }
+
+                        data = new SkillData(skillPoint, skillsMap);
+                    } else {
+                        // ユーザーが見つからない場合はデフォルトデータを生成してキャッシュする
+                        data = new SkillData(1, new HashMap<>());
                     }
-
-                    data = new SkillData(skillPoint, skillsMap);
-                } else {
-                    data = new SkillData(1, new HashMap<>());
+                    data.recalculatePassiveStats(treeConfig);
+                    DW.cache().getCache(uuid).set(SkillData.class, data);
+                    return data;
                 }
-                data.recalculatePassiveStats(treeConfig);
-                DW.cache().getCache(uuid).set(SkillData.class, data);
-                return data;
+            } catch (SQLException e) {
+                plugin.getLogger().severe("Failed to load SkillData for " + uuid + " due to database error.");
+                throw new RuntimeException("Database error during SkillData load", e);
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
-        
-        SkillData newData = new SkillData(1, new HashMap<>());
-        newData.recalculatePassiveStats(treeConfig);
-        DW.cache().getCache(uuid).set(SkillData.class, newData);
-        return newData;
+    }
+
+    /**
+     * 非同期でスキルデータを保存します。
+     */
+    public CompletableFuture<Void> saveAsync(UUID uuid, SkillData data) {
+        return CompletableFuture.runAsync(() -> save(uuid, data), Deepwither.getInstance().getAsyncExecutor());
     }
 
     public void save(UUID uuid, SkillData data) {
+        db.checkMainThread();
         data.recalculatePassiveStats(treeConfig);
         String skillsJson = gson.toJson(data.getSkills());
         try (Connection conn = db.getConnection();
@@ -103,6 +139,13 @@ public class SkilltreeManager implements IManager {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * 非同期でスキルツリーをリセットします。
+     */
+    public CompletableFuture<Integer> resetSkillTreeAsync(UUID uuid) {
+        return CompletableFuture.supplyAsync(() -> resetSkillTree(uuid), Deepwither.getInstance().getAsyncExecutor());
     }
 
     /**

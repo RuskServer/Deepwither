@@ -22,7 +22,8 @@ public class LiquidNeuron {
     public void disconnect(LiquidNeuron target) { this.synapses.remove(target); }
 
     /**
-     * TQH Update: システム温度を第3のパラメータとして受け取る
+     * CfC (Closed-form Continuous-time) 化されたアップデートメソッド
+     * 従来の再帰的な微分計算を、指数減衰を用いた閉形式の近似解に置き換えます。
      */
     public void update(double input, double urgency, float systemTemp) {
         float synapticInput = (float) input;
@@ -31,15 +32,22 @@ public class LiquidNeuron {
             synapticInput += (float) (entry.getKey().get() * entry.getValue());
         }
 
-        // TQH: 既存の urgency に加え、温度(systemTemp)が alpha (流動性)を増大させる
-        // systemTemp 0.0(固体) -> 変化なし, 1.0+(気体) -> 激しい流動
+        // 1. 既存の流動性計算 (ここまでは共通)
         float thermalEffect = Math.max(0.0f, systemTemp * 0.4f);
         float alpha = baseDecay + ((float)urgency * (1.0f - baseDecay)) + thermalEffect;
-
         alpha = Math.max(0.01f, Math.min(1.0f, alpha));
 
-        this.state += alpha * (synapticInput - this.state);
+        // 2. CfC 近似による更新
+        // 従来の線形補間 (this.state += alpha * (diff)) を、
+        // 指数関数的な収束 (state = target + (state - target) * exp(-alpha)) に置き換え
+        float targetState = Math.max(0.0f, Math.min(1.0f, synapticInput));
 
+        // Math.exp(-alpha) を使うことで、alphaが大きくても発散せず、
+        // 反応速度0.1ms未満の超高速処理時でも数値的に安定します。
+        double decay = Math.exp(-alpha);
+        this.state = (float) (targetState + (this.state - targetState) * decay);
+
+        // 3. 範囲クランプ
         if (this.state > 1.0f) this.state = 1.0f;
         else if (this.state < 0.0f) this.state = 0.0f;
     }
