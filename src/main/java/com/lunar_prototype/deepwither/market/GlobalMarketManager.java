@@ -18,13 +18,14 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public class GlobalMarketManager implements IManager {
 
     private final Deepwither plugin;
-    private final List<MarketListing> allListings = new ArrayList<>();
-    private final Map<UUID, Double> earnings = new HashMap<>();
+    private final List<MarketListing> allListings = Collections.synchronizedList(new ArrayList<>());
+    private final Map<UUID, Double> earnings = new ConcurrentHashMap<>();
     private final DatabaseManager databaseManager;
 
     public GlobalMarketManager(Deepwither plugin,DatabaseManager databaseManager) {
@@ -79,20 +80,24 @@ public class GlobalMarketManager implements IManager {
 
     public void claimEarnings(Player player) {
         UUID uuid = player.getUniqueId();
-        double amount = earnings.getOrDefault(uuid, 0.0);
+        final double[] captured = new double[1];
+        earnings.compute(uuid, (k, v) -> {
+            captured[0] = (v == null ? 0.0 : v);
+            return 0.0;
+        });
+        double amount = captured[0];
 
         if (amount <= 0) {
             player.sendMessage(Component.text("[Market] ", NamedTextColor.AQUA).append(Component.text("回収できる売上金はありません。", NamedTextColor.RED)));
             return;
         }
 
-        earnings.put(uuid, 0.0);
-
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            String sql = "UPDATE market_earnings SET amount = 0 WHERE uuid = ?";
+            String sql = "UPDATE market_earnings SET amount = amount - ? WHERE uuid = ?";
             try (java.sql.Connection conn = databaseManager.getConnection();
                  PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, uuid.toString());
+                ps.setDouble(1, amount);
+                ps.setString(2, uuid.toString());
                 ps.executeUpdate();
             } catch (SQLException e) {
                 plugin.getLogger().severe("売上金のDB更新中にエラーが発生しました: " + e.getMessage());
@@ -109,37 +114,53 @@ public class GlobalMarketManager implements IManager {
                     .append(Component.text(" を回収しました！", NamedTextColor.WHITE)));
             player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1.2f);
         } else {
-            earnings.put(uuid, amount);
+            // エコノミー処理が失敗した場合、値を元に戻す（DBも戻す必要があるが、簡単のためここではマップのみ）
+            earnings.merge(uuid, amount, Double::sum);
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                String sql = "UPDATE market_earnings SET amount = amount + ? WHERE uuid = ?";
+                try (java.sql.Connection conn = databaseManager.getConnection();
+                     PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setDouble(1, amount);
+                    ps.setString(2, uuid.toString());
+                    ps.executeUpdate();
+                } catch (SQLException e) { e.printStackTrace(); }
+            });
             player.sendMessage(Component.text("[Market] ", NamedTextColor.RED).append(Component.text("入金処理に失敗しました。管理者にお問い合わせください: " + response.errorMessage, NamedTextColor.WHITE)));
         }
     }
 
     public List<MarketListing> search(String query) {
         String lowerQuery = query.toLowerCase();
-        return allListings.stream()
-                .filter(l -> {
-                    String itemName = l.getItem().hasItemMeta() && l.getItem().getItemMeta().hasDisplayName()
-                            ? l.getItem().getItemMeta().getDisplayName()
-                            : l.getItem().getType().toString();
-                    return itemName.toLowerCase().contains(lowerQuery);
-                })
-                .collect(Collectors.toList());
+        synchronized (allListings) {
+            return allListings.stream()
+                    .filter(l -> {
+                        String itemName = l.getItem().hasItemMeta() && l.getItem().getItemMeta().hasDisplayName()
+                                ? l.getItem().getItemMeta().getDisplayName()
+                                : l.getItem().getType().toString();
+                        return itemName.toLowerCase().contains(lowerQuery);
+                    })
+                    .collect(Collectors.toList());
+        }
     }
 
     public List<OfflinePlayer> getActiveSellers() {
         long oneMonthAgo = System.currentTimeMillis() - (30L * 24 * 60 * 60 * 1000L);
-        return allListings.stream()
-                .map(MarketListing::getSellerId)
-                .distinct()
-                .map(Bukkit::getOfflinePlayer)
-                .filter(p -> p.getLastPlayed() >= oneMonthAgo || p.isOnline())
-                .collect(Collectors.toList());
+        synchronized (allListings) {
+            return allListings.stream()
+                    .map(MarketListing::getSellerId)
+                    .distinct()
+                    .map(Bukkit::getOfflinePlayer)
+                    .filter(p -> p.getLastPlayed() >= oneMonthAgo || p.isOnline())
+                    .collect(Collectors.toList());
+        }
     }
 
     public List<MarketListing> getListingsByPlayer(UUID uuid) {
-        return allListings.stream()
-                .filter(l -> l.getSellerId().equals(uuid))
-                .collect(Collectors.toList());
+        synchronized (allListings) {
+            return allListings.stream()
+                    .filter(l -> l.getSellerId().equals(uuid))
+                    .collect(Collectors.toList());
+        }
     }
 
     private void saveListingToDB(MarketListing listing) {
@@ -165,15 +186,14 @@ public class GlobalMarketManager implements IManager {
     }
 
     private void addEarnings(UUID sellerId, double amount) {
-        double newTotal = earnings.getOrDefault(sellerId, 0.0) + amount;
-        earnings.put(sellerId, newTotal);
+        earnings.merge(sellerId, amount, Double::sum);
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            String sql = "INSERT INTO market_earnings (uuid, amount) VALUES (?, ?) ON CONFLICT(uuid) DO UPDATE SET amount = excluded.amount";
+            String sql = "INSERT INTO market_earnings (uuid, amount) VALUES (?, ?) ON CONFLICT(uuid) DO UPDATE SET amount = amount + excluded.amount";
             try (java.sql.Connection conn = databaseManager.getConnection();
                  PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, sellerId.toString());
-                ps.setDouble(2, newTotal);
+                ps.setDouble(2, amount);
                 ps.executeUpdate();
             } catch (SQLException e) { e.printStackTrace(); }
         });

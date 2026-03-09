@@ -21,3 +21,8 @@ database:
     connection-timeout: 30000 # 30秒
     idle-timeout: 600000 # 10分
     max-lifetime: 1800000 # 30分
+  
+  # メインスレッドでのDB操作を禁止するかどうか
+  # true の場合、メインスレッドでDB操作が行われると例外をスローします。
+  # false の場合、警告ログを出力します。
+  fail-fast: false

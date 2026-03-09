@@ -206,6 +206,7 @@ public class LiquidBrain {
         }
         p.lastAttackTick = now;
         p.preferredDist = (p.preferredDist * 0.95) + (distance * 0.05);
+        p.sampleCount++;
         if (isMiss) tacticalMemory.myMisses++; else tacticalMemory.myHits++;
     }
 

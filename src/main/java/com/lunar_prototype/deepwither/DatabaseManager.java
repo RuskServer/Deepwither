@@ -22,12 +22,26 @@ import java.util.function.Function;
 public class DatabaseManager implements IManager, IDatabaseManager {
     private final JavaPlugin plugin;
     private HikariDataSource dataSource;
+    private boolean failFast = false;
     private final Gson gson = new GsonBuilder()
             .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
             .create();
 
     public DatabaseManager(JavaPlugin plugin) {
         this.plugin = plugin;
+    }
+
+    public void checkMainThread() {
+        if (org.bukkit.Bukkit.isPrimaryThread()) {
+            String message = "Blocking database call on main thread! This causes server lag. Please use async methods.";
+            if (failFast) {
+                throw new RuntimeException(message);
+            } else {
+                plugin.getLogger().warning(message);
+                // スタックトレースを出力して呼び出し元を特定しやすくする
+                new Throwable().printStackTrace();
+            }
+        }
     }
 
     /**
@@ -43,6 +57,7 @@ public class DatabaseManager implements IManager, IDatabaseManager {
     @Override
     public void init() throws Exception {
         org.bukkit.configuration.file.FileConfiguration config = plugin.getConfig();
+        this.failFast = config.getBoolean("database.fail-fast", false);
         String type = config.getString("database.type", "sqlite").toLowerCase();
 
         HikariConfig hikariConfig = new HikariConfig();

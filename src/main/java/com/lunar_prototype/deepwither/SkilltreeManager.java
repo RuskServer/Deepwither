@@ -13,6 +13,7 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.*;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 @DependsOn({DatabaseManager.class, CacheManager.class})
 public class SkilltreeManager implements IManager {
@@ -47,11 +48,23 @@ public class SkilltreeManager implements IManager {
     }
 
     /**
+     * 非同期でスキルデータをロードします。
+     * @param uuid 対象プレイヤーの UUID
+     * @return SkillData を含む CompletableFuture
+     */
+    public CompletableFuture<SkillData> loadAsync(UUID uuid) {
+        SkillData cached = DW.cache().getCache(uuid).get(SkillData.class);
+        if (cached != null) {
+            return CompletableFuture.completedFuture(cached);
+        }
+
+        return CompletableFuture.supplyAsync(() -> load(uuid), Deepwither.getInstance().getAsyncExecutor());
+    }
+
+    /**
      * 指定したプレイヤーのスキルデータをキャッシュから取得し、存在しない場合は永続化層から読み込んで返します。
      *
-     * キャッシュに見つからない場合はデータベースから読み込み、読み込んだデータに対してツリー設定を基に受動効果を再計算してキャッシュに格納します。
-     * 読み込みに失敗した場合はスキルポイント1、空の習得スキルを持つデフォルトの SkillData を生成して同様に再計算・キャッシュして返します。
-     * メインスレッドからの呼び出しでブロッキングな読み込みが発生する場合は警告を出力します。
+     * <p>注意: メインスレッドから呼び出すとサーバーラグの原因となります。可能な限り {@link #loadAsync(UUID)} を使用してください。</p>
      *
      * @param uuid 対象プレイヤーの UUID
      * @return 取得したまたは生成してキャッシュした SkillData
@@ -62,15 +75,12 @@ public class SkilltreeManager implements IManager {
             return cached;
         }
 
-        // 二重ロード防止のための簡易的な同期化。
-        // キャッシュにない場合はDBから読み込む。
+        db.checkMainThread();
+
+        // 二重ロード防止のための同期化。
         synchronized (this) {
             cached = DW.cache().getCache(uuid).get(SkillData.class);
             if (cached != null) return cached;
-
-            if (org.bukkit.Bukkit.isPrimaryThread()) {
-                plugin.getLogger().warning("Blocking database call for SkillData on main thread for " + uuid + ". This may cause lag.");
-            }
 
             try (Connection conn = db.getConnection();
                  PreparedStatement ps = conn.prepareStatement(
@@ -89,6 +99,7 @@ public class SkilltreeManager implements IManager {
 
                         data = new SkillData(skillPoint, skillsMap);
                     } else {
+                        // ユーザーが見つからない場合はデフォルトデータを生成してキャッシュする
                         data = new SkillData(1, new HashMap<>());
                     }
                     data.recalculatePassiveStats(treeConfig);
@@ -96,17 +107,21 @@ public class SkilltreeManager implements IManager {
                     return data;
                 }
             } catch (SQLException e) {
-                e.printStackTrace();
+                plugin.getLogger().severe("Failed to load SkillData for " + uuid + " due to database error.");
+                throw new RuntimeException("Database error during SkillData load", e);
             }
         }
-        
-        SkillData newData = new SkillData(1, new HashMap<>());
-        newData.recalculatePassiveStats(treeConfig);
-        DW.cache().getCache(uuid).set(SkillData.class, newData);
-        return newData;
+    }
+
+    /**
+     * 非同期でスキルデータを保存します。
+     */
+    public CompletableFuture<Void> saveAsync(UUID uuid, SkillData data) {
+        return CompletableFuture.runAsync(() -> save(uuid, data), Deepwither.getInstance().getAsyncExecutor());
     }
 
     public void save(UUID uuid, SkillData data) {
+        db.checkMainThread();
         data.recalculatePassiveStats(treeConfig);
         String skillsJson = gson.toJson(data.getSkills());
         try (Connection conn = db.getConnection();
@@ -124,6 +139,13 @@ public class SkilltreeManager implements IManager {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * 非同期でスキルツリーをリセットします。
+     */
+    public CompletableFuture<Integer> resetSkillTreeAsync(UUID uuid) {
+        return CompletableFuture.supplyAsync(() -> resetSkillTree(uuid), Deepwither.getInstance().getAsyncExecutor());
     }
 
     /**

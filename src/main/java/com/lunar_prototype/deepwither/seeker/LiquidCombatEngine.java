@@ -180,12 +180,11 @@ public class LiquidCombatEngine {
      * @param tacticalMemory  更新対象の戦術記憶（combatAdvantage を変更する）
      */
     public void updateTacticalAdvantage(Mob self, LiquidBrain brain, LiquidBrain.TacticalMemory tacticalMemory) {
-        if (self.getTarget() == null) {
+
+        if (!(self.getTarget() instanceof Player target)) {
             tacticalMemory.combatAdvantage *= 0.9;
             return;
         }
-
-        Player target = (Player) self.getTarget();
 
         Vector toSelf = self.getLocation().toVector().subtract(target.getLocation().toVector()).normalize();
         brain.attentionLevel = (float) target.getLocation().getDirection().dot(toSelf);

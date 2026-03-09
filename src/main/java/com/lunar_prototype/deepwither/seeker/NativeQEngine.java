@@ -54,9 +54,10 @@ public class NativeQEngine {
             int action = actions[i];
             float strength = strengths[i];
             if (state >= 0 && state < STATE_COUNT && action >= 0 && action < ACTION_COUNT) {
-                actionStrengths[state * ACTION_COUNT + action] = strength;
+                int idx = state * ACTION_COUNT + action;
+                actionStrengths[idx] += strength;
                 // 初期Q値にも反映させておく
-                qTable[state * ACTION_COUNT + action] = strength * 0.5f;
+                qTable[idx] += strength * 0.5f;
             }
         }
     }
@@ -73,6 +74,9 @@ public class NativeQEngine {
      * @return 選択された行動のインデックス（0 から ACTION_COUNT-1 の範囲）
      */
     public int update(int currentState, float reward, float[] inputs) {
+        if (currentState < 0 || currentState >= STATE_COUNT) return 0;
+        float[] safeInputs = (inputs != null) ? inputs : new float[0];
+
         // 1. TD学習 (前回の遷移を評価)
         if (lastState != -1 && lastAction != -1) {
             float oldQ = qTable[lastState * ACTION_COUNT + lastAction];
@@ -88,7 +92,7 @@ public class NativeQEngine {
         }
 
         // 2. パラメータの更新 (TQHシミュレーション)
-        updateInternalState(reward, inputs);
+        updateInternalState(reward, safeInputs);
 
         // 3. 行動選択 (Softmax or Epsilon-Greedy)
         int selectedAction = selectAction(currentState);
@@ -250,7 +254,7 @@ public float getGliaActivity() { return frustration * 0.5f; } /**
      * @return 指定した状態と行動のQ値。stateが有効範囲外の場合は0.0を返す。
      */
     public double getActionScore(int state, int actionIdx) {
-        if (state < 0 || state >= STATE_COUNT) return 0.0;
+        if (state < 0 || state >= STATE_COUNT || actionIdx < 0 || actionIdx >= ACTION_COUNT) return 0.0;
         return qTable[state * ACTION_COUNT + actionIdx];
     }
 }
