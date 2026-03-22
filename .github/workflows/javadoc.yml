@@ -1,8 +1,8 @@
-name: Deploy Javadoc
+name: Build and Deploy Javadoc
 
 on:
   push:
-    branches: [ "master" ]  # mainにpushされたら毎回リリース
+    branches: [ "master" ]
 
 permissions:
   contents: read
@@ -10,7 +10,7 @@ permissions:
   id-token: write
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -19,24 +19,32 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          java-version: '21' # 使用するJavaのバージョン
+          java-version: '21'
           distribution: 'temurin'
           cache: 'maven'
 
+      # 1. 通常のビルド (テスト実行 + JAR作成)
+      - name: Build with Maven
+        run: mvn clean package
+
+      # 2. Javadocの生成
       - name: Generate Javadoc
         run: mvn javadoc:javadoc -Dencoding=UTF-8 -Dcharset=UTF-8
 
-      - name: Debug - List files
-        run: |
-          echo "Listing target directory structure:"
-          ls -R target/site 2>/dev/null || echo "target/site not found"
-          find . -name "index.html" | grep apidocs # index.htmlの場所を検索
+      # 3. ビルド成果物 (JARファイル等) をGitHub上に保存
+      # GitHub Actionsの「Summary」タブからダウンロード可能になります
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-assets
+          path: target/*.jar
 
-      - name: Upload artifact
+      # 4. JavadocをGitHub Pages用にアップロード
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Mavenのデフォルト出力先
           path: 'target/reports/apidocs'
 
+      # 5. GitHub Pagesへのデプロイ
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
