@@ -2,6 +2,7 @@ package com.lunar_prototype.deepwither.market.api;
 
 import com.google.gson.Gson;
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.api.patch.PatchNoteDTO;
 import com.lunar_prototype.deepwither.market.GlobalMarketManager;
 import com.lunar_prototype.deepwither.market.MarketListing;
 import com.lunar_prototype.deepwither.util.DependsOn;
@@ -10,6 +11,9 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import github.scarsz.discordsrv.DiscordSRV;
+import github.scarsz.discordsrv.dependencies.jda.api.JDA;
+import github.scarsz.discordsrv.dependencies.jda.api.entities.Message;
+import github.scarsz.discordsrv.dependencies.jda.api.entities.TextChannel;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -28,6 +32,7 @@ public class MarketApiController implements IManager {
     private GlobalMarketManager marketManager;
     private HttpServer server;
     private final Gson gson = new Gson();
+    private static final String PATCH_CHANNEL_ID = "1454165342317318214";
 
     public MarketApiController(Deepwither plugin) {
         this.plugin = plugin;
@@ -48,15 +53,16 @@ public class MarketApiController implements IManager {
         try {
             server = HttpServer.create(new InetSocketAddress(port), 0);
 
-            // 従来の特定プレイヤー検索: /api/market?discordId=...
+            // マーケットAPI
             server.createContext("/api/market", new MarketHandler());
-
-            // 追加: 全出品アイテム取得: /api/market/all
             server.createContext("/api/market/all", new AllListingsHandler());
+
+            // パッチノートAPI
+            server.createContext("/api/patches/latest", new PatchNoteHandler());
 
             server.setExecutor(null);
             server.start();
-            plugin.getLogger().info("Market API Server started on port " + port);
+            plugin.getLogger().info("Market & Patch API Server started on port " + port);
         } catch (IOException e) {
             plugin.getLogger().severe("APIサーバーの起動に失敗しました: " + e.getMessage());
         }
@@ -67,14 +73,62 @@ public class MarketApiController implements IManager {
     }
 
     /**
-     * 新規追加: 全出品アイテムを返すハンドラー
+     * パッチノート取得用ハンドラー
+     */
+    private class PatchNoteHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            setCommonHeaders(exchange);
+
+            JDA jda = DiscordSRV.getPlugin().getJda();
+            if (jda == null) {
+                sendResponse(exchange, 503, Map.of("error", "Bot is not ready"));
+                return;
+            }
+
+            TextChannel channel = jda.getTextChannelById(PATCH_CHANNEL_ID);
+            if (channel == null) {
+                sendResponse(exchange, 404, Map.of("error", "Channel not found"));
+                return;
+            }
+
+            try {
+                // JDA 4系では retrievePast(1).complete() は List<Message> を返します
+                List<Message> history = channel.getHistory().retrievePast(1).complete();
+                if (history.isEmpty()) {
+                    sendResponse(exchange, 200, Map.of("title", "No Update", "content", "ログが見つかりませんでした。"));
+                    return;
+                }
+
+                Message latestMsg = history.get(0);
+                PatchNoteDTO dto = parsePatchNote(latestMsg.getContentRaw());
+                sendResponse(exchange, 200, dto);
+            } catch (Exception e) {
+                sendResponse(exchange, 500, Map.of("error", e.getMessage()));
+            }
+        }
+    }
+
+    private PatchNoteDTO parsePatchNote(String content) {
+        String[] lines = content.trim().split("\n");
+        String title = lines.length > 0 ? lines[0] : "New Update";
+        
+        int firstNewLine = content.indexOf("\n");
+        String body = firstNewLine != -1 ? content.substring(firstNewLine).trim() : "";
+        
+        String cleanContent = body.replaceAll("(?s)```(diff)?", "").replace("```", "").trim();
+        
+        return new PatchNoteDTO(title, cleanContent, List.of("Update", "Live"));
+    }
+
+    /**
+     * 全出品アイテムを返すハンドラー
      */
     private class AllListingsHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             setCommonHeaders(exchange);
 
-            // 全出品を取得
             List<MarketListing> allListings = marketManager.getAllListings();
             List<MarketListingDTO> dtos = allListings.stream()
                     .map(MarketListingDTO::new)
@@ -89,12 +143,11 @@ public class MarketApiController implements IManager {
     }
 
     /**
-     * 従来のハンドラー（特定プレイヤー用）
+     * 特定プレイヤー用マーケットハンドラー
      */
     private class MarketHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            // パスが完全に "/api/market" の場合のみ処理 ( /api/market/all に干渉しないため)
             if (!exchange.getRequestURI().getPath().equals("/api/market")) {
                 sendResponse(exchange, 404, Map.of("error", "Not Found"));
                 return;
@@ -124,7 +177,6 @@ public class MarketApiController implements IManager {
         }
     }
 
-    // ヘッダー設定の共通化
     private void setCommonHeaders(HttpExchange exchange) {
         exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
         exchange.getResponseHeaders().add("Content-Type", "application/json; charset=UTF-8");
