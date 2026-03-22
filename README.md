@@ -15,8 +15,9 @@
 最新のビルド（JARファイル）は、弊社のビルドサーバーから自動生成されています。
 
 > [!TIP]
-> **[Latest Jenkins Builds](https://build.ruskserver.com/job/deepwither/)**
-> 常に最新の成果物を取得するには上記リンクを確認してください。
+> ~~**[Latest Jenkins Builds](https://build.ruskserver.com/job/deepwither/)**~~
+> ~~常に最新の成果物を取得するには上記リンクを確認してください。~~ 
+> 2026年3月23日を持って廃止されました
 
 ## 🛠️ サポートとポリシー (Support Policy)
 
