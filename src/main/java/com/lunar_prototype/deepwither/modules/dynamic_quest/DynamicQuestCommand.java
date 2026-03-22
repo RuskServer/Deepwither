@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither.modules.dynamic_quest;
 
+import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.modules.dynamic_quest.enums.QuestType;
 import com.lunar_prototype.deepwither.modules.dynamic_quest.obj.QuestLocation;
 import com.lunar_prototype.deepwither.modules.dynamic_quest.repository.QuestLocationRepository;
@@ -7,17 +8,23 @@ import com.lunar_prototype.deepwither.modules.dynamic_quest.service.QuestNPCMana
 import com.lunar_prototype.deepwither.modules.dynamic_quest.service.QuestService;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
+import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
 
 public class DynamicQuestCommand implements CommandExecutor {
 
+    private final Deepwither plugin;
     private final QuestNPCManager npcManager;
     private final QuestService questService;
     private final QuestLocationRepository repository;
@@ -25,11 +32,13 @@ public class DynamicQuestCommand implements CommandExecutor {
     /**
      * Create a DynamicQuestCommand with its required collaborators.
      *
+     * @param plugin       the main plugin instance
      * @param npcManager   manager responsible for spawning and refreshing quest NPCs and querying NPC layers
      * @param questService service that handles quest actions (accepting and reporting)
      * @param repository   repository for loading, retrieving, and storing quest locations
      */
-    public DynamicQuestCommand(QuestNPCManager npcManager, QuestService questService, QuestLocationRepository repository) {
+    public DynamicQuestCommand(Deepwither plugin, QuestNPCManager npcManager, QuestService questService, QuestLocationRepository repository) {
+        this.plugin = plugin;
         this.npcManager = npcManager;
         this.questService = questService;
         this.repository = repository;
@@ -43,6 +52,7 @@ public class DynamicQuestCommand implements CommandExecutor {
      * - spawn: force-spawn an NPC at the player's current location
      * - reload: reload location data and refresh NPCs
      * - status: show the number of active NPCs
+     * - cleanup: manually remove ghost NPCs from all loaded chunks
      * - addloc {@code <type>} {@code <name>} [1|2]: add or update a quest location position (pos 1 or 2)
      * - accept {@code <questid>}: accept the specified quest
      * - decline {@code <questid>}: decline the specified quest
@@ -84,6 +94,23 @@ public class DynamicQuestCommand implements CommandExecutor {
 
         if (action.equals("status")) {
             player.sendMessage(Component.text("Active NPCs: " + npcManager.getActiveNPCs().size(), NamedTextColor.AQUA));
+            return true;
+        }
+
+        if (action.equals("cleanup")) {
+            int count = 0;
+            NamespacedKey key = new NamespacedKey(plugin, "quest_npc");
+            for (World world : Bukkit.getWorlds()) {
+                for (Entity entity : world.getEntities()) {
+                    if (entity.getPersistentDataContainer().has(key, PersistentDataType.BYTE)) {
+                        if (!npcManager.isNPCActive(entity.getUniqueId())) {
+                            entity.remove();
+                            count++;
+                        }
+                    }
+                }
+            }
+            player.sendMessage(Component.text("Cleaned up " + count + " ghost NPCs across all loaded chunks.", NamedTextColor.GREEN));
             return true;
         }
 

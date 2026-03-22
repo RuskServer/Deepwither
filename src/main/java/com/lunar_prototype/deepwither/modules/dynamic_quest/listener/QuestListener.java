@@ -21,6 +21,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.UUID;
@@ -39,6 +40,26 @@ public class QuestListener implements Listener {
     public QuestListener(Deepwither plugin, QuestNPCManager npcManager) {
         this.plugin = plugin;
         this.npcManager = npcManager;
+    }
+
+    /**
+     * Handles chunk loading events to physically remove any quest NPC entities that are
+     * not currently tracked by the manager.
+     *
+     * @param event the chunk load event
+     */
+    @EventHandler
+    public void onChunkLoad(ChunkLoadEvent event) {
+        NamespacedKey key = new NamespacedKey(plugin, "quest_npc");
+        for (Entity entity : event.getChunk().getEntities()) {
+            if (entity.getPersistentDataContainer().has(key, PersistentDataType.BYTE)) {
+                if (!npcManager.isNPCActive(entity.getUniqueId())) {
+                    entity.remove();
+                    plugin.getLogger().info("[DynamicQuest] Cleaned up ghost NPC on chunk load at " + 
+                            entity.getLocation().getBlockX() + ", " + entity.getLocation().getBlockZ());
+                }
+            }
+        }
     }
 
     /**

@@ -112,11 +112,14 @@ public class QuestNPCManager {
     public void refreshNPCs() {
         // 1. Logical Cleanup: Remove expired, completed, or unaccepted NPCs from tracking
         activeNPCs.removeIf(npc -> {
-            boolean shouldRemove = npc.getQuest().getStatus() == DynamicQuest.QuestStatus.CREATED
-                    || npc.getQuest().isExpired()
+            // Only remove CREATED quests if they are expired (preventing mass spawning during overlap)
+            boolean shouldRemove = (npc.getQuest().getStatus() == DynamicQuest.QuestStatus.CREATED && npc.getQuest().isExpired())
+                    || (npc.getQuest().getStatus() == DynamicQuest.QuestStatus.ACTIVE && npc.getQuest().isExpired())
                     || npc.getQuest().getStatus() == DynamicQuest.QuestStatus.COMPLETED;
+            
             if (shouldRemove) {
                 npc.despawn();
+                plugin.getLogger().info("[DynamicQuest] Removed quest NPC (ID: " + npc.getQuest().getQuestId() + ", Status: " + npc.getQuest().getStatus() + ")");
                 return true;
             }
             return false;
@@ -143,11 +146,14 @@ public class QuestNPCManager {
 
                 // 3. Count remaining tracked NPCs in this region (now only contains ACTIVE ones)
                 long currentCount = activeNPCs.stream()
-                        .filter(npc -> isLocationInRegion(npc.getLocation(), region))
+                        .filter(npc -> isLocationInRegion(world, npc.getLocation(), region))
                         .count();
 
                 // 4. Spawn new NPCs if we are below the limit
                 int toSpawn = NPCS_PER_REGION - (int) currentCount;
+                if (toSpawn > 0) {
+                    plugin.getLogger().info("[DynamicQuest] Spawning " + toSpawn + " NPCs in region " + region.getId() + " (World: " + world.getName() + ")");
+                }
                 for (int i = 0; i < toSpawn; i++) {
                     Location spawnLoc = getRandomLocationInRegion(world, region);
                     if (spawnLoc != null) {
@@ -185,9 +191,9 @@ public class QuestNPCManager {
             if (entity.getPersistentDataContainer().has(key, PersistentDataType.BYTE)) {
                 // Check if it's actually inside the region
                 if (region.contains(BukkitAdapter.asBlockVector(entity.getLocation()))) {
-                    boolean isActive = activeNPCs.stream().anyMatch(npc -> npc.isEntity(entity.getUniqueId()));
-                    if (!isActive) {
+                    if (!isNPCActive(entity.getUniqueId())) {
                         entity.remove();
+                        plugin.getLogger().warning("[DynamicQuest] Cleaned up ghost NPC entity in " + world.getName() + " at " + entity.getLocation().getBlockX() + ", " + entity.getLocation().getBlockZ());
                     }
                 }
             }
@@ -195,14 +201,16 @@ public class QuestNPCManager {
     }
 
     /**
-     * Checks whether a location is within the bounds of a WorldGuard region.
+     * Checks whether a location is within the bounds of a WorldGuard region in a specific world.
      *
+     * @param world  the world context
      * @param loc    the location to check
      * @param region the ProtectedRegion to check against
-     * @return true if the location is inside the region, false otherwise
+     * @return true if the location is inside the region and in the correct world, false otherwise
      */
-    private boolean isLocationInRegion(Location loc, ProtectedRegion region) {
+    private boolean isLocationInRegion(World world, Location loc, ProtectedRegion region) {
         if (loc == null || loc.getWorld() == null) return false;
+        if (!loc.getWorld().equals(world)) return false;
         return region.contains(BukkitAdapter.asBlockVector(loc));
     }
 
@@ -322,6 +330,17 @@ public class QuestNPCManager {
         QuestNPC npc = new QuestNPC(quest, location);
         npc.spawn();
         activeNPCs.add(npc);
+        plugin.getLogger().info("[DynamicQuest] Spawned new NPC (Type: " + type + ", Layer: " + npcLayer + ") at " + location.getBlockX() + ", " + location.getBlockZ());
+    }
+
+    /**
+     * Checks if a specific entity UUID is currently tracked as an active quest NPC.
+     *
+     * @param entityId the UUID of the entity to check
+     * @return true if tracked, false otherwise
+     */
+    public boolean isNPCActive(UUID entityId) {
+        return activeNPCs.stream().anyMatch(npc -> npc.isEntity(entityId));
     }
 
     /**

@@ -16,7 +16,7 @@ public class DynamicQuestTabCompleter implements TabCompleter {
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
         if (args.length == 1) {
-            return Arrays.asList("accept", "decline", "spawn", "reload", "status", "addloc").stream()
+            return Arrays.asList("accept", "decline", "spawn", "reload", "status", "addloc", "cleanup").stream()
                     .filter(s -> s.startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
         }
