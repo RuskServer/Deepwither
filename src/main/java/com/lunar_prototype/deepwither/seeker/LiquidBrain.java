@@ -275,7 +275,7 @@ public class LiquidBrain {
  *
  * 履歴は古い順から新しい順に並んだ BrainSnapshot のリストで、最大約500件に制限される。
  *
- * @return 履歴を格納した List<BrainSnapshot>（内部の可変リストへの参照）
+ * @return 履歴を格納した {@link BrainSnapshot}（内部の可変リストへの参照）
  */
 public List<BrainSnapshot> getCombatHistory() { return combatHistory; }
     public static class AttackPattern { public long lastAttackTick; public double averageInterval = 20.0; public double preferredDist = 3.0; public int sampleCount; }
