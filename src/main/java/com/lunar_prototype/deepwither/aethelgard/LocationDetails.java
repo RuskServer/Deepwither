@@ -105,9 +105,9 @@ public class LocationDetails implements ConfigurationSerializable {
     }
 
     /**
-     * LLMプロンプトに含めるためのロケーションテキスト（階層情報を含む）を生成します。
+     * 表示用にフォーマットされたロケーションテキスト（階層情報を含む）を生成します。
      */
-    public String getLlmLocationText() {
+    public String getFormattedLocationText() {
         return String.format("%s (%s)", name, hierarchy);
     }
 }

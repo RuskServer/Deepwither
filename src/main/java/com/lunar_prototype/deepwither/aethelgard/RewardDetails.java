@@ -97,10 +97,10 @@ public class RewardDetails implements ConfigurationSerializable {
     }
 
     /**
-     * LLMプロンプトやUI表示に含めるための報酬テキストを生成します。
+     * 表示用にフォーマットされた報酬テキストを生成します。
      * 表示名と個数をここで結合することで、QuestGenerator側の結合処理を不要にします。
      */
-    public String getLlmRewardText() {
+    public String getFormattedRewardText() {
         // 例: "小さな回復薬 x3"
         String itemText = String.format("%s x%d", this.itemRewardDisplayName, this.itemQuantity);
 

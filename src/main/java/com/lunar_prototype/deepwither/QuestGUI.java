@@ -85,7 +85,7 @@ public class QuestGUI implements InventoryHolder {
 
         lore.add(Component.empty());
         lore.add(Component.text("報酬: ", NamedTextColor.GOLD)
-                .append(Component.text(quest.getRewardDetails().getLlmRewardText(), NamedTextColor.YELLOW)));
+                .append(Component.text(quest.getRewardDetails().getFormattedRewardText(), NamedTextColor.YELLOW)));
         lore.add(Component.empty());
         lore.add(Component.text(">> クリックして受注 <<", NamedTextColor.GREEN, TextDecoration.BOLD));
 

@@ -2,7 +2,6 @@ package com.lunar_prototype.deepwither.aethelgard;
 
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.MobSpawnManager;
-import com.lunar_prototype.deepwither.llm.LlmClient;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -15,7 +14,7 @@ import java.util.regex.Pattern;
 
 public class QuestGenerator {
 
-    private final LlmClient llmClient;
+    private final AethelgardDialogueGenerator dialogueGenerator;
     private final Random random;
 
     private final Deque<String> recentTargetMobIds = new ArrayDeque<>();
@@ -30,7 +29,7 @@ public class QuestGenerator {
     private static final Pattern TIER_PATTERN = Pattern.compile("(?:^|[^a-zA-Z])t([0-9]+)(?:[^a-zA-Z]|$)");
 
     public QuestGenerator() {
-        this.llmClient = new LlmClient();
+        this.dialogueGenerator = new AethelgardDialogueGenerator();
         this.random = new Random();
     }
 
@@ -54,46 +53,21 @@ public class QuestGenerator {
                 rewardItemQuantity
         );
 
-        String prompt = QuestPromptAssembler.assemblePrompt(
+        AethelgardQuestPersona persona = AethelgardQuestPersona.values()[random.nextInt(AethelgardQuestPersona.values().length)];
+        AethelgardDialogueGenerator.GeneratedText generated = dialogueGenerator.generate(
+                persona,
                 targetMob.description(),
                 locationDetails,
                 motivation,
                 quantity,
-                rewardDetails.getLlmRewardText()
+                rewardDetails.getFormattedRewardText()
         );
-
-        String generatedText = llmClient.generateText(prompt);
-
-        if (generatedText == null || generatedText.trim().isEmpty()) {
-            System.err.println("LLM応答が不正または通信失敗。フォールバック処理を実行します。");
-            generatedText = llmClient.fallbackTextGenerator(
-                    locationDetails, targetMob.description(), motivation
-            );
-        }
-
-        String title;
-        String body = generatedText;
-
-        int titleStart = generatedText.indexOf("タイトル：「");
-        int titleEnd = generatedText.indexOf("」\n");
-        if (titleStart != -1 && titleEnd != -1 && titleEnd > titleStart) {
-            title = generatedText.substring(titleStart + "タイトル：「".length(), titleEnd).trim();
-        } else {
-            title = String.format("%s周辺の警戒レベル引き下げ任務", locationDetails.getName());
-        }
-
-        int bodyStart = generatedText.indexOf("本文：「");
-        if (bodyStart != -1) {
-            body = generatedText.substring(bodyStart + "本文：「".length()).trim();
-        }
-
-        body = body.replace("<END>", "").replaceAll("」$", "").trim();
 
         long duration = MIN_DURATION_MILLIS + (long) (random.nextDouble() * (MAX_DURATION_MILLIS - MIN_DURATION_MILLIS));
 
         return new GeneratedQuest(
-                title,
-                body,
+                generated.title(),
+                generated.body(),
                 targetMob.mobId(),
                 quantity,
                 locationDetails,

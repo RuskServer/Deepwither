@@ -132,7 +132,7 @@ public class GeneratedQuest implements ConfigurationSerializable {
                 this.locationDetails.getY(),
                 this.locationDetails.getZ());
 
-        String rewardDisplay = this.rewardDetails.getLlmRewardText();
+        String rewardDisplay = this.rewardDetails.getFormattedRewardText();
 
         return "--- クエスト詳細 ---\n" +
                 "タイトル: " + this.title + "\n" +

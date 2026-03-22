@@ -66,7 +66,7 @@ public class TaskCommand implements CommandExecutor {
             String mobId = progress.getQuestDetails().getTargetMobId();
             int current = progress.getCurrentCount();
             int required = progress.getQuestDetails().getRequiredQuantity();
-            String locationText = progress.getQuestDetails().getLocationDetails().getLlmLocationText();
+            String locationText = progress.getQuestDetails().getLocationDetails().getFormattedLocationText();
 
             player.sendMessage(Component.text(" ■ クエスト名: ", NamedTextColor.GREEN).append(Component.text(title, NamedTextColor.WHITE)));
             player.sendMessage(Component.text("   - 目標: ", NamedTextColor.GRAY)

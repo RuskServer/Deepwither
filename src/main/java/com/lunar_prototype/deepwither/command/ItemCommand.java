@@ -123,7 +123,7 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
                         if (p == null || !p.isOnline()) return;
                         p.sendMessage(Component.text("---", NamedTextColor.GOLD).append(Component.text("冒険者ギルドからの緊急依頼", NamedTextColor.GOLD)));
                         p.sendMessage(Component.text("タイトル：「", NamedTextColor.WHITE).append(Component.text(quest.getTitle(), NamedTextColor.AQUA)).append(Component.text("」", NamedTextColor.WHITE)));
-                        p.sendMessage(Component.text("[場所] ", NamedTextColor.YELLOW).append(Component.text(quest.getLocationDetails().getLlmLocationText(), NamedTextColor.WHITE)));
+                        p.sendMessage(Component.text("[場所] ", NamedTextColor.YELLOW).append(Component.text(quest.getLocationDetails().getFormattedLocationText(), NamedTextColor.WHITE)));
                         p.sendMessage(Component.text("[目標] ", NamedTextColor.YELLOW).append(Component.text(quest.getTargetMobId() + "を" + quest.getRequiredQuantity() + "体", NamedTextColor.WHITE)));
                         p.sendMessage(Component.empty());
                         for (String line : quest.getQuestText().split("\\n")) {
