@@ -29,6 +29,7 @@ import com.lunar_prototype.deepwither.dynamic_loot.LootLevelManager;
 import com.lunar_prototype.deepwither.fishing.FishingListener;
 import com.lunar_prototype.deepwither.fishing.FishingManager;
 import com.lunar_prototype.deepwither.layer_move.BossKillListener;
+import com.lunar_prototype.deepwither.layer_move.LayerMoveCommand;
 import com.lunar_prototype.deepwither.layer_move.LayerMoveManager;
 import com.lunar_prototype.deepwither.layer_move.LayerSignListener;
 import com.lunar_prototype.deepwither.listeners.ArmorSetListener;
@@ -817,6 +818,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         getCommand("clan").setExecutor(clanCommand);
         getCommand("clan").setTabCompleter(clanCommand);
         getCommand("deepwither").setExecutor(new DeepwitherCommand(this));
+        getCommand("layermove").setExecutor(new LayerMoveCommand());
 
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
             event.registrar().register(new DebugCommand().node());

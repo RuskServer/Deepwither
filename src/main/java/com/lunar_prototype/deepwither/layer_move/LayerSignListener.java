@@ -46,8 +46,10 @@ public class LayerSignListener implements Listener, IManager {
                 return;
             }
 
+            String displayText = (data.subTitle != null) ? data.subTitle : data.id;
+
             event.line(0, Component.text("[EoA]", NamedTextColor.YELLOW));
-            event.line(1, Component.text(data.displayName, NamedTextColor.WHITE));
+            event.line(1, Component.text(displayText, NamedTextColor.WHITE));
             event.line(2, Component.empty());
             event.line(3, Component.text("ID:" + warpId, NamedTextColor.DARK_GRAY));
 

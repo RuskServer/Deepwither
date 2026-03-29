@@ -80,3 +80,7 @@ commands:
   rune:
     description: ルーン装着GUIを開きます。
     usage: /rune [set_sockets|set_rune]
+  layermove:
+    description: レイヤー間移動システムの管理用コマンド
+    permission: deepwither.admin
+    usage: /layermove <create|setloc|link>

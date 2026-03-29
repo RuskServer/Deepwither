@@ -5,10 +5,11 @@ import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -16,6 +17,7 @@ import org.bukkit.persistence.PersistentDataType;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -48,18 +50,25 @@ public class LayerMoveManager implements IManager {
         }
         config = YamlConfiguration.loadConfiguration(file);
 
+        if (!config.contains("version")) {
+            migrateConfig();
+        }
+
         ConfigurationSection section = config.getConfigurationSection("warps");
         if (section == null) return;
 
         for (String key : section.getKeys(false)) {
             WarpData data = new WarpData();
             data.id = key;
-            data.displayName = section.getString(key + ".display_name");
+            data.floorName = section.getString(key + ".floor_name");
+            data.subTitle = section.getString(key + ".sub_title");
 
-            String locStr = section.getString(key + ".location");
-            if (locStr != null) {
-                data.destination = parseLocation(locStr);
+            String originStr = section.getString(key + ".origin");
+            if (originStr != null) {
+                data.origin = parseLocation(originStr);
             }
+
+            data.linkedId = section.getString(key + ".linked_id");
 
             data.bossRequired = section.getBoolean(key + ".boss_check.required", false);
             data.bossMythicId = section.getString(key + ".boss_check.mythic_mob_id");
@@ -72,15 +81,43 @@ public class LayerMoveManager implements IManager {
         }
     }
 
+    private void migrateConfig() {
+        ConfigurationSection section = config.getConfigurationSection("warps");
+        if (section != null) {
+            for (String key : section.getKeys(false)) {
+                if (config.contains("warps." + key + ".location") && !config.contains("warps." + key + ".origin")) {
+                    config.set("warps." + key + ".origin", config.get("warps." + key + ".location"));
+                    config.set("warps." + key + ".location", null);
+                }
+                if (config.contains("warps." + key + ".display_name") && !config.contains("warps." + key + ".sub_title")) {
+                    config.set("warps." + key + ".sub_title", config.get("warps." + key + ".display_name"));
+                    config.set("warps." + key + ".display_name", null);
+                }
+            }
+        }
+        config.set("version", 2);
+        save();
+    }
+
     public void tryWarp(Player player, String warpId) {
         WarpData warp = warps.get(warpId);
         if (warp == null) {
-            player.sendMessage(Component.text("移動先設定が存在しません: " + warpId, NamedTextColor.RED));
+            player.sendMessage(Component.text("移動ポイントが存在しません: " + warpId, NamedTextColor.RED));
             return;
         }
 
-        if (warp.destination == null) {
-            player.sendMessage(Component.text("移動先座標が設定されていません。", NamedTextColor.RED));
+        Location dest = null;
+        WarpData targetWarp = warp;
+
+        if (warp.linkedId != null && warps.containsKey(warp.linkedId)) {
+            targetWarp = warps.get(warp.linkedId);
+            dest = targetWarp.origin;
+        } else {
+            dest = warp.origin;
+        }
+
+        if (dest == null) {
+            player.sendMessage(Component.text("移動先の座標が設定されていません。", NamedTextColor.RED));
             return;
         }
 
@@ -98,20 +135,50 @@ public class LayerMoveManager implements IManager {
         }
 
         if (warp.isAlphaLocked) {
-            player.sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize(warp.alphaMessage));
+            player.sendMessage(Component.text(warp.alphaMessage.replace("&", "§"), NamedTextColor.RED));
             return;
         }
 
-        player.teleport(warp.destination);
-        player.sendMessage(Component.text("移動しました: " + warp.displayName, NamedTextColor.GREEN));
+        player.teleport(dest);
+        player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
+
+        if (targetWarp.floorName != null || targetWarp.subTitle != null) {
+            Component mainTitle = Component.text(targetWarp.floorName != null ? targetWarp.floorName : "", NamedTextColor.GOLD);
+            Component subTitle = Component.text(targetWarp.subTitle != null ? "〜 " + targetWarp.subTitle + " 〜" : "", NamedTextColor.WHITE);
+
+            Title title = Title.title(
+                    mainTitle,
+                    subTitle,
+                    Title.Times.times(Duration.ofMillis(500), Duration.ofMillis(2000), Duration.ofMillis(500))
+            );
+            player.showTitle(title);
+        }
     }
 
-    public void setWarpLocation(String warpId, Location loc) {
+    public void setWarpOrigin(String warpId, Location loc) {
         String locStr = loc.getWorld().getName() + "," + loc.getX() + "," + loc.getY() + "," + loc.getZ() + "," + loc.getYaw() + "," + loc.getPitch();
-        config.set("warps." + warpId + ".location", locStr);
+        config.set("warps." + warpId + ".origin", locStr);
+        save();
+        load(file.getParentFile());
+    }
+
+    public void linkWarps(String id1, String id2) {
+        config.set("warps." + id1 + ".linked_id", id2);
+        config.set("warps." + id2 + ".linked_id", id1);
+        save();
+        load(file.getParentFile());
+    }
+
+    public void createWarp(String id, String floorName, String subTitle) {
+        config.set("warps." + id + ".floor_name", floorName);
+        config.set("warps." + id + ".sub_title", subTitle);
+        save();
+        load(file.getParentFile());
+    }
+
+    private void save() {
         try {
             config.save(file);
-            load(file.getParentFile());
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -138,14 +205,16 @@ public class LayerMoveManager implements IManager {
     }
 
     public static class WarpData {
-        String id;
-        String displayName;
-        Location destination;
-        boolean bossRequired;
-        String bossMythicId;
-        String dungeonCommand;
-        boolean isAlphaLocked;
-        String alphaMessage;
+        public String id;
+        public String floorName;
+        public String subTitle;
+        public Location origin;
+        public String linkedId;
+        public boolean bossRequired;
+        public String bossMythicId;
+        public String dungeonCommand;
+        public boolean isAlphaLocked;
+        public String alphaMessage;
     }
 
     public WarpData getWarpData(String id) {
