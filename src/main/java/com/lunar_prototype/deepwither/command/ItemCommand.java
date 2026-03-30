@@ -108,7 +108,7 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
             String id = args[1];
-            plugin.getLayerMoveManager().setWarpLocation(id, player.getLocation());
+            plugin.getLayerMoveManager().setWarpOrigin(id, player.getLocation());
             sender.sendMessage(Component.text("Warp地点(" + id + ")を現在位置に設定しました。", NamedTextColor.GREEN));
             return true;
         }
