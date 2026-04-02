@@ -4,8 +4,6 @@ import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.api.DeepwitherPartyAPI;
 import com.lunar_prototype.deepwither.api.IItemFactory;
 import com.lunar_prototype.deepwither.booster.BoosterManager;
-import com.lunar_prototype.deepwither.clan.ClanChatManager;
-import com.lunar_prototype.deepwither.clan.ClanManager;
 import com.lunar_prototype.deepwither.command.*;
 import com.lunar_prototype.deepwither.command.DebugCommand;
 import com.lunar_prototype.deepwither.companion.CompanionCommand;
@@ -295,17 +293,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     public RaidBossManager getRaidBossManager() {
         return raidBossManager;
     }
-
-    /**
-     * Gets the plugin's ClanManager.
-     *
-     * @return the registered ClanManager, or null if it has not been initialized
-     */
-    public ClanManager getClanManager() {
-        return clanManager;
-    }
-
-    private ClanManager clanManager;
 
     private static Economy econ = null;
     private final java.util.Random random = new java.util.Random();
@@ -814,9 +801,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         MarketCommand marketCmd = new MarketCommand(this, globalMarketManager, marketGui);
         getCommand("market").setExecutor(marketCmd);
         getCommand("market").setTabCompleter(marketCmd);
-        ClanCommand clanCommand = new ClanCommand(clanManager);
-        getCommand("clan").setExecutor(clanCommand);
-        getCommand("clan").setTabCompleter(clanCommand);
         getCommand("deepwither").setExecutor(new DeepwitherCommand(this));
         LayerMoveCommand layerMoveCommand = new LayerMoveCommand();
         getCommand("layermove").setExecutor(layerMoveCommand);
@@ -885,7 +869,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.professionDatabase = register(new ProfessionDatabase(this, databaseManager));
         this.boosterManager = register(new BoosterManager(databaseManager));
         this.globalMarketManager = serviceManager.get(GlobalMarketManager.class);
-        this.clanManager = register(new ClanManager(databaseManager));
 
         // this.statManager = ... handled above
         this.manaManager = register(new ManaManager());
@@ -972,7 +955,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         register(new PvPWorldListener(this));
         register(new ItemGlowHandler(this));
         register(new DungeonSignListener(this));
-        register(new ClanChatManager(this));
         register(new PvPvEChestListener(this));
         register(new OutpostRegionListener(this));
         register(new OutpostDamageListener(this));
