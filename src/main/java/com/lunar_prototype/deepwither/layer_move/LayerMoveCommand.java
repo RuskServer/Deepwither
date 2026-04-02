@@ -6,13 +6,22 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter; // 追加
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-public class LayerMoveCommand implements CommandExecutor {
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
+// TabCompleterを実装に追加
+public class LayerMoveCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+        // ...既存のonCommand処理...
         if (!(sender instanceof Player player)) return false;
         if (!player.hasPermission("deepwither.admin")) return false;
 
@@ -55,7 +64,34 @@ public class LayerMoveCommand implements CommandExecutor {
                 player.sendMessage(Component.text("不明なサブコマンドです。", NamedTextColor.RED));
                 break;
         }
-
         return true;
+    }
+
+    @Override
+    public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
+        if (!sender.hasPermission("deepwither.admin")) return new ArrayList<>();
+
+        // 第1引数: サブコマンドの補完
+        if (args.length == 1) {
+            return Arrays.asList("create", "setloc", "link").stream()
+                    .filter(s -> s.startsWith(args[0].toLowerCase()))
+                    .collect(Collectors.toList());
+        }
+
+        // 第2引数以降: 既存のワープIDを補完
+        if (args.length >= 2) {
+            String subCommand = args[0].toLowerCase();
+            LayerMoveManager manager = Deepwither.getInstance().getLayerMoveManager();
+
+            // setloc <ID> や link <ID1> <ID2> の時、登録済みのIDを出す
+            if (subCommand.equals("setloc") || subCommand.equals("link")) {
+                return manager.getAllWarpData().stream()
+                        .map(data -> data.id) // WarpDataからIDを抽出
+                        .filter(id -> id.startsWith(args[args.length - 1].toLowerCase()))
+                        .collect(Collectors.toList());
+            }
+        }
+
+        return new ArrayList<>();
     }
 }

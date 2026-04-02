@@ -818,7 +818,9 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         getCommand("clan").setExecutor(clanCommand);
         getCommand("clan").setTabCompleter(clanCommand);
         getCommand("deepwither").setExecutor(new DeepwitherCommand(this));
-        getCommand("layermove").setExecutor(new LayerMoveCommand());
+        LayerMoveCommand layerMoveCommand = new LayerMoveCommand();
+        getCommand("layermove").setExecutor(layerMoveCommand);
+        getCommand("layermove").setTabCompleter(layerMoveCommand);
 
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
             event.registrar().register(new DebugCommand().node());
