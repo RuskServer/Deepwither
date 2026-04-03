@@ -50,18 +50,15 @@ public class FileDailyTaskDataStore implements DailyTaskDataStore, IManager {
     @Override
     public void saveTaskData(DailyTaskData data) {
         String json = db.getGson().toJson(data);
-        // plugin.isEnabled() チェックを含めた非同期/同期の振り分け
-        Runnable saveTask = () -> {
-            try (java.sql.Connection conn = db.getConnection();
-                 PreparedStatement ps = conn.prepareStatement(
-                         "INSERT INTO player_daily_tasks (uuid, data_json) VALUES (?, ?) " +
-                                 "ON CONFLICT(uuid) DO UPDATE SET data_json = excluded.data_json")) {
-                ps.setString(1, data.getPlayerId().toString());
-                ps.setString(2, json);
-                ps.executeUpdate();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        };
+        try (java.sql.Connection conn = db.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     "INSERT INTO player_daily_tasks (uuid, data_json) VALUES (?, ?) " +
+                             "ON CONFLICT(uuid) DO UPDATE SET data_json = excluded.data_json")) {
+            ps.setString(1, data.getPlayerId().toString());
+            ps.setString(2, json);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 }
