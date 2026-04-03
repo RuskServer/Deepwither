@@ -36,6 +36,7 @@ import com.lunar_prototype.deepwither.listeners.ArmorSetListener;
 import com.lunar_prototype.deepwither.listeners.ItemGlowHandler;
 import com.lunar_prototype.deepwither.listeners.ItemUpgradeListener;
 import com.lunar_prototype.deepwither.listeners.PvPWorldListener;
+import com.lunar_prototype.deepwither.listeners.VoteListener;
 import com.lunar_prototype.deepwither.loot.LootChestListener;
 import com.lunar_prototype.deepwither.loot.LootChestManager;
 import com.lunar_prototype.deepwither.market.GlobalMarketManager;
@@ -969,6 +970,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         register(new BossKillListener(this));
         register(new PvPWorldListener(this));
         register(new ItemGlowHandler(this));
+        register(new VoteListener(this));
         register(new DungeonSignListener(this));
         register(new ClanChatManager(this));
         register(new PvPvEChestListener(this));
