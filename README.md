@@ -43,11 +43,11 @@ src/main/java/com/lunar_prototype/deepwither/
 │   ├── quest/        # 定常クエスト
 │   └── rune/         # ルーンシステム
 ├── profession/       # 職業システム
-├── skill/            # スキルシステム
-├── stat/             # ステータス・属性管理
+├── SkilltreeManager  # スキルシステム
+├── StatManager       # ステータス・属性管理
 ├── util/             # ユーティリティ
-├── Deepwither.java   # メインクラス
-└── ItemFactory.java  # アイテム生成エンジン
+├── Deepwither        # メインクラス
+└── ItemFactory       # アイテム生成エンジン
 ```
 
 ## 🛠️ サポートとポリシー (Support Policy)
