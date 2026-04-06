@@ -9,7 +9,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/RuskServer/Deepwither?style=flat-square)](https://github.com/RuskServer/Deepwither/issues)
 [![Website](https://img.shields.io/badge/Website-ruskserver.com-green.svg)](https://ruskserver.com/)
 
-[Official Website](https://ruskserver.com/) | [Documentation](https://github.com/RuskServer/Deepwither/wiki) | [Security](https://github.com/RuskServer/Deepwither/security)
+[Official Website](https://ruskserver.com/) | [Documentation](https://github.com/RuskServer/Deepwither/wiki) | [Security](https://github.com/RuskServer/Deepwither?tab=security-ov-file)
 
 </div>
 
