@@ -29,6 +29,7 @@ public enum StatType {
     MAX_HEALTH("最大HP", NamedTextColor.DARK_RED, "❤"),
     HP_REGEN("HP回復", NamedTextColor.DARK_RED, "❤"),
     MOVE_SPEED("移動速度", NamedTextColor.LIGHT_PURPLE, "■"),
+    KNOCKBACK_RESISTANCE("ノックバック耐性", NamedTextColor.GRAY, "■"),
     SKILL_POWER("スキル威力", NamedTextColor.AQUA, "■"),
     WEAR("損耗率", NamedTextColor.AQUA, "■"),
     REACH("リーチ増加", NamedTextColor.AQUA, "■"),

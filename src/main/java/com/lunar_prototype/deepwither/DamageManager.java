@@ -156,6 +156,11 @@ public class DamageManager implements Listener, IManager {
             context.setFinalDamage(context.getFinalDamage() * (attackerStats.getFinal(StatType.CRIT_DAMAGE) / 100.0));
         }
 
+        Deepwither.getInstance().getArtifactManager().handleArtifactSetTrigger(context, ItemFactory.ArtifactSetTrigger.ATTACK_HIT);
+        if (context.isCrit()) {
+            Deepwither.getInstance().getArtifactManager().handleArtifactSetTrigger(context, ItemFactory.ArtifactSetTrigger.CRIT);
+        }
+
         // 3. 距離補正 (遠距離)
         if (isProjectile) {
             double distMult = DamageCalculator.calculateDistanceMultiplier(attacker.getLocation(), targetLiving.getLocation());
@@ -169,10 +174,13 @@ public class DamageManager implements Listener, IManager {
         // 5. 防御力計算
         double defenseDivisor = (targetLiving instanceof Player) ? PLAYER_DEFENSE_DIVISOR : DEFENSE_DIVISOR;
         double defenseValue = defenderStats.getFinal(StatType.DEFENSE);
-        
-        // 防御貫通タグのチェック
+
+        double defenseBypassPercent = context.getDefenseBypassPercent();
         if (context.hasTag("DEFENSE_BYPASS")) {
-            defenseValue *= 0.5; // 50% 防御貫通
+            defenseBypassPercent = Math.max(defenseBypassPercent, 50.0);
+        }
+        if (defenseBypassPercent > 0) {
+            defenseValue *= (1.0 - Math.min(defenseBypassPercent, 100.0) / 100.0);
         }
         
         context.setFinalDamage(DamageCalculator.applyDefense(context.getFinalDamage(), defenseValue, defenseDivisor));
@@ -197,6 +205,12 @@ public class DamageManager implements Listener, IManager {
         // 9. ダメージ適用
         iFrameEndTimes.put(targetLiving.getUniqueId(), System.currentTimeMillis() + DAMAGE_I_FRAME_MS);
         processor.process(context);
+
+        Double lunarBonusMagic = context.get("lunar_echo_bonus_magic");
+        if (lunarBonusMagic != null && lunarBonusMagic > 0) {
+            DamageContext lunarExtra = new DamageContext(attacker, targetLiving, DeepwitherDamageEvent.DamageType.MAGIC, lunarBonusMagic);
+            processor.process(lunarExtra);
+        }
 
         // 10. 武器メカニクスとOn-Hit (事後処理用、現状は斧以外は事後でも問題ないが、統一して前に移動したのでここではOn-Hitのみ)
         tryTriggerOnHitSkill(attacker, targetLiving, item);

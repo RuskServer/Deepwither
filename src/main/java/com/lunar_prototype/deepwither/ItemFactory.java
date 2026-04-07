@@ -316,7 +316,8 @@ public class ItemFactory implements IManager, IItemFactory {
             return null;
         }
 
-        return pdcString(meta.getPersistentDataContainer(), ARTIFACT_FULLSET_TYPE);
+        String value = pdcString(meta.getPersistentDataContainer(), ARTIFACT_FULLSET_TYPE);
+        return value == null ? null : normalizeArtifactType(value);
     }
 
     private void applyArtifactFullsetType(ItemMeta meta, @Nullable String artifactFullsetType) {
@@ -326,7 +327,7 @@ public class ItemFactory implements IManager, IItemFactory {
             return;
         }
 
-        pdc.set(ARTIFACT_FULLSET_TYPE, PersistentDataType.STRING, artifactFullsetType.trim());
+        pdc.set(ARTIFACT_FULLSET_TYPE, PersistentDataType.STRING, normalizeArtifactType(artifactFullsetType));
     }
 
     private void saveStatValue(ItemMeta meta, String category, StatType type, double flat, double percent) {
@@ -596,20 +597,181 @@ public class ItemFactory implements IManager, IItemFactory {
             return;
         }
 
-        // ここにアーティファクト種別ごとの 2/3 セット効果を追加する。
-        // 例:
-        // registerArtifactSetEffect("fire", effect2, effect3);
-        // registerArtifactSetEffect("forest", effect2, effect3);
-        // registerArtifactSetWorkflow("mage", 2, ArtifactSetTrigger.DAMAGE_TAKEN, ctx -> ctx.isMagicDamage(),
-        //         ArtifactSetWorkflows.magicBarrierFullBlock(Component.text("魔法障壁が発動した！")));
+        registerArtifactSetEffect("abyss_pulsation",
+                statMapOf(new Object[][]{
+                        {StatType.MAX_HEALTH, new double[]{0, 10}},
+                        {StatType.MAGIC_DAMAGE, new double[]{0, 8}}
+                }),
+                null);
+        registerArtifactSetWorkflow("abyss_pulsation", 3, ArtifactSetTrigger.DAMAGE_TAKEN,
+                ctx -> ctx.isMagicDamage() && ArtifactSetWorkflows.tryUseCooldown(ctx.getPlayer(), "abyss_pulsation_guard", 8000L),
+                ArtifactSetWorkflows.magicBarrierFullBlockWithAoe(Component.text("虚空の守護障壁が発動した。", NamedTextColor.AQUA)));
+
+        registerArtifactSetEffect("celestial_resonance",
+                statMapOf(new Object[][]{
+                        {StatType.MAX_MANA, new double[]{60, 0}},
+                        {StatType.MAGIC_AOE_DAMAGE, new double[]{15, 0}}
+                }),
+                null);
+        registerArtifactSetWorkflow("celestial_resonance", 3, ArtifactSetTrigger.ATTACK_HIT,
+                ctx -> ctx.isMagicDamage(),
+                ctx -> {
+                    if (ctx.hasTag("ARTIFACT_CELESTIAL_BURST_REPLAY")) {
+                        return;
+                    }
+                    Player player = ctx.getPlayer();
+                    double maxMana = Deepwither.getInstance().getManaManager().get(player.getUniqueId()).getMaxMana();
+                    double currentMana = Deepwither.getInstance().getManaManager().get(player.getUniqueId()).getCurrentMana();
+                    if (maxMana > 0 && (currentMana / maxMana) >= 0.75) {
+                        double bonus = ctx.getBaseDamage() * 0.05;
+                        if (bonus > 0) {
+                            ctx.put("celestial_true_damage", bonus);
+                        }
+                    }
+                    if (!ctx.hasTag("BURST")) {
+                        return;
+                    }
+                    if (!ArtifactSetWorkflows.tryRollChance(25.0)) {
+                        return;
+                    }
+                    ctx.put("celestial_burst_repeat", Boolean.TRUE);
+                    ctx.sendMessage(Component.text("過負荷連鎖が発動した。", NamedTextColor.LIGHT_PURPLE));
+                });
+
+        registerArtifactSetEffect("fault_line",
+                statMapOf(new Object[][]{
+                        {StatType.ATTACK_DAMAGE, new double[]{12, 0}},
+                        {StatType.CRIT_CHANCE, new double[]{2, 0}}
+                }),
+                null);
+        registerArtifactSetWorkflow("fault_line", 3, ArtifactSetTrigger.CRIT,
+                ctx -> !ctx.isMagicDamage() && !ctx.isProjectile(),
+                ctx -> {
+                    if (!ArtifactSetWorkflows.tryUseCooldown(ctx.getPlayer(), "fault_line_rift_edge", 10000L)) {
+                        return;
+                    }
+                    ctx.setDefenseBypassPercent(Math.max(ctx.getDefenseBypassPercent(), 20.0));
+                    ArtifactSetWorkflows.grantSpeedBoost(ctx.getPlayer(), 60, 0.10);
+                    ctx.sendMessage(Component.text("次元の亀裂が走った。", NamedTextColor.RED));
+                });
+
+        registerArtifactSetEffect("astral_steel_guard",
+                statMapOf(new Object[][]{
+                        {StatType.DEFENSE, new double[]{25, 0}},
+                        {StatType.HP_REGEN, new double[]{5, 0}},
+                        {StatType.MAGIC_RESIST, new double[]{15, 0}}
+                }),
+                null);
+        registerArtifactSetWorkflow("astral_steel_guard", 3, ArtifactSetTrigger.DAMAGE_TAKEN,
+                ctx -> !ctx.isMagicDamage(),
+                ctx -> {
+                    double damage = ctx.getDamage();
+                    if (damage <= 0) {
+                        return;
+                    }
+                    ArtifactSetWorkflows.grantMana(ctx.getPlayer(), damage * 0.10);
+                    ctx.sendMessage(Component.text("星鉄のリサイクラーが作動した。", NamedTextColor.AQUA));
+                });
+        registerArtifactSetWorkflow("astral_steel_guard", 3, ArtifactSetTrigger.DAMAGE_TAKEN,
+                ctx -> {
+                    Player player = ctx.getPlayer();
+                    double maxHp = Deepwither.getInstance().getStatManager().getActualMaxHealth(player);
+                    double currentHp = Deepwither.getInstance().getStatManager().getActualCurrentHealth(player);
+                    return currentHp > 0 && (currentHp - ctx.getDamage()) <= (maxHp * 0.30);
+                },
+                ctx -> ArtifactSetWorkflows.grantOncePerCooldownRegeneration(ctx.getPlayer(), "astral_steel_guard_regen", 60000L, 200, 1));
+
+        registerArtifactSetEffect("lunar_skirmisher",
+                statMapOf(new Object[][]{
+                        {StatType.MOVE_SPEED, new double[]{0.02, 0}},
+                        {StatType.PROJECTILE_DAMAGE, new double[]{10, 0}}
+                }),
+                null);
+        registerArtifactSetWorkflow("lunar_skirmisher", 3, ArtifactSetTrigger.DAMAGE_TAKEN,
+                ctx -> {
+                    var attr = ctx.getPlayer().getAttribute(org.bukkit.attribute.Attribute.MOVEMENT_SPEED);
+                    return attr != null && attr.getValue() >= 0.12;
+                },
+                ctx -> {
+                    if (!ArtifactSetWorkflows.tryRollChance(5.0)) {
+                        return;
+                    }
+                    ctx.cancelDamage();
+                    ctx.sendMessage(Component.text("月影の残像がダメージを逸らした。", NamedTextColor.GRAY));
+                });
+        registerArtifactSetWorkflow("lunar_skirmisher", 3, ArtifactSetTrigger.ATTACK_HIT,
+                ctx -> !ctx.isMagicDamage() && !ctx.isProjectile(),
+                ctx -> {
+                    if (ctx.hasTag("ARTIFACT_LUNAR_ECHO_REPLAY")) {
+                        return;
+                    }
+                    Player player = ctx.getPlayer();
+                    if (player.isOnGround() || !player.isSprinting() || player.getVelocity().getY() <= 0.08) {
+                        return;
+                    }
+                    if (!ArtifactSetWorkflows.tryUseCooldown(player, "lunar_skirmisher_echo", 1000L)) {
+                        return;
+                    }
+                    double bonus = Deepwither.getInstance().getStatManager().getTotalStats(player).getFinal(StatType.PROJECTILE_DAMAGE) * 0.15;
+                    if (bonus > 0) {
+                        ctx.put("lunar_echo_bonus_magic", bonus);
+                        ctx.sendMessage(Component.text("月影の残像が追撃を生んだ。", NamedTextColor.YELLOW));
+                    }
+                });
+
+        registerArtifactSetEffect("eternal_hearts",
+                statMapOf(new Object[][]{
+                        {StatType.MAX_HEALTH, new double[]{0, 25}},
+                        {StatType.KNOCKBACK_RESISTANCE, new double[]{0.2, 0}}
+                }),
+                null);
+        registerArtifactSetWorkflow("eternal_hearts", 3, ArtifactSetTrigger.DAMAGE_TAKEN,
+                ctx -> {
+                    Player player = ctx.getPlayer();
+                    double currentHp = Deepwither.getInstance().getStatManager().getActualCurrentHealth(player);
+                    return ctx.getDamage() >= currentHp;
+                },
+                ctx -> {
+                    if (!ArtifactSetWorkflows.tryUseCooldown(ctx.getPlayer(), "eternal_hearts_last_stand", 300000L)) {
+                        return;
+                    }
+                    double currentHp = Deepwither.getInstance().getStatManager().getActualCurrentHealth(ctx.getPlayer());
+                    ctx.setDamage(Math.max(0.0, currentHp - 1.0));
+                    ArtifactSetWorkflows.knockBackNearbyEnemies(ctx.getPlayer(), 4.0, 1.1);
+                    ctx.getPlayer().getWorld().playSound(ctx.getPlayer().getLocation(), Sound.ITEM_TOTEM_USE, 1.0f, 1.0f);
+                    ctx.sendMessage(Component.text("不朽の双心が死を拒んだ。", NamedTextColor.GOLD));
+                });
+    }
+
+    private static StatMap statMapOf(Object[][] entries) {
+        StatMap map = new StatMap();
+        if (entries == null) {
+            return map;
+        }
+        for (Object[] entry : entries) {
+            if (entry.length < 2 || !(entry[0] instanceof StatType statType) || !(entry[1] instanceof double[] values) || values.length < 2) {
+                continue;
+            }
+            double flat = values[0];
+            double percent = values[1];
+            if (flat != 0) {
+                map.setFlat(statType, flat);
+            }
+            if (percent != 0) {
+                map.setPercent(statType, percent);
+            }
+        }
+        return map;
     }
 
     private static String normalizeArtifactType(String type) {
-        return type.trim().toLowerCase(Locale.ROOT);
+        return type.trim().toLowerCase(Locale.ROOT).replace(' ', '_').replace('-', '_');
     }
 
     public enum ArtifactSetTrigger {
-        DAMAGE_TAKEN
+        DAMAGE_TAKEN,
+        ATTACK_HIT,
+        CRIT
     }
 
     @FunctionalInterface
@@ -625,6 +787,7 @@ public class ItemFactory implements IManager, IItemFactory {
     public static final class ArtifactSetContext {
         private final Player player;
         private final com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent damageEvent;
+        private final com.lunar_prototype.deepwither.core.damage.DamageContext damageContext;
         private final String artifactType;
         private final int artifactCount;
         private final Map<String, Object> values = new HashMap<>();
@@ -635,6 +798,18 @@ public class ItemFactory implements IManager, IItemFactory {
                                   int artifactCount) {
             this.player = player;
             this.damageEvent = damageEvent;
+            this.damageContext = null;
+            this.artifactType = artifactType;
+            this.artifactCount = artifactCount;
+        }
+
+        public ArtifactSetContext(Player player,
+                                  com.lunar_prototype.deepwither.core.damage.DamageContext damageContext,
+                                  String artifactType,
+                                  int artifactCount) {
+            this.player = player;
+            this.damageEvent = null;
+            this.damageContext = damageContext;
             this.artifactType = artifactType;
             this.artifactCount = artifactCount;
         }
@@ -647,6 +822,10 @@ public class ItemFactory implements IManager, IItemFactory {
             return damageEvent;
         }
 
+        public com.lunar_prototype.deepwither.core.damage.DamageContext getDamageContext() {
+            return damageContext;
+        }
+
         public String getArtifactType() {
             return artifactType;
         }
@@ -656,27 +835,65 @@ public class ItemFactory implements IManager, IItemFactory {
         }
 
         public double getDamage() {
-            return damageEvent.getDamage();
+            if (damageEvent != null) {
+                return damageEvent.getDamage();
+            }
+            if (damageContext != null) {
+                return damageContext.getFinalDamage();
+            }
+            return 0.0;
+        }
+
+        public double getBaseDamage() {
+            if (damageContext != null) {
+                return damageContext.getBaseDamage();
+            }
+            return getDamage();
         }
 
         public void setDamage(double damage) {
-            damageEvent.setDamage(damage);
+            if (damageEvent != null) {
+                damageEvent.setDamage(damage);
+            } else if (damageContext != null) {
+                damageContext.setFinalDamage(damage);
+            }
         }
 
         public void cancelDamage() {
-            damageEvent.setCancelled(true);
+            if (damageEvent != null) {
+                damageEvent.setCancelled(true);
+            } else if (damageContext != null) {
+                damageContext.setFinalDamage(0.0);
+                damageContext.put("_artifact_cancelled", Boolean.TRUE);
+            }
         }
 
         public boolean isMagicDamage() {
-            return damageEvent.isMagic();
+            if (damageEvent != null) {
+                return damageEvent.isMagic();
+            }
+            return damageContext != null && damageContext.isMagic();
         }
 
         public com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent.DamageType getDamageType() {
-            return damageEvent.getType();
+            if (damageEvent != null) {
+                return damageEvent.getType();
+            }
+            return damageContext != null ? damageContext.getDamageType() : null;
         }
 
         public org.bukkit.entity.LivingEntity getAttacker() {
-            return damageEvent.getAttacker();
+            if (damageEvent != null) {
+                return damageEvent.getAttacker();
+            }
+            return damageContext != null ? damageContext.getAttacker() : null;
+        }
+
+        public org.bukkit.entity.LivingEntity getVictim() {
+            if (damageEvent != null) {
+                return damageEvent.getVictim();
+            }
+            return damageContext != null ? damageContext.getVictim() : null;
         }
 
         public void sendMessage(Component message) {
@@ -699,12 +916,49 @@ public class ItemFactory implements IManager, IItemFactory {
             player.setAbsorptionAmount(amount);
         }
 
+        public boolean isCriticalHit() {
+            return damageContext != null && damageContext.isCrit();
+        }
+
+        public boolean isProjectile() {
+            return damageContext != null && damageContext.isProjectile();
+        }
+
+        public boolean hasTag(String tag) {
+            return damageContext != null && damageContext.hasTag(tag);
+        }
+
+        public void addTag(String tag) {
+            if (damageContext != null) {
+                damageContext.addTag(tag);
+            }
+        }
+
+        public void setDefenseBypassPercent(double defenseBypassPercent) {
+            if (damageContext != null) {
+                damageContext.setDefenseBypassPercent(defenseBypassPercent);
+            }
+        }
+
+        public double getDefenseBypassPercent() {
+            return damageContext != null ? damageContext.getDefenseBypassPercent() : 0.0;
+        }
+
         public void put(String key, Object value) {
             values.put(key, value);
+            if (damageContext != null) {
+                damageContext.put(key, value);
+            }
         }
 
         @SuppressWarnings("unchecked")
         public <T> T get(String key) {
+            if (damageContext != null) {
+                T value = damageContext.get(key);
+                if (value != null) {
+                    return value;
+                }
+            }
             return (T) values.get(key);
         }
     }

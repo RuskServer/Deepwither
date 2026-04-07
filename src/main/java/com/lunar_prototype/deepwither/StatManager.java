@@ -311,6 +311,7 @@ public class StatManager implements IManager, IStatManager {
 
     public static void syncAttributes(Player player, StatMap stats) {
         syncAttribute(player, Attribute.ARMOR, stats.getFinal(StatType.DEFENSE));
+        syncAttribute(player, Attribute.KNOCKBACK_RESISTANCE, stats.getFinal(StatType.KNOCKBACK_RESISTANCE));
         if (stats.getFinal(StatType.ATTACK_SPEED) > 0.1){
             double modifierValue = stats.getFinal(StatType.ATTACK_SPEED) - 4.0;
             syncAttribute(player,Attribute.ATTACK_SPEED,modifierValue);

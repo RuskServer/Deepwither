@@ -140,7 +140,7 @@ public class WeaponMechanicManager implements IManager {
         
         if (currentHits >= 3) {
             // 3撃目のボーナス: 防御貫通タグを付与 (DamageManager側で50%防御減算として処理)
-            context.addTag("DEFENSE_BYPASS");
+            context.setDefenseBypassPercent(Math.max(context.getDefenseBypassPercent(), 50.0));
             
             playerHits.put(weaponId, 0); // リセット
             

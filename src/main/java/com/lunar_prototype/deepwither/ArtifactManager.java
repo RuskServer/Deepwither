@@ -3,6 +3,7 @@ package com.lunar_prototype.deepwither;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent;
+import com.lunar_prototype.deepwither.core.damage.DamageContext;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -133,6 +134,18 @@ public class ArtifactManager implements IManager {
         return bonus;
     }
 
+    public int getArtifactTypeCount(Player player, String type) {
+        if (player == null || type == null || type.isBlank()) {
+            return 0;
+        }
+
+        return countArtifactTypes(getPlayerArtifacts(player)).getOrDefault(type.trim().toLowerCase(Locale.ROOT), 0);
+    }
+
+    public boolean hasArtifactTypeCount(Player player, String type, int requiredCount) {
+        return getArtifactTypeCount(player, type) >= requiredCount;
+    }
+
     public void handleArtifactSetTrigger(DeepwitherDamageEvent event) {
         if (event == null || !(event.getVictim() instanceof Player player)) {
             return;
@@ -161,6 +174,40 @@ public class ArtifactManager implements IManager {
                 if (event.isCancelled()) {
                     return;
                 }
+            }
+        }
+    }
+
+    public void handleArtifactSetTrigger(DamageContext context, ItemFactory.ArtifactSetTrigger trigger) {
+        if (context == null || trigger == null) {
+            return;
+        }
+
+        Player player = context.getAttackerAsPlayer();
+        if (player == null) {
+            return;
+        }
+
+        Map<String, Integer> typeCounts = countArtifactTypes(getPlayerArtifacts(player));
+        for (Map.Entry<String, Integer> entry : typeCounts.entrySet()) {
+            List<ItemFactory.ArtifactSetRule> rules = ItemFactory.getArtifactSetRules(entry.getKey());
+            if (rules.isEmpty()) {
+                continue;
+            }
+
+            ItemFactory.ArtifactSetContext artifactContext = new ItemFactory.ArtifactSetContext(
+                    player,
+                    context,
+                    entry.getKey(),
+                    entry.getValue()
+            );
+
+            for (ItemFactory.ArtifactSetRule rule : rules) {
+                if (!rule.matches(trigger, artifactContext)) {
+                    continue;
+                }
+
+                rule.execute(artifactContext);
             }
         }
     }
@@ -202,7 +249,7 @@ public class ArtifactManager implements IManager {
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
         String fullsetType = pdc.get(ItemFactory.ARTIFACT_FULLSET_TYPE, PersistentDataType.STRING);
         if (fullsetType != null && !fullsetType.isBlank()) {
-            return fullsetType.trim();
+            return fullsetType.trim().toLowerCase(Locale.ROOT).replace(' ', '_').replace('-', '_');
         }
 
         return null;
