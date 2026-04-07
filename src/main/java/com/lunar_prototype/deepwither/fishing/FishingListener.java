@@ -1,6 +1,7 @@
 package com.lunar_prototype.deepwither.fishing;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.LevelManager;
 import com.lunar_prototype.deepwither.profession.ProfessionManager;
 import com.lunar_prototype.deepwither.profession.ProfessionType;
@@ -81,7 +82,7 @@ public class FishingListener implements Listener, IManager {
             if (customLoot.hasItemMeta()) {
                 Component displayName = customLoot.getItemMeta().hasDisplayName() ? customLoot.getItemMeta().displayName() : Component.text(customLoot.getType().name());
                 Component msg = Component.text("釣り上げた! -> ", NamedTextColor.GRAY).append(displayName);
-                player.sendActionBar(msg);
+                DW.ui(player).simpleActionBar(msg);
             }
         }
 

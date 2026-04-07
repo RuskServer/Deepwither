@@ -197,6 +197,7 @@ public class StatManager implements IManager, IStatManager {
         for (ItemStack artifact : artifacts) {
             total.add(readStatsFromItem(artifact));
         }
+        total.add(Deepwither.getInstance().getArtifactManager().getFullSetBonus(artifacts));
 
         ItemStack backpack = Deepwither.getInstance().getArtifactManager().getPlayerBackpack(player);
         total.add(readStatsFromItem(backpack));
@@ -254,13 +255,13 @@ public class StatManager implements IManager, IStatManager {
             total.add(tempBuff);
         }
 
-        double baseHp = 20.0;
         double currentHp = total.getFinal(StatType.MAX_HEALTH);
+        double baseHp = 20.0;
         double levelhp = 2 * data.getLevel();
         total.setFlat(StatType.MAX_HEALTH, currentHp + baseHp + levelhp);
-        
-        double baseMana = 100.0;
+
         double currentMana = total.getFinal(StatType.MAX_MANA);
+        double baseMana = 100.0;
         total.setFlat(StatType.MAX_MANA, currentMana + baseMana);
 
         return total;
@@ -310,6 +311,7 @@ public class StatManager implements IManager, IStatManager {
 
     public static void syncAttributes(Player player, StatMap stats) {
         syncAttribute(player, Attribute.ARMOR, stats.getFinal(StatType.DEFENSE));
+        syncAttribute(player, Attribute.KNOCKBACK_RESISTANCE, stats.getFinal(StatType.KNOCKBACK_RESISTANCE));
         if (stats.getFinal(StatType.ATTACK_SPEED) > 0.1){
             double modifierValue = stats.getFinal(StatType.ATTACK_SPEED) - 4.0;
             syncAttribute(player,Attribute.ATTACK_SPEED,modifierValue);

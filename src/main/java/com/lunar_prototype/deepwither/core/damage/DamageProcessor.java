@@ -19,18 +19,18 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
-@DependsOn({StatManager.class, PlayerSettingsManager.class})
+@DependsOn({StatManager.class, PlayerSettingsManager.class, com.lunar_prototype.deepwither.core.UIManager.class})
 public class DamageProcessor implements IManager {
 
     private final JavaPlugin plugin;
     private final IStatManager statManager;
-    private final PlayerSettingsManager settingsManager;
+    private final com.lunar_prototype.deepwither.core.UIManager uiManager;
     private final Set<UUID> isProcessingDamage = new HashSet<>();
 
-    public DamageProcessor(JavaPlugin plugin, IStatManager statManager, PlayerSettingsManager settingsManager) {
+    public DamageProcessor(JavaPlugin plugin, IStatManager statManager, com.lunar_prototype.deepwither.core.UIManager uiManager) {
         this.plugin = plugin;
         this.statManager = statManager;
-        this.settingsManager = settingsManager;
+        this.uiManager = uiManager;
     }
 
     @Override
@@ -74,7 +74,7 @@ public class DamageProcessor implements IManager {
             // ログ送信
             NamedTextColor prefixColor = context.isMagic() ? NamedTextColor.LIGHT_PURPLE : NamedTextColor.RED;
             String prefixText = context.isMagic() ? "魔法被弾！" : "物理被弾！";
-            sendLog(player, PlayerSettingsManager.SettingType.SHOW_TAKEN_DAMAGE, 
+            uiManager.of(player).message(PlayerSettingsManager.SettingType.SHOW_TAKEN_DAMAGE, 
                     Component.text(prefixText, prefixColor, TextDecoration.BOLD)
                             .append(Component.text(" " + Math.round(damage), NamedTextColor.RED)));
         } else {
@@ -115,13 +115,13 @@ public class DamageProcessor implements IManager {
             if (damage <= absorption) {
                 double newAbs = absorption - damage;
                 player.setAbsorptionAmount((float) (newAbs / 10.0));
-                sendLog(player, PlayerSettingsManager.SettingType.SHOW_MITIGATION, 
+                uiManager.of(player).message(PlayerSettingsManager.SettingType.SHOW_MITIGATION, 
                         Component.text("シールド防御: ", NamedTextColor.YELLOW)
                                 .append(Component.text("-" + Math.round(damage), NamedTextColor.YELLOW)));
                 return;
             } else {
                 player.setAbsorptionAmount(0f);
-                sendLog(player, PlayerSettingsManager.SettingType.SHOW_MITIGATION, 
+                uiManager.of(player).message(PlayerSettingsManager.SettingType.SHOW_MITIGATION, 
                         Component.text("シールドブレイク！", NamedTextColor.RED));
                 // 残りのダメージは通常通り通るが、ここでは吸収分を差し引いた処理を継続させても良い(現状の仕様に合わせる)
             }
@@ -133,18 +133,12 @@ public class DamageProcessor implements IManager {
         if (newHp <= 0) {
             player.sendMessage(Component.text(sourceName + "に倒されました。", NamedTextColor.DARK_RED));
         } else {
-            sendLog(player, PlayerSettingsManager.SettingType.SHOW_TAKEN_DAMAGE, 
+            uiManager.of(player).message(PlayerSettingsManager.SettingType.SHOW_TAKEN_DAMAGE, 
                     Component.text("-" + Math.round(damage) + " HP", NamedTextColor.RED));
         }
     }
 
     public boolean isProcessing(UUID uuid) {
         return isProcessingDamage.contains(uuid);
-    }
-
-    private void sendLog(Player player, PlayerSettingsManager.SettingType type, Component message) {
-        if (settingsManager.isEnabled(player, type)) {
-            player.sendMessage(message);
-        }
     }
 }

@@ -5,6 +5,7 @@ import com.lunar_prototype.deepwither.api.event.*;
 import com.lunar_prototype.deepwither.StatManager;
 import com.lunar_prototype.deepwither.ItemFactory;
 import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.util.IManager;
 import com.lunar_prototype.eqf.EQFPlugin;
 import net.kyori.adventure.text.Component;
@@ -153,7 +154,7 @@ public class TutorialController implements Listener, IManager {
                 }
                 charIndex++;
                 String currentText = text.substring(0, charIndex);
-                p.sendActionBar(Component.text(currentText, NamedTextColor.WHITE));
+                DW.ui(p).simpleActionBar(Component.text(currentText, NamedTextColor.WHITE));
                 if (charIndex >= length) {
                     this.cancel();
                     new BukkitRunnable() {

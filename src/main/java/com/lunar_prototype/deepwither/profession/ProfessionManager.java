@@ -8,6 +8,8 @@ import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
@@ -89,12 +91,39 @@ public class ProfessionManager implements IManager {
         showExpBossBar(player, type, totalExpAfter, newLevel);
 
         if (newLevel > oldLevel) {
-            player.sendMessage(Component.text("==========================", NamedTextColor.GOLD));
-            player.sendMessage(Component.text(" レベルアップ！ (" + getDisplayName(type) + ")", NamedTextColor.YELLOW));
-            player.sendMessage(Component.text(" Lv." + oldLevel + " -> Lv." + newLevel, NamedTextColor.AQUA));
-            player.sendMessage(Component.text("==========================", NamedTextColor.GOLD));
-            player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
+            sendLevelUpFeedback(player, type, oldLevel, newLevel);
         }
+    }
+
+    private void sendLevelUpFeedback(Player player, ProfessionType type, int oldLevel, int newLevel) {
+        Title title = Title.title(
+                Component.text("LEVEL UP!", NamedTextColor.GOLD, TextDecoration.BOLD),
+                Component.text(getDisplayName(type), NamedTextColor.YELLOW)
+                        .append(Component.text(" Lv.", NamedTextColor.GRAY))
+                        .append(Component.text(oldLevel, NamedTextColor.WHITE))
+                        .append(Component.text(" → ", NamedTextColor.WHITE))
+                        .append(Component.text(newLevel, NamedTextColor.GREEN, TextDecoration.BOLD))
+        );
+        player.showTitle(title);
+
+        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 0.5f);
+        player.playSound(player.getLocation(), org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
+
+        Component separator = Component.text("--------------------------------------", NamedTextColor.AQUA)
+                .decoration(TextDecoration.STRIKETHROUGH, true);
+        player.sendMessage(separator);
+        player.sendMessage(Component.text("    »» ", NamedTextColor.WHITE, TextDecoration.BOLD)
+                .append(Component.text("レベルアップ！", NamedTextColor.GOLD, TextDecoration.BOLD))
+                .append(Component.text(" (" + getDisplayName(type) + ")", NamedTextColor.YELLOW, TextDecoration.BOLD)));
+        player.sendMessage(Component.text("   レベル: ", NamedTextColor.YELLOW)
+                .append(Component.text(oldLevel, NamedTextColor.WHITE))
+                .append(Component.text(" → ", NamedTextColor.WHITE))
+                .append(Component.text(newLevel, NamedTextColor.GREEN, TextDecoration.BOLD)));
+        player.sendMessage(Component.empty());
+        player.sendMessage(Component.text("- 職業ボーナス -", NamedTextColor.GRAY));
+        player.sendMessage(Component.text("  » ", NamedTextColor.AQUA)
+                .append(Component.text("職業熟練度が上昇した。", NamedTextColor.WHITE)));
+        player.sendMessage(separator);
     }
 
     private void showExpBossBar(Player player, ProfessionType type, long totalExp, int level) {

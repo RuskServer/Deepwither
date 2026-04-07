@@ -3,6 +3,7 @@ package com.lunar_prototype.deepwither;
 import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.modules.mob.service.*;
 import com.lunar_prototype.deepwither.modules.mob.util.MobRegionService;
+import com.lunar_prototype.deepwither.modules.mine.MineService;
 import com.lunar_prototype.deepwither.outpost.OutpostEvent;
 import com.lunar_prototype.deepwither.aethelgard.PlayerQuestManager;
 import com.lunar_prototype.deepwither.util.IManager;
@@ -43,12 +44,15 @@ public class MobSpawnManager implements IManager {
     private MobConfigService getConfig() { return DW.get(MobConfigService.class); }
     private MobLevelService getLevel() { return DW.get(MobLevelService.class); }
     private MobTraitService getTrait() { return DW.get(MobTraitService.class); }
+    private MineService getMineService() { return DW.get(MineService.class); }
 
     public UUID spawnDungeonMob(Location loc, String mobId, int level) {
         MobSpawnerService spawner = getSpawner();
         MobRegionService region = getRegion();
         MobLevelService levelService = getLevel();
+        MineService mineService = getMineService();
         if (spawner == null || region == null || loc == null) return null;
+        if (mineService != null && mineService.shouldSuppressMobSpawns(loc)) return null;
 
         UUID mobUuid = spawner.spawnMythicMob(mobId, loc, region.getTierFromLocation(loc));
         if (mobUuid == null) return null;
@@ -83,7 +87,11 @@ public class MobSpawnManager implements IManager {
     }
 
     public int spawnOutpostMobs(String mobId, int count, String regionId, double fixedY, OutpostEvent event) {
-        return getSpawner() != null ? getSpawner().spawnOutpostMobs(mobId, count, regionId, fixedY, event) : 0;
+        MobSpawnerService spawner = getSpawner();
+        if (spawner == null) {
+            return 0;
+        }
+        return spawner.spawnOutpostMobs(mobId, count, regionId, fixedY, event);
     }
 
     public void removeAllOutpostMobs(String regionId) {

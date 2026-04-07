@@ -161,6 +161,13 @@ public class DatabaseManager implements IManager, IDatabaseManager {
                     data_json TEXT
                 )""");
 
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS player_mailbox (
+                    mail_id TEXT PRIMARY KEY,
+                    recipient_uuid TEXT NOT NULL,
+                    mail_json TEXT NOT NULL
+                )""");
+
             // DatabaseManager.java の setupTables 内に追加
             stmt.execute("""
                 CREATE TABLE IF NOT EXISTS player_professions (

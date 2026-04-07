@@ -2,6 +2,7 @@ package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.companion.CompanionGui;
 import com.lunar_prototype.deepwither.data.DailyTaskData;
+import com.lunar_prototype.deepwither.mail.MailInboxGUI;
 import com.lunar_prototype.deepwither.modules.economy.trader.DailyTaskManager;
 import com.lunar_prototype.deepwither.profession.PlayerProfessionData;
 import com.lunar_prototype.deepwither.profession.ProfessionManager;
@@ -31,7 +32,7 @@ import org.bukkit.inventory.meta.SkullMeta;
 
 import java.util.*;
 
-@DependsOn({LevelManager.class, StatManager.class, ProfessionManager.class, PlayerQuestManager.class, DailyTaskManager.class})
+@DependsOn({LevelManager.class, StatManager.class, ProfessionManager.class, PlayerQuestManager.class, DailyTaskManager.class, MailInboxGUI.class})
 public class MenuGUI implements Listener, IManager {
 
     private final Deepwither plugin;
@@ -41,6 +42,7 @@ public class MenuGUI implements Listener, IManager {
     private ProfessionManager professionManager;
     private PlayerQuestManager questManager;
     private DailyTaskManager dailyTaskManager;
+    private MailInboxGUI mailInboxGUI;
 
     public static final Component GUI_TITLE = Component.text("Main Menu", NamedTextColor.DARK_GRAY).decoration(TextDecoration.ITALIC, false);
     private static final int GUI_SIZE = 54;
@@ -56,6 +58,7 @@ public class MenuGUI implements Listener, IManager {
         this.professionManager = plugin.getProfessionManager();
         this.questManager = plugin.getPlayerQuestManager();
         this.dailyTaskManager = plugin.getDailyTaskManager();
+        this.mailInboxGUI = plugin.getMailInboxGUI();
 
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
@@ -74,6 +77,7 @@ public class MenuGUI implements Listener, IManager {
 
         inv.setItem(15, createGuildQuestIcon(player));
         inv.setItem(16, createDailyTaskIcon(player));
+        inv.setItem(13, createMailIcon(player));
 
         inv.setItem(22, createNavButton(Material.TOTEM_OF_UNDYING, Component.text("コンパニオン", NamedTextColor.GOLD, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false),
                 Component.text("共に冒険する仲間を管理します。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false),
@@ -271,6 +275,30 @@ public class MenuGUI implements Listener, IManager {
         return item;
     }
 
+    private ItemStack createMailIcon(Player player) {
+        ItemStack item = new ItemStack(Material.CHEST);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("[ メール ]", NamedTextColor.AQUA, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false));
+
+        int mailCount = Deepwither.getInstance().getMailManager() != null
+                ? Deepwither.getInstance().getMailManager().getInboxCount(player.getUniqueId())
+                : 0;
+
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.empty());
+        lore.add(Component.text("受信数: ", NamedTextColor.GRAY)
+                .append(Component.text(String.valueOf(mailCount), mailCount > 0 ? NamedTextColor.GREEN : NamedTextColor.GRAY))
+                .decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.empty());
+        lore.add(Component.text("クリックして受信箱を開きます。", NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text("メールを開くと報酬を受け取り、", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text("そのメールは削除されます。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
+
+        meta.lore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
     private ItemStack createNavButton(Material mat, Component name, Component... loreLines) {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
@@ -332,13 +360,19 @@ public class MenuGUI implements Listener, IManager {
                 player.closeInventory();
                 player.performCommand("attributes");
                 break;
+            case 13:
+                player.closeInventory();
+                if (mailInboxGUI != null) {
+                    mailInboxGUI.open(player);
+                }
+                break;
             case 41:
                 player.closeInventory();
                 Deepwither.getInstance().getSkillAssignmentGUI().open(player);
                 break;
             case 42:
                 player.closeInventory();
-                new ArtifactGUI().openArtifactGUI(player);
+                Deepwither.getInstance().getArtifactGUI().openArtifactGUI(player);
                 break;
             case 49:
                 player.closeInventory();

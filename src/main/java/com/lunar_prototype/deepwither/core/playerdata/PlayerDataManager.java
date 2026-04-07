@@ -80,9 +80,19 @@ public class PlayerDataManager implements IManager {
 
     /**
      * プレイヤーデータをアンロードします。
+     * 注意: メインスレッドから呼び出すと、内部のsave処理により警告またはラグが発生する可能性があります。
      */
     public void unloadData(UUID uuid) {
         saveData(uuid);
         cache.removeCache(uuid);
+    }
+
+    /**
+     * プレイヤーデータを非同期でアンロードします。
+     * @param uuid 対象プレイヤーの UUID
+     * @return 処理の完了を表す CompletableFuture
+     */
+    public CompletableFuture<Void> unloadDataAsync(UUID uuid) {
+        return CompletableFuture.runAsync(() -> unloadData(uuid), plugin.getAsyncExecutor());
     }
 }

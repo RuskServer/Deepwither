@@ -6,6 +6,9 @@ import com.lunar_prototype.deepwither.profession.ProfessionManager;
 import com.lunar_prototype.deepwither.profession.ProfessionType;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -132,6 +135,43 @@ public class FishingManager implements IManager {
         return item;
     }
 
+    public Component buildStatusTooltip(Player player) {
+        int level = plugin.getProfessionManager().getLevel(
+                plugin.getProfessionManager().getData(player).getExp(ProfessionType.FISHING)
+        );
+
+        Component tooltip = Component.text("釣りスキル", NamedTextColor.GOLD, TextDecoration.BOLD)
+                .append(Component.newline())
+                .append(Component.text("Lv." + level, NamedTextColor.YELLOW))
+                .append(Component.newline());
+
+        double remaining = 1.0D;
+        for (String rarityKey : RARITY_ORDER) {
+            RaritySettings settings = rarityMap.get(rarityKey);
+            if (settings == null) {
+                continue;
+            }
+
+            double rawChance = clamp(settings.baseChance + (level * settings.levelBonus));
+            double actualChance = remaining * rawChance;
+            remaining *= (1.0D - rawChance);
+
+            tooltip = tooltip
+                    .append(Component.text(formatRarityName(rarityKey), rarityColor(rarityKey), TextDecoration.BOLD))
+                    .append(Component.text(": " + formatPercent(actualChance)
+                            + " (判定 " + formatPercent(rawChance) + ")", NamedTextColor.GRAY))
+                    .append(Component.newline());
+        }
+
+        if (remaining > 0.0D) {
+            tooltip = tooltip
+                    .append(Component.text("COMMON", NamedTextColor.WHITE, TextDecoration.BOLD))
+                    .append(Component.text(": " + formatPercent(remaining), NamedTextColor.GRAY));
+        }
+
+        return tooltip;
+    }
+
     private LootEntry getWeightedRandom(List<LootEntry> entries) {
         int totalWeight = entries.stream().mapToInt(e -> e.weight).sum();
         int randomVal = random.nextInt(totalWeight);
@@ -144,6 +184,40 @@ public class FishingManager implements IManager {
             }
         }
         return entries.get(0); // 安全策
+    }
+
+    private double clamp(double value) {
+        if (value < 0.0D) {
+            return 0.0D;
+        }
+        if (value > 1.0D) {
+            return 1.0D;
+        }
+        return value;
+    }
+
+    private String formatRarityName(String rarityKey) {
+        return switch (rarityKey) {
+            case "LEGENDARY" -> "レジェンダリー";
+            case "EPIC" -> "エピック";
+            case "RARE" -> "レア";
+            case "UNCOMMON" -> "アンコモン";
+            default -> rarityKey;
+        };
+    }
+
+    private NamedTextColor rarityColor(String rarityKey) {
+        return switch (rarityKey) {
+            case "LEGENDARY" -> NamedTextColor.GOLD;
+            case "EPIC" -> NamedTextColor.LIGHT_PURPLE;
+            case "RARE" -> NamedTextColor.AQUA;
+            case "UNCOMMON" -> NamedTextColor.GREEN;
+            default -> NamedTextColor.WHITE;
+        };
+    }
+
+    private String formatPercent(double value) {
+        return String.format("%.1f%%", value * 100.0D);
     }
 
     // --- 内部クラス ---

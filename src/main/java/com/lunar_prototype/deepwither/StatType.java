@@ -29,6 +29,7 @@ public enum StatType {
     MAX_HEALTH("最大HP", NamedTextColor.DARK_RED, "❤"),
     HP_REGEN("HP回復", NamedTextColor.DARK_RED, "❤"),
     MOVE_SPEED("移動速度", NamedTextColor.LIGHT_PURPLE, "■"),
+    KNOCKBACK_RESISTANCE("ノックバック耐性", NamedTextColor.GRAY, "■"),
     SKILL_POWER("スキル威力", NamedTextColor.AQUA, "■"),
     WEAR("損耗率", NamedTextColor.AQUA, "■"),
     REACH("リーチ増加", NamedTextColor.AQUA, "■"),
@@ -105,12 +106,12 @@ class LoreBuilder {
         ItemMeta meta = item.getItemMeta();
         // Metaがない、またはLoreがない場合は新規作成（build）へ
         if (meta == null || !meta.hasLore()) {
-            return build(newStats, false, null, null, null, null, null, null, null);
+            return build(newStats, false, null, null, null, null, null, null, null, null);
         }
 
         List<Component> existingLore = meta.lore();
         if (existingLore == null) {
-            return build(newStats, false, null, null, null, null, null, null, null);
+            return build(newStats, false, null, null, null, null, null, null, null, null);
         }
 
         List<Component> newLore = new ArrayList<>();
@@ -130,7 +131,7 @@ class LoreBuilder {
         // 区切り線が2つ未満の場合は構造が特殊なため、安全策として既存buildを呼ぶか、
         // あるいは構造を維持できないため新規作成する
         if (separatorIndices.size() < 2) {
-            return build(newStats, false, null, null, null, null, null, null, null);
+            return build(newStats, false, null, null, null, null, null, null, null, null);
         }
 
         // --- 2. セクションの特定 ---
@@ -191,8 +192,8 @@ class LoreBuilder {
     /**
      * 2列レイアウト用のメインビルドロジック（修正版）
      */
-    public static List<Component> build(StatMap stats, boolean compact, String itemType, List<String> flavorText, 
-                                     ItemLoader.RandomStatTracker tracker, String rarity, Map<StatType, Double> appliedModifiers, 
+    public static List<Component> build(StatMap stats, boolean compact, String itemType, String artifactFullsetType, List<String> flavorText,
+                                     ItemLoader.RandomStatTracker tracker, String rarity, Map<StatType, Double> appliedModifiers,
                                      FabricationGrade grade, List<Component> runeLore) {
         List<Component> lore = new ArrayList<>();
         LegacyComponentSerializer serializer = LegacyComponentSerializer.legacySection();
@@ -213,6 +214,22 @@ class LoreBuilder {
              infoLine = infoLine.append(Component.text(itemType, NamedTextColor.GRAY));
         }
         if (!infoLine.equals(Component.empty())) lore.add(infoLine.decoration(TextDecoration.ITALIC, false));
+
+        if (artifactFullsetType != null && !artifactFullsetType.isBlank()) {
+            lore.add(Component.text("フルセット種別: ", NamedTextColor.GRAY)
+                    .append(ItemFactory.getArtifactSetDisplayName(artifactFullsetType))
+                    .decoration(TextDecoration.ITALIC, false));
+
+            List<Component> fullsetNotes = ItemFactory.getArtifactSetLoreLines(artifactFullsetType);
+            if (!fullsetNotes.isEmpty()) {
+                lore.add(Component.text("セット効果: ", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
+                for (Component line : fullsetNotes) {
+                    lore.add(Component.text("  - ", NamedTextColor.DARK_GRAY)
+                            .append(line)
+                            .decoration(TextDecoration.ITALIC, false));
+                }
+            }
+        }
 
         if (tracker != null) {
             double ratio = tracker.getRatio() * 100.0;

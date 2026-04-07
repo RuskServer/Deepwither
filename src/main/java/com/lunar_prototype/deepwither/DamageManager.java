@@ -5,6 +5,7 @@ import com.lunar_prototype.deepwither.api.stat.IStatManager;
 import com.lunar_prototype.deepwither.core.damage.DamageCalculator;
 import com.lunar_prototype.deepwither.core.damage.DamageContext;
 import com.lunar_prototype.deepwither.core.damage.DamageProcessor;
+import com.lunar_prototype.deepwither.loot.RouteLootChestManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
@@ -37,10 +38,11 @@ import org.bukkit.util.Vector;
 
 import java.util.*;
 
-@DependsOn({StatManager.class, PlayerSettingsManager.class, ChargeManager.class, ManaManager.class, DamageProcessor.class, WeaponMechanicManager.class})
+@DependsOn({StatManager.class, PlayerSettingsManager.class, ChargeManager.class, ManaManager.class, DamageProcessor.class, WeaponMechanicManager.class, com.lunar_prototype.deepwither.core.UIManager.class})
 public class DamageManager implements Listener, IManager {
 
     private final IStatManager statManager;
+    private final com.lunar_prototype.deepwither.core.UIManager uiManager;
     private final Map<UUID, Long> onHitCooldowns = new HashMap<>();
     private final JavaPlugin plugin;
 
@@ -60,10 +62,11 @@ public class DamageManager implements Listener, IManager {
 
     private final PlayerSettingsManager settingsManager;
 
-    public DamageManager(JavaPlugin plugin, IStatManager statManager, PlayerSettingsManager settingsManager) {
+    public DamageManager(JavaPlugin plugin, IStatManager statManager, PlayerSettingsManager settingsManager, com.lunar_prototype.deepwither.core.UIManager uiManager) {
         this.plugin = plugin;
         this.statManager = statManager;
         this.settingsManager = settingsManager;
+        this.uiManager = uiManager;
     }
 
     @Override
@@ -73,12 +76,6 @@ public class DamageManager implements Listener, IManager {
 
     @Override
     public void shutdown() {}
-
-    public void sendLog(Player player, PlayerSettingsManager.SettingType type, Component message) {
-        if (settingsManager.isEnabled(player, type)) {
-            player.sendMessage(message);
-        }
-    }
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onPhysicalDamage(EntityDamageByEntityEvent e) {
@@ -97,6 +94,11 @@ public class DamageManager implements Listener, IManager {
         }
 
         if (attacker == null) return;
+
+        RouteLootChestManager routeLootChestManager = Deepwither.getInstance().getRouteLootChestManager();
+        if (routeLootChestManager != null) {
+            routeLootChestManager.recordActivity(attacker, 3.0);
+        }
         
         Deepwither dw = Deepwither.getInstance();
         DamageProcessor processor = dw.getDamageProcessor();
@@ -154,6 +156,11 @@ public class DamageManager implements Listener, IManager {
             context.setFinalDamage(context.getFinalDamage() * (attackerStats.getFinal(StatType.CRIT_DAMAGE) / 100.0));
         }
 
+        Deepwither.getInstance().getArtifactManager().handleArtifactSetTrigger(context, ItemFactory.ArtifactSetTrigger.ATTACK_HIT);
+        if (context.isCrit()) {
+            Deepwither.getInstance().getArtifactManager().handleArtifactSetTrigger(context, ItemFactory.ArtifactSetTrigger.CRIT);
+        }
+
         // 3. 距離補正 (遠距離)
         if (isProjectile) {
             double distMult = DamageCalculator.calculateDistanceMultiplier(attacker.getLocation(), targetLiving.getLocation());
@@ -167,10 +174,13 @@ public class DamageManager implements Listener, IManager {
         // 5. 防御力計算
         double defenseDivisor = (targetLiving instanceof Player) ? PLAYER_DEFENSE_DIVISOR : DEFENSE_DIVISOR;
         double defenseValue = defenderStats.getFinal(StatType.DEFENSE);
-        
-        // 防御貫通タグのチェック
+
+        double defenseBypassPercent = context.getDefenseBypassPercent();
         if (context.hasTag("DEFENSE_BYPASS")) {
-            defenseValue *= 0.5; // 50% 防御貫通
+            defenseBypassPercent = Math.max(defenseBypassPercent, 50.0);
+        }
+        if (defenseBypassPercent > 0) {
+            defenseValue *= (1.0 - Math.min(defenseBypassPercent, 100.0) / 100.0);
         }
         
         context.setFinalDamage(DamageCalculator.applyDefense(context.getFinalDamage(), defenseValue, defenseDivisor));
@@ -196,6 +206,12 @@ public class DamageManager implements Listener, IManager {
         iFrameEndTimes.put(targetLiving.getUniqueId(), System.currentTimeMillis() + DAMAGE_I_FRAME_MS);
         processor.process(context);
 
+        Double lunarBonusMagic = context.get("lunar_echo_bonus_magic");
+        if (lunarBonusMagic != null && lunarBonusMagic > 0) {
+            DamageContext lunarExtra = new DamageContext(attacker, targetLiving, DeepwitherDamageEvent.DamageType.MAGIC, lunarBonusMagic);
+            processor.process(lunarExtra);
+        }
+
         // 10. 武器メカニクスとOn-Hit (事後処理用、現状は斧以外は事後でも問題ないが、統一して前に移動したのでここではOn-Hitのみ)
         tryTriggerOnHitSkill(attacker, targetLiving, item);
 
@@ -218,7 +234,7 @@ public class DamageManager implements Listener, IManager {
             context.setFinalDamage(context.getFinalDamage() * comboMultiplier);
 
             if (currentCombo > 0) {
-                sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG,
+                uiManager.of(attacker).message(PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG,
                         Component.text("コンボ継続中! x" + currentCombo, NamedTextColor.YELLOW)
                                 .append(Component.text(" (+" + Math.round((comboMultiplier - 1.0) * 100) + "%)", NamedTextColor.GOLD)));
             }
@@ -236,7 +252,7 @@ public class DamageManager implements Listener, IManager {
                 if (cooldown < 1.0f) {
                     double reduced = context.getFinalDamage() * (1.0 - cooldown);
                     context.setFinalDamage(context.getFinalDamage() * cooldown);
-                    sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG,
+                    uiManager.of(attacker).message(PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG,
                             Component.text("攻撃クールダウン！ ", NamedTextColor.RED)
                                     .append(Component.text("-" + Math.round(reduced), NamedTextColor.RED))
                                     .append(Component.text(" ダメージ ", NamedTextColor.GRAY))
@@ -254,7 +270,9 @@ public class DamageManager implements Listener, IManager {
             double blockedDamage = context.getFinalDamage() * blockRate;
             context.setFinalDamage(context.getFinalDamage() - blockedDamage);
             victim.getWorld().playSound(victim.getLocation(), Sound.ITEM_SHIELD_BLOCK, 1f, 1f);
-            sendLog(victim, PlayerSettingsManager.SettingType.SHOW_MITIGATION,
+            
+            uiManager.of(victim).combatAction("SHIELD BLOCK!!", NamedTextColor.AQUA);
+            uiManager.of(victim).message(PlayerSettingsManager.SettingType.SHOW_MITIGATION,
                     Component.text("盾防御！ ", NamedTextColor.AQUA)
                             .append(Component.text("軽減: ", NamedTextColor.GRAY))
                             .append(Component.text(Math.round(blockedDamage), NamedTextColor.GREEN))
@@ -264,7 +282,11 @@ public class DamageManager implements Listener, IManager {
 
     private void playHitEffects(Player attacker, LivingEntity victim, DamageContext context) {
         if (context.isCrit()) {
-            sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, Component.text("クリティカル！ ", NamedTextColor.GOLD, TextDecoration.BOLD).append(Component.text("+" + Math.round(context.getFinalDamage()), NamedTextColor.RED)));
+            uiManager.of(attacker).combatAction("CRITICAL!!", NamedTextColor.GOLD);
+            uiManager.of(attacker).message(PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, 
+                    Component.text("クリティカル！ ", NamedTextColor.GOLD, TextDecoration.BOLD)
+                            .append(Component.text("+" + Math.round(context.getFinalDamage()), NamedTextColor.RED)));
+            
             Location hitLoc = victim.getLocation().add(0, 1.2, 0);
             World world = hitLoc.getWorld();
             world.spawnParticle(Particle.FLASH, hitLoc, 1, 0, 0, 0, 0, Color.WHITE);
@@ -277,7 +299,7 @@ public class DamageManager implements Listener, IManager {
             world.playSound(hitLoc, Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, 0.8f, 0.6f);
             world.playSound(hitLoc, Sound.ITEM_TRIDENT_HIT, 1.0f, 0.7f);
         } else if (context.isProjectile()) {
-            sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_GIVEN_DAMAGE,
+            uiManager.of(attacker).message(PlayerSettingsManager.SettingType.SHOW_GIVEN_DAMAGE,
                     Component.text("遠距離命中 ", NamedTextColor.GRAY)
                             .append(Component.text("+" + Math.round(context.getFinalDamage()), NamedTextColor.RED))
                             .append(Component.text(" [" + String.format("%.0f%%", context.getDistanceMultiplier() * 100) + "]", NamedTextColor.YELLOW)));
@@ -345,13 +367,14 @@ public class DamageManager implements Listener, IManager {
             finalDamage = rawDamage - blocked;
             damageType = DeepwitherDamageEvent.DamageType.ENVIRONMENTAL;
             if (blocked > 0) {
-                sendLog(player, PlayerSettingsManager.SettingType.SHOW_MITIGATION,
+                uiManager.of(player).message(PlayerSettingsManager.SettingType.SHOW_MITIGATION,
                         Component.text("落下耐性！ ", NamedTextColor.AQUA)
                                 .append(Component.text("軽減: ", NamedTextColor.GRAY))
                                 .append(Component.text(Math.round(blocked), NamedTextColor.GREEN))
                                 .append(Component.text(" (" + Math.round(finalDamage) + "被弾)", NamedTextColor.RED)));
             }
-        } else {
+        }
+ else {
             double currentDamage = (attacker instanceof Mob) ? applyMobCritLogic(attacker, rawDamage, player) : rawDamage;
             double def = defenderStats.getFinal(StatType.DEFENSE) * defenseMultiplier;
             finalDamage = DamageCalculator.applyDefense(currentDamage, def, PLAYER_DEFENSE_DIVISOR);
@@ -416,7 +439,8 @@ public class DamageManager implements Listener, IManager {
             Location loc = target.getLocation().add(0, 1.2, 0);
             loc.getWorld().spawnParticle(Particle.FLASH, loc, 1, 0, 0, 0, 0, Color.WHITE);
             loc.getWorld().playSound(loc, Sound.ENTITY_PLAYER_ATTACK_CRIT, 1.2f, 0.8f);
-            sendLog(target, PlayerSettingsManager.SettingType.SHOW_TAKEN_DAMAGE, Component.text("敵のクリティカル！", NamedTextColor.DARK_RED, TextDecoration.BOLD));
+            uiManager.of(target).combatAction("ENEMY CRITICAL!!", NamedTextColor.DARK_RED);
+            uiManager.of(target).message(PlayerSettingsManager.SettingType.SHOW_TAKEN_DAMAGE, Component.text("敵のクリティカル！", NamedTextColor.DARK_RED, TextDecoration.BOLD));
         }
         return damage;
     }
@@ -436,7 +460,7 @@ public class DamageManager implements Listener, IManager {
                 count++;
             }
         }.runTaskTimer(Deepwither.getInstance(), 20L, 20L);
-        sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_GIVEN_DAMAGE, Component.text("出血付与！", NamedTextColor.DARK_RED));
+        uiManager.of(attacker).message(PlayerSettingsManager.SettingType.SHOW_GIVEN_DAMAGE, Component.text("出血付与！", NamedTextColor.DARK_RED));
     }
 
     private void applyFreeze(LivingEntity target) {
@@ -455,14 +479,15 @@ public class DamageManager implements Listener, IManager {
                 Deepwither.getInstance().getDamageProcessor().process(aoeContext);
             }
         }
-        sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_GIVEN_DAMAGE, Component.text("拡散ヒット！", NamedTextColor.YELLOW));
+        uiManager.of(attacker).message(PlayerSettingsManager.SettingType.SHOW_GIVEN_DAMAGE, Component.text("拡散ヒット！", NamedTextColor.YELLOW));
     }
 
     public boolean handleUndeadDamage(Player player, LivingEntity target) {
         String mobId = MythicBukkit.inst().getMobManager().getActiveMob(target.getUniqueId()).get().getType().getInternalName();
         if (mobId != null && UNDEAD_MOB_IDS.contains(mobId)) {
             double damage = target.getHealth() * 0.5;
-            sendLog(player, PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, Component.text("聖特攻！ ", NamedTextColor.LIGHT_PURPLE, TextDecoration.BOLD).append(Component.text("アンデッドに50%ダメージ！", NamedTextColor.WHITE)));
+            uiManager.of(player).combatAction("HOLY SMITE!!", NamedTextColor.LIGHT_PURPLE);
+            uiManager.of(player).message(PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, Component.text("聖特攻！ ", NamedTextColor.LIGHT_PURPLE, TextDecoration.BOLD).append(Component.text("アンデッドに50%ダメージ！", NamedTextColor.WHITE)));
             target.getWorld().playSound(target.getLocation(), Sound.BLOCK_ANVIL_LAND, 1.0f, 0.5f);
             DamageContext holyContext = new DamageContext(player, target, DeepwitherDamageEvent.DamageType.MAGIC, damage);
             Deepwither.getInstance().getDamageProcessor().process(holyContext);
@@ -475,13 +500,19 @@ public class DamageManager implements Listener, IManager {
         double heal = target.getMaxHealth() * (finalDamage / 100.0 / 100.0);
         heal = Math.min(heal, player.getMaxHealth() * 0.20);
         statManager.heal(player, heal);
-        sendLog(player, PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, Component.text("LS！ ", NamedTextColor.GREEN, TextDecoration.BOLD).append(Component.text(String.format("%.1f", heal) + " 回復", NamedTextColor.DARK_GREEN)));
+        uiManager.of(player).message(PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, Component.text("LS！ ", NamedTextColor.GREEN, TextDecoration.BOLD).append(Component.text(String.format("%.1f", heal) + " 回復", NamedTextColor.DARK_GREEN)));
         player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 2f);
     }
 
     private boolean isPvPPrevented(Player attacker, LivingEntity target) {
         if (!target.getWorld().getName().equals(attacker.getWorld().getName())) return false;
         if (!(target instanceof Player)) return false;
+        RouteLootChestManager routeLootChestManager = Deepwither.getInstance().getRouteLootChestManager();
+        if (routeLootChestManager != null) {
+            if (routeLootChestManager.isEventPvpAllowed(attacker.getLocation()) || routeLootChestManager.isEventPvpAllowed(target.getLocation())) {
+                return false;
+            }
+        }
         if (!Bukkit.getPluginManager().isPluginEnabled("WorldGuard")) return false;
         try {
             RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
@@ -509,7 +540,7 @@ public class DamageManager implements Listener, IManager {
         if (Math.random() * 100 <= chance) {
             MythicBukkit.inst().getAPIHelper().castSkill(attacker.getPlayer(), skillId);
             onHitCooldowns.put(attacker.getUniqueId(), currentTime);
-            sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG,
+            uiManager.of(attacker).message(PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG,
                     Component.text("[On-Hit] スキル「", NamedTextColor.GREEN)
                             .append(Component.text(skillId, NamedTextColor.AQUA))
                             .append(Component.text("」を発動！", NamedTextColor.GREEN)));

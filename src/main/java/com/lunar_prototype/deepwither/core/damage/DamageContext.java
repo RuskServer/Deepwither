@@ -23,8 +23,10 @@ public class DamageContext {
     private boolean isCrit = false;
     private boolean isProjectile = false;
     private double distanceMultiplier = 1.0;
-    
+    private double defenseBypassPercent = 0.0;
+
     private final Set<String> tags = new HashSet<>();
+    private final java.util.Map<String, Object> metadata = new java.util.HashMap<>();
     private StatType weaponStatType;
     private ItemStack weapon;
 
@@ -60,6 +62,11 @@ public class DamageContext {
     public double getDistanceMultiplier() { return distanceMultiplier; }
     public void setDistanceMultiplier(double distanceMultiplier) { this.distanceMultiplier = distanceMultiplier; }
 
+    public double getDefenseBypassPercent() { return defenseBypassPercent; }
+    public void setDefenseBypassPercent(double defenseBypassPercent) {
+        this.defenseBypassPercent = Math.max(0.0, Math.min(100.0, defenseBypassPercent));
+    }
+
     public Set<String> getTags() { return tags; }
     public void addTag(String tag) { tags.add(tag); }
     public boolean hasTag(String tag) { return tags.contains(tag); }
@@ -69,6 +76,11 @@ public class DamageContext {
 
     public ItemStack getWeapon() { return weapon; }
     public void setWeapon(ItemStack weapon) { this.weapon = weapon; }
+
+    public void put(String key, Object value) { metadata.put(key, value); }
+
+    @SuppressWarnings("unchecked")
+    public <T> T get(String key) { return (T) metadata.get(key); }
     
     public boolean isMagic() {
         return damageType == DeepwitherDamageEvent.DamageType.MAGIC;

@@ -16,10 +16,13 @@ import org.bukkit.Bukkit;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @DependsOn({ArtifactGUI.class, StatManager.class})
 public class ArtifactGUIListener implements Listener, IManager {
@@ -75,9 +78,17 @@ public class ArtifactGUIListener implements Listener, IManager {
                     if (isArtifact && !isArtifact(cursorItem)) {
                         event.setCancelled(true);
                         player.sendMessage(Component.text("ここにはアーティファクトのみ装備できます。", NamedTextColor.RED));
+                        return;
                     } else if (isBackpack && !isBackpackItem(cursorItem)) {
                         event.setCancelled(true);
                         player.sendMessage(Component.text("ここには背中装備のみ装備できます。", NamedTextColor.RED));
+                        return;
+                    }
+
+                    if (isArtifact && artifactWouldExceedTypeLimit(event, cursorItem)) {
+                        event.setCancelled(true);
+                        player.sendMessage(Component.text("同じタイプのアーティファクトは2つまでです。", NamedTextColor.RED));
+                        return;
                     }
 
                     if (currentItem != null && (currentItem.getType() == Material.CYAN_STAINED_GLASS_PANE ||
@@ -109,27 +120,42 @@ public class ArtifactGUIListener implements Listener, IManager {
             Deepwither plugin = Deepwither.getInstance();
 
             List<ItemStack> artifacts = new ArrayList<>();
+            List<ItemStack> rejectedItems = new ArrayList<>();
+            List<ItemStack> selectedArtifacts = new ArrayList<>();
             for (int slot : ArtifactGUI.ARTIFACT_SLOTS) {
                 ItemStack item = guiInventory.getItem(slot);
                 if (item != null && item.getType() != Material.CYAN_STAINED_GLASS_PANE) {
-                    artifacts.add(item);
+                    if (!isArtifact(item)) {
+                        rejectedItems.add(item.clone());
+                    } else if (plugin.getArtifactManager().wouldExceedTypeLimit(selectedArtifacts, item, -1)) {
+                        rejectedItems.add(item.clone());
+                    } else {
+                        selectedArtifacts.add(item.clone());
+                    }
                 }
             }
+            artifacts.addAll(selectedArtifacts);
 
             ItemStack backpackItem = guiInventory.getItem(ArtifactGUI.BACKPACK_SLOT);
             ItemStack toSaveBackpack = null;
 
             if (backpackItem != null && backpackItem.getType() != Material.PURPLE_STAINED_GLASS_PANE) {
-                toSaveBackpack = backpackItem;
-                if (backpackItem.hasItemMeta() && backpackItem.getItemMeta().hasCustomModelData()) {
-                    int model = backpackItem.getItemMeta().getCustomModelData();
-                    plugin.getBackpackManager().equipBackpack(player, model);
+                if (isBackpackItem(backpackItem)) {
+                    toSaveBackpack = backpackItem;
+                    if (backpackItem.hasItemMeta() && backpackItem.getItemMeta().hasCustomModelData()) {
+                        int model = backpackItem.getItemMeta().getCustomModelData();
+                        plugin.getBackpackManager().equipBackpack(player, model);
+                    }
+                } else {
+                    rejectedItems.add(backpackItem.clone());
+                    plugin.getBackpackManager().unequipBackpack(player);
                 }
             } else {
                 plugin.getBackpackManager().unequipBackpack(player);
             }
 
             plugin.getArtifactManager().savePlayerArtifacts(player, artifacts, toSaveBackpack);
+            returnRejectedArtifacts(player, rejectedItems);
             statManager.updatePlayerStats(player);
         }
     }
@@ -144,6 +170,18 @@ public class ArtifactGUIListener implements Listener, IManager {
     private boolean isArtifact(ItemStack item) {
         if (item == null || !item.hasItemMeta()) return false;
         ItemMeta meta = item.getItemMeta();
+
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        String fullsetType = pdc.get(ItemFactory.ARTIFACT_FULLSET_TYPE, PersistentDataType.STRING);
+        if (fullsetType != null && !fullsetType.isBlank()) {
+            return true;
+        }
+
+        String itemType = pdc.get(ItemFactory.ITEM_TYPE_KEY, PersistentDataType.STRING);
+        if (itemType != null && itemType.contains("アーティファクト")) {
+            return true;
+        }
+
         if (meta.hasLore()) {
             for (Component line : meta.lore()) {
                 if (PlainTextComponentSerializer.plainText().serialize(line).contains("アーティファクト")) return true;
@@ -155,5 +193,37 @@ public class ArtifactGUIListener implements Listener, IManager {
     private boolean isBackpackItem(ItemStack item) {
         if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasLore()) return false;
         return item.getItemMeta().lore().stream().anyMatch(line -> PlainTextComponentSerializer.plainText().serialize(line).contains("背中装備"));
+    }
+
+    private boolean artifactWouldExceedTypeLimit(InventoryClickEvent event, ItemStack candidate) {
+        Inventory top = event.getView().getTopInventory();
+        List<ItemStack> items = new ArrayList<>();
+        int slot = event.getSlot();
+
+        for (int artifactSlot : ArtifactGUI.ARTIFACT_SLOTS) {
+            if (artifactSlot == slot) {
+                continue;
+            }
+            ItemStack existing = top.getItem(artifactSlot);
+            if (existing != null && existing.getType() != Material.CYAN_STAINED_GLASS_PANE) {
+                items.add(existing);
+            }
+        }
+
+        return Deepwither.getInstance().getArtifactManager().wouldExceedTypeLimit(items, candidate, -1);
+    }
+
+    private void returnRejectedArtifacts(Player player, List<ItemStack> rejectedItems) {
+        if (rejectedItems.isEmpty()) {
+            return;
+        }
+
+        for (ItemStack rejected : rejectedItems) {
+            Map<Integer, ItemStack> overflow = player.getInventory().addItem(rejected);
+            if (!overflow.isEmpty()) {
+                overflow.values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
+            }
+        }
+        player.sendMessage(Component.text("配置できなかったアイテムをインベントリに戻しました。", NamedTextColor.YELLOW));
     }
 }

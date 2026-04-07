@@ -3,6 +3,7 @@ package com.lunar_prototype.deepwither;
 import com.lunar_prototype.deepwither.booster.BoosterManager;
 import com.lunar_prototype.deepwither.outpost.OutpostEvent;
 import com.lunar_prototype.deepwither.outpost.OutpostManager;
+import com.lunar_prototype.deepwither.loot.RouteLootChestManager;
 import com.lunar_prototype.deepwither.party.Party;
 import com.lunar_prototype.deepwither.party.PartyManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
@@ -58,6 +59,11 @@ public class MobKillListener implements Listener, IManager {
 
         if (baseExp > 0) {
             handleExpDistribution(killer, baseExp);
+        }
+
+        RouteLootChestManager routeLootChestManager = Deepwither.getInstance().getRouteLootChestManager();
+        if (routeLootChestManager != null) {
+            routeLootChestManager.recordMobKill(killer);
         }
 
         OutpostEvent activeEvent = outpostManager.getActiveEvent();

@@ -182,13 +182,9 @@
         </dependency>
         <dependency>
             <groupId>com.github.NuVotifier.NuVotifier</groupId>
-            <artifactId>nuvotifier-bukkit</artifactId>
-            <version>2.7.2</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.NuVotifier.NuVotifier</groupId>
-            <artifactId>nuvotifier-api</artifactId>
-            <version>2.7.2</version>
+            <artifactId>nuvotifier-bukkit</artifactId> <!-- Bukkit/Paper用ならこれ -->
+            <version>2.7.2</version> <!-- または commitハッシュ -->
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.github.retrooper</groupId>

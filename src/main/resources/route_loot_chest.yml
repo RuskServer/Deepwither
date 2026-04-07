@@ -1,0 +1,115 @@
+# Route loot chest event configuration.
+# You can group tiers with keys like "1-2" or "3-4".
+# Replace the example candidate locations with your actual layer coordinates.
+
+event:
+  interval_ticks: 36000
+  open_seconds: 15
+  pvp_radius: 32
+  duration_ticks: 18000
+  layer_announce_ticks: 18000
+  coordinate_announce_ticks: 6000
+  party_bonus_per_member: 0.08
+  consolation_multiplier: 0.25
+  activity_half_life_ticks: 12000
+
+layers:
+  "1-2":
+    name: "tier1_2"
+    common_template:
+      min_items: 2
+      max_items: 4
+      entries:
+        - id: GOLD_INGOT
+          chance: 0.35
+          min_stack: 4
+          max_stack: 10
+        - id: EXPERIENCE_BOTTLE
+          chance: 0.25
+          min_stack: 8
+          max_stack: 16
+        - id: EMERALD
+          chance: 0.15
+          min_stack: 2
+          max_stack: 6
+        - id: DIAMOND
+          chance: 0.10
+          min_stack: 1
+          max_stack: 3
+    rare_template:
+      min_items: 1
+      max_items: 2
+      entries:
+        - id: NETHER_STAR
+          chance: 0.35
+          min_stack: 1
+          max_stack: 1
+        - id: ENCHANTED_GOLDEN_APPLE
+          chance: 0.20
+          min_stack: 1
+          max_stack: 1
+        - id: DIAMOND_BLOCK
+          chance: 0.15
+          min_stack: 1
+          max_stack: 2
+    candidate_locations:
+      - world: "world"
+        x: 0
+        y: 100
+        z: 0
+      - world: "world"
+        x: 64
+        y: 100
+        z: 64
+      - world: "world"
+        x: -64
+        y: 100
+        z: -64
+
+  "3-4":
+    name: "tier3_4"
+    common_template:
+      min_items: 2
+      max_items: 5
+      entries:
+        - id: GOLD_INGOT
+          chance: 0.30
+          min_stack: 8
+          max_stack: 16
+        - id: EXPERIENCE_BOTTLE
+          chance: 0.20
+          min_stack: 16
+          max_stack: 24
+        - id: EMERALD
+          chance: 0.20
+          min_stack: 4
+          max_stack: 8
+        - id: DIAMOND
+          chance: 0.15
+          min_stack: 2
+          max_stack: 5
+    rare_template:
+      min_items: 1
+      max_items: 2
+      entries:
+        - id: NETHER_STAR
+          chance: 0.30
+          min_stack: 1
+          max_stack: 1
+        - id: ENCHANTED_GOLDEN_APPLE
+          chance: 0.25
+          min_stack: 1
+          max_stack: 1
+        - id: DIAMOND_BLOCK
+          chance: 0.20
+          min_stack: 1
+          max_stack: 3
+    candidate_locations:
+      - world: "world"
+        x: 200
+        y: 100
+        z: 200
+      - world: "world"
+        x: 256
+        y: 100
+        z: 192

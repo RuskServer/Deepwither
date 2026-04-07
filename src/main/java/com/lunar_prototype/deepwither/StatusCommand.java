@@ -2,10 +2,13 @@ package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.api.stat.IStatManager;
 import com.lunar_prototype.deepwither.modules.economy.trader.TraderManager;
+import com.lunar_prototype.deepwither.fishing.FishingManager;
+import com.lunar_prototype.deepwither.modules.mine.MiningSkillService;
 import com.lunar_prototype.deepwither.profession.PlayerProfessionData;
 import com.lunar_prototype.deepwither.profession.ProfessionManager;
 import com.lunar_prototype.deepwither.profession.ProfessionType;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.milkbowl.vault.economy.Economy;
@@ -25,12 +28,18 @@ public class StatusCommand implements CommandExecutor {
     private final IStatManager statManager;
     private final CreditManager creditManager;
     private final ProfessionManager professionManager;
+    private final FishingManager fishingManager;
+    private final MiningSkillService miningSkillService;
 
-    public StatusCommand(LevelManager levelManager, IStatManager statManager, CreditManager creditManager, ProfessionManager professionManager) {
+    public StatusCommand(LevelManager levelManager, IStatManager statManager, CreditManager creditManager,
+                         ProfessionManager professionManager, FishingManager fishingManager,
+                         MiningSkillService miningSkillService) {
         this.levelManager = levelManager;
         this.statManager = statManager;
         this.creditManager = creditManager;
         this.professionManager = professionManager;
+        this.fishingManager = fishingManager;
+        this.miningSkillService = miningSkillService;
     }
 
     @Override
@@ -99,9 +108,19 @@ public class StatusCommand implements CommandExecutor {
             long totalExp = profData.getExp(type);
             int profLevel = professionManager.getLevel(totalExp);
             String typeName = formatProfessionName(type);
-            player.sendMessage(Component.text("  " + typeName + ": ", NamedTextColor.GRAY)
-                    .append(Component.text("Lv." + profLevel, NamedTextColor.GREEN))
-                    .append(Component.text(" (Total: " + totalExp + " xp)", NamedTextColor.GRAY)));
+
+            Component line = Component.text("  " + typeName + ": ", NamedTextColor.GRAY)
+                    .append(Component.text("Lv." + profLevel, NamedTextColor.GREEN));
+
+            line = line.append(Component.text(" (Total: " + totalExp + " xp)", NamedTextColor.GRAY));
+            if (type == ProfessionType.MINING && miningSkillService != null) {
+                MiningSkillService.MiningProfile miningProfile = miningSkillService.resolveProfile(player);
+                line = line.hoverEvent(HoverEvent.showText(miningSkillService.buildStatusTooltip(miningProfile)));
+            } else if (type == ProfessionType.FISHING && fishingManager != null) {
+                line = line.hoverEvent(HoverEvent.showText(fishingManager.buildStatusTooltip(player)));
+            }
+
+            player.sendMessage(line);
         }
         player.sendMessage(Component.empty());
 

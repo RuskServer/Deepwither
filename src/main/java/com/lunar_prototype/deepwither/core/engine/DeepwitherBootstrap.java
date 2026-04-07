@@ -20,11 +20,13 @@ public class DeepwitherBootstrap {
         this.plugin = plugin;
         this.logger = plugin.getLogger();
         this.container = new ServiceContainer(logger);
-        this.moduleManager = new ModuleManager(container, logger);
 
         // 基本サービスの登録
         container.registerInstance(Deepwither.class, plugin);
         container.registerInstance(Logger.class, logger);
+        container.registerInstance(ModuleRegistrar.class, new ModuleRegistrar(plugin, logger));
+
+        this.moduleManager = new ModuleManager(container, logger);
     }
 
     /**
@@ -89,6 +91,7 @@ public class DeepwitherBootstrap {
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.integration.IntegrationModule(plugin));
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.dynamic_quest.DynamicQuestModule(plugin));
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.rune.RuneModule(plugin));
+        moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.mine.MineModule(plugin));
 
         // Legacy Module (既存機能のラップ)
         moduleManager.registerModule(new LegacyModule(plugin));

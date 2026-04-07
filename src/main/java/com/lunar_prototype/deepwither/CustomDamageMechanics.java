@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent;
 import com.lunar_prototype.deepwither.core.damage.DamageCalculator;
 import com.lunar_prototype.deepwither.core.damage.DamageContext;
@@ -92,7 +93,15 @@ public class CustomDamageMechanics implements ITargetedEntitySkill {
                 context.setCrit(true);
                 baseDamage *= (attackerStats.getFinal(StatType.CRIT_DAMAGE) / 100.0);
                 playCriticalEffect(bukkitTarget);
-                damageManager.sendLog(player, PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, Component.text("クリティカル！", NamedTextColor.GOLD, TextDecoration.BOLD));
+                DW.ui(player).combatAction("CRITICAL!!", NamedTextColor.GOLD);
+                DW.ui(player).message(PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, Component.text("クリティカル！", NamedTextColor.GOLD, TextDecoration.BOLD));
+            }
+
+            context.setBaseDamage(baseDamage);
+            context.setFinalDamage(baseDamage);
+            Deepwither.getInstance().getArtifactManager().handleArtifactSetTrigger(context, ItemFactory.ArtifactSetTrigger.ATTACK_HIT);
+            if (context.isCrit()) {
+                Deepwither.getInstance().getArtifactManager().handleArtifactSetTrigger(context, ItemFactory.ArtifactSetTrigger.CRIT);
             }
         } else {
             baseDamage = basePower * multiplier;
@@ -115,7 +124,9 @@ public class CustomDamageMechanics implements ITargetedEntitySkill {
                     double blocked = finalDamage * blockRate;
                     finalDamage -= blocked;
                     playerTarget.getWorld().playSound(playerTarget.getLocation(), Sound.ITEM_SHIELD_BLOCK, 1f, 1f);
-                    damageManager.sendLog(playerTarget, PlayerSettingsManager.SettingType.SHOW_MITIGATION, 
+                    
+                    DW.ui(playerTarget).combatAction("SHIELD BLOCK!!", NamedTextColor.AQUA);
+                    DW.ui(playerTarget).message(PlayerSettingsManager.SettingType.SHOW_MITIGATION, 
                             Component.text("盾防御！ ", NamedTextColor.AQUA)
                                     .append(Component.text("軽減: ", NamedTextColor.GRAY))
                                     .append(Component.text(Math.round(blocked), NamedTextColor.GREEN)));
@@ -137,6 +148,31 @@ public class CustomDamageMechanics implements ITargetedEntitySkill {
 
         context.setFinalDamage(Math.max(0.1, finalDamage));
         damageProcessor.process(context);
+
+        if (caster instanceof Player playerCaster) {
+            Double celestialTrueDamage = context.get("celestial_true_damage");
+            if (celestialTrueDamage != null && celestialTrueDamage > 0) {
+                if (bukkitTarget instanceof Player playerTarget) {
+                    double currentHp = Deepwither.getInstance().getStatManager().getActualCurrentHealth(playerTarget);
+                    Deepwither.getInstance().getStatManager().setActualCurrentHealth(playerTarget, currentHp - celestialTrueDamage);
+                } else {
+                    bukkitTarget.damage(celestialTrueDamage, caster);
+                }
+            }
+
+            Boolean celestialReplay = context.get("celestial_burst_repeat");
+            if (Boolean.TRUE.equals(celestialReplay)) {
+                DamageContext burstReplay = new DamageContext(caster, bukkitTarget, damageType, context.getFinalDamage());
+                burstReplay.addTag("ARTIFACT_CELESTIAL_BURST_REPLAY");
+                damageProcessor.process(burstReplay);
+            }
+
+            Double lunarBonusMagic = context.get("lunar_echo_bonus_magic");
+            if (lunarBonusMagic != null && lunarBonusMagic > 0) {
+                DamageContext lunarExtra = new DamageContext(caster, bukkitTarget, DeepwitherDamageEvent.DamageType.MAGIC, lunarBonusMagic);
+                damageProcessor.process(lunarExtra);
+            }
+        }
 
         return SkillResult.SUCCESS;
     }

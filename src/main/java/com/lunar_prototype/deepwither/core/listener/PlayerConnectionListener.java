@@ -46,6 +46,6 @@ public class PlayerConnectionListener implements Listener, IManager {
 
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
-        playerDataManager.unloadData(e.getPlayer().getUniqueId());
+        playerDataManager.unloadDataAsync(e.getPlayer().getUniqueId());
     }
 }

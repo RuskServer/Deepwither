@@ -57,6 +57,9 @@ public class CoreModule implements IModule {
         ChargeManager chargeManager = new ChargeManager(plugin);
         container.registerInstance(ChargeManager.class, chargeManager);
 
+        com.lunar_prototype.deepwither.core.UIManager uiManager = new com.lunar_prototype.deepwither.core.UIManager(settingsManager);
+        container.registerInstance(com.lunar_prototype.deepwither.core.UIManager.class, uiManager);
+
         CooldownManager cooldownManager = new CooldownManager();
         container.registerInstance(CooldownManager.class, cooldownManager);
     }
