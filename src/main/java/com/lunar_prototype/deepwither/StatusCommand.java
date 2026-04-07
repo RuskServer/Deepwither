@@ -2,6 +2,7 @@ package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.api.stat.IStatManager;
 import com.lunar_prototype.deepwither.modules.economy.trader.TraderManager;
+import com.lunar_prototype.deepwither.fishing.FishingManager;
 import com.lunar_prototype.deepwither.modules.mine.MiningSkillService;
 import com.lunar_prototype.deepwither.profession.PlayerProfessionData;
 import com.lunar_prototype.deepwither.profession.ProfessionManager;
@@ -27,14 +28,17 @@ public class StatusCommand implements CommandExecutor {
     private final IStatManager statManager;
     private final CreditManager creditManager;
     private final ProfessionManager professionManager;
+    private final FishingManager fishingManager;
     private final MiningSkillService miningSkillService;
 
     public StatusCommand(LevelManager levelManager, IStatManager statManager, CreditManager creditManager,
-                         ProfessionManager professionManager, MiningSkillService miningSkillService) {
+                         ProfessionManager professionManager, FishingManager fishingManager,
+                         MiningSkillService miningSkillService) {
         this.levelManager = levelManager;
         this.statManager = statManager;
         this.creditManager = creditManager;
         this.professionManager = professionManager;
+        this.fishingManager = fishingManager;
         this.miningSkillService = miningSkillService;
     }
 
@@ -112,6 +116,8 @@ public class StatusCommand implements CommandExecutor {
             if (type == ProfessionType.MINING && miningSkillService != null) {
                 MiningSkillService.MiningProfile miningProfile = miningSkillService.resolveProfile(player);
                 line = line.hoverEvent(HoverEvent.showText(miningSkillService.buildStatusTooltip(miningProfile)));
+            } else if (type == ProfessionType.FISHING && fishingManager != null) {
+                line = line.hoverEvent(HoverEvent.showText(fishingManager.buildStatusTooltip(player)));
             }
 
             player.sendMessage(line);

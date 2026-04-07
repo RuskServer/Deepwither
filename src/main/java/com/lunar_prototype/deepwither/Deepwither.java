@@ -751,7 +751,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
 
         this.getCommand("status")
                 .setExecutor(new StatusCommand(levelManager, statManager, creditManager, professionManager,
-                        get(MiningSkillService.class)));
+                        get(FishingManager.class), get(MiningSkillService.class)));
 
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             for (Player p : Bukkit.getOnlinePlayers()) {
