@@ -5,6 +5,7 @@ import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -135,7 +136,7 @@ public class LayerMoveManager implements IManager {
         }
 
         if (warp.isAlphaLocked) {
-            player.sendMessage(Component.text(warp.alphaMessage.replace("&", "§"), NamedTextColor.RED));
+            player.sendMessage(MiniMessage.miniMessage().deserialize(warp.alphaMessage));
             return;
         }
 
