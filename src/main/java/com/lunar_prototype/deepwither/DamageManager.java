@@ -5,6 +5,7 @@ import com.lunar_prototype.deepwither.api.stat.IStatManager;
 import com.lunar_prototype.deepwither.core.damage.DamageCalculator;
 import com.lunar_prototype.deepwither.core.damage.DamageContext;
 import com.lunar_prototype.deepwither.core.damage.DamageProcessor;
+import com.lunar_prototype.deepwither.loot.RouteLootChestManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
@@ -93,6 +94,11 @@ public class DamageManager implements Listener, IManager {
         }
 
         if (attacker == null) return;
+
+        RouteLootChestManager routeLootChestManager = Deepwither.getInstance().getRouteLootChestManager();
+        if (routeLootChestManager != null) {
+            routeLootChestManager.recordActivity(attacker, 3.0);
+        }
         
         Deepwither dw = Deepwither.getInstance();
         DamageProcessor processor = dw.getDamageProcessor();
@@ -487,6 +493,12 @@ public class DamageManager implements Listener, IManager {
     private boolean isPvPPrevented(Player attacker, LivingEntity target) {
         if (!target.getWorld().getName().equals(attacker.getWorld().getName())) return false;
         if (!(target instanceof Player)) return false;
+        RouteLootChestManager routeLootChestManager = Deepwither.getInstance().getRouteLootChestManager();
+        if (routeLootChestManager != null) {
+            if (routeLootChestManager.isEventPvpAllowed(attacker.getLocation()) || routeLootChestManager.isEventPvpAllowed(target.getLocation())) {
+                return false;
+            }
+        }
         if (!Bukkit.getPluginManager().isPluginEnabled("WorldGuard")) return false;
         try {
             RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();

@@ -37,10 +37,13 @@ import com.lunar_prototype.deepwither.listeners.PvPWorldListener;
 import com.lunar_prototype.deepwither.listeners.VoteListener;
 import com.lunar_prototype.deepwither.loot.LootChestListener;
 import com.lunar_prototype.deepwither.loot.LootChestManager;
+import com.lunar_prototype.deepwither.loot.RouteLootChestManager;
 import com.lunar_prototype.deepwither.market.GlobalMarketManager;
 import com.lunar_prototype.deepwither.market.MarketGui;
 import com.lunar_prototype.deepwither.market.MarketSearchHandler;
 import com.lunar_prototype.deepwither.market.api.MarketApiController;
+import com.lunar_prototype.deepwither.mail.MailInboxGUI;
+import com.lunar_prototype.deepwither.mail.MailManager;
 import com.lunar_prototype.deepwither.modules.economy.trader.*;
 import com.lunar_prototype.deepwither.modules.mine.MiningSkillService;
 import com.lunar_prototype.deepwither.mythic.CustomDropListener;
@@ -288,12 +291,15 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     private MarketSearchHandler marketSearchHandler;
     private LootLevelManager lootLevelManager;
     private LootDropManager lootDropManager;
+    private MailManager mailManager;
+    private RouteLootChestManager routeLootChestManager;
 
     public MarketGui getMarketGui() {
         return marketGui;
     }
 
     private MarketGui marketGui;
+    private MailInboxGUI mailInboxGUI;
 
     public SeekerAIEngine getAiEngine() {
         return aiEngine;
@@ -313,6 +319,18 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
 
     public MenuGUI getMenuGUI() {
         return menuGUI;
+    }
+
+    public MailManager getMailManager() {
+        return mailManager;
+    }
+
+    public MailInboxGUI getMailInboxGUI() {
+        return mailInboxGUI;
+    }
+
+    public RouteLootChestManager getRouteLootChestManager() {
+        return routeLootChestManager;
     }
 
     public ResetGUI getResetGUI() {
@@ -907,6 +925,8 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.lootChestManager = register(new LootChestManager(this));
         this.lootLevelManager = register(new LootLevelManager(this));
         this.lootDropManager = register(new LootDropManager(itemFactory));
+        this.mailManager = register(new MailManager(this, databaseManager));
+        this.routeLootChestManager = register(new RouteLootChestManager(this));
         this.craftingManager = register(new CraftingManager(this));
         this.marketGui = register(new MarketGui(this));
         this.marketSearchHandler = register(new MarketSearchHandler(this));
@@ -942,6 +962,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.artifactGUIListener = register(new ArtifactGUIListener(this));
         this.skillAssignmentGUI = register(new SkillAssignmentGUI(this));
         this.settingsGUI = register(new SettingsGUI(this, settingsManager));
+        this.mailInboxGUI = register(new MailInboxGUI(this));
         this.menuGUI = register(new MenuGUI(this));
         this.resetGUI = register(new ResetGUI(this));
         this.menuItemListener = register(new MenuItemListener(this));

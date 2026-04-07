@@ -1,0 +1,31 @@
+# Vanilla loot chest templates used by the existing chest system.
+
+common:
+  min_items: 2
+  max_items: 4
+  entries:
+    - id: GOLD_INGOT
+      chance: 0.35
+      min_stack: 4
+      max_stack: 12
+    - id: EXPERIENCE_BOTTLE
+      chance: 0.30
+      min_stack: 6
+      max_stack: 18
+    - id: EMERALD
+      chance: 0.20
+      min_stack: 2
+      max_stack: 6
+
+rare:
+  min_items: 1
+  max_items: 2
+  entries:
+    - id: DIAMOND
+      chance: 0.25
+      min_stack: 1
+      max_stack: 4
+    - id: NETHER_STAR
+      chance: 0.10
+      min_stack: 1
+      max_stack: 1
