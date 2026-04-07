@@ -9,7 +9,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/RuskServer/Deepwither?style=flat-square)](https://github.com/RuskServer/Deepwither/issues)
 [![Website](https://img.shields.io/badge/Website-ruskserver.com-green.svg)](https://ruskserver.com/)
 
-[Official Website](https://ruskserver.com/) | [Documentation](https://github.com/RuskServer/Deepwither/wiki) | [Security](https://github.com/RuskServer/Deepwither/security)
+[Official Website](https://ruskserver.com/) | [Documentation](https://github.com/RuskServer/Deepwither/wiki) | [Security](https://github.com/RuskServer/Deepwither?tab=security-ov-file)
 
 </div>
 
@@ -43,11 +43,11 @@ src/main/java/com/lunar_prototype/deepwither/
 │   ├── quest/        # 定常クエスト
 │   └── rune/         # ルーンシステム
 ├── profession/       # 職業システム
-├── skill/            # スキルシステム
-├── stat/             # ステータス・属性管理
+├── SkilltreeManager  # スキルシステム
+├── StatManager       # ステータス・属性管理
 ├── util/             # ユーティリティ
-├── Deepwither.java   # メインクラス
-└── ItemFactory.java  # アイテム生成エンジン
+├── Deepwither        # メインクラス
+└── ItemFactory       # アイテム生成エンジン
 ```
 
 ## 🛠️ サポートとポリシー (Support Policy)
