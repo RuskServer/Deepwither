@@ -28,7 +28,8 @@ public class MineModule implements IModule {
         MineService mineService = container.get(MineService.class);
 
         mineService.init();
-        registrar.registerListener(new MineListener(plugin, mineService));
+        registrar.registerListener(new MineListener(mineService));
+        registrar.registerListener(new MineMobSpawnListener(mineService));
     }
 
     @Override

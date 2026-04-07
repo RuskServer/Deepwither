@@ -39,6 +39,7 @@ public class MineService implements IManager {
     private static final int DEFAULT_EXP = 10;
     private static final int DEFAULT_BAR_LENGTH = 4;
     private static final double DEFAULT_DISPLAY_OFFSET_Y = 1.2D;
+    private static final int DEFAULT_SUPPRESSION_RADIUS = 8;
 
     private final Deepwither plugin;
     private final NamespacedKey displayKey;
@@ -46,6 +47,7 @@ public class MineService implements IManager {
     private final Map<BlockPos, OreState> states = new ConcurrentHashMap<>();
     private final Map<BlockPos, BukkitTask> respawnTasks = new ConcurrentHashMap<>();
     private final Map<Material, OreRule> ruleCache = new EnumMap<>(Material.class);
+    private final Map<String, Boolean> suppressionCache = new ConcurrentHashMap<>();
 
     private LevelManager levelManager;
     private ProfessionManager professionManager;
@@ -82,11 +84,28 @@ public class MineService implements IManager {
             task.cancel();
         }
         respawnTasks.clear();
+        suppressionCache.clear();
         cleanupOrphanDisplays();
     }
 
     public boolean isTrackedOre(Material material) {
         return resolveRule(material) != null;
+    }
+
+    public boolean shouldSuppressMobSpawns(Location location) {
+        if (location == null || location.getWorld() == null) {
+            return false;
+        }
+
+        String key = suppressionKey(location);
+        Boolean cached = suppressionCache.get(key);
+        if (cached != null) {
+            return cached;
+        }
+
+        boolean result = hasNearbyOre(location);
+        suppressionCache.put(key, result);
+        return result;
     }
 
     public boolean handleMiningAttempt(org.bukkit.entity.Player player, Block block) {
@@ -124,6 +143,7 @@ public class MineService implements IManager {
             cancelRespawn(state);
             removeDisplay(state);
         }
+        suppressionCache.clear();
         BukkitTask respawnTask = respawnTasks.remove(pos);
         if (respawnTask != null) {
             respawnTask.cancel();
@@ -134,6 +154,7 @@ public class MineService implements IManager {
         cancelRespawn(state);
         removeDisplay(state);
         states.remove(pos);
+        suppressionCache.clear();
 
         List<ItemStack> drops = resolveDrops(block, state.rule());
         block.setType(Material.AIR, false);
@@ -228,6 +249,7 @@ public class MineService implements IManager {
             respawnBlock.setType(material, false);
             OreState next = new OreState(pos, material, rule, rule.durability());
             states.put(pos, next);
+            suppressionCache.clear();
             ensureDisplay(respawnBlock, next);
         }, rule.respawnTicks());
 
@@ -419,6 +441,29 @@ public class MineService implements IManager {
             case "WHITE" -> NamedTextColor.WHITE;
             default -> fallback;
         };
+    }
+
+    private boolean hasNearbyOre(Location location) {
+        int radius = plugin.getConfig().getInt("mine.mob_spawn_suppression_radius", DEFAULT_SUPPRESSION_RADIUS);
+        int minY = Math.max(location.getWorld().getMinHeight(), location.getBlockY() - 3);
+        int maxY = Math.min(location.getWorld().getMaxHeight() - 1, location.getBlockY() + 3);
+
+        for (int x = location.getBlockX() - radius; x <= location.getBlockX() + radius; x++) {
+            for (int z = location.getBlockZ() - radius; z <= location.getBlockZ() + radius; z++) {
+                for (int y = minY; y <= maxY; y++) {
+                    Material material = location.getWorld().getBlockAt(x, y, z).getType();
+                    if (isTrackedOre(material)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private String suppressionKey(Location location) {
+        int radius = plugin.getConfig().getInt("mine.mob_spawn_suppression_radius", DEFAULT_SUPPRESSION_RADIUS);
+        return location.getWorld().getUID() + ":" + location.getBlockX() + ":" + location.getBlockY() + ":" + location.getBlockZ() + ":" + radius;
     }
 
     private record DropDefinition(String itemId, double chance) {}

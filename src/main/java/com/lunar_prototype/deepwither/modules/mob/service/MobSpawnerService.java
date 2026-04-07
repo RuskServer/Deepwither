@@ -5,6 +5,8 @@ import com.lunar_prototype.deepwither.aethelgard.LocationDetails;
 import com.lunar_prototype.deepwither.aethelgard.PlayerQuestData;
 import com.lunar_prototype.deepwither.aethelgard.PlayerQuestManager;
 import com.lunar_prototype.deepwither.aethelgard.QuestProgress;
+import com.lunar_prototype.deepwither.api.DW;
+import com.lunar_prototype.deepwither.modules.mine.MineService;
 import com.lunar_prototype.deepwither.modules.mob.util.MobRegionService;
 import com.lunar_prototype.deepwither.outpost.OutpostEvent;
 import com.lunar_prototype.deepwither.util.IManager;
@@ -125,6 +127,11 @@ public class MobSpawnerService implements IManager {
     }
 
     public UUID spawnMythicMob(String mobId, Location loc, int tier) {
+        var mineService = getMineService();
+        if (mineService != null && mineService.shouldSuppressMobSpawns(loc)) {
+            return null;
+        }
+
         var activeMob = MythicBukkit.inst().getMobManager().spawnMob(mobId, loc);
         if (activeMob == null || activeMob.getEntity() == null) return null;
         org.bukkit.entity.Entity entity = activeMob.getEntity().getBukkitEntity();
@@ -161,6 +168,10 @@ public class MobSpawnerService implements IManager {
 
         spawnLevel = Math.min(spawnLevel, areaMaxLevel);
         return Math.max(1, spawnLevel);
+    }
+
+    private MineService getMineService() {
+        return DW.get(MineService.class);
     }
 
     private Location getRandomSpawnLocation(Location center, int radius) {
