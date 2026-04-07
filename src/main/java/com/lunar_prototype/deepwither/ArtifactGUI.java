@@ -61,11 +61,18 @@ public class ArtifactGUI implements Listener, IManager {
     public void shutdown() {}
 
     public void openArtifactGUI(Player player) {
+        if (artifactGUI == null) {
+            init();
+        }
         updateGUIFromPlayerData(player);
         player.openInventory(this.artifactGUI);
     }
 
     private void updateGUIFromPlayerData(Player player) {
+        if (artifactGUI == null) {
+            return;
+        }
+
         ItemStack artifactPlaceholder = new ItemStack(Material.CYAN_STAINED_GLASS_PANE);
         ItemMeta artifactMeta = artifactPlaceholder.getItemMeta();
         artifactMeta.displayName(Component.text("【アーティファクトスロット】", NamedTextColor.AQUA).decoration(TextDecoration.ITALIC, false));

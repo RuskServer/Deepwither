@@ -255,13 +255,13 @@ public class StatManager implements IManager, IStatManager {
             total.add(tempBuff);
         }
 
-        double baseHp = 20.0;
         double currentHp = total.getFinal(StatType.MAX_HEALTH);
+        double baseHp = 20.0;
         double levelhp = 2 * data.getLevel();
         total.setFlat(StatType.MAX_HEALTH, currentHp + baseHp + levelhp);
-        
-        double baseMana = 100.0;
+
         double currentMana = total.getFinal(StatType.MAX_MANA);
+        double baseMana = 100.0;
         total.setFlat(StatType.MAX_MANA, currentMana + baseMana);
 
         return total;

@@ -84,7 +84,7 @@ public class ArtifactManager implements IManager {
                 continue;
             }
 
-            String typeKey = getArtifactTypeKey(artifact);
+            String typeKey = getArtifactLimitKey(artifact);
             if (typeKey == null) {
                 continue;
             }
@@ -107,10 +107,7 @@ public class ArtifactManager implements IManager {
         }
 
         for (ItemStack artifact : artifacts) {
-            if (!isArtifact(artifact)) {
-                continue;
-            }
-            String typeKey = getArtifactTypeKey(artifact);
+            String typeKey = getArtifactFullsetType(artifact);
             if (typeKey == null) {
                 continue;
             }
@@ -139,7 +136,7 @@ public class ArtifactManager implements IManager {
             return 0;
         }
 
-        return countArtifactTypes(getPlayerArtifacts(player)).getOrDefault(type.trim().toLowerCase(Locale.ROOT), 0);
+        return countArtifactTypes(getPlayerArtifacts(player)).getOrDefault(type.trim().toLowerCase(Locale.ROOT).replace(' ', '_').replace('-', '_'), 0);
     }
 
     public boolean hasArtifactTypeCount(Player player, String type, int requiredCount) {
@@ -217,7 +214,7 @@ public class ArtifactManager implements IManager {
             return false;
         }
 
-        String candidateType = getArtifactTypeKey(candidate);
+        String candidateType = getArtifactLimitKey(candidate);
         if (candidateType == null) {
             return false;
         }
@@ -231,7 +228,7 @@ public class ArtifactManager implements IManager {
                 if (!isArtifact(artifact)) {
                     continue;
                 }
-                String artifactType = getArtifactTypeKey(artifact);
+                String artifactType = getArtifactLimitKey(artifact);
                 if (artifactType != null && candidateType.equals(artifactType)) {
                     count++;
                 }
@@ -240,7 +237,22 @@ public class ArtifactManager implements IManager {
         return count >= MAX_SAME_ARTIFACT_TYPE;
     }
 
-    public String getArtifactTypeKey(ItemStack item) {
+    public String getArtifactLimitKey(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) {
+            return null;
+        }
+
+        ItemMeta meta = item.getItemMeta();
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        String customId = pdc.get(new NamespacedKey(Deepwither.getInstance(), "custom_id"), PersistentDataType.STRING);
+        if (customId != null && !customId.isBlank()) {
+            return customId.trim().toLowerCase(Locale.ROOT).replace(' ', '_').replace('-', '_');
+        }
+
+        return null;
+    }
+
+    public String getArtifactFullsetType(ItemStack item) {
         if (item == null || !item.hasItemMeta()) {
             return null;
         }
@@ -261,13 +273,23 @@ public class ArtifactManager implements IManager {
         }
 
         ItemMeta meta = item.getItemMeta();
-        if (!meta.hasLore()) {
-            return false;
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+
+        String fullsetType = pdc.get(ItemFactory.ARTIFACT_FULLSET_TYPE, PersistentDataType.STRING);
+        if (fullsetType != null && !fullsetType.isBlank()) {
+            return true;
         }
 
-        for (net.kyori.adventure.text.Component line : meta.lore()) {
-            if (net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(line).contains("アーティファクト")) {
-                return true;
+        String itemType = pdc.get(ItemFactory.ITEM_TYPE_KEY, PersistentDataType.STRING);
+        if (itemType != null && itemType.contains("アーティファクト")) {
+            return true;
+        }
+
+        if (meta.hasLore()) {
+            for (net.kyori.adventure.text.Component line : meta.lore()) {
+                if (net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(line).contains("アーティファクト")) {
+                    return true;
+                }
             }
         }
 

@@ -372,7 +372,7 @@ public class MenuGUI implements Listener, IManager {
                 break;
             case 42:
                 player.closeInventory();
-                new ArtifactGUI().openArtifactGUI(player);
+                Deepwither.getInstance().getArtifactGUI().openArtifactGUI(player);
                 break;
             case 49:
                 player.closeInventory();

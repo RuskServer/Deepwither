@@ -217,24 +217,15 @@ class LoreBuilder {
 
         if (artifactFullsetType != null && !artifactFullsetType.isBlank()) {
             lore.add(Component.text("フルセット種別: ", NamedTextColor.GRAY)
-                    .append(Component.text(artifactFullsetType, NamedTextColor.GOLD))
+                    .append(ItemFactory.getArtifactSetDisplayName(artifactFullsetType))
                     .decoration(TextDecoration.ITALIC, false));
 
-            List<Component> fullsetNotes = new ArrayList<>();
-            if (ItemFactory.hasArtifactSetBonus(artifactFullsetType, 2) || ItemFactory.hasArtifactSetWorkflow(artifactFullsetType, 2)) {
-                fullsetNotes.add(Component.text("2セット効果あり", NamedTextColor.AQUA));
-            }
-            if (ItemFactory.hasArtifactSetBonus(artifactFullsetType, 3) || ItemFactory.hasArtifactSetWorkflow(artifactFullsetType, 3)) {
-                fullsetNotes.add(Component.text("3セット効果あり", NamedTextColor.LIGHT_PURPLE));
-            }
-
+            List<Component> fullsetNotes = ItemFactory.getArtifactSetLoreLines(artifactFullsetType);
             if (!fullsetNotes.isEmpty()) {
-                lore.add(Component.text("フルセット効果: ", NamedTextColor.GRAY)
-                        .append(fullsetNotes.get(0))
-                        .decoration(TextDecoration.ITALIC, false));
-                for (int i = 1; i < fullsetNotes.size(); i++) {
+                lore.add(Component.text("セット効果: ", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
+                for (Component line : fullsetNotes) {
                     lore.add(Component.text("  - ", NamedTextColor.DARK_GRAY)
-                            .append(fullsetNotes.get(i))
+                            .append(line)
                             .decoration(TextDecoration.ITALIC, false));
                 }
             }

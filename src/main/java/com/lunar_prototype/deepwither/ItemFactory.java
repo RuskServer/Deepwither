@@ -592,6 +592,65 @@ public class ItemFactory implements IManager, IItemFactory {
         return false;
     }
 
+    public static Component getArtifactSetDisplayName(String type) {
+        String normalized = normalizeArtifactType(type);
+        if (normalized == null) {
+            return Component.text("Unknown", NamedTextColor.GOLD);
+        }
+
+        return switch (normalized) {
+            case "abyss_pulsation" -> Component.text("虚空の脈動 / Abyss Pulsation", NamedTextColor.GOLD);
+            case "celestial_resonance" -> Component.text("星天の共鳴 / Celestial Resonance", NamedTextColor.GOLD);
+            case "fault_line" -> Component.text("境界の断層 / Fault Line", NamedTextColor.GOLD);
+            case "astral_steel_guard" -> Component.text("星鉄の守護 / Astral Steel Guard", NamedTextColor.GOLD);
+            case "lunar_skirmisher" -> Component.text("月影の遊撃 / Lunar Skirmisher", NamedTextColor.GOLD);
+            case "eternal_hearts" -> Component.text("不朽の双心 / Eternal Hearts", NamedTextColor.GOLD);
+            default -> Component.text(type, NamedTextColor.GOLD);
+        };
+    }
+
+    public static List<Component> getArtifactSetLoreLines(String type) {
+        String normalized = normalizeArtifactType(type);
+        if (normalized == null) {
+            return Collections.emptyList();
+        }
+
+        return switch (normalized) {
+            case "abyss_pulsation" -> List.of(
+                    Component.text("2セット: 最大HP +10%, 魔法ダメージ +8%", NamedTextColor.AQUA),
+                    Component.text("3セット: 魔法被弾時、8秒CDで完全遮断障壁を展開", NamedTextColor.LIGHT_PURPLE),
+                    Component.text("         障壁発動時、周囲3ブロックをノックバックし盲目を付与", NamedTextColor.GRAY)
+            );
+            case "celestial_resonance" -> List.of(
+                    Component.text("2セット: 最大マナ +60, 魔法AoEダメージ +15", NamedTextColor.AQUA),
+                    Component.text("3セット: 魔法攻撃時、マナ75%以上なら魔法ダメージの5%を確定ダメージ化", NamedTextColor.LIGHT_PURPLE),
+                    Component.text("         魔法バースト発動時、25%で1回だけ再発動", NamedTextColor.GRAY)
+            );
+            case "fault_line" -> List.of(
+                    Component.text("2セット: 近接攻撃力 +12, クリティカル率 +2%", NamedTextColor.AQUA),
+                    Component.text("3セット: クリティカル時、10秒CDで対象の防御を20%無視", NamedTextColor.LIGHT_PURPLE),
+                    Component.text("         クリティカル後3秒間、移動速度 +10%", NamedTextColor.GRAY)
+            );
+            case "astral_steel_guard" -> List.of(
+                    Component.text("2セット: 防御力 +25, HP回復 +5", NamedTextColor.AQUA),
+                    Component.text("3セット: 物理被弾時、受けたダメージの10%をマナへ変換", NamedTextColor.LIGHT_PURPLE),
+                    Component.text("         HP30%以下で60秒CDの再生IIを付与", NamedTextColor.GRAY),
+                    Component.text("         魔法抵抗力 +15", NamedTextColor.GRAY)
+            );
+            case "lunar_skirmisher" -> List.of(
+                    Component.text("2セット: 移動速度 +0.02, 遠距離ダメージ +10", NamedTextColor.AQUA),
+                    Component.text("3セット: 移動速度が高い時、5%の完全回避を付与", NamedTextColor.LIGHT_PURPLE),
+                    Component.text("         ダッシュジャンプ後の初撃に魔法追撃を付与", NamedTextColor.GRAY)
+            );
+            case "eternal_hearts" -> List.of(
+                    Component.text("2セット: 最大HP +25%, ノックバック耐性 +0.2", NamedTextColor.AQUA),
+                    Component.text("3セット: 致死ダメージを1回だけHP1で耐える", NamedTextColor.LIGHT_PURPLE),
+                    Component.text("         発動時、周囲の敵を強く弾き飛ばす (300秒CD)", NamedTextColor.GRAY)
+            );
+            default -> Collections.emptyList();
+        };
+    }
+
     private static void registerDefaultArtifactSetEffects() {
         if (!ARTIFACT_SET_EFFECTS.isEmpty()) {
             return;
@@ -765,7 +824,20 @@ public class ItemFactory implements IManager, IItemFactory {
     }
 
     private static String normalizeArtifactType(String type) {
-        return type.trim().toLowerCase(Locale.ROOT).replace(' ', '_').replace('-', '_');
+        if (type == null || type.isBlank()) {
+            return null;
+        }
+
+        String normalized = type.trim().toLowerCase(Locale.ROOT).replace(' ', '_').replace('-', '_');
+        return switch (normalized) {
+            case "虚空の脈動", "abyss_pulsation", "abyss pulsation" -> "abyss_pulsation";
+            case "星天の共鳴", "celestial_resonance", "celestial resonance" -> "celestial_resonance";
+            case "境界の断層", "fault_line", "fault line" -> "fault_line";
+            case "星鉄の守護", "astral_steel_guard", "astral steel guard" -> "astral_steel_guard";
+            case "月影の遊撃", "lunar_skirmisher", "lunar skirmisher" -> "lunar_skirmisher";
+            case "不朽の双心", "eternal_hearts", "eternal hearts" -> "eternal_hearts";
+            default -> normalized;
+        };
     }
 
     public enum ArtifactSetTrigger {

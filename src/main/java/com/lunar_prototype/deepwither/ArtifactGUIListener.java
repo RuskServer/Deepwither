@@ -16,6 +16,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
@@ -168,6 +170,18 @@ public class ArtifactGUIListener implements Listener, IManager {
     private boolean isArtifact(ItemStack item) {
         if (item == null || !item.hasItemMeta()) return false;
         ItemMeta meta = item.getItemMeta();
+
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        String fullsetType = pdc.get(ItemFactory.ARTIFACT_FULLSET_TYPE, PersistentDataType.STRING);
+        if (fullsetType != null && !fullsetType.isBlank()) {
+            return true;
+        }
+
+        String itemType = pdc.get(ItemFactory.ITEM_TYPE_KEY, PersistentDataType.STRING);
+        if (itemType != null && itemType.contains("アーティファクト")) {
+            return true;
+        }
+
         if (meta.hasLore()) {
             for (Component line : meta.lore()) {
                 if (PlainTextComponentSerializer.plainText().serialize(line).contains("アーティファクト")) return true;
