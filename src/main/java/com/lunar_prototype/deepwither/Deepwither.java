@@ -42,6 +42,7 @@ import com.lunar_prototype.deepwither.market.MarketGui;
 import com.lunar_prototype.deepwither.market.MarketSearchHandler;
 import com.lunar_prototype.deepwither.market.api.MarketApiController;
 import com.lunar_prototype.deepwither.modules.economy.trader.*;
+import com.lunar_prototype.deepwither.modules.mine.MiningSkillService;
 import com.lunar_prototype.deepwither.mythic.CustomDropListener;
 import com.lunar_prototype.deepwither.outpost.OutpostDamageListener;
 import com.lunar_prototype.deepwither.outpost.OutpostManager;
@@ -749,7 +750,8 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         saveDefaultConfig(); // MobExpConfig.yml
 
         this.getCommand("status")
-                .setExecutor(new StatusCommand(levelManager, statManager, creditManager, professionManager));
+                .setExecutor(new StatusCommand(levelManager, statManager, creditManager, professionManager,
+                        get(MiningSkillService.class)));
 
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             for (Player p : Bukkit.getOnlinePlayers()) {

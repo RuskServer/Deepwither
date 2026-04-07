@@ -49,12 +49,14 @@ public class MineService implements IManager {
     private final Map<Material, OreRule> ruleCache = new EnumMap<>(Material.class);
     private final Map<String, Boolean> suppressionCache = new ConcurrentHashMap<>();
 
+    private final MiningSkillService miningSkillService;
     private LevelManager levelManager;
     private ProfessionManager professionManager;
     private ItemFactory itemFactory;
 
-    public MineService(Deepwither plugin) {
+    public MineService(Deepwither plugin, MiningSkillService miningSkillService) {
         this.plugin = plugin;
+        this.miningSkillService = miningSkillService;
         this.displayKey = new NamespacedKey(plugin, "mine_display");
         this.positionKey = new NamespacedKey(plugin, "mine_position");
     }
@@ -114,6 +116,9 @@ public class MineService implements IManager {
             return false;
         }
 
+        MiningSkillService.MiningProfile profile = miningSkillService.resolveProfile(player);
+        MiningSkillService.MiningStrike strike = miningSkillService.resolveStrike(profile);
+
         BlockPos pos = BlockPos.of(block);
         OreState state = states.compute(pos, (key, existing) -> {
             if (existing == null || existing.material() != block.getType()) {
@@ -124,14 +129,14 @@ public class MineService implements IManager {
 
         ensureDisplay(block, state);
 
-        state.remainingDurability = Math.max(0, state.remainingDurability - 1);
+        state.remainingDurability = Math.max(0, state.remainingDurability - strike.damage());
         updateDisplay(state);
 
         if (state.remainingDurability <= 0) {
-            playBreakFeedback(block, state);
-            completeMine(player, block, pos, state);
+            playBreakFeedback(block, state, strike.critical());
+            completeMine(player, block, pos, state, profile, true);
         } else {
-            playDamageFeedback(block, state);
+            playDamageFeedback(block, state, strike.critical());
         }
         return true;
     }
@@ -150,13 +155,14 @@ public class MineService implements IManager {
         }
     }
 
-    private void completeMine(org.bukkit.entity.Player player, Block block, BlockPos pos, OreState state) {
+    private void completeMine(org.bukkit.entity.Player player, Block block, BlockPos pos, OreState state,
+                              MiningSkillService.MiningProfile profile, boolean allowGeologicalBreak) {
         cancelRespawn(state);
         removeDisplay(state);
         states.remove(pos);
         suppressionCache.clear();
 
-        List<ItemStack> drops = resolveDrops(block, state.rule());
+        List<ItemStack> drops = resolveDrops(player, block, state.rule(), profile);
         block.setType(Material.AIR, false);
 
         for (ItemStack drop : drops) {
@@ -174,18 +180,29 @@ public class MineService implements IManager {
         }
 
         scheduleRespawn(block.getWorld(), pos, state.rule(), state.material());
+
+        if (allowGeologicalBreak) {
+            triggerGeologicalBreak(player, block, profile, pos);
+        }
     }
 
-    private void playDamageFeedback(Block block, OreState state) {
+    private void playDamageFeedback(Block block, OreState state, boolean critical) {
         Location center = block.getLocation().add(0.5D, 0.5D, 0.5D);
         World world = block.getWorld();
         float pitch = 1.0f + (0.12f * (state.rule().durability() - state.remainingDurability));
+        if (critical) {
+            pitch += 0.25f;
+        }
 
         world.playSound(center, Sound.BLOCK_STONE_HIT, 0.55f, pitch);
         world.spawnParticle(Particle.BLOCK, center, 4, 0.18, 0.18, 0.18, Bukkit.createBlockData(block.getType()));
+        if (critical) {
+            world.playSound(center, Sound.ENTITY_PLAYER_ATTACK_CRIT, 0.35f, 1.15f);
+            world.spawnParticle(Particle.CRIT, center, 6, 0.2, 0.2, 0.2, 0.08);
+        }
     }
 
-    private void playBreakFeedback(Block block, OreState state) {
+    private void playBreakFeedback(Block block, OreState state, boolean critical) {
         Location center = block.getLocation().add(0.5D, 0.5D, 0.5D);
         World world = block.getWorld();
 
@@ -193,13 +210,21 @@ public class MineService implements IManager {
         world.playSound(center, Sound.BLOCK_ANVIL_LAND, 0.35f, 1.3f);
         world.spawnParticle(Particle.BLOCK, center, 16, 0.25, 0.25, 0.25, Bukkit.createBlockData(block.getType()));
         world.spawnParticle(Particle.CRIT, center, 8, 0.2, 0.2, 0.2, 0.08);
+        if (critical) {
+            world.playSound(center, Sound.ENTITY_PLAYER_ATTACK_STRONG, 0.6f, 0.9f);
+        }
     }
 
-    private List<ItemStack> resolveDrops(Block block, OreRule rule) {
+    private List<ItemStack> resolveDrops(org.bukkit.entity.Player player, Block block, OreRule rule,
+                                         MiningSkillService.MiningProfile profile) {
         if (!rule.drops().isEmpty() && itemFactory != null) {
             List<ItemStack> drops = new ArrayList<>();
             for (DropDefinition drop : rule.drops()) {
-                if (plugin.getRandom().nextDouble() > drop.chance()) {
+                double chance = drop.chance();
+                if (player != null) {
+                    chance = miningSkillService.adjustDropChance(profile, chance);
+                }
+                if (plugin.getRandom().nextDouble() > chance) {
                     continue;
                 }
                 ItemStack stack = resolveCustomDrop(drop.itemId());
@@ -220,6 +245,87 @@ public class MineService implements IManager {
         } catch (Exception e) {
             return List.of(new ItemStack(block.getType()));
         }
+    }
+
+    private void triggerGeologicalBreak(org.bukkit.entity.Player player, Block sourceBlock,
+                                        MiningSkillService.MiningProfile profile, BlockPos sourcePos) {
+        if (player == null || profile == null) {
+            return;
+        }
+
+        MiningSkillService.GeologicalBurst burst = miningSkillService.resolveGeologicalBurst(profile);
+        if (!burst.triggered() || burst.maxBlocks() <= 0) {
+            return;
+        }
+
+        List<Block> nearbyOreBlocks = findNearbyOreBlocks(sourceBlock, burst.radius(), sourcePos);
+        int broken = 0;
+        for (Block block : nearbyOreBlocks) {
+            if (broken >= burst.maxBlocks()) {
+                break;
+            }
+            if (!isTrackedOre(block.getType())) {
+                continue;
+            }
+            if (block.getType().isAir()) {
+                continue;
+            }
+
+            broken++;
+            breakOreInstant(player, block, profile);
+        }
+    }
+
+    private List<Block> findNearbyOreBlocks(Block sourceBlock, int radius, BlockPos sourcePos) {
+        List<Block> result = new ArrayList<>();
+        World world = sourceBlock.getWorld();
+        int centerX = sourceBlock.getX();
+        int centerY = sourceBlock.getY();
+        int centerZ = sourceBlock.getZ();
+
+        for (int x = centerX - radius; x <= centerX + radius; x++) {
+            for (int y = Math.max(world.getMinHeight(), centerY - radius); y <= Math.min(world.getMaxHeight() - 1, centerY + radius); y++) {
+                for (int z = centerZ - radius; z <= centerZ + radius; z++) {
+                    Block block = world.getBlockAt(x, y, z);
+                    if (!isTrackedOre(block.getType())) {
+                        continue;
+                    }
+                    if (BlockPos.of(block).equals(sourcePos)) {
+                        continue;
+                    }
+                    result.add(block);
+                }
+            }
+        }
+
+        result.sort((left, right) -> Double.compare(distanceSquared(left, sourceBlock), distanceSquared(right, sourceBlock)));
+        return result;
+    }
+
+    private double distanceSquared(Block first, Block second) {
+        double dx = first.getX() - second.getX();
+        double dy = first.getY() - second.getY();
+        double dz = first.getZ() - second.getZ();
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    private void breakOreInstant(org.bukkit.entity.Player player, Block block, MiningSkillService.MiningProfile profile) {
+        OreRule rule = resolveRule(block.getType());
+        if (rule == null) {
+            return;
+        }
+
+        BlockPos pos = BlockPos.of(block);
+        OreState state = states.compute(pos, (key, existing) -> {
+            if (existing == null || existing.material() != block.getType()) {
+                return new OreState(pos, block.getType(), rule, rule.durability());
+            }
+            return existing;
+        });
+
+        state.remainingDurability = 0;
+        playBreakFeedback(block, state, false);
+        completeMine(player, block, pos, state, profile, false);
     }
 
     private ItemStack resolveCustomDrop(String itemId) {

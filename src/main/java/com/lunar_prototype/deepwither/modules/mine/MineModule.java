@@ -17,7 +17,9 @@ public class MineModule implements IModule {
     public void configure(ServiceContainer container) {
         plugin.getLogger().info("MineModule: configure()");
 
-        MineService mineService = new MineService(plugin);
+        MiningSkillService miningSkillService = new MiningSkillService(plugin);
+        MineService mineService = new MineService(plugin, miningSkillService);
+        container.registerInstance(MiningSkillService.class, miningSkillService);
         container.registerInstance(MineService.class, mineService);
     }
 
