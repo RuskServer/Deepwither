@@ -91,6 +91,7 @@ public class DeepwitherBootstrap {
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.integration.IntegrationModule(plugin));
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.dynamic_quest.DynamicQuestModule(plugin));
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.rune.RuneModule(plugin));
+        moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.mine.MineModule(plugin));
 
         // Legacy Module (既存機能のラップ)
         moduleManager.registerModule(new LegacyModule(plugin));

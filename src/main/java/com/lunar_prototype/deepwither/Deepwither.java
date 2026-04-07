@@ -977,7 +977,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         register(new PlayerInteractListener(this));
         register(new PlayerListener(this, playerQuestManager));
         register(new GUIListener(playerQuestManager));
-        register(new CustomOreListener(this));
         register(new WandManager(this));
         register(new FishingListener(this));
         register(new MobKillListener(this));
