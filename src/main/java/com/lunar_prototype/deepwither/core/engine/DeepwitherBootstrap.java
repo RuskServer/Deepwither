@@ -20,11 +20,13 @@ public class DeepwitherBootstrap {
         this.plugin = plugin;
         this.logger = plugin.getLogger();
         this.container = new ServiceContainer(logger);
-        this.moduleManager = new ModuleManager(container, logger);
 
         // 基本サービスの登録
         container.registerInstance(Deepwither.class, plugin);
         container.registerInstance(Logger.class, logger);
+        container.registerInstance(ModuleRegistrar.class, new ModuleRegistrar(plugin, logger));
+
+        this.moduleManager = new ModuleManager(container, logger);
     }
 
     /**

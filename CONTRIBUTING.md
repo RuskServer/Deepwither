@@ -87,6 +87,10 @@ public class MyFeatureModule implements IModule {
 moduleManager.registerModule(new MyFeatureModule(plugin));
 ```
 
+### 2.1 登録処理の集約
+リスナー登録やコマンド登録は、`ModuleRegistrar` を通して行うことを推奨します。
+これにより、モジュール内に登録処理を閉じ込めつつ、解除や重複管理を一箇所へ集約できます。
+
 ### 3. Managerの実装 (Manager Implementation)
 Managerは、モジュール内のロジックをカプセル化したクラスです。
 必須ではありませんが、ライフサイクル管理のために `com.lunar_prototype.deepwither.util.IManager` インターフェースの実装を推奨します。

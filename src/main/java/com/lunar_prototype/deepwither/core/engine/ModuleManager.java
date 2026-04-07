@@ -51,9 +51,10 @@ public class ModuleManager {
      */
     public void configureModules() {
         logger.info("Configuring modules...");
+        ModuleRegistrar registrar = container.get(ModuleRegistrar.class);
         for (IModule module : modules) {
             try {
-                module.configure(container);
+                withModuleContext(registrar, module, () -> module.configure(container));
             } catch (Exception e) {
                 logger.severe("Failed to configure module: " + module.getClass().getSimpleName());
                 e.printStackTrace();
@@ -70,6 +71,7 @@ public class ModuleManager {
      */
     public void startModules() {
         logger.info("Starting modules...");
+        ModuleRegistrar registrar = container.get(ModuleRegistrar.class);
         for (IModule module : modules) {
             if (failedModules.contains(module)) {
                 logger.warning("Skipping failed module: " + module.getClass().getSimpleName());
@@ -77,10 +79,11 @@ public class ModuleManager {
             }
             try {
                 logger.info("Starting module: " + module.getClass().getSimpleName());
-                module.start();
+                withModuleContext(registrar, module, module::start);
             } catch (Exception e) {
                 logger.severe("Failed to start module: " + module.getClass().getSimpleName());
                 e.printStackTrace();
+                registrar.cleanupModule(module);
             }
         }
     }
@@ -94,18 +97,30 @@ public class ModuleManager {
      */
     public void stopModules() {
         logger.info("Stopping modules...");
+        ModuleRegistrar registrar = container.get(ModuleRegistrar.class);
         // 逆順で停止
         for (int i = modules.size() - 1; i >= 0; i--) {
             IModule module = modules.get(i);
             try {
                 logger.info("Stopping module: " + module.getClass().getSimpleName());
-                module.stop();
+                withModuleContext(registrar, module, module::stop);
             } catch (Exception e) {
                 logger.severe("Failed to stop module: " + module.getClass().getSimpleName());
                 e.printStackTrace();
+            } finally {
+                registrar.cleanupModule(module);
             }
         }
         modules.clear();
         container.clear();
+    }
+
+    private void withModuleContext(ModuleRegistrar registrar, IModule module, Runnable action) {
+        registrar.beginModule(module);
+        try {
+            action.run();
+        } finally {
+            registrar.endModule();
+        }
     }
 }
