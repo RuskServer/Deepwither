@@ -974,6 +974,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         register(new PlayerConnectionListener(this));
         register(new MythicMechanicListener(this));
         register(new ArmorSetListener(this));
+        register(new ArtifactSetListener(this));
         register(new ItemUpgradeListener(this));
         register(new PlayerStatListener(this));
         register(new SkillCastSessionManager(this));

@@ -197,6 +197,7 @@ public class StatManager implements IManager, IStatManager {
         for (ItemStack artifact : artifacts) {
             total.add(readStatsFromItem(artifact));
         }
+        total.add(Deepwither.getInstance().getArtifactManager().getFullSetBonus(artifacts));
 
         ItemStack backpack = Deepwither.getInstance().getArtifactManager().getPlayerBackpack(player);
         total.add(readStatsFromItem(backpack));

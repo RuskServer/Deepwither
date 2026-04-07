@@ -53,10 +53,12 @@ public class ItemFactory implements IManager, IItemFactory {
     public static final NamespacedKey RECIPE_BOOK_KEY = new NamespacedKey(Deepwither.getInstance(), "recipe_book_target_grade");
     public static final NamespacedKey RARITY_KEY = new NamespacedKey(Deepwither.getInstance(), "item_rarity");
     public static final NamespacedKey ITEM_TYPE_KEY = new NamespacedKey(Deepwither.getInstance(), "item_type_name");
+    public static final NamespacedKey ARTIFACT_FULLSET_TYPE = new NamespacedKey(Deepwither.getInstance(), "artifact_fullset_type");
     public static final NamespacedKey FLAVOR_TEXT_KEY = new NamespacedKey(Deepwither.getInstance(), "item_flavor_text");
     public static final NamespacedKey SET_PARTNER_KEY = new NamespacedKey(Deepwither.getInstance(), "set_partner_id");
     public static final NamespacedKey SPECIAL_ACTION_KEY = new NamespacedKey(Deepwither.getInstance(), "special_action_type");
     public final Map<String, List<String>> rarityPools = new HashMap<>();
+    private static final Map<String, ArtifactSetEffect> ARTIFACT_SET_EFFECTS = new HashMap<>();
     private static final String KEY_PREFIX = "rpgstats";
 
     @Override
@@ -138,6 +140,7 @@ public class ItemFactory implements IManager, IItemFactory {
      */
     @Override
     public void init() {
+        registerDefaultArtifactSetEffects();
         loadAllItems();
     }
 
@@ -187,6 +190,7 @@ public class ItemFactory implements IManager, IItemFactory {
     public ItemStack applyStatsToItem(ItemStack item, StatMap baseStats, Map<StatType, Double> modifiers,
                                       @Nullable String itemType, @Nullable List<String> flavorText,
                                       ItemLoader.RandomStatTracker tracker, @Nullable String rarity,
+                                      @Nullable String artifactFullsetType,
                                       @Nullable FabricationGrade grade) {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
@@ -230,6 +234,7 @@ public class ItemFactory implements IManager, IItemFactory {
         if (itemType != null) {
             meta.getPersistentDataContainer().set(ITEM_TYPE_KEY, PersistentDataType.STRING, itemType);
         }
+        applyArtifactFullsetType(meta, artifactFullsetType);
         if (rarity != null) {
             meta.getPersistentDataContainer().set(RARITY_KEY, PersistentDataType.STRING, rarity);
         }
@@ -266,7 +271,7 @@ public class ItemFactory implements IManager, IItemFactory {
             }
         }
 
-        meta.lore(LoreBuilder.build(finalStats, false, itemType, flavorText, tracker, rarity, modifiers, grade, runeLore));
+        meta.lore(LoreBuilder.build(finalStats, false, itemType, artifactFullsetType, flavorText, tracker, rarity, modifiers, grade, runeLore));
 
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE);
@@ -282,6 +287,46 @@ public class ItemFactory implements IManager, IItemFactory {
         item.setData(DataComponentTypes.TOOLTIP_DISPLAY, TooltipDisplay.tooltipDisplay().addHiddenComponents(DataComponentTypes.ATTRIBUTE_MODIFIERS).build());
 
         return item;
+    }
+
+    @Nullable
+    public ItemStack setArtifactFullsetType(ItemStack item, @Nullable String artifactFullsetType) {
+        if (item == null || !item.hasItemMeta()) {
+            return item;
+        }
+
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
+
+        applyArtifactFullsetType(meta, artifactFullsetType);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    @Nullable
+    public String getArtifactFullsetType(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) {
+            return null;
+        }
+
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return null;
+        }
+
+        return pdcString(meta.getPersistentDataContainer(), ARTIFACT_FULLSET_TYPE);
+    }
+
+    private void applyArtifactFullsetType(ItemMeta meta, @Nullable String artifactFullsetType) {
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        if (artifactFullsetType == null || artifactFullsetType.isBlank()) {
+            pdc.remove(ARTIFACT_FULLSET_TYPE);
+            return;
+        }
+
+        pdc.set(ARTIFACT_FULLSET_TYPE, PersistentDataType.STRING, artifactFullsetType.trim());
     }
 
     private void saveStatValue(ItemMeta meta, String category, StatType type, double flat, double percent) {
@@ -334,7 +379,8 @@ public class ItemFactory implements IManager, IItemFactory {
         }
 
         ItemLoader.RandomStatTracker tracker = new ItemLoader.RandomStatTracker();
-        return applyStatsToItem(item, baseStats, modifiers, itemType, flavorText, tracker, rarity, gradeToUse);
+        String artifactFullsetType = pdcString(pdc, ARTIFACT_FULLSET_TYPE);
+        return applyStatsToItem(item, baseStats, modifiers, itemType, flavorText, tracker, rarity, artifactFullsetType, gradeToUse);
     }
 
     @Deprecated
@@ -348,7 +394,11 @@ public class ItemFactory implements IManager, IItemFactory {
     }
 
     public ItemStack applyStatsToItem(ItemStack item, StatMap stats, @Nullable String itemType, @Nullable List<String> flavorText, ItemLoader.RandomStatTracker tracker, @Nullable String rarity, Map<StatType, Double> appliedModifiers) {
-        return applyStatsToItem(item, stats, appliedModifiers, itemType, flavorText, tracker, rarity, null);
+        return applyStatsToItem(item, stats, appliedModifiers, itemType, flavorText, tracker, rarity, null, null);
+    }
+
+    public ItemStack applyStatsToItem(ItemStack item, StatMap stats, @Nullable String itemType, @Nullable String artifactFullsetType, @Nullable List<String> flavorText, ItemLoader.RandomStatTracker tracker, @Nullable String rarity, Map<StatType, Double> appliedModifiers) {
+        return applyStatsToItem(item, stats, appliedModifiers, itemType, flavorText, tracker, rarity, artifactFullsetType, null);
     }
 
     public ItemStack rerollModifiers(ItemStack item) {
@@ -364,7 +414,8 @@ public class ItemFactory implements IManager, IItemFactory {
         if (joinedFlavor != null) flavorText = Arrays.asList(joinedFlavor.split(java.util.regex.Pattern.quote("|~|")));
         Map<StatType, Double> newModifiers = ItemLoader.generateRandomModifiers(rarity);
         ItemLoader.RandomStatTracker tracker = new ItemLoader.RandomStatTracker();
-        return applyStatsToItem(item, baseStats, newModifiers, itemType, flavorText, tracker, rarity, grade);
+        String artifactFullsetType = pdcString(pdc, ARTIFACT_FULLSET_TYPE);
+        return applyStatsToItem(item, baseStats, newModifiers, itemType, flavorText, tracker, rarity, artifactFullsetType, grade);
     }
 
     @Deprecated
@@ -381,7 +432,8 @@ public class ItemFactory implements IManager, IItemFactory {
         if (joinedFlavor != null) flavorText = Arrays.asList(joinedFlavor.split(java.util.regex.Pattern.quote("|~|")));
         if (isPercent) baseStats.setPercent(type, baseStats.getPercent(type) + value); else baseStats.setFlat(type, baseStats.getFlat(type) + value);
         ItemLoader.RandomStatTracker tracker = new ItemLoader.RandomStatTracker();
-        return applyStatsToItem(item, baseStats, modifiers, itemType, flavorText, tracker, rarity, grade);
+        String artifactFullsetType = pdcString(pdc, ARTIFACT_FULLSET_TYPE);
+        return applyStatsToItem(item, baseStats, modifiers, itemType, flavorText, tracker, rarity, artifactFullsetType, grade);
     }
 
     private StatMap restoreBaseStats(PersistentDataContainer pdc) {
@@ -404,6 +456,11 @@ public class ItemFactory implements IManager, IItemFactory {
             }
         }
         return modifiers;
+    }
+
+    private String pdcString(PersistentDataContainer pdc, NamespacedKey key) {
+        String value = pdc.get(key, PersistentDataType.STRING);
+        return (value == null || value.isBlank()) ? null : value;
     }
 
     /**
@@ -456,6 +513,265 @@ public class ItemFactory implements IManager, IItemFactory {
         ItemStack item = getCustomItemStack(customitemid);
         if (item != null) item.setAmount(count);
         return item;
+    }
+
+    public static void registerArtifactSetEffect(String type, @Nullable StatMap twoSetBonus, @Nullable StatMap threeSetBonus) {
+        if (type == null || type.isBlank()) {
+            return;
+        }
+        String normalized = normalizeArtifactType(type);
+        ArtifactSetEffect effect = ARTIFACT_SET_EFFECTS.computeIfAbsent(normalized, k -> new ArtifactSetEffect());
+        if (twoSetBonus != null) {
+            effect.setTwoSetBonus(twoSetBonus);
+        }
+        if (threeSetBonus != null) {
+            effect.setThreeSetBonus(threeSetBonus);
+        }
+    }
+
+    public static void registerArtifactSetWorkflow(String type,
+                                                   int requiredCount,
+                                                   ArtifactSetTrigger trigger,
+                                                   @Nullable ArtifactSetCondition condition,
+                                                   ArtifactSetWorkflow workflow) {
+        if (type == null || type.isBlank() || requiredCount <= 0 || trigger == null || workflow == null) {
+            return;
+        }
+
+        String normalized = normalizeArtifactType(type);
+        ArtifactSetEffect effect = ARTIFACT_SET_EFFECTS.computeIfAbsent(normalized, k -> new ArtifactSetEffect());
+        effect.addRule(new ArtifactSetRule(requiredCount, trigger, condition, workflow));
+    }
+
+    public static StatMap getArtifactSetBonus(String type, int artifactCount) {
+        if (type == null || type.isBlank()) {
+            return new StatMap();
+        }
+
+        ArtifactSetEffect effect = ARTIFACT_SET_EFFECTS.get(normalizeArtifactType(type));
+        if (effect == null) {
+            return new StatMap();
+        }
+
+        return effect.getBonusForCount(artifactCount);
+    }
+
+    public static boolean hasArtifactSetBonus(String type, int artifactCount) {
+        return !getArtifactSetBonus(type, artifactCount).getAllTypes().isEmpty();
+    }
+
+    public static List<ArtifactSetRule> getArtifactSetRules(String type) {
+        if (type == null || type.isBlank()) {
+            return Collections.emptyList();
+        }
+
+        ArtifactSetEffect effect = ARTIFACT_SET_EFFECTS.get(normalizeArtifactType(type));
+        if (effect == null) {
+            return Collections.emptyList();
+        }
+
+        return effect.getRules();
+    }
+
+    public static boolean hasArtifactSetWorkflow(String type, int artifactCount) {
+        if (type == null || type.isBlank()) {
+            return false;
+        }
+
+        ArtifactSetEffect effect = ARTIFACT_SET_EFFECTS.get(normalizeArtifactType(type));
+        if (effect == null) {
+            return false;
+        }
+
+        for (ArtifactSetRule rule : effect.getRules()) {
+            if (rule.getRequiredCount() <= artifactCount) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void registerDefaultArtifactSetEffects() {
+        if (!ARTIFACT_SET_EFFECTS.isEmpty()) {
+            return;
+        }
+
+        // ここにアーティファクト種別ごとの 2/3 セット効果を追加する。
+        // 例:
+        // registerArtifactSetEffect("fire", effect2, effect3);
+        // registerArtifactSetEffect("forest", effect2, effect3);
+        // registerArtifactSetWorkflow("mage", 2, ArtifactSetTrigger.DAMAGE_TAKEN, ctx -> ctx.isMagicDamage(),
+        //         ArtifactSetWorkflows.magicBarrierFullBlock(Component.text("魔法障壁が発動した！")));
+    }
+
+    private static String normalizeArtifactType(String type) {
+        return type.trim().toLowerCase(Locale.ROOT);
+    }
+
+    public enum ArtifactSetTrigger {
+        DAMAGE_TAKEN
+    }
+
+    @FunctionalInterface
+    public interface ArtifactSetCondition {
+        boolean test(ArtifactSetContext context);
+    }
+
+    @FunctionalInterface
+    public interface ArtifactSetWorkflow {
+        void execute(ArtifactSetContext context);
+    }
+
+    public static final class ArtifactSetContext {
+        private final Player player;
+        private final com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent damageEvent;
+        private final String artifactType;
+        private final int artifactCount;
+        private final Map<String, Object> values = new HashMap<>();
+
+        public ArtifactSetContext(Player player,
+                                  com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent damageEvent,
+                                  String artifactType,
+                                  int artifactCount) {
+            this.player = player;
+            this.damageEvent = damageEvent;
+            this.artifactType = artifactType;
+            this.artifactCount = artifactCount;
+        }
+
+        public Player getPlayer() {
+            return player;
+        }
+
+        public com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent getDamageEvent() {
+            return damageEvent;
+        }
+
+        public String getArtifactType() {
+            return artifactType;
+        }
+
+        public int getArtifactCount() {
+            return artifactCount;
+        }
+
+        public double getDamage() {
+            return damageEvent.getDamage();
+        }
+
+        public void setDamage(double damage) {
+            damageEvent.setDamage(damage);
+        }
+
+        public void cancelDamage() {
+            damageEvent.setCancelled(true);
+        }
+
+        public boolean isMagicDamage() {
+            return damageEvent.isMagic();
+        }
+
+        public com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent.DamageType getDamageType() {
+            return damageEvent.getType();
+        }
+
+        public org.bukkit.entity.LivingEntity getAttacker() {
+            return damageEvent.getAttacker();
+        }
+
+        public void sendMessage(Component message) {
+            player.sendMessage(message);
+        }
+
+        public void playSound(Sound sound, float volume, float pitch) {
+            player.getWorld().playSound(player.getLocation(), sound, volume, pitch);
+        }
+
+        public void spawnParticle(Particle particle, int count, double offsetX, double offsetY, double offsetZ, double extra) {
+            player.getWorld().spawnParticle(particle, player.getLocation().add(0, 1.0, 0), count, offsetX, offsetY, offsetZ, extra);
+        }
+
+        public float getAbsorptionAmount() {
+            return (float) player.getAbsorptionAmount();
+        }
+
+        public void setAbsorptionAmount(float amount) {
+            player.setAbsorptionAmount(amount);
+        }
+
+        public void put(String key, Object value) {
+            values.put(key, value);
+        }
+
+        @SuppressWarnings("unchecked")
+        public <T> T get(String key) {
+            return (T) values.get(key);
+        }
+    }
+
+    public static final class ArtifactSetRule {
+        private final int requiredCount;
+        private final ArtifactSetTrigger trigger;
+        private final ArtifactSetCondition condition;
+        private final ArtifactSetWorkflow workflow;
+
+        public ArtifactSetRule(int requiredCount,
+                               ArtifactSetTrigger trigger,
+                               @Nullable ArtifactSetCondition condition,
+                               ArtifactSetWorkflow workflow) {
+            this.requiredCount = requiredCount;
+            this.trigger = trigger;
+            this.condition = condition;
+            this.workflow = workflow;
+        }
+
+        public boolean matches(ArtifactSetTrigger trigger, ArtifactSetContext context) {
+            if (this.trigger != trigger || context.getArtifactCount() < requiredCount) {
+                return false;
+            }
+            return condition == null || condition.test(context);
+        }
+
+        public void execute(ArtifactSetContext context) {
+            workflow.execute(context);
+        }
+
+        public int getRequiredCount() {
+            return requiredCount;
+        }
+    }
+
+    private static final class ArtifactSetEffect {
+        private StatMap twoSetBonus;
+        private StatMap threeSetBonus;
+        private final List<ArtifactSetRule> rules = new ArrayList<>();
+
+        private void setTwoSetBonus(@Nullable StatMap bonus) {
+            this.twoSetBonus = bonus;
+        }
+
+        private void setThreeSetBonus(@Nullable StatMap bonus) {
+            this.threeSetBonus = bonus;
+        }
+
+        private void addRule(ArtifactSetRule rule) {
+            rules.add(rule);
+        }
+
+        private StatMap getBonusForCount(int count) {
+            StatMap bonus = new StatMap();
+            if (count >= 2 && twoSetBonus != null) {
+                bonus.add(twoSetBonus);
+            }
+            if (count >= 3 && threeSetBonus != null) {
+                bonus.add(threeSetBonus);
+            }
+            return bonus;
+        }
+
+        private List<ArtifactSetRule> getRules() {
+            return Collections.unmodifiableList(rules);
+        }
     }
 }
 
@@ -861,7 +1177,8 @@ class ItemLoader {
                 List<String> flavorText = config.getStringList(key + ".flavor");
                 
                 // 重要: Lore + PDC 書き込み
-                item = factory.applyStatsToItem(item, baseStats, modifiers, itemType, flavorText, tracker, rarity, grade);
+                String artifactFullsetType = config.getString(key + ".artifact_fullset_type", null);
+                item = factory.applyStatsToItem(item, baseStats, modifiers, itemType, flavorText, tracker, rarity, artifactFullsetType, grade);
 
                 // --- 以下の古い冗長な処理は削除 ---
                 

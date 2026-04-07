@@ -74,6 +74,23 @@ public interface IItemFactory {
     ItemStack rerollModifiers(ItemStack item);
 
     /**
+     * アーティファクトのフルセット種別を設定します。
+     * @param item 対象アイテム
+     * @param artifactFullsetType フルセット種別
+     * @return 更新されたItemStack
+     */
+    @Nullable
+    ItemStack setArtifactFullsetType(ItemStack item, @Nullable String artifactFullsetType);
+
+    /**
+     * アーティファクトのフルセット種別を取得します。
+     * @param item 対象アイテム
+     * @return フルセット種別、未設定ならnull
+     */
+    @Nullable
+    String getArtifactFullsetType(ItemStack item);
+
+    /**
      * アイテムの特定のベースステータスを更新します。
      * @param item 対象アイテム
      * @param type ステータスタイプ
