@@ -65,6 +65,21 @@ public final class DW {
     }
 
     /**
+     * UI管理APIへアクセスします。
+     */
+    public static com.lunar_prototype.deepwither.core.UIManager ui() {
+        return api.getUIManager();
+    }
+
+    /**
+     * 指定したプレイヤーのUI操作を直接行います。
+     * 例: DW.ui(player).progressBar("斧", 1, 3, NamedTextColor.GOLD);
+     */
+    public static com.lunar_prototype.deepwither.core.UIManager.PlayerUI ui(Player player) {
+        return ui().of(player);
+    }
+
+    /**
      * アイテム管理APIへアクセスします。
      */
     public static IItemFactory items() {

@@ -40,11 +40,18 @@ public interface DeepwitherAPI {
      */
     PlayerDataManager getPlayerDataManager();
 
-    /**
-     * アイテム管理マネージャーを取得します。
+    /**                                                                                                    │
+     * アイテム管理マネージャーを取得します。                                                              │
      * @return IItemFactory
-     */
+     *
+    */
     IItemFactory getItemFactory();
+
+    /**
+     * UI管理マネージャーを取得します。
+     * @return UIManager
+     */
+    com.lunar_prototype.deepwither.core.UIManager getUIManager();
 
     // 他のマネージャーのインターフェースも今後ここに追加
 }

@@ -26,20 +26,22 @@ import org.bukkit.util.Vector;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-@DependsOn({StatManager.class, ChargeManager.class, PlayerSettingsManager.class})
+@DependsOn({StatManager.class, ChargeManager.class, PlayerSettingsManager.class, com.lunar_prototype.deepwither.core.UIManager.class})
 public class WeaponMechanicManager implements IManager {
 
     private final Deepwither plugin;
     private final IStatManager statManager;
     private final ChargeManager chargeManager;
     private final PlayerSettingsManager settingsManager;
+    private final com.lunar_prototype.deepwither.core.UIManager uiManager;
     private final Map<UUID, Map<String, Integer>> hitCounters = new ConcurrentHashMap<>();
 
-    public WeaponMechanicManager(Deepwither plugin, IStatManager statManager, ChargeManager chargeManager, PlayerSettingsManager settingsManager) {
+    public WeaponMechanicManager(Deepwither plugin, IStatManager statManager, ChargeManager chargeManager, PlayerSettingsManager settingsManager, com.lunar_prototype.deepwither.core.UIManager uiManager) {
         this.plugin = plugin;
         this.statManager = statManager;
         this.chargeManager = chargeManager;
         this.settingsManager = settingsManager;
+        this.uiManager = uiManager;
     }
 
     @Override
@@ -104,7 +106,7 @@ public class WeaponMechanicManager implements IManager {
         attacker.playSound(attacker.getLocation(), Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1.0f, 0.8f);
 
         if (powerBonus) {
-            attacker.sendActionBar(Component.text("HALBERD CLEAVE!! (" + totalHit + " targets)", NamedTextColor.GOLD, TextDecoration.BOLD));
+            uiManager.of(attacker).combatAction("HALBERD CLEAVE!! (" + totalHit + " targets)", NamedTextColor.GOLD);
             attacker.playSound(attacker.getLocation(), Sound.ENTITY_IRON_GOLEM_ATTACK, 0.5f, 1.5f);
         }
 
@@ -145,15 +147,14 @@ public class WeaponMechanicManager implements IManager {
             attacker.getWorld().spawnParticle(Particle.CRIT, context.getVictim().getLocation().add(0, 1.2, 0), 10, 0.2, 0.2, 0.2, 0.1);
             attacker.getWorld().playSound(attacker.getLocation(), Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, 0.5f, 1.2f);
             
-            sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, 
-                    Component.text("ARMOR CRUSH!! ", NamedTextColor.RED, TextDecoration.BOLD)
-                            .append(Component.text("50% 防御貫通攻撃！", NamedTextColor.GOLD)));
+            uiManager.of(attacker).combatAction("ARMOR CRUSH!!", NamedTextColor.RED);
+            uiManager.of(attacker).message(PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, 
+                    Component.text("50% 防御貫通攻撃！", NamedTextColor.GOLD));
         } else {
             playerHits.put(weaponId, currentHits);
             
-            // 進捗をアクションバーで通知 (オプション)
-            String dots = "●".repeat(currentHits) + "○".repeat(3 - currentHits);
-            attacker.sendActionBar(Component.text("斧コンボ: " + dots, NamedTextColor.GRAY));
+            // 進捗をアクションバーで通知
+            uiManager.of(attacker).progressBar("斧コンボ", currentHits, 3, NamedTextColor.GRAY);
         }
     }
 
@@ -184,15 +185,14 @@ public class WeaponMechanicManager implements IManager {
             attacker.getWorld().playSound(attacker.getLocation(), Sound.ENTITY_ZOMBIE_ATTACK_WOODEN_DOOR, 0.8f, 0.5f);
             attacker.getWorld().playSound(attacker.getLocation(), Sound.BLOCK_ANVIL_LAND, 0.4f, 0.8f);
 
-            sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, 
-                    Component.text("STUN!! ", NamedTextColor.AQUA, TextDecoration.BOLD)
-                            .append(Component.text("大剣の強撃で相手を怯ませた！", NamedTextColor.YELLOW)));
+            uiManager.of(attacker).combatAction("STUN!!", NamedTextColor.AQUA);
+            uiManager.of(attacker).message(PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, 
+                    Component.text("大剣の強撃で相手を怯ませた！", NamedTextColor.YELLOW));
         } else {
             playerHits.put(weaponId, currentHits);
             
             // 進捗をアクションバーで通知
-            String dots = "●".repeat(currentHits) + "○".repeat(3 - currentHits);
-            attacker.sendActionBar(Component.text("大剣コンボ: " + dots, NamedTextColor.GOLD));
+            uiManager.of(attacker).progressBar("大剣コンボ", currentHits, 3, NamedTextColor.GOLD);
         }
     }
 
@@ -250,7 +250,7 @@ public class WeaponMechanicManager implements IManager {
             target.getWorld().spawnParticle(Particle.SWEEP_ATTACK, target.getLocation().add(0, 1, 0), 1);
             
             String countSuffix = (extraTargets.size() > 1) ? "(" + (i + 1) + "体目)" : "";
-            sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_GIVEN_DAMAGE, 
+            uiManager.of(attacker).message(PlayerSettingsManager.SettingType.SHOW_GIVEN_DAMAGE, 
                     Component.text("貫通" + countSuffix + "! ", NamedTextColor.YELLOW)
                             .append(Component.text("+" + Math.round(cleaveDmg), NamedTextColor.RED)));
         }
@@ -281,9 +281,9 @@ public class WeaponMechanicManager implements IManager {
                     living.setVelocity(kb);
                 }
             }
-            sendLog(attacker, PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, 
-                    Component.text("CRASH!! ", NamedTextColor.RED, TextDecoration.BOLD)
-                            .append(Component.text("ハンマーの溜め攻撃を叩き込んだ！", NamedTextColor.GOLD)));
+            uiManager.of(attacker).combatAction("CRASH!!", NamedTextColor.RED);
+            uiManager.of(attacker).message(PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, 
+                    Component.text("ハンマーの溜め攻撃を叩き込んだ！", NamedTextColor.GOLD));
         }
     }
 
@@ -302,12 +302,6 @@ public class WeaponMechanicManager implements IManager {
     private com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent.DamageType contextToType(DamageProcessor processor) {
         // デフォルトで物理として扱う（再帰用）
         return com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent.DamageType.PHYSICAL;
-    }
-
-    private void sendLog(Player player, PlayerSettingsManager.SettingType type, Component message) {
-        if (settingsManager.isEnabled(player, type)) {
-            player.sendMessage(message);
-        }
     }
 
     private boolean hasCategory(ItemStack item, String category) {

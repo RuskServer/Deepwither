@@ -52,18 +52,19 @@ public class CombatModule implements IModule {
             StatManager statManager = container.get(StatManager.class);
             PlayerSettingsManager settingsManager = container.get(PlayerSettingsManager.class);
             ChargeManager chargeManager = container.get(ChargeManager.class);
+            com.lunar_prototype.deepwither.core.UIManager uiManager = container.get(com.lunar_prototype.deepwither.core.UIManager.class);
 
             // DamageProcessor
-            DamageProcessor damageProcessor = new DamageProcessor(plugin, statManager, settingsManager);
+            DamageProcessor damageProcessor = new DamageProcessor(plugin, statManager, uiManager);
             container.registerInstance(DamageProcessor.class, damageProcessor);
 
             // WeaponMechanicManager
             WeaponMechanicManager weaponMechanicManager = new WeaponMechanicManager(plugin, statManager, chargeManager,
-                    settingsManager);
+                    settingsManager, uiManager);
             container.registerInstance(WeaponMechanicManager.class, weaponMechanicManager);
 
             // DamageManager
-            DamageManager damageManager = new DamageManager(plugin, statManager, settingsManager);
+            DamageManager damageManager = new DamageManager(plugin, statManager, settingsManager, uiManager);
             container.registerInstance(DamageManager.class, damageManager);
 
         } catch (Exception e) {

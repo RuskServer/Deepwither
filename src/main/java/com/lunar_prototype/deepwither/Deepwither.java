@@ -141,6 +141,15 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     }
 
     /**
+     * UI管理マネージャーを取得します。
+     * @return UIManager
+     */
+    @Override
+    public com.lunar_prototype.deepwither.core.UIManager getUIManager() {
+        return serviceManager.get(com.lunar_prototype.deepwither.core.UIManager.class);
+    }
+
+    /**
      * Accesses the registered item factory implementation.
      *
      * @deprecated Use {@code get(ItemFactory.class)} (or the generic {@code get(Class)} API) to obtain the item factory from the service manager.
@@ -858,6 +867,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.statManager = serviceManager.get(StatManager.class);
         this.itemFactory = serviceManager.get(ItemFactory.class);
         this.settingsManager = serviceManager.get(PlayerSettingsManager.class);
+        register(new com.lunar_prototype.deepwither.core.UIManager(settingsManager));
         this.chargeManager = serviceManager.get(ChargeManager.class);
         this.cooldownManager = serviceManager.get(CooldownManager.class);
 

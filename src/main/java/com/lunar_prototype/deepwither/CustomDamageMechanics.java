@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent;
 import com.lunar_prototype.deepwither.core.damage.DamageCalculator;
 import com.lunar_prototype.deepwither.core.damage.DamageContext;
@@ -92,7 +93,8 @@ public class CustomDamageMechanics implements ITargetedEntitySkill {
                 context.setCrit(true);
                 baseDamage *= (attackerStats.getFinal(StatType.CRIT_DAMAGE) / 100.0);
                 playCriticalEffect(bukkitTarget);
-                damageManager.sendLog(player, PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, Component.text("クリティカル！", NamedTextColor.GOLD, TextDecoration.BOLD));
+                DW.ui(player).combatAction("CRITICAL!!", NamedTextColor.GOLD);
+                DW.ui(player).message(PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, Component.text("クリティカル！", NamedTextColor.GOLD, TextDecoration.BOLD));
             }
         } else {
             baseDamage = basePower * multiplier;
@@ -115,7 +117,9 @@ public class CustomDamageMechanics implements ITargetedEntitySkill {
                     double blocked = finalDamage * blockRate;
                     finalDamage -= blocked;
                     playerTarget.getWorld().playSound(playerTarget.getLocation(), Sound.ITEM_SHIELD_BLOCK, 1f, 1f);
-                    damageManager.sendLog(playerTarget, PlayerSettingsManager.SettingType.SHOW_MITIGATION, 
+                    
+                    DW.ui(playerTarget).combatAction("SHIELD BLOCK!!", NamedTextColor.AQUA);
+                    DW.ui(playerTarget).message(PlayerSettingsManager.SettingType.SHOW_MITIGATION, 
                             Component.text("盾防御！ ", NamedTextColor.AQUA)
                                     .append(Component.text("軽減: ", NamedTextColor.GRAY))
                                     .append(Component.text(Math.round(blocked), NamedTextColor.GREEN)));

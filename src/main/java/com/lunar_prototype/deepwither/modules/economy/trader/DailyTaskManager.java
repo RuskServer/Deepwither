@@ -7,6 +7,7 @@ import com.lunar_prototype.deepwither.data.DailyTaskData;
 import com.lunar_prototype.deepwither.data.DailyTaskDataStore;
 import com.lunar_prototype.deepwither.data.FileDailyTaskDataStore;
 import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -233,7 +234,7 @@ public class DailyTaskManager implements IManager {
                 elapsed++;
                 data.setProgress(traderId, elapsed, targetSeconds);
 
-                player.sendActionBar(Component.text("設置中... ", NamedTextColor.YELLOW, TextDecoration.BOLD)
+                DW.ui(player).simpleActionBar(Component.text("設置中... ", NamedTextColor.YELLOW, TextDecoration.BOLD)
                         .append(Component.text(elapsed + " / " + targetSeconds + "s", NamedTextColor.WHITE)));
 
                 if (elapsed >= targetSeconds) {

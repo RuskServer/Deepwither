@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
@@ -89,7 +90,7 @@ public class SkillCastSessionManager implements Listener, IManager {
                         actionBar = actionBar.append(keyPrefix).append(display).append(Component.text("  "));
                     }
 
-                    player.sendActionBar(actionBar);
+                    DW.ui(player).simpleActionBar(actionBar);
                 }
             }
         }.runTaskTimer(plugin, 0L, 10L); // 0.5秒ごと更新
@@ -114,7 +115,7 @@ public class SkillCastSessionManager implements Listener, IManager {
         if (skillModePlayers.contains(uuid)) {
             skillModePlayers.remove(uuid);
             skillSlotOffsetMap.remove(uuid);
-            player.sendActionBar(Component.empty());
+            DW.ui(player).simpleActionBar(Component.empty());
             player.playSound(player.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 1.0f, 2.0f);
             return;
         }

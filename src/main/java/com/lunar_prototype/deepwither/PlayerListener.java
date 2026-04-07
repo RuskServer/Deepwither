@@ -1,6 +1,7 @@
 package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.aethelgard.LocationDetails;
+import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.aethelgard.PlayerQuestManager;
 import com.lunar_prototype.deepwither.aethelgard.PlayerQuestData;
 import com.lunar_prototype.deepwither.aethelgard.QuestProgress;
@@ -193,7 +194,7 @@ public class PlayerListener implements Listener, IManager {
                 Location objectiveLoc = details.toBukkitLocation();
                 if (objectiveLoc == null || !objectiveLoc.getWorld().equals(playerLoc.getWorld())) continue;
                 if (objectiveLoc.distanceSquared(playerLoc) <= CHECK_RADIUS_SQUARED) {
-                    player.sendActionBar(Component.text("[クエスト目標地点] ", NamedTextColor.AQUA)
+                    DW.ui(player).simpleActionBar(Component.text("[クエスト目標地点] ", NamedTextColor.AQUA)
                             .append(Component.text(details.getName(), NamedTextColor.DARK_AQUA))
                             .append(Component.text(" に接近中...", NamedTextColor.AQUA)));
                 }
