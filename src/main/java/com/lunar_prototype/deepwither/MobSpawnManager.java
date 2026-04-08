@@ -57,8 +57,14 @@ public class MobSpawnManager implements IManager {
         UUID mobUuid = spawner.spawnMythicMob(mobId, loc, region.getTierFromLocation(loc));
         if (mobUuid == null) return null;
 
+        // CustomMobの場合は、独自のステータス設定(onSpawn)を優先するため、レベルスケーリングをスキップ
+        var customMobManager = DW.get(com.lunar_prototype.deepwither.modules.mob.framework.CustomMobManager.class);
+        Entity entity = plugin.getServer().getEntity(mobUuid);
+        if (customMobManager != null && entity != null && customMobManager.getCustomMob(entity) != null) {
+            return mobUuid;
+        }
+
         if (levelService != null) {
-            Entity entity = plugin.getServer().getEntity(mobUuid);
             if (entity instanceof LivingEntity livingEntity) {
                 levelService.applyLevel(livingEntity, mobId, Math.max(1, level));
             }
