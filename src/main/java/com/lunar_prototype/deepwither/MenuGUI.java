@@ -43,6 +43,7 @@ public class MenuGUI implements Listener, IManager {
     private PlayerQuestManager questManager;
     private DailyTaskManager dailyTaskManager;
     private MailInboxGUI mailInboxGUI;
+    private com.lunar_prototype.deepwither.party.PartyGUI partyGUI;
 
     public static final Component GUI_TITLE = Component.text("Main Menu", NamedTextColor.DARK_GRAY).decoration(TextDecoration.ITALIC, false);
     private static final int GUI_SIZE = 54;
@@ -59,6 +60,7 @@ public class MenuGUI implements Listener, IManager {
         this.questManager = plugin.getPlayerQuestManager();
         this.dailyTaskManager = plugin.getDailyTaskManager();
         this.mailInboxGUI = plugin.getMailInboxGUI();
+        this.partyGUI = new com.lunar_prototype.deepwither.party.PartyGUI(plugin.getPartyManager(), plugin);
 
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
@@ -82,6 +84,11 @@ public class MenuGUI implements Listener, IManager {
         inv.setItem(22, createNavButton(Material.TOTEM_OF_UNDYING, Component.text("コンパニオン", NamedTextColor.GOLD, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false),
                 Component.text("共に冒険する仲間を管理します。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false),
                 Component.text("スキルの設定や装備の変更が可能です。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false),
+                Component.empty(), Component.text("▶ クリックして開く", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false)));
+
+        inv.setItem(23, createNavButton(Material.WRITABLE_BOOK, Component.text("パーティー", NamedTextColor.LIGHT_PURPLE, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false),
+                Component.text("パーティーを作成・参加します。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false),
+                Component.text("野良募集の一覧も確認できます。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false),
                 Component.empty(), Component.text("▶ クリックして開く", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false)));
 
         inv.setItem(38, createNavButton(Material.ENCHANTED_BOOK, Component.text("スキルツリー", NamedTextColor.GREEN, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false),
@@ -351,6 +358,12 @@ public class MenuGUI implements Listener, IManager {
             case 22:
                 player.closeInventory();
                 new CompanionGui(Deepwither.getInstance().getCompanionManager()).openGui(player);
+                break;
+            case 23:
+                player.closeInventory();
+                if (partyGUI != null) {
+                    partyGUI.open(player);
+                }
                 break;
             case 38:
                 player.closeInventory();

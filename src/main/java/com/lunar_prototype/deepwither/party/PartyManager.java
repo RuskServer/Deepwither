@@ -9,9 +9,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @DependsOn({})
 public class PartyManager implements IManager {
@@ -199,5 +197,68 @@ public class PartyManager implements IManager {
 
     public Party getParty(Player player) {
         return playerPartyMap.get(player.getUniqueId());
+    }
+
+    /**
+     * 現在公開中のパーティー一覧を取得する
+     */
+    public List<Party> getPublicParties() {
+        List<Party> list = new ArrayList<>();
+        // 重複を避けるため、一意のパーティーインスタンスを集める
+        for (Party party : new HashSet<>(playerPartyMap.values())) {
+            if (party.isPublic()) {
+                list.add(party);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * パーティーの公開設定を変更する（リーダーのみ）
+     */
+    public void setPartyPublic(Player leader, boolean isPublic) {
+        Party party = getParty(leader);
+        if (party == null || !party.getLeaderId().equals(leader.getUniqueId())) {
+            leader.sendMessage(Component.text("公開設定の変更権限がありません（リーダーのみ）。", NamedTextColor.RED));
+            return;
+        }
+
+        party.setPublic(isPublic);
+        if (isPublic) {
+            leader.sendMessage(Component.text("パーティーを公開しました！他のプレイヤーが「/menu」のパーティーから参加可能になります。", NamedTextColor.GREEN));
+            // サーバー全体にブロードキャスト
+            Component broadcastMsg = Component.text("==============================", NamedTextColor.GOLD).appendNewline()
+                    .append(Component.text("[パーティー募集] ", NamedTextColor.AQUA, net.kyori.adventure.text.format.TextDecoration.BOLD))
+                    .append(Component.text(leader.getName() + " がパーティーメンバーを募集しています！", NamedTextColor.WHITE)).appendNewline()
+                    .append(Component.text("[参加するには /menu のパーティー画面を開いてください]", NamedTextColor.GRAY)).appendNewline()
+                    .append(Component.text("==============================", NamedTextColor.GOLD));
+            Bukkit.getServer().sendMessage(broadcastMsg);
+        } else {
+            leader.sendMessage(Component.text("パーティーを非公開にしました。", NamedTextColor.YELLOW));
+        }
+    }
+
+    /**
+     * 公開パーティーに直接参加する
+     */
+    public void joinPublicParty(Player player, UUID targetLeaderId) {
+        if (playerPartyMap.containsKey(player.getUniqueId())) {
+            player.sendMessage(Component.text("既にパーティーに参加しています。先に脱退してください。", NamedTextColor.RED));
+            return;
+        }
+
+        // Leaderが存在するか
+        Party targetParty = playerPartyMap.get(targetLeaderId);
+        if (targetParty == null) {
+            player.sendMessage(Component.text("そのパーティーは既に解散したか、見つかりません。", NamedTextColor.RED));
+            return;
+        }
+
+        if (!targetParty.isPublic()) {
+            player.sendMessage(Component.text("そのパーティーは現在非公開です。", NamedTextColor.RED));
+            return;
+        }
+
+        joinPartyLogic(player, targetParty);
     }
 }

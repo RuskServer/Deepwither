@@ -11,11 +11,20 @@ import java.util.stream.Collectors;
 public class Party {
     private final UUID leaderId;
     private final Set<UUID> members;
+    private boolean isPublic = false;
 
     public Party(UUID leaderId) {
         this.leaderId = leaderId;
         this.members = new HashSet<>();
         this.members.add(leaderId); // リーダーもメンバーに含める
+    }
+
+    public boolean isPublic() {
+        return isPublic;
+    }
+
+    public void setPublic(boolean isPublic) {
+        this.isPublic = isPublic;
     }
 
     public void addMember(UUID playerId) {

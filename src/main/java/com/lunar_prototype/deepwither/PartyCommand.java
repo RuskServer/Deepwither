@@ -13,6 +13,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.util.StringUtil;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -28,7 +29,7 @@ public class PartyCommand implements CommandExecutor, TabCompleter {
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (!(sender instanceof Player player)) {
             sender.sendMessage(Component.text("プレイヤーのみ実行可能です。", NamedTextColor.RED));
             return true;
@@ -42,6 +43,9 @@ public class PartyCommand implements CommandExecutor, TabCompleter {
         String subCommand = args[0].toLowerCase();
 
         switch (subCommand) {
+            case "create":
+                handleCreate(player);
+                break;
             case "invite":
                 handleInvite(player, args);
                 break;
@@ -60,6 +64,12 @@ public class PartyCommand implements CommandExecutor, TabCompleter {
             case "info":
                 handleInfo(player);
                 break;
+            case "public":
+                handlePublic(player, args);
+                break;
+            case "private":
+                handlePrivate(player);
+                break;
             default:
                 sendHelp(player);
                 break;
@@ -69,7 +79,7 @@ public class PartyCommand implements CommandExecutor, TabCompleter {
     }
 
     @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
         if (!(sender instanceof Player player)) {
             return Collections.emptyList();
         }
@@ -78,12 +88,15 @@ public class PartyCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 1) {
             List<String> subCommands = new ArrayList<>();
+            subCommands.add("create");
             subCommands.add("invite");
             subCommands.add("accept");
             subCommands.add("leave");
             subCommands.add("kick");
             subCommands.add("disband");
             subCommands.add("info");
+            subCommands.add("public");
+            subCommands.add("private");
 
             StringUtil.copyPartialMatches(args[0], subCommands, completions);
             Collections.sort(completions);
@@ -213,13 +226,32 @@ public class PartyCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(Component.text("==================", NamedTextColor.BLUE));
     }
 
+    private void handleCreate(Player player) {
+        if (partyManager.getParty(player) != null) {
+            player.sendMessage(Component.text("既にパーティーに参加しています。", NamedTextColor.RED));
+            return;
+        }
+        partyManager.createParty(player);
+    }
+
     private void sendHelp(Player player) {
         player.sendMessage(Component.text("--- パーティーコマンド ---", NamedTextColor.YELLOW));
+        player.sendMessage(Component.text("/party create", NamedTextColor.GREEN).append(Component.text(" - パーティーを作成", NamedTextColor.GRAY)));
         player.sendMessage(Component.text("/party invite <player>", NamedTextColor.AQUA).append(Component.text(" - プレイヤーを招待", NamedTextColor.GRAY)));
         player.sendMessage(Component.text("/party accept", NamedTextColor.AQUA).append(Component.text(" - 招待を受ける", NamedTextColor.GRAY)));
         player.sendMessage(Component.text("/party leave", NamedTextColor.AQUA).append(Component.text(" - パーティーから脱退", NamedTextColor.GRAY)));
         player.sendMessage(Component.text("/party info", NamedTextColor.AQUA).append(Component.text(" - メンバーを表示", NamedTextColor.GRAY)));
+        player.sendMessage(Component.text("/party public", NamedTextColor.GREEN).append(Component.text(" - パーティーを公開(リーダーのみ)", NamedTextColor.GRAY)));
+        player.sendMessage(Component.text("/party private", NamedTextColor.RED).append(Component.text(" - パーティーを非公開(リーダーのみ)", NamedTextColor.GRAY)));
         player.sendMessage(Component.text("/party kick <player>", NamedTextColor.RED).append(Component.text(" - メンバーを追放(リーダーのみ)", NamedTextColor.GRAY)));
         player.sendMessage(Component.text("/party disband", NamedTextColor.RED).append(Component.text(" - パーティー解散(リーダーのみ)", NamedTextColor.GRAY)));
+    }
+
+    private void handlePublic(Player player, @SuppressWarnings("unused") String[] args) {
+        partyManager.setPartyPublic(player, true);
+    }
+
+    private void handlePrivate(Player player) {
+        partyManager.setPartyPublic(player, false);
     }
 }
