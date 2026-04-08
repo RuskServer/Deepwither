@@ -19,9 +19,11 @@ public class PartyManager implements IManager {
     // 招待リスト: 招待された人(UUID) -> 招待したリーダー(UUID)
     private final Map<UUID, UUID> pendingInvites = new HashMap<>();
     private final JavaPlugin plugin;
+    private final PartyVoiceManager voiceManager;
 
     public PartyManager(JavaPlugin plugin) {
         this.plugin = plugin;
+        this.voiceManager = new PartyVoiceManager();
     }
 
     @Override
@@ -110,6 +112,9 @@ public class PartyManager implements IManager {
         party.addMember(player.getUniqueId());
         playerPartyMap.put(player.getUniqueId(), party);
 
+        // VCがある場合は接続権限を付与
+        voiceManager.grantVoiceAccess(party, player.getUniqueId());
+
         // 通知
         Component msg = Component.text(player.getName() + " がパーティーに参加しました！", NamedTextColor.GREEN);
         party.getOnlineMembers().forEach(p -> p.sendMessage(msg));
@@ -130,6 +135,9 @@ public class PartyManager implements IManager {
             disbandParty(player);
             return;
         }
+
+        // VCのアクセスを剥奪
+        voiceManager.revokeVoiceAccess(party, player.getUniqueId());
 
         // メンバーからの削除
         party.removeMember(player.getUniqueId());
@@ -167,6 +175,9 @@ public class PartyManager implements IManager {
             return;
         }
 
+        // VCのアクセスを剥奪
+        voiceManager.revokeVoiceAccess(party, target.getUniqueId());
+
         party.removeMember(target.getUniqueId());
         playerPartyMap.remove(target.getUniqueId());
 
@@ -184,6 +195,9 @@ public class PartyManager implements IManager {
             leader.sendMessage(Component.text("解散権限がありません。", NamedTextColor.RED));
             return;
         }
+
+        // VCを削除
+        voiceManager.deleteVoiceChannel(party);
 
         // 全員に通知 & Mapから削除
         for (UUID memberId : party.getMemberIds()) {
@@ -226,6 +240,10 @@ public class PartyManager implements IManager {
         party.setPublic(isPublic);
         if (isPublic) {
             leader.sendMessage(Component.text("パーティーを公開しました！他のプレイヤーが「/menu」のパーティーから参加可能になります。", NamedTextColor.GREEN));
+
+            if (party.getTags().contains(PartyTag.DISCORD)) {
+                voiceManager.createVoiceChannel(party, leader);
+            }
 
             Component tagsComp = Component.empty();
             if (!party.getTags().isEmpty()) {

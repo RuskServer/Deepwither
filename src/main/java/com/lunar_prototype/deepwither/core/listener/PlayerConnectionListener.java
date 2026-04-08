@@ -43,10 +43,11 @@ public class PlayerConnectionListener implements Listener, IManager {
         dw.getCraftingManager().loadPlayer(e.getPlayer());
         dw.getProfessionManager().loadPlayer(e.getPlayer());
 
-        // 1ブロック分の段差をオートジャンプなしで登れるようにする
+        // 1ブロック分の段差をオートジャンプなしで登れるようにする設定
         org.bukkit.attribute.AttributeInstance stepHeight = e.getPlayer().getAttribute(org.bukkit.attribute.Attribute.STEP_HEIGHT);
         if (stepHeight != null) {
-            stepHeight.setBaseValue(1.0);
+            boolean autoStep = Deepwither.getInstance().getSettingsManager().isEnabled(e.getPlayer(), com.lunar_prototype.deepwither.PlayerSettingsManager.SettingType.AUTO_STEP);
+            stepHeight.setBaseValue(autoStep ? 1.0 : 0.6);
         }
     }
 

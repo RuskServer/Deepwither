@@ -28,7 +28,8 @@ public class PlayerSettingsManager implements IManager {
         SHOW_MITIGATION("防御・軽減ログ", true),       // 盾防御やシールド等のログ
         SHOW_SPECIAL_LOG("特殊・スキルログ", true),    // クリティカル、スキル発動、回復など
         SHOW_PICKUP_LOG("アイテム拾得ログ", true),     // 追加
-        SHOW_MENU_ITEM("メニューアイテム表示", true);  // メニューアイテムの表示/非表示
+        SHOW_MENU_ITEM("メニューアイテム表示", true),  // メニューアイテムの表示/非表示
+        AUTO_STEP("オートステップ(段差昇降)", true);   // 段差を自動で登るか(1.0 or 0.6)
 
         private final String displayName;
         private final boolean defValue;

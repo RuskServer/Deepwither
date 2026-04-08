@@ -14,6 +14,7 @@ public class Party {
     private final Set<UUID> members;
     private boolean isPublic = false;
     private final Set<PartyTag> tags = EnumSet.noneOf(PartyTag.class);
+    private String discordVoiceChannelId = null;
 
     public Party(UUID leaderId) {
         this.leaderId = leaderId;
@@ -31,6 +32,14 @@ public class Party {
 
     public Set<PartyTag> getTags() {
         return tags;
+    }
+
+    public String getDiscordVoiceChannelId() {
+        return discordVoiceChannelId;
+    }
+
+    public void setDiscordVoiceChannelId(String discordVoiceChannelId) {
+        this.discordVoiceChannelId = discordVoiceChannelId;
     }
 
     public void addMember(UUID playerId) {
