@@ -83,11 +83,13 @@ public class StatusCommand implements CommandExecutor {
                 .append(Component.text(String.format("%.0f", maxHp), NamedTextColor.WHITE)));
 
         Component atk = getStatComponent("攻撃力", StatType.ATTACK_DAMAGE, finalStats, NamedTextColor.RED, false);
-        Component def = getStatComponent("防御力", StatType.DEFENSE, finalStats, NamedTextColor.BLUE, false);
+        Component def = getStatComponent("防御力", StatType.DEFENSE, finalStats, NamedTextColor.BLUE, false,
+                buildEffectiveHPHover(maxHp, finalStats.getFinal(StatType.DEFENSE)));
         player.sendMessage(Component.text("  ").append(atk).append(Component.text("   ")).append(def));
 
         Component matk = getStatComponent("魔攻力", StatType.MAGIC_DAMAGE, finalStats, NamedTextColor.LIGHT_PURPLE, false);
-        Component mres = getStatComponent("魔耐性", StatType.MAGIC_RESIST, finalStats, NamedTextColor.DARK_AQUA, false);
+        Component mres = getStatComponent("魔耐性", StatType.MAGIC_RESIST, finalStats, NamedTextColor.DARK_AQUA, false,
+                buildEffectiveHPHover(maxHp, finalStats.getFinal(StatType.MAGIC_RESIST)));
         player.sendMessage(Component.text("  ").append(matk).append(Component.text("   ")).append(mres));
 
         Component maoeatk = getStatComponent("魔AoE", StatType.MAGIC_AOE_DAMAGE, finalStats, NamedTextColor.LIGHT_PURPLE, false);
@@ -156,9 +158,30 @@ public class StatusCommand implements CommandExecutor {
     }
 
     private Component getStatComponent(String name, StatType type, StatMap stats, NamedTextColor color, boolean isPercent) {
+        return getStatComponent(name, type, stats, color, isPercent, null);
+    }
+
+    private Component getStatComponent(String name, StatType type, StatMap stats, NamedTextColor color, boolean isPercent, Component hover) {
         double value = stats.getFinal(type);
         String valStr = isPercent ? String.format("%.1f%%", value) : String.format("%.0f", value);
-        return Component.text(name + ": ", NamedTextColor.GRAY).append(Component.text(valStr, color));
+        Component comp = Component.text(name + ": ", NamedTextColor.GRAY).append(Component.text(valStr, color));
+        if (hover != null) {
+            comp = comp.hoverEvent(HoverEvent.showText(hover));
+        }
+        return comp;
+    }
+
+    private Component buildEffectiveHPHover(double maxHp, double statValue) {
+        double pveEhp = maxHp * (1.0 + (statValue / 100.0));
+        double pvpEhp = maxHp * (1.0 + (statValue / 500.0));
+
+        return Component.text("実効HP (Total HP)", NamedTextColor.YELLOW, TextDecoration.BOLD)
+                .append(Component.newline())
+                .append(Component.text(" PvE: ", NamedTextColor.GRAY))
+                .append(Component.text(String.format("%,.0f", pveEhp), NamedTextColor.GREEN))
+                .append(Component.newline())
+                .append(Component.text(" PvP: ", NamedTextColor.GRAY))
+                .append(Component.text(String.format("%,.0f", pvpEhp), NamedTextColor.RED));
     }
 
     private String formatProfessionName(ProfessionType type) {
