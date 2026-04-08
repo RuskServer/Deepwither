@@ -12,7 +12,6 @@ jobs:
     # 3. ボット自身のコメントには反応しないこと
     if: >
       startsWith(github.event.comment.body, '/solve') && 
-      (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'COLLABORATOR') &&
       github.event.comment.user.type != 'Bot'
     
     runs-on: ubuntu-latest
