@@ -123,7 +123,12 @@ public class PlayerListener implements Listener, IManager {
         Player player = event.getPlayer();
         questManager.loadPlayer(player);
         startLocationCheckTask(player);
-        showAlphaDisclaimer(player);
+        
+        if (!Deepwither.getInstance().getSettingsManager().hasAgreedToAlpha(player.getUniqueId())) {
+            showAlphaDisclaimer(player);
+        } else {
+            player.sendMessage(Component.text("【Alpha Prototype】現在テスト版のため、予期せぬバグやロールバックの可能性があります。", NamedTextColor.YELLOW));
+        }
     }
 
     @EventHandler
@@ -160,6 +165,7 @@ public class PlayerListener implements Listener, IManager {
     private DialogActionCallback createAgreeCallback() {
         return (view, audience) -> {
             if (audience instanceof Player p) {
+                Deepwither.getInstance().getSettingsManager().setAgreedToAlpha(p.getUniqueId(), true);
                 p.sendMessage(Component.text("同意を確認しました。テストへのご協力ありがとうございます！", NamedTextColor.GREEN));
             }
         };

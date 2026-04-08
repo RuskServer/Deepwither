@@ -42,6 +42,12 @@ public class PlayerConnectionListener implements Listener, IManager {
         dw.getDailyTaskManager().loadPlayer(e.getPlayer());
         dw.getCraftingManager().loadPlayer(e.getPlayer());
         dw.getProfessionManager().loadPlayer(e.getPlayer());
+
+        // 1ブロック分の段差をオートジャンプなしで登れるようにする
+        org.bukkit.attribute.AttributeInstance stepHeight = e.getPlayer().getAttribute(org.bukkit.attribute.Attribute.STEP_HEIGHT);
+        if (stepHeight != null) {
+            stepHeight.setBaseValue(1.0);
+        }
     }
 
     @EventHandler

@@ -156,4 +156,13 @@ public class PlayerSettingsManager implements IManager {
         config.set(uuid.toString() + ".rarity_filter", rarity);
         save();
     }
+
+    public boolean hasAgreedToAlpha(UUID uuid) {
+        return config.getBoolean(uuid.toString() + ".alpha_agreed", false);
+    }
+
+    public void setAgreedToAlpha(UUID uuid, boolean agreed) {
+        config.set(uuid.toString() + ".alpha_agreed", agreed);
+        save();
+    }
 }
