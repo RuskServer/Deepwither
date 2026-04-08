@@ -1,6 +1,7 @@
 package com.lunar_prototype.deepwither.modules.mob.implementation;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent;
 import com.lunar_prototype.deepwither.api.skill.utils.SkillParticleUtil;
 import com.lunar_prototype.deepwither.core.damage.DamageContext;
@@ -329,5 +330,13 @@ public class IcePilgrim extends CustomMob {
             bossBar = null;
         }
         broadcastMessage("§b§l残氷の巡礼者: §f「この氷も……いつかは溶け、光に還るのだな……」");
+
+        // 討伐報酬のドロップ (holy_iron_ingot, abyssal_eye / 5〜8個)
+        int amount = random.nextInt(4) + 5; // 5, 6, 7, 8
+        ItemStack ingot = DW.items().getItem("holy_iron_ingot", amount);
+        ItemStack eye = DW.items().getItem("abyssal_eye", amount);
+
+        if (ingot != null) entity.getWorld().dropItemNaturally(entity.getLocation(), ingot);
+        if (eye != null) entity.getWorld().dropItemNaturally(entity.getLocation(), eye);
     }
 }
