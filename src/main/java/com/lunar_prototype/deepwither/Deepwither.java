@@ -197,6 +197,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     private SkillLoader skillLoader;
     private SkillSlotManager skillSlotManager;
     private SkillCastManager skillCastManager;
+    private SkillRegistry skillRegistry;
     private SkillAssignmentGUI skillAssignmentGUI;
     private CooldownManager cooldownManager;
     private ArtifactManager artifactManager;
@@ -382,6 +383,10 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
 
     public SkillCastManager getSkillCastManager() {
         return skillCastManager;
+    }
+
+    public SkillRegistry getSkillRegistry() {
+        return skillRegistry;
     }
 
     public SkillAssignmentGUI getSkillAssignmentGUI() {
@@ -911,6 +916,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.skillLoader = register(new SkillLoader(this));
         this.skillSlotManager = register(new SkillSlotManager(this));
         this.skillCastManager = register(new SkillCastManager());
+        this.skillRegistry = register(new SkillRegistry());
         // this.chargeManager = ... handled above
         // this.settingsManager = ... handled above
 

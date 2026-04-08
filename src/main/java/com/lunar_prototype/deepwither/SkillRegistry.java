@@ -1,0 +1,40 @@
+package com.lunar_prototype.deepwither;
+
+import com.lunar_prototype.deepwither.api.skill.ISkillLogic;
+import com.lunar_prototype.deepwither.util.DependsOn;
+import com.lunar_prototype.deepwither.util.IManager;
+
+import java.util.HashMap;
+import java.util.Map;
+
+@DependsOn({})
+public class SkillRegistry implements IManager {
+
+    private final Map<String, ISkillLogic> skillLogics = new HashMap<>();
+
+    @Override
+    public void init() {
+        register("fireball", new com.lunar_prototype.deepwither.api.skill.FireballSkill());
+    }
+
+    @Override
+    public void shutdown() {
+        skillLogics.clear();
+    }
+
+    /**
+     * スキルロジックを登録します。
+     * @param skillId スキル定義（yaml）のIDと一致させる必要があります
+     * @param logic 実行ロジック
+     */
+    public void register(String skillId, ISkillLogic logic) {
+        skillLogics.put(skillId, logic);
+    }
+
+    /**
+     * 指定されたIDのスキルロジックを取得します。
+     */
+    public ISkillLogic getLogic(String skillId) {
+        return skillLogics.get(skillId);
+    }
+}

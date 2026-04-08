@@ -123,7 +123,21 @@ public class SkillCastManager implements IManager {
     // ===== スキル実行 =====
 
     private void executeSkill(Player player, SkillDefinition def) {
-        boolean isCastSuccessful = MythicBukkit.inst().getAPIHelper().castSkill(player, def.mythicSkillId);
+        boolean isCastSuccessful = false;
+        com.lunar_prototype.deepwither.api.skill.ISkillLogic logic = Deepwither.getInstance().getSkillRegistry().getLogic(def.id);
+        
+        if (logic != null) {
+            SkillData data = Deepwither.getInstance().getSkilltreeManager().load(player.getUniqueId());
+            int level = data.getSkillLevel(def.id);
+            if (level <= 0) level = 1;
+            isCastSuccessful = logic.cast(player, def, level);
+        } else if (def.mythicSkillId != null && !def.mythicSkillId.isEmpty()) {
+            isCastSuccessful = MythicBukkit.inst().getAPIHelper().castSkill(player, def.mythicSkillId);
+        } else {
+            player.sendMessage(Component.text("このスキルは未実装です。(Missing Protocol)", NamedTextColor.RED));
+            player.removePotionEffect(PotionEffectType.SLOWNESS);
+            return;
+        }
 
         if (isCastSuccessful) {
             ManaData mana = Deepwither.getInstance().getManaManager().get(player.getUniqueId());
