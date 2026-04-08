@@ -507,17 +507,14 @@ public class DamageManager implements Listener, IManager {
     private boolean isPvPPrevented(Player attacker, LivingEntity target) {
         if (!target.getWorld().getName().equals(attacker.getWorld().getName())) return false;
         if (!(target instanceof Player)) return false;
-        RouteLootChestManager routeLootChestManager = Deepwither.getInstance().getRouteLootChestManager();
-        if (routeLootChestManager != null) {
-            if (routeLootChestManager.isEventPvpAllowed(attacker.getLocation()) || routeLootChestManager.isEventPvpAllowed(target.getLocation())) {
-                return false;
-            }
-        }
+
         if (!Bukkit.getPluginManager().isPluginEnabled("WorldGuard")) return false;
         try {
             RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
             RegionQuery query = container.createQuery();
             ApplicableRegionSet set = query.getApplicableRegions(BukkitAdapter.adapt(attacker.getLocation()));
+            
+            // WorldGuardのPVPフラグがDENY（不許可）に設定されている場合のみ阻止する
             if (!set.testState(null, com.sk89q.worldguard.protection.flags.Flags.PVP)) {
                 attacker.sendMessage(Component.text("この区域ではPvPが禁止されています。", NamedTextColor.RED));
                 return true;

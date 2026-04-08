@@ -36,6 +36,15 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitTask;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldedit.math.BlockVector3;
+import com.sk89q.worldguard.WorldGuard;
+import com.sk89q.worldguard.protection.flags.Flags;
+import com.sk89q.worldguard.protection.flags.StateFlag;
+import com.sk89q.worldguard.protection.managers.RegionManager;
+import com.sk89q.worldguard.protection.regions.ProtectedCuboidRegion;
+import com.sk89q.worldguard.protection.regions.RegionContainer;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -259,13 +268,12 @@ public class RouteLootChestManager implements IManager, Listener {
             tierDisplay = getTierDisplay(candidate.toLocation());
         }
 
-        Bukkit.broadcast(Component.text("[ルートチェスト] ", NamedTextColor.GOLD)
-                .append(tierDisplay.isEmpty() ? Component.empty() : Component.text(tierDisplay + " ", NamedTextColor.GOLD, TextDecoration.BOLD))
-                .append(Component.text("次回の戦利品チェストは ", NamedTextColor.WHITE))
-                .append(Component.text(selection.layerLabel(), NamedTextColor.YELLOW, TextDecoration.BOLD))
-                .append(Component.text(" に出現予定です。", NamedTextColor.WHITE))
-                .append(Component.text(" 人数優先 / 活動スコア ", NamedTextColor.GRAY))
-                .append(Component.text(String.format("%.1f", selection.activityScore()), NamedTextColor.AQUA)));
+        String msg = String.format("<gradient:gold:yellow><bold>[ルートチェスト]</bold></gradient> " +
+                "<white>%s次回の戦利品チェストは <yellow><bold>%s</bold></yellow> に出現予定です。</white> " +
+                "<gray>人数優先 / 活動スコア <aqua>%.1f</aqua></gray>",
+                tierDisplay.isEmpty() ? "" : "<gold><bold>" + tierDisplay + "</bold></gold> ",
+                selection.layerLabel(), selection.activityScore());
+        Bukkit.broadcast(MiniMessage.miniMessage().deserialize(msg));
     }
 
     private void onCoordinateAnnouncement(UUID eventId) {
@@ -321,12 +329,12 @@ public class RouteLootChestManager implements IManager, Listener {
         event.spawnLocation = announceLocation;
 
         String tierDisplay = getTierDisplay(announceLocation);
-        Bukkit.broadcast(Component.text("[ルートチェスト] ", NamedTextColor.GOLD)
-                .append(tierDisplay.isEmpty() ? Component.empty() : Component.text(tierDisplay + " ", NamedTextColor.GOLD, TextDecoration.BOLD))
-                .append(Component.text("出現予定座標: ", NamedTextColor.WHITE))
-                .append(Component.text(String.format("%s %.1f %.1f %.1f", candidate.world, candidate.x, candidate.y, candidate.z), NamedTextColor.AQUA))
-                .append(Component.text(" / ", NamedTextColor.DARK_GRAY))
-                .append(Component.text(event.selection.layerLabel(), NamedTextColor.YELLOW, TextDecoration.BOLD)));
+        String coordStr = String.format("%s %.1f %.1f %.1f", candidate.world, candidate.x, candidate.y, candidate.z);
+        String msg = String.format("<gradient:gold:yellow><bold>[ルートチェスト]</bold></gradient> " +
+                "<white>%s出現予定座標: <aqua>%s</aqua></white> <dark_gray>/</dark_gray> <yellow><bold>%s</bold></yellow>",
+                tierDisplay.isEmpty() ? "" : "<gold><bold>" + tierDisplay + "</bold></gold> ",
+                coordStr, event.selection.layerLabel());
+        Bukkit.broadcast(MiniMessage.miniMessage().deserialize(msg));
     }
 
     private void onSpawnEvent(UUID eventId) {
@@ -448,16 +456,13 @@ public class RouteLootChestManager implements IManager, Listener {
         EventChest chest = new EventChest(chestId, tier, binding.rangeLabel, location.clone(), binding.config);
         chest.spawnedAt = System.currentTimeMillis();
         activeChests.put(chestId, chest);
+        createEventRegion(location, pvpRadius, chestId);
         chest.expireTask = Bukkit.getScheduler().runTaskLater(plugin, () -> expireChest(chestId), eventDurationTicks);
 
-        Bukkit.broadcast(Component.text("[ルートチェスト] ", NamedTextColor.GOLD)
-                .append(Component.text("戦利品チェストが出現しました。", NamedTextColor.WHITE))
-                .append(Component.text(" 出現層: ", NamedTextColor.GRAY))
-                .append(Component.text(binding.rangeLabel, NamedTextColor.YELLOW, TextDecoration.BOLD))
-                .append(Component.text(" / 人数優先で選出済み: ", NamedTextColor.GRAY))
-                .append(Component.text(String.valueOf(playerCount), NamedTextColor.YELLOW))
-                .append(Component.text(" / 活動スコア: ", NamedTextColor.GRAY))
-                .append(Component.text(String.format("%.1f", activityScore), NamedTextColor.AQUA)));
+        String msg = String.format("<gradient:gold:yellow><bold>[ルートチェスト]</bold></gradient> " +
+                "<white>戦利品チェストが出現しました！ <gray>出現層: <yellow><bold>%s</bold></yellow> / 人数選出: <yellow>%d</yellow> / スコア: <aqua>%.1f</aqua></gray></white>",
+                binding.rangeLabel, playerCount, activityScore);
+        Bukkit.broadcast(MiniMessage.miniMessage().deserialize(msg));
     }
 
     private boolean isSpawnLocationValid(Location location) {
@@ -605,10 +610,11 @@ public class RouteLootChestManager implements IManager, Listener {
 
         Map<UUID, List<ItemStack>> bundles = buildRewardBundles(chest.layerConfig, recipients);
         sendRewardMails(chest, bundles, recipients, session.openerId);
+        removeEventRegion(chest.location, chest.id);
         clearChestBlock(chest);
         clearActiveChest();
-        Bukkit.broadcast(Component.text("[ルートチェスト] ", NamedTextColor.GREEN)
-                .append(Component.text("チェストの報酬がメールに送られました。", NamedTextColor.WHITE)));
+        Bukkit.broadcast(MiniMessage.miniMessage().deserialize(
+                "<gradient:green:aqua><bold>[ルートチェスト]</bold></gradient> <white>チェストの報酬がメールに送られました。</white>"));
     }
 
     private Map<UUID, List<ItemStack>> buildRewardBundles(LayerConfig layer, Set<UUID> recipients) {
@@ -760,9 +766,10 @@ public class RouteLootChestManager implements IManager, Listener {
             return;
         }
         resetOpening(chest, false, null);
+        removeEventRegion(chest.location, chest.id);
         clearChestBlock(chest);
-        Bukkit.broadcast(Component.text("[ルートチェスト] ", NamedTextColor.GRAY)
-                .append(Component.text("チェストが消滅しました。", NamedTextColor.WHITE)));
+        Bukkit.broadcast(MiniMessage.miniMessage().deserialize(
+                "<gradient:gray:white><bold>[ルートチェスト]</bold></gradient> <white>チェストが消滅しました。</white>"));
     }
 
     private void resetOpening(EventChest chest, boolean notifyPlayer, String message) {
@@ -791,6 +798,7 @@ public class RouteLootChestManager implements IManager, Listener {
 
     private void clearActiveChest() {
         for (EventChest chest : new ArrayList<>(activeChests.values())) {
+            removeEventRegion(chest.location, chest.id);
             if (chest.expireTask != null) {
                 chest.expireTask.cancel();
             }
@@ -798,6 +806,47 @@ public class RouteLootChestManager implements IManager, Listener {
                 chest.openingSession.task.cancel();
             }
             activeChests.remove(chest.id);
+        }
+    }
+
+    private void createEventRegion(Location loc, int radius, UUID chestId) {
+        if (!Bukkit.getPluginManager().isPluginEnabled("WorldGuard")) return;
+
+        try {
+            RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+            RegionManager regionManager = container.get(BukkitAdapter.adapt(loc.getWorld()));
+            if (regionManager == null) return;
+
+            String regionId = "route_loot_chest_" + chestId.toString().substring(0, 8);
+            BlockVector3 min = BlockVector3.at(loc.getBlockX() - radius, 0, loc.getBlockZ() - radius);
+            BlockVector3 max = BlockVector3.at(loc.getBlockX() + radius, 255, loc.getBlockZ() + radius);
+
+            ProtectedCuboidRegion region = new ProtectedCuboidRegion(regionId, min, max);
+            region.setFlag(Flags.PVP, StateFlag.State.ALLOW);
+            region.setFlag(Flags.GREET_MESSAGE, "§6[!] 戦利品チェスト周辺区域に進入しました。PvPが有効です。");
+            region.setFlag(Flags.FAREWELL_MESSAGE, "§7[!] 戦利品チェスト周辺区域から離脱しました。");
+            region.setPriority(100);
+
+            regionManager.addRegion(region);
+        } catch (Exception e) {
+            plugin.getLogger().warning("Failed to create WorldGuard region for loot chest: " + e.getMessage());
+        }
+    }
+
+    private void removeEventRegion(Location loc, UUID chestId) {
+        if (!Bukkit.getPluginManager().isPluginEnabled("WorldGuard")) return;
+
+        try {
+            RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+            RegionManager regionManager = container.get(BukkitAdapter.adapt(loc.getWorld()));
+            if (regionManager == null) return;
+
+            String regionId = "route_loot_chest_" + chestId.toString().substring(0, 8);
+            if (regionManager.hasRegion(regionId)) {
+                regionManager.removeRegion(regionId);
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Failed to remove WorldGuard region for loot chest: " + e.getMessage());
         }
     }
 
