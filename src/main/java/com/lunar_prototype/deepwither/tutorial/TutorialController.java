@@ -102,7 +102,11 @@ public class TutorialController implements Listener, IManager {
     }
 
     @EventHandler
-    public void onQuit(PlayerQuitEvent e) {}
+    public void onQuit(PlayerQuitEvent e) {
+        UUID uuid = e.getPlayer().getUniqueId();
+        stageMap.remove(uuid);
+        loadingPlayers.remove(uuid);
+    }
 
     private void startTutorial(Player p) {
         UUID uuid = p.getUniqueId();
