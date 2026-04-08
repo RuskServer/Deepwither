@@ -15,6 +15,8 @@ public class SkillRegistry implements IManager {
     @Override
     public void init() {
         register("fireball", new com.lunar_prototype.deepwither.api.skill.FireballSkill());
+        register("meteor", new com.lunar_prototype.deepwither.api.skill.MeteorSkill());
+        register("black_gravity", new com.lunar_prototype.deepwither.api.skill.BlackGravitySkill());
     }
 
     @Override
