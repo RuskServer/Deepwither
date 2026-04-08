@@ -21,10 +21,9 @@ import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import com.lunar_prototype.deepwither.util.ConfirmationGUI;
+import java.util.*;
+
 
 @DependsOn({GlobalMarketManager.class})
 public class MarketGui implements Listener, IManager {
@@ -78,19 +77,9 @@ public class MarketGui implements Listener, IManager {
         Inventory inv = Bukkit.createInventory(null, 54, Component.text(TITLE_SHOP_PREFIX + seller.getName(), NamedTextColor.DARK_AQUA));
 
         for (MarketListing listing : listings) {
-            ItemStack displayItem = listing.getItem().clone();
-            ItemMeta meta = displayItem.getItemMeta();
-            List<Component> lore = meta.lore() != null ? meta.lore() : new ArrayList<>();
-            meta.getPersistentDataContainer().set(LISTING_ID_KEY, PersistentDataType.STRING, listing.getId().toString());
-
-            lore.add(Component.text("----------------", NamedTextColor.DARK_GRAY).decoration(TextDecoration.STRIKETHROUGH, true));
-            lore.add(Component.text("価格: ", NamedTextColor.YELLOW).append(Component.text(listing.getPrice() + " G", NamedTextColor.GOLD)));
-            lore.add(Component.text("クリックで購入", NamedTextColor.GREEN));
-
-            meta.lore(lore);
-            displayItem.setItemMeta(meta);
-            inv.addItem(displayItem);
+            inv.addItem(createDisplayItem(listing, viewer.getUniqueId().equals(seller.getUniqueId())));
         }
+
 
         viewer.openInventory(inv);
     }
@@ -100,20 +89,9 @@ public class MarketGui implements Listener, IManager {
         Inventory inv = Bukkit.createInventory(null, 54, Component.text(TITLE_SEARCH, NamedTextColor.DARK_AQUA));
 
         for (MarketListing listing : results) {
-            ItemStack displayItem = listing.getItem().clone();
-            ItemMeta meta = displayItem.getItemMeta();
-            List<Component> lore = meta.lore() != null ? meta.lore() : new ArrayList<>();
-
-            meta.getPersistentDataContainer().set(LISTING_ID_KEY, PersistentDataType.STRING, listing.getId().toString());
-
-            lore.add(Component.text("----------------", NamedTextColor.DARK_GRAY).decoration(TextDecoration.STRIKETHROUGH, true));
-            lore.add(Component.text("出品者: ", NamedTextColor.GRAY).append(Component.text(Bukkit.getOfflinePlayer(listing.getSellerId()).getName(), NamedTextColor.WHITE)));
-            lore.add(Component.text("価格: ", NamedTextColor.YELLOW).append(Component.text(listing.getPrice() + " G", NamedTextColor.GOLD)));
-
-            meta.lore(lore);
-            displayItem.setItemMeta(meta);
-            inv.addItem(displayItem);
+            inv.addItem(createDisplayItem(listing, player.getUniqueId().equals(listing.getSellerId())));
         }
+
 
         player.openInventory(inv);
     }
@@ -158,13 +136,63 @@ public class MarketGui implements Listener, IManager {
 
             MarketListing listing = listingOpt.get();
             if (listing.getSellerId().equals(p.getUniqueId())) {
-                p.sendMessage(Component.text("[Market] ", NamedTextColor.RED).append(Component.text("自分の出品を購入することはできません。", NamedTextColor.WHITE)));
+                // 自分の出品なら取り消し確認
+                new ConfirmationGUI(plugin, p, 
+                    Component.text("出品を取り消しますか？", NamedTextColor.DARK_GRAY),
+                    (confirmPlayer) -> manager.cancelListing(confirmPlayer, listing),
+                    null
+                ).open();
                 return;
             }
 
-            if (manager.buyItem(p, listing)) {
-                p.closeInventory();
+            if (listing.isUnitSale()) {
+                if (e.isLeftClick()) {
+                    manager.buyItem(p, listing, 1);
+                } else if (e.isRightClick()) {
+                    manager.buyItem(p, listing, listing.getItem().getAmount());
+                }
+            } else {
+                manager.buyItem(p, listing);
             }
         }
     }
+
+    private ItemStack createDisplayItem(MarketListing listing, boolean isOwner) {
+        ItemStack displayItem = listing.getItem().clone();
+        ItemMeta meta = displayItem.getItemMeta();
+        List<Component> lore = meta.lore() != null ? meta.lore() : new ArrayList<>();
+        meta.getPersistentDataContainer().set(LISTING_ID_KEY, PersistentDataType.STRING, listing.getId().toString());
+
+        lore.add(Component.text("----------------", NamedTextColor.DARK_GRAY).decoration(TextDecoration.STRIKETHROUGH, true));
+        
+        if (!isOwner) {
+            lore.add(Component.text("出品者: ", NamedTextColor.GRAY).append(Component.text(Bukkit.getOfflinePlayer(listing.getSellerId()).getName(), NamedTextColor.WHITE)));
+        }
+
+        if (listing.isUnitSale()) {
+            lore.add(Component.text("単価: ", NamedTextColor.YELLOW).append(Component.text(listing.getPrice() + " G", NamedTextColor.GOLD))
+                    .append(Component.text(" (バラ売り可)", NamedTextColor.GRAY)));
+            lore.add(Component.text("合計: ", NamedTextColor.YELLOW).append(Component.text((listing.getPrice() * listing.getItem().getAmount()) + " G", NamedTextColor.GOLD)));
+        } else {
+            lore.add(Component.text("価格: ", NamedTextColor.YELLOW).append(Component.text(listing.getPrice() + " G", NamedTextColor.GOLD)));
+        }
+
+        lore.add(Component.text(""));
+
+        if (isOwner) {
+            lore.add(Component.text("クリックで出品取り消し", NamedTextColor.RED));
+        } else {
+            if (listing.isUnitSale()) {
+                lore.add(Component.text("左クリック: 1個購入", NamedTextColor.GREEN));
+                lore.add(Component.text("右クリック: スタック購入", NamedTextColor.GREEN));
+            } else {
+                lore.add(Component.text("クリックで購入", NamedTextColor.GREEN));
+            }
+        }
+
+        meta.lore(lore);
+        displayItem.setItemMeta(meta);
+        return displayItem;
+    }
+
 }

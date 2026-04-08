@@ -60,9 +60,11 @@ public class MarketCommand implements CommandExecutor, TabCompleter {
 
     private void handleSell(Player player, String[] args) {
         if (args.length < 2) {
-            player.sendMessage(Component.text("使用法: /market sell <価格>", NamedTextColor.RED));
+            player.sendMessage(Component.text("使用法: /market sell <価格> [unit]", NamedTextColor.RED));
+            player.sendMessage(Component.text("  [unit] をつけると1個ずつの単価として出品されます。", NamedTextColor.GRAY));
             return;
         }
+
 
         ItemStack handItem = player.getInventory().getItemInMainHand();
 
@@ -84,13 +86,25 @@ public class MarketCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        marketManager.listItem(player, handItem, price);
+        boolean unitSale = false;
+        if (args.length >= 3 && args[2].equalsIgnoreCase("unit")) {
+            unitSale = true;
+        }
+
+        marketManager.listItem(player, handItem, price, unitSale);
         player.getInventory().setItemInMainHand(null);
 
-        player.sendMessage(Component.text("[Market] ", NamedTextColor.GREEN)
+        var msg = Component.text("[Market] ", NamedTextColor.GREEN)
                 .append(Component.text("アイテムを ", NamedTextColor.WHITE))
                 .append(Component.text(price + " G", NamedTextColor.GOLD))
-                .append(Component.text(" で出品しました！", NamedTextColor.WHITE)));
+                .append(Component.text(" で出品しました！", NamedTextColor.WHITE));
+
+        if (unitSale) {
+            msg = msg.append(Component.text(" (バラ売りモード)", NamedTextColor.YELLOW));
+        }
+
+        player.sendMessage(msg);
+
         player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f);
     }
 
@@ -101,7 +115,8 @@ public class MarketCommand implements CommandExecutor, TabCompleter {
     private void sendHelp(Player player) {
         player.sendMessage(Component.text("========== [ Global Market ] ==========", NamedTextColor.GOLD).decoration(TextDecoration.STRIKETHROUGH, false));
         player.sendMessage(Component.text("/market", NamedTextColor.YELLOW).append(Component.text(" - マーケットメニューを開く", NamedTextColor.GRAY)));
-        player.sendMessage(Component.text("/market sell <価格>", NamedTextColor.YELLOW).append(Component.text(" - 手に持ったアイテムを出品する", NamedTextColor.GRAY)));
+        player.sendMessage(Component.text("/market sell <価格> [unit]", NamedTextColor.YELLOW).append(Component.text(" - 手に持ったアイテムを出品する (unit指定で単価売り)", NamedTextColor.GRAY)));
+
         player.sendMessage(Component.text("/market collect", NamedTextColor.YELLOW).append(Component.text(" - 売上金を回収する", NamedTextColor.GRAY)));
         player.sendMessage(Component.text("=======================================", NamedTextColor.GOLD).decoration(TextDecoration.STRIKETHROUGH, false));
     }
@@ -117,7 +132,10 @@ public class MarketCommand implements CommandExecutor, TabCompleter {
             suggestions.add("100");
             suggestions.add("500");
             suggestions.add("1000");
+        } else if (args.length == 3 && args[0].equalsIgnoreCase("sell")) {
+            suggestions.add("unit");
         }
+
         return suggestions;
     }
 }

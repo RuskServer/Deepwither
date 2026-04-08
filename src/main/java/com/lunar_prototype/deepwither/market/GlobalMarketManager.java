@@ -39,44 +39,110 @@ public class GlobalMarketManager implements IManager {
         loadEarnings();
     }
 
-    public void listItem(Player seller, ItemStack item, double price) {
-        MarketListing listing = new MarketListing(seller.getUniqueId(), item.clone(), price);
+    public void listItem(Player seller, ItemStack item, double price, boolean unitSale) {
+        MarketListing listing = new MarketListing(seller.getUniqueId(), item.clone(), price, unitSale);
         allListings.add(listing);
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> saveListingToDB(listing));
     }
 
+
     public boolean buyItem(Player buyer, MarketListing listing) {
+        return buyItem(buyer, listing, listing.getItem().getAmount());
+    }
+
+    public boolean buyItem(Player buyer, MarketListing listing, int amount) {
         if (!allListings.contains(listing)) {
             buyer.sendMessage(Component.text("このアイテムは既に売り切れています。", NamedTextColor.RED));
             return false;
         }
 
-        double price = listing.getPrice();
+        if (amount <= 0 || amount > listing.getItem().getAmount()) {
+            buyer.sendMessage(Component.text("無効な数量です。", NamedTextColor.RED));
+            return false;
+        }
+
+        double totalPrice = listing.isUnitSale() ? listing.getPrice() * amount : listing.getPrice();
         var econ = Deepwither.getEconomy();
 
-        if (!econ.has(buyer, price)) {
+        if (!econ.has(buyer, totalPrice)) {
             buyer.sendMessage(Component.text("所持金が足りません。", NamedTextColor.RED));
             return false;
         }
 
-        if (buyer.getInventory().firstEmpty() == -1) {
+        if (buyer.getInventory().firstEmpty() == -1 && !buyer.getInventory().containsAtLeast(listing.getItem(), 1)) {
             buyer.sendMessage(Component.text("インベントリが一杯です。", NamedTextColor.RED));
             return false;
         }
 
-        var res = econ.withdrawPlayer(buyer, price);
+        var res = econ.withdrawPlayer(buyer, totalPrice);
         if (!res.transactionSuccess()) return false;
 
-        buyer.getInventory().addItem(listing.getItem().clone());
+        ItemStack toGive = listing.getItem().clone();
+        toGive.setAmount(amount);
+        buyer.getInventory().addItem(toGive);
+
+        if (listing.isUnitSale() && listing.getItem().getAmount() > amount) {
+            // 一部購入
+            listing.getItem().setAmount(listing.getItem().getAmount() - amount);
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> updateListingInDB(listing));
+        } else {
+            // 全量購入
+            allListings.remove(listing);
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> deleteListingFromDB(listing.getId()));
+        }
+
+        addEarnings(listing.getSellerId(), totalPrice);
+
+        buyer.sendMessage(Component.text("購入が完了しました！", NamedTextColor.GREEN));
+        playerPurchaseEffect(buyer, listing, amount, totalPrice);
+
+        return true;
+    }
+
+    public void cancelListing(Player player, MarketListing listing) {
+        if (!listing.getSellerId().equals(player.getUniqueId())) {
+            player.sendMessage(Component.text("自分の出品のみ取り消せます。", NamedTextColor.RED));
+            return;
+        }
 
         allListings.remove(listing);
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> deleteListingFromDB(listing.getId()));
 
-        addEarnings(listing.getSellerId(), price);
-
-        buyer.sendMessage(Component.text("購入が完了しました！", NamedTextColor.GREEN));
-        return true;
+        if (player.getInventory().firstEmpty() != -1) {
+            player.getInventory().addItem(listing.getItem());
+            player.sendMessage(Component.text("[Market] ", NamedTextColor.AQUA).append(Component.text("出品を取り消し、アイテムを回収しました。", NamedTextColor.GREEN)));
+        } else {
+            // インベントリが一杯の場合はメールで送るなどの処理が理想だが、現状は足元にドロップ
+            player.getWorld().dropItemNaturally(player.getLocation(), listing.getItem());
+            player.sendMessage(Component.text("[Market] ", NamedTextColor.AQUA).append(Component.text("出品を取り消しましたが、インベントリが一杯のため足元にドロップしました。", NamedTextColor.YELLOW)));
+        }
+        player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_ANVIL_USE, 1f, 1.5f);
     }
+
+    private void playerPurchaseEffect(Player buyer, MarketListing listing, int amount, double price) {
+        buyer.playSound(buyer.getLocation(), org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1.2f);
+        buyer.sendActionBar(Component.text("購入完了: ", NamedTextColor.GREEN)
+                .append(Component.text(amount + "個 ", NamedTextColor.WHITE))
+                .append(Component.text("-" + String.format("%.1f", price) + " G", NamedTextColor.GOLD)));
+
+        Player seller = Bukkit.getPlayer(listing.getSellerId());
+        if (seller != null && seller.isOnline()) {
+            seller.sendMessage(Component.text("[Market] ", NamedTextColor.AQUA)
+                    .append(Component.text("出品したアイテムが購入されました！ (+", NamedTextColor.WHITE))
+                    .append(Component.text(String.format("%.1f", price) + " G", NamedTextColor.GOLD))
+                    .append(Component.text(")", NamedTextColor.WHITE)));
+            seller.playSound(seller.getLocation(), org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 0.8f);
+        }
+
+        if (price >= 5000) {
+            Bukkit.broadcast(Component.text("[Market] ", NamedTextColor.AQUA)
+                    .append(Component.text(buyer.getName(), NamedTextColor.YELLOW))
+                    .append(Component.text(" が ", NamedTextColor.WHITE))
+                    .append(Component.text(String.format("%.1f", price) + " G", NamedTextColor.GOLD))
+                    .append(Component.text(" の高額取引を行いました！", NamedTextColor.WHITE)));
+        }
+    }
+
 
     public void claimEarnings(Player player) {
         UUID uuid = player.getUniqueId();
@@ -164,7 +230,7 @@ public class GlobalMarketManager implements IManager {
     }
 
     private void saveListingToDB(MarketListing listing) {
-        String sql = "INSERT INTO market_listings (id, seller_uuid, item_stack, price, listed_date) VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO market_listings (id, seller_uuid, item_stack, price, listed_date, unit_sale) VALUES (?, ?, ?, ?, ?, ?)";
         try (java.sql.Connection conn = databaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, listing.getId().toString());
@@ -172,9 +238,21 @@ public class GlobalMarketManager implements IManager {
             ps.setString(3, serializeItem(listing.getItem()));
             ps.setDouble(4, listing.getPrice());
             ps.setLong(5, listing.getListedDate());
+            ps.setBoolean(6, listing.isUnitSale());
             ps.executeUpdate();
         } catch (SQLException e) { e.printStackTrace(); }
     }
+
+    private void updateListingInDB(MarketListing listing) {
+        String sql = "UPDATE market_listings SET item_stack = ? WHERE id = ?";
+        try (java.sql.Connection conn = databaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, serializeItem(listing.getItem()));
+            ps.setString(2, listing.getId().toString());
+            ps.executeUpdate();
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
 
     private void deleteListingFromDB(UUID listingId) {
         String sql = "DELETE FROM market_listings WHERE id = ?";
@@ -201,6 +279,7 @@ public class GlobalMarketManager implements IManager {
 
     private void loadAllData() throws SQLException {
         allListings.clear();
+        ensureColumnExists("market_listings", "unit_sale", "BOOLEAN DEFAULT FALSE");
         String sql = "SELECT * FROM market_listings";
         try (java.sql.Connection conn = databaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
@@ -211,12 +290,29 @@ public class GlobalMarketManager implements IManager {
                         UUID.fromString(rs.getString("seller_uuid")),
                         deserializeItem(rs.getString("item_stack")),
                         rs.getDouble("price"),
-                        rs.getLong("listed_date")
+                        rs.getLong("listed_date"),
+                        rs.getBoolean("unit_sale")
                 );
                 allListings.add(listing);
             }
         }
     }
+
+    private void ensureColumnExists(String tableName, String columnName, String definition) {
+        try (java.sql.Connection conn = databaseManager.getConnection()) {
+            var meta = conn.getMetaData();
+            var rs = meta.getColumns(null, null, tableName, columnName);
+            if (!rs.next()) {
+                String sql = "ALTER TABLE " + tableName + " ADD COLUMN " + columnName + " " + definition;
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.executeUpdate();
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().warning("DBカラム確認中にエラーが発生しました (" + columnName + "): " + e.getMessage());
+        }
+    }
+
 
     private void loadEarnings() throws SQLException {
         earnings.clear();
