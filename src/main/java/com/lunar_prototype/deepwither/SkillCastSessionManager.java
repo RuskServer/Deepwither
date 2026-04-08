@@ -208,11 +208,6 @@ public class SkillCastSessionManager implements Listener, IManager {
             }
         }, 5L);
 
-        // 詠唱なしスキルはモードを終了、詠唱ありはモードを維持（詠唱中表示のため）
-        if (skill.castTime <= 0) {
-            exitSkillMode(player);
-        }
-        // 詠唱スキルはアクションバーで「詠唱中...」表示のためモードを維持し、
-        // castingTask 完了 or cancelCast 時に exitSkillMode は手動または次回Fキー押しで終了
+        // キャスト後もスキルモードを維持する（Fキーを再度押すまで連続キャスト可能）
     }
 }
