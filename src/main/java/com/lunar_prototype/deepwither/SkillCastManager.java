@@ -10,6 +10,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -18,15 +19,35 @@ import java.util.UUID;
 @DependsOn({ManaManager.class, CooldownManager.class})
 public class SkillCastManager implements IManager {
 
-    private final Map<UUID, Map<String, Long>> cooldowns = new HashMap<>();
+    /** 詠唱中プレイヤー → 実行予定タスク */
+    private final Map<UUID, BukkitTask> castingTasks = new HashMap<>();
 
     @Override
     public void init() {}
 
     @Override
-    public void shutdown() {}
+    public void shutdown() {
+        // サーバー停止時に詠唱タスクをすべてキャンセル
+        castingTasks.values().forEach(BukkitTask::cancel);
+        castingTasks.clear();
+    }
+
+    // ===== 状態確認 =====
+
+    /** プレイヤーが詠唱中かどうかを返す */
+    public boolean isCasting(Player player) {
+        return castingTasks.containsKey(player.getUniqueId());
+    }
+
+    // ===== キャスト判定 =====
 
     public boolean canCast(Player player, SkillDefinition def) {
+        // 詠唱中は発動不可
+        if (isCasting(player)) {
+            player.sendMessage(Component.text("詠唱中です！", NamedTextColor.RED));
+            return false;
+        }
+
         ManaData mana = Deepwither.getInstance().getManaManager().get(player.getUniqueId());
         CooldownManager cd = Deepwither.getInstance().getCooldownManager();
 
@@ -35,8 +56,8 @@ public class SkillCastManager implements IManager {
             return false;
         }
 
-        if (cd.isOnCooldown(player.getUniqueId(), def.id, def.cooldown,def.cooldown_min)) {
-            double rem = cd.getRemaining(player.getUniqueId(), def.id, def.cooldown,def.cooldown_min);
+        if (cd.isOnCooldown(player.getUniqueId(), def.id, def.cooldown, def.cooldown_min)) {
+            double rem = cd.getRemaining(player.getUniqueId(), def.id, def.cooldown, def.cooldown_min);
             player.sendMessage(Component.text(String.format("スキルはクールダウン中です！（残り %.1f 秒）", rem), NamedTextColor.YELLOW));
             return false;
         }
@@ -44,11 +65,11 @@ public class SkillCastManager implements IManager {
         return true;
     }
 
+    // ===== キャスト処理 =====
+
     public void cast(Player player, SkillDefinition def) {
-        // 1. 最初のチェック
         if (!canCast(player, def)) return;
 
-        // 2. 詠唱時間の判定
         if (def.castTime <= 0) {
             executeSkill(player, def);
         } else {
@@ -57,23 +78,49 @@ public class SkillCastManager implements IManager {
     }
 
     private void startCasting(Player player, SkillDefinition def) {
+        UUID uuid = player.getUniqueId();
         player.sendMessage(Component.text("詠唱開始: " + def.name + " (" + def.castTime + "s)", NamedTextColor.YELLOW));
 
-        // 移動速度低下を付与（強さは調整してください。4でかなり遅くなります）
-        // 詠唱時間分だけ付与
         int durationTicks = (int) (def.castTime * 20);
-        player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, durationTicks, 3, false, false));
+        player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, durationTicks + 5, 3, false, false));
 
-        // 指定秒数後に実行
-        Bukkit.getScheduler().runTaskLater(Deepwither.getInstance(), () -> {
-            if (player.isOnline()) {
-                // 実行直前にもう一度チェック（詠唱中にマナが減ったりCDがリセットされる可能性考慮）
-                if (canCast(player, def)) {
-                    executeSkill(player, def);
-                }
+        BukkitTask task = Bukkit.getScheduler().runTaskLater(Deepwither.getInstance(), () -> {
+            castingTasks.remove(uuid);
+            if (!player.isOnline()) return;
+            // 詠唱完了直前に再チェック（CDやマナ変動を考慮）
+            ManaData mana = Deepwither.getInstance().getManaManager().get(uuid);
+            CooldownManager cd = Deepwither.getInstance().getCooldownManager();
+            if (mana.getCurrentMana() < def.manaCost) {
+                player.sendMessage(Component.text("マナが不足したため詠唱を中断しました。", NamedTextColor.RED));
+                player.removePotionEffect(PotionEffectType.SLOWNESS);
+                return;
             }
+            if (cd.isOnCooldown(uuid, def.id, def.cooldown, def.cooldown_min)) {
+                player.sendMessage(Component.text("クールダウン中のため詠唱を中断しました。", NamedTextColor.RED));
+                player.removePotionEffect(PotionEffectType.SLOWNESS);
+                return;
+            }
+            executeSkill(player, def);
         }, (long) (def.castTime * 20));
+
+        castingTasks.put(uuid, task);
     }
+
+    /**
+     * 詠唱をキャンセルします。
+     * スキルモード終了時や移動妨害時などから呼び出します。
+     */
+    public void cancelCast(Player player) {
+        UUID uuid = player.getUniqueId();
+        BukkitTask task = castingTasks.remove(uuid);
+        if (task != null) {
+            task.cancel();
+            player.removePotionEffect(PotionEffectType.SLOWNESS);
+            player.sendMessage(Component.text("詠唱をキャンセルしました。", NamedTextColor.GRAY));
+        }
+    }
+
+    // ===== スキル実行 =====
 
     private void executeSkill(Player player, SkillDefinition def) {
         boolean isCastSuccessful = MythicBukkit.inst().getAPIHelper().castSkill(player, def.mythicSkillId);
@@ -86,9 +133,7 @@ public class SkillCastManager implements IManager {
             player.sendMessage(Component.text("スキル「" + def.name + "」を発動！", NamedTextColor.GREEN));
         } else {
             player.sendMessage(Component.text("発動条件を満たしていません。", NamedTextColor.GRAY));
-            // 失敗時にスローを解除したい場合はここでremovePotionEffect
             player.removePotionEffect(PotionEffectType.SLOWNESS);
         }
     }
 }
-

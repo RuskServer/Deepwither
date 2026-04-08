@@ -40,6 +40,7 @@ public class SkillCastSessionManager implements Listener, IManager {
                 SkillSlotManager slotManager = Deepwither.getInstance().getSkillSlotManager();
                 CooldownManager cooldownManager = Deepwither.getInstance().getCooldownManager();
                 ManaManager manaManager = Deepwither.getInstance().getManaManager();
+                SkillCastManager castManager = Deepwither.getInstance().getSkillCastManager();
 
                 for (Player player : Bukkit.getOnlinePlayers()) {
                     UUID uuid = player.getUniqueId();
@@ -50,6 +51,15 @@ public class SkillCastSessionManager implements Listener, IManager {
                     skillSlotOffsetMap.put(uuid, offset);
 
                     SkillSlotData slotData = slotManager.get(uuid);
+
+                    // 詠唱中の場合は専用メッセージを表示
+                    if (castManager.isCasting(player)) {
+                        DW.ui(player).simpleActionBar(
+                            Component.text("⟳ 詠唱中... (Fキーでキャンセル)", NamedTextColor.YELLOW)
+                        );
+                        continue;
+                    }
+
                     Component actionBar = Component.empty();
 
                     for (int i = 0; i < 4; i++) {
@@ -63,13 +73,15 @@ public class SkillCastSessionManager implements Listener, IManager {
                                 .append(Component.text("] ", NamedTextColor.GRAY));
 
                         if (skillId == null) {
-                            actionBar = actionBar.append(keyPrefix).append(Component.text("----  ", NamedTextColor.DARK_GRAY));
+                            actionBar = actionBar.append(keyPrefix)
+                                    .append(Component.text("----  ", NamedTextColor.DARK_GRAY));
                             continue;
                         }
 
                         SkillDefinition def = skillLoader.get(skillId);
                         if (def == null) {
-                            actionBar = actionBar.append(keyPrefix).append(Component.text("ERROR  ", NamedTextColor.RED));
+                            actionBar = actionBar.append(keyPrefix)
+                                    .append(Component.text("ERROR  ", NamedTextColor.RED));
                             continue;
                         }
 
@@ -80,10 +92,13 @@ public class SkillCastSessionManager implements Listener, IManager {
                         if (onCooldown) {
                             double remaining = cooldownManager.getRemaining(uuid, skillId, def.cooldown, def.cooldown_min);
                             display = Component.text(def.name, NamedTextColor.RED)
-                                    .append(Component.text(" (" + String.format("%.1f", remaining) + ")", NamedTextColor.GRAY));
+                                    .append(Component.text(" (" + String.format("%.1f", remaining) + "s)", NamedTextColor.DARK_RED));
                         } else if (notEnoughMana) {
-                            display = Component.text(def.name, NamedTextColor.AQUA);
+                            // マナ不足: 青 + ✗ プレフィクスで明確に区別
+                            display = Component.text("✗ ", NamedTextColor.BLUE)
+                                    .append(Component.text(def.name, NamedTextColor.BLUE));
                         } else {
+                            // 発動可能: 緑 + ボールド
                             display = Component.text(def.name, NamedTextColor.GREEN, TextDecoration.BOLD);
                         }
 
@@ -93,7 +108,7 @@ public class SkillCastSessionManager implements Listener, IManager {
                     DW.ui(player).simpleActionBar(actionBar);
                 }
             }
-        }.runTaskTimer(plugin, 0L, 10L); // 0.5秒ごと更新
+        }.runTaskTimer(plugin, 0L, 10L);
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
@@ -104,26 +119,42 @@ public class SkillCastSessionManager implements Listener, IManager {
         }
     }
 
+    // ===== スキルモードの開始・終了 =====
+
+    private void enterSkillMode(Player player) {
+        UUID uuid = player.getUniqueId();
+        skillModePlayers.add(uuid);
+        previousSlotMap.put(uuid, player.getInventory().getHeldItemSlot());
+        player.playSound(player.getLocation(), Sound.BLOCK_END_PORTAL_FRAME_FILL, 1.0f, 2.0f);
+    }
+
+    private void exitSkillMode(Player player) {
+        UUID uuid = player.getUniqueId();
+        skillModePlayers.remove(uuid);
+        skillSlotOffsetMap.remove(uuid);
+
+        // 詠唱中であればキャンセル
+        Deepwither.getInstance().getSkillCastManager().cancelCast(player);
+
+        DW.ui(player).simpleActionBar(Component.empty());
+        player.playSound(player.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 1.0f, 2.0f);
+    }
+
+    // ===== イベント =====
+
     @EventHandler
     public void onSwap(PlayerSwapHandItemsEvent event) {
         Player player = event.getPlayer();
         if (player.isSneaking()) return;
 
         UUID uuid = player.getUniqueId();
-        event.setCancelled(true); // オフハンド切替無効化
+        event.setCancelled(true); // オフハンド切替を無効化
 
         if (skillModePlayers.contains(uuid)) {
-            skillModePlayers.remove(uuid);
-            skillSlotOffsetMap.remove(uuid);
-            DW.ui(player).simpleActionBar(Component.empty());
-            player.playSound(player.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 1.0f, 2.0f);
-            return;
+            exitSkillMode(player);
+        } else {
+            enterSkillMode(player);
         }
-
-        skillModePlayers.add(uuid);
-        previousSlotMap.put(uuid, player.getInventory().getHeldItemSlot());
-
-        player.playSound(player.getLocation(), Sound.BLOCK_END_PORTAL_FRAME_FILL, 1.0f, 2.0f);
     }
 
     @EventHandler
@@ -133,12 +164,24 @@ public class SkillCastSessionManager implements Listener, IManager {
 
         if (!skillModePlayers.contains(uuid)) return;
 
+        // 詠唱中はホットバー操作を無視
+        if (Deepwither.getInstance().getSkillCastManager().isCasting(player)) {
+            event.setCancelled(true);
+            return;
+        }
+
         int offset = skillSlotOffsetMap.getOrDefault(uuid, 0);
         int rawSlot = event.getNewSlot();
         int skillIndex = rawSlot - offset;
 
         if (skillIndex < 0 || skillIndex >= 4) {
             player.sendMessage(Component.text("スキルスロット外を選択しました。", NamedTextColor.RED));
+            // スキルモードを終了して元のスロットに戻す
+            int prevSlot = previousSlotMap.getOrDefault(uuid, 0);
+            exitSkillMode(player);
+            Bukkit.getScheduler().runTaskLater(Deepwither.getInstance(), () -> {
+                if (player.isOnline()) player.getInventory().setHeldItemSlot(prevSlot);
+            }, 2L);
             return;
         }
 
@@ -154,12 +197,22 @@ public class SkillCastSessionManager implements Listener, IManager {
             return;
         }
 
+        // スキル発動
         Deepwither.getInstance().getSkillCastManager().cast(player, skill);
 
+        // 元のスロットに戻す（遅延を5tickに延長して確実に）
         int prevSlot = previousSlotMap.getOrDefault(uuid, 0);
         Bukkit.getScheduler().runTaskLater(Deepwither.getInstance(), () -> {
-            player.getInventory().setHeldItemSlot(prevSlot);
-            previousSlotMap.remove(uuid);
-        }, 2L);
+            if (player.isOnline()) {
+                player.getInventory().setHeldItemSlot(prevSlot);
+            }
+        }, 5L);
+
+        // 詠唱なしスキルはモードを終了、詠唱ありはモードを維持（詠唱中表示のため）
+        if (skill.castTime <= 0) {
+            exitSkillMode(player);
+        }
+        // 詠唱スキルはアクションバーで「詠唱中...」表示のためモードを維持し、
+        // castingTask 完了 or cancelCast 時に exitSkillMode は手動または次回Fキー押しで終了
     }
 }
