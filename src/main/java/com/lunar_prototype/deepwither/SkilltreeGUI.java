@@ -409,6 +409,13 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
             if (skill != null) {
                 mat = skill.material;
                 name = skill.name;
+                
+                List<Component> tagsLore = SkillTags.buildTagLore(skill);
+                if (!tagsLore.isEmpty()) {
+                    lore.addAll(tagsLore);
+                    lore.add(Component.empty());
+                }
+
                 if (skill.lore != null) {
                     for (String loreLine : skill.lore) {
                         double effectiveCooldown = StatManager.getEffectiveCooldown(player, skill.cooldown);

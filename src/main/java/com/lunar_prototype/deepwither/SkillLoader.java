@@ -59,6 +59,29 @@ public class SkillLoader implements IManager {
             def.mythicSkillId = mythicSkill;
             def.castTime = castTime; // 追加
 
+            if (config.contains("tags")) {
+                if (config.contains("tags.role")) {
+                    for (String str : config.getStringList("tags.role")) {
+                        try { def.roles.add(SkillTags.Role.valueOf(str.toUpperCase().replace("-", "_"))); } catch (Exception ignored) {}
+                    }
+                }
+                if (config.contains("tags.tactics")) {
+                    for (String str : config.getStringList("tags.tactics")) {
+                        try { def.tactics.add(SkillTags.Tactics.valueOf(str.toUpperCase().replace("-", "_"))); } catch (Exception ignored) {}
+                    }
+                }
+                if (config.contains("tags.scaling")) {
+                    for (String str : config.getStringList("tags.scaling")) {
+                        try { def.scalings.add(SkillTags.Scaling.valueOf(str.toUpperCase().replace("-", "_"))); } catch (Exception ignored) {}
+                    }
+                }
+                if (config.contains("tags.constraint")) {
+                    for (String str : config.getStringList("tags.constraint")) {
+                        try { def.constraints.add(SkillTags.Constraint.valueOf(str.toUpperCase().replace("-", "_"))); } catch (Exception ignored) {}
+                    }
+                }
+            }
+
             skills.put(id, def);
         }
     }

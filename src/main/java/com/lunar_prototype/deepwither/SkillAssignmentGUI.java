@@ -104,6 +104,13 @@ public class SkillAssignmentGUI implements Listener, IManager {
 
         // Lore
         List<Component> lore = new ArrayList<>();
+        
+        List<Component> tagsLore = SkillTags.buildTagLore(skill);
+        if (!tagsLore.isEmpty()) {
+            lore.addAll(tagsLore);
+            lore.add(Component.empty());
+        }
+
         for (String loreLine : skill.lore) {
             double effectiveCooldown = StatManager.getEffectiveCooldown(player, skill.cooldown);
             double manaCost = skill.manaCost;
