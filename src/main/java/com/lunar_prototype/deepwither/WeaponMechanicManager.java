@@ -258,9 +258,10 @@ public class WeaponMechanicManager implements IManager {
 
     private void handleHammerCrash(Player attacker, LivingEntity target, double damage, ItemStack item, DamageProcessor processor) {
         String chargedType = chargeManager.consumeCharge(attacker.getUniqueId());
-        String type = item.getItemMeta().getPersistentDataContainer().get(ItemLoader.CHARGE_ATTACK_KEY, PersistentDataType.STRING);
+        ItemMeta meta = item != null ? item.getItemMeta() : null;
+        String type = meta != null ? meta.getPersistentDataContainer().get(ItemLoader.CHARGE_ATTACK_KEY, PersistentDataType.STRING) : null;
         
-        if (type != null && chargedType != null && chargedType.equals("hammer")) {
+        if (type != null && "hammer".equals(chargedType)) {
             // ハンマーの溜め攻撃は既に計算済みのダメージを3倍にするのではなく、
             // ここで追加の範囲ダメージを発生させる
             Location loc = target.getLocation();
