@@ -5,7 +5,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 
 public enum PartyTag {
-    BEGINNER("初心者歓迎", Material.APPLE, NamedTextColor.LIME),
+    BEGINNER("初心者歓迎", Material.APPLE, NamedTextColor.GREEN),
     FARM("ファーム", Material.WHEAT, NamedTextColor.YELLOW),
     PVP("PvP", Material.DIAMOND_SWORD, NamedTextColor.RED),
     PVE("PvE", Material.IRON_CHESTPLATE, NamedTextColor.AQUA),
