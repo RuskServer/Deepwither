@@ -3,6 +3,7 @@ package com.lunar_prototype.deepwither.api.skill;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.SkillDefinition;
 import com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent;
+import com.lunar_prototype.deepwither.api.skill.utils.SkillParticleUtil;
 import com.lunar_prototype.deepwither.core.damage.DamageContext;
 import org.bukkit.Color;
 import org.bukkit.Location;
@@ -80,37 +81,30 @@ public class BlackGravitySkill implements ISkillLogic {
                 if (ticks >= maxTicks || !caster.isOnline()) {
                     this.cancel();
                     // 終了時に少し爆発系パーティクル
-                    center.getWorld().spawnParticle(Particle.SONIC_BOOM, center, 1);
+                    center.getWorld().spawnParticle(Particle.SONIC_BOOM, center, 1, 0, 0, 0, 0, Color.WHITE);
                     return;
                 }
 
                 // --- 1. パーティクル演出 ---
                 // 中心点のフラッシュ（白黒の瞬き）
-                center.getWorld().spawnParticle(Particle.FLASH, center, 2, 0.2, 0.2, 0.2, 0);
+                center.getWorld().spawnParticle(Particle.FLASH, center, 2, 0.2, 0.2, 0.2, 0, Color.WHITE);
 
-                // 周囲に吸い込まれるような演出
-                // 円状に発生して中心に向かうパーティクル
+                // 周囲から中心へ吸い込まれる安定した演出 (drawSuckParticle)
                 for (int i = 0; i < 3; i++) {
                     double angle = Math.random() * Math.PI * 2;
                     double r = 4.0;
                     double x = Math.cos(angle) * r;
                     double z = Math.sin(angle) * r;
                     Location edge = center.clone().add(x, (Math.random() - 0.5) * 2, z);
-                    
-                    Vector dirToCenter = center.toVector().subtract(edge.toVector()).normalize().multiply(0.3);
-                    center.getWorld().spawnParticle(Particle.PORTAL, edge, 0, dirToCenter.getX(), dirToCenter.getY(), dirToCenter.getZ(), 1);
-                    center.getWorld().spawnParticle(Particle.LARGE_SMOKE, edge, 2, 0.1, 0.1, 0.1, 0.05);
+                    SkillParticleUtil.drawSuckParticle(center, edge, Particle.PORTAL, 0.3);
+                    center.getWorld().spawnParticle(Particle.LARGE_SMOKE, edge, 1, 0.05, 0.05, 0.05, 0.02);
                 }
 
-                // リング演出
-                Particle.DustOptions darkDust = new Particle.DustOptions(Color.fromRGB(20, 10, 40), 2.0f);
-                for (int i = 0; i < 16; i++) {
-                    double angle = (ticks * 0.2) + (i * Math.PI * 2 / 16); // 回転するリング
-                    double r = 5.0;
-                    double x = Math.cos(angle) * r;
-                    double z = Math.sin(angle) * r;
-                    center.getWorld().spawnParticle(Particle.DUST, center.clone().add(x, 0, z), 2, 0.1, 0.1, 0.1, 0, darkDust);
-                }
+                // 回転リング（64点外側 + 32点内側の二重リング）
+                Particle.DustOptions outerDust = new Particle.DustOptions(Color.fromRGB(40, 10, 80), 2.0f);
+                Particle.DustOptions innerDust = new Particle.DustOptions(Color.fromRGB(80, 20, 130), 1.2f);
+                SkillParticleUtil.drawCircleFlatRotating(center, 5.0, 64, outerDust, 0.0, ticks);
+                SkillParticleUtil.drawCircleFlatRotating(center, 3.0, 32, innerDust, 0.0, -ticks); // 逆方向に回転
 
                 // --- 2. ダメージ判定 (tick 0 と tick 40) ---
                 if (ticks == 0 || ticks == 40) {

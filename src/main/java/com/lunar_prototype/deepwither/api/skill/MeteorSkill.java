@@ -3,6 +3,7 @@ package com.lunar_prototype.deepwither.api.skill;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.SkillDefinition;
 import com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent;
+import com.lunar_prototype.deepwither.api.skill.utils.SkillParticleUtil;
 import com.lunar_prototype.deepwither.core.damage.DamageContext;
 import org.bukkit.*;
 import org.bukkit.block.Block;
@@ -43,6 +44,12 @@ public class MeteorSkill implements ISkillLogic {
             int ticks = 0;
             final int maxTicks = 10;
             final double radius = 5.0; // AOE半径
+            final Color[] warningColors = {
+                Color.fromRGB(255, 30, 0),
+                Color.fromRGB(255, 120, 0),
+                Color.fromRGB(255, 200, 0),
+                Color.fromRGB(255, 120, 0),
+            };
 
             @Override
             public void run() {
@@ -51,23 +58,18 @@ public class MeteorSkill implements ISkillLogic {
                     world.playSound(targetLoc, Sound.ENTITY_ILLUSIONER_PREPARE_BLINDNESS, 1.0f, 0.8f);
                 }
 
-                // 魔法陣(円)の描画
-                Particle.DustOptions warningDust = new Particle.DustOptions(Color.fromRGB(255, 50, 0), 1.2f);
-                for (int i = 0; i < 36; i++) { // 10度刻み
-                    double angle = i * Math.PI / 18;
-                    double x = Math.cos(angle) * radius;
-                    double z = Math.sin(angle) * radius;
-                    Location pLoc = targetLoc.clone().add(x, 0.1, z);
-                    world.spawnParticle(Particle.DUST, pLoc, 1, 0, 0, 0, 0, warningDust);
-                }
-                
-                // 真ん中にも薄くパーティクル表示
+                // グラデーションリング（64点で滑らか）
+                SkillParticleUtil.drawGradientRing(targetLoc, radius, 64, warningColors, 1.2f, 0.05);
+                // 内側の山山回転リングで内側に深みを出す
+                Particle.DustOptions innerDust = new Particle.DustOptions(Color.fromRGB(255, 80, 0), 0.8f);
+                SkillParticleUtil.drawCircleFlatRotating(targetLoc, radius * 0.6, 32, innerDust, 0.05, ticks);
+
+                // 真ん中にも薄く散布
                 world.spawnParticle(Particle.LAVA, targetLoc, 2, radius/2, 0.1, radius/2, 0);
 
                 ticks++;
                 if (ticks >= maxTicks) {
                     this.cancel();
-                    // フェーズ2へ移行 (隕石落下)
                     dropMeteor(player, targetLoc, radius, level);
                 }
             }
