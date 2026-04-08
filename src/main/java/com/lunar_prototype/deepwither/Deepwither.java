@@ -709,9 +709,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         ConfigurationSerialization.registerClass(LocationDetails.class);
         ConfigurationSerialization.registerClass(GeneratedQuest.class);
         ConfigurationSerialization.registerClass(DailyTaskData.class);
-        ConfigurationSerialization.registerClass(com.lunar_prototype.deepwither.modules.dynamic_quest.obj.QuestLocation.class, "com.lunar_prototype.deepwither.modules.dynamic_quest.obj.QuestLocation");
-        ConfigurationSerialization.registerClass(com.lunar_prototype.deepwither.modules.dynamic_quest.obj.QuestLocation.class, "com.lunar_prototype.deepwither.dynamic_quest.obj.QuestLocation");
-        ConfigurationSerialization.registerClass(com.lunar_prototype.deepwither.modules.dynamic_quest.obj.QuestLocation.class, "QuestLocation");
+
 
         // loadSafeZoneSpawns(); // Moved to SafeZoneListener
 

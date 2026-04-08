@@ -74,9 +74,7 @@ commands:
     aliases: [ dw ]
   clan:
     description: Clanに関するコマンドです
-  dq:
-    description: Dynamic Quest Command
-    usage: /dq <accept|decline> <id>
+
   rune:
     description: ルーン装着GUIを開きます。
     usage: /rune [set_sockets|set_rune]

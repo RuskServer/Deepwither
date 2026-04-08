@@ -90,6 +90,8 @@ public class InfrastructureModule implements IModule {
             plugin.getLogger().severe("Failed to initialize DatabaseManager");
             e.printStackTrace();
         }
+        
+        plugin.getServer().getPluginManager().registerEvents(new LegacyNPCCleanupListener(plugin), plugin);
     }
 
     /**
