@@ -226,10 +226,19 @@ public class PartyManager implements IManager {
         party.setPublic(isPublic);
         if (isPublic) {
             leader.sendMessage(Component.text("パーティーを公開しました！他のプレイヤーが「/menu」のパーティーから参加可能になります。", NamedTextColor.GREEN));
+
+            Component tagsComp = Component.empty();
+            if (!party.getTags().isEmpty()) {
+                for (PartyTag tag : party.getTags()) {
+                    tagsComp = tagsComp.append(tag.getComponent()).append(Component.space());
+                }
+            }
+
             // サーバー全体にブロードキャスト
             Component broadcastMsg = Component.text("==============================", NamedTextColor.GOLD).appendNewline()
                     .append(Component.text("[パーティー募集] ", NamedTextColor.AQUA, net.kyori.adventure.text.format.TextDecoration.BOLD))
                     .append(Component.text(leader.getName() + " がパーティーメンバーを募集しています！", NamedTextColor.WHITE)).appendNewline()
+                    .append(tagsComp.appendNewline())
                     .append(Component.text("[参加するには /menu のパーティー画面を開いてください]", NamedTextColor.GRAY)).appendNewline()
                     .append(Component.text("==============================", NamedTextColor.GOLD));
             Bukkit.getServer().sendMessage(broadcastMsg);

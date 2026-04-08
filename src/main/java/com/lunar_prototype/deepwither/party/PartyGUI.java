@@ -27,6 +27,7 @@ public class PartyGUI implements Listener {
 
     private final PartyManager partyManager;
     private final JavaPlugin plugin;
+    private final PartyTagGUI partyTagGUI;
     private final Map<UUID, Integer> playerPage = new HashMap<>();
 
     private static final int PARTIES_PER_PAGE = 7;
@@ -35,6 +36,7 @@ public class PartyGUI implements Listener {
     public PartyGUI(PartyManager partyManager, JavaPlugin plugin) {
         this.partyManager = partyManager;
         this.plugin = plugin;
+        this.partyTagGUI = new PartyTagGUI(partyManager, this, plugin);
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
@@ -191,6 +193,16 @@ public class PartyGUI implements Listener {
                 .append(Component.text(party.getMemberIds().size(), NamedTextColor.GREEN))
                 .append(Component.text("名", NamedTextColor.GRAY))
                 .decoration(TextDecoration.ITALIC, false));
+                
+        if (!party.getTags().isEmpty()) {
+            lore.add(Component.empty());
+            Component tagsComp = Component.text("タグ: ", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false);
+            for (PartyTag tag : party.getTags()) {
+                tagsComp = tagsComp.append(tag.getComponent()).append(Component.space());
+            }
+            lore.add(tagsComp);
+        }
+        
         lore.add(Component.empty());
         lore.add(Component.text("▶ クリックして参加リクエスト", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
 
@@ -257,8 +269,13 @@ public class PartyGUI implements Listener {
                 // 公開設定切り替え
                 Party party = partyManager.getParty(player);
                 if (party != null && party.getLeaderId().equals(player.getUniqueId())) {
-                    partyManager.setPartyPublic(player, !party.isPublic());
-                    openPage(player, playerPage.getOrDefault(player.getUniqueId(), 0));
+                    if (party.isPublic()) {
+                        partyManager.setPartyPublic(player, false);
+                        openPage(player, playerPage.getOrDefault(player.getUniqueId(), 0));
+                    } else {
+                        player.closeInventory();
+                        partyTagGUI.open(player);
+                    }
                 }
                 break;
             case 12:

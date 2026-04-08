@@ -3,6 +3,7 @@ package com.lunar_prototype.deepwither.party;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -12,6 +13,7 @@ public class Party {
     private final UUID leaderId;
     private final Set<UUID> members;
     private boolean isPublic = false;
+    private final Set<PartyTag> tags = EnumSet.noneOf(PartyTag.class);
 
     public Party(UUID leaderId) {
         this.leaderId = leaderId;
@@ -25,6 +27,10 @@ public class Party {
 
     public void setPublic(boolean isPublic) {
         this.isPublic = isPublic;
+    }
+
+    public Set<PartyTag> getTags() {
+        return tags;
     }
 
     public void addMember(UUID playerId) {
