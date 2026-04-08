@@ -1,4 +1,4 @@
-name: Gemma 4 Issue Resolver (On-Demand)
+name: Gemma 4 Issue Resolver (Strict Clean Output)
 
 on:
   issue_comment:
@@ -6,15 +6,13 @@ on:
 
 jobs:
   ai-solution:
-    if: >
-      startsWith(github.event.comment.body, '/solve') && 
-      github.event.comment.user.type != 'Bot'
-    
+    if: startsWith(github.event.comment.body, '/solve') && github.event.comment.user.type != 'Bot'
     runs-on: ubuntu-latest
     permissions:
       issues: write
       pull-requests: write
-
+      repository-projects: read
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,28 +23,37 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         with:
           script: |
-            const comment = context.payload.comment;
-            const issue = context.payload.issue;
-            
+            // 1. 権限チェック (Admin or Write)
+            const perms = await github.rest.repos.getCollaboratorPermissionLevel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              username: context.payload.comment.user.login
+            });
+            if (!['admin', 'write'].includes(perms.data.permission)) return;
+
+            // 2. リアクション
             await github.rest.reactions.createForIssueComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              comment_id: comment.id,
+              comment_id: context.payload.comment.id,
               content: 'eyes'
             });
 
-            const instruction = comment.body.replace('/solve', '').trim();
-            
-            // プロンプトを日本語で明確に指示
+            const issue = context.payload.issue;
+            const instruction = context.payload.comment.body.replace('/solve', '').trim();
+
+            // 3. プロンプト（「出力形式を厳守せよ」と強調）
             const prompt = `
-            あなたはシニアソフトウェアエンジニアです。
-            以下のGitHub Issueの内容を分析し、ユーザーの指示に基づいた具体的な解決策を日本語で回答してください。
+            あなたはシニアエンジニアです。以下のIssueに対して、簡潔で実用的な解決策のみを日本語で回答してください。
             
-            【ユーザーの指示】: ${instruction || "このIssueの解決策を提案してください。"}
+            【厳守事項】
+            - 思考プロセスや内部的な分析（Role:, Input:, Thinking:等）は一切出力しないでください。
+            - 挨拶や前置きは不要です。
+            - 解決策、方針、具体的なコード例のみを出力してください。
+
             【Issueタイトル】: ${issue.title}
             【Issue本文】: ${issue.body}
-            
-            回答は、思考プロセスを含めず、最終的な解決策（コード例や修正方針）のみを分かりやすく出力してください。
+            【追加指示】: ${instruction || "データ統合と不足ステータスの定義を行ってください。"}
             `;
 
             try {
@@ -56,37 +63,33 @@ jobs:
                 body: JSON.stringify({
                   contents: [{ parts: [{ text: prompt }] }],
                   generationConfig: {
-                    // 思考プロセスを隠して、きれいな回答だけを出力させる
-                    thinking_config: { include_thoughts: false } 
+                    thinking_config: { include_thoughts: false },
+                    temperature: 0.2 // 低めに設定して余計な出力を抑える
                   }
                 })
               });
 
-              if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
-
               const data = await response.json();
-              const suggestion = data.candidates[0].content.parts[0].text;
+              let suggestion = data.candidates[0].content.parts[0].text;
+
+              // 4. 万が一思考プロセスが残っていた場合の最終フィルタリング
+              // (思考ブロックが特定のタグ等で囲まれている場合を想定した処理)
+              suggestion = suggestion.replace(/<thought>[\s\S]*?<\/thought>/gi, '').trim();
 
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issue.number,
-                body: `## 🤖 Gemma 4 31B の回答\n\n${suggestion}`
+                body: `## 🤖 Gemma 4 31B の提案\n\n${suggestion}`
               });
 
               await github.rest.reactions.createForIssueComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                comment_id: comment.id,
+                comment_id: context.payload.comment.id,
                 content: 'rocket'
               });
 
             } catch (error) {
               console.error(error);
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issue.number,
-                body: `❌ エラーが発生しました: ${error.message}`
-              });
             }
