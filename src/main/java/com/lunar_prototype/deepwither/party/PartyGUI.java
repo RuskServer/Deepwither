@@ -58,6 +58,7 @@ public class PartyGUI implements Listener {
         inv.setItem(10, createMyPartyIcon(player));
         inv.setItem(11, createPublicToggleIcon(player));
         inv.setItem(12, createPartyInfoIcon(player));
+        inv.setItem(13, createActionIcon(player));
 
         // 公開パーティー一覧
         List<Party> publicParties = partyManager.getPublicParties();
@@ -143,6 +144,39 @@ public class PartyGUI implements Listener {
         }
 
         meta.lore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createActionIcon(Player player) {
+        Party party = partyManager.getParty(player);
+        ItemStack item;
+        ItemMeta meta;
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.empty());
+
+        if (party == null) {
+            item = new ItemStack(Material.IRON_SWORD);
+            meta = item.getItemMeta();
+            meta.displayName(Component.text("[ パーティー作成 ]", NamedTextColor.GREEN, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false));
+            lore.add(Component.text("新しくパーティーを作成します。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
+        } else if (party.getLeaderId().equals(player.getUniqueId())) {
+            item = new ItemStack(Material.BARRIER);
+            meta = item.getItemMeta();
+            meta.displayName(Component.text("[ パーティー解散 ]", NamedTextColor.RED, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false));
+            lore.add(Component.text("現在のパーティーを解散します。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
+            lore.add(Component.text("※メンバー全員が脱退します。", NamedTextColor.DARK_RED).decoration(TextDecoration.ITALIC, false));
+        } else {
+            item = new ItemStack(Material.MILK_BUCKET);
+            meta = item.getItemMeta();
+            meta.displayName(Component.text("[ パーティー脱退 ]", NamedTextColor.YELLOW, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false));
+            lore.add(Component.text("現在のパーティーから抜けます。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
+        }
+
+        lore.add(Component.empty());
+        lore.add(Component.text("▶ クリックして実行", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+        meta.lore(lore);
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         item.setItemMeta(meta);
         return item;
     }
@@ -286,6 +320,10 @@ public class PartyGUI implements Listener {
                 // パーティー情報は表示されるだけなので再度開く
                 openPage(player, playerPage.getOrDefault(player.getUniqueId(), 0));
                 break;
+            case 13:
+                // パーティーアクション（作成・脱退・解散）
+                handlePartyAction(player);
+                break;
             case 47:
                 // 前ページ
                 int prevPage = playerPage.getOrDefault(player.getUniqueId(), 0) - 1;
@@ -321,6 +359,19 @@ public class PartyGUI implements Listener {
             partyManager.joinPublicParty(player, targetParty.getLeaderId());
             openPage(player, page);
         }
+    }
+
+    private void handlePartyAction(Player player) {
+        Party party = partyManager.getParty(player);
+        if (party == null) {
+            partyManager.createParty(player);
+        } else if (party.getLeaderId().equals(player.getUniqueId())) {
+            partyManager.disbandParty(player);
+        } else {
+            partyManager.leaveParty(player);
+        }
+        // アクション後に画面を再描画
+        openPage(player, 0);
     }
 }
 
