@@ -59,6 +59,9 @@ public class IcePilgrim extends CustomMob {
             isPhase2 = true;
             broadcastMessage("§b§l残氷の巡礼者: §f「この氷の静寂こそが、汝らへの救済である……」");
             entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_WITHER_DEATH, 2.0f, 0.8f);
+            
+            // フェーズ2は移動停止 (固定砲台化)
+            entity.getAttribute(Attribute.MOVEMENT_SPEED).setBaseValue(0);
         }
 
         if (skillCooldown > 0) {
@@ -74,8 +77,8 @@ public class IcePilgrim extends CustomMob {
 
         // 常に体に冷気のパーティクルを纏う
         if (ticksLived % 2 == 0) {
-            entity.getWorld().spawnParticle(Particle.SNOWFLAKE, entity.getLocation().add(0, 1, 0), 5, 0.5, 1.0, 0.5, 0.02);
-            entity.getWorld().spawnParticle(Particle.ENCHANTED_HIT, entity.getLocation().add(0, 1, 0), 2, 0.4, 0.8, 0.4, 0);
+            entity.getWorld().spawnParticle(Particle.CLOUD, entity.getLocation().add(0, 1, 0), 5, 0.5, 1.0, 0.5, 0.02);
+            entity.getWorld().spawnParticle(Particle.CRIT, entity.getLocation().add(0, 1, 0), 2, 0.4, 0.8, 0.4, 0);
         }
     }
 
@@ -125,7 +128,7 @@ public class IcePilgrim extends CustomMob {
                     Location pLoc = center.clone().add((random.nextDouble()-0.5)*20, 15, (random.nextDouble()-0.5)*20);
                     Vector dir = new Vector(0, -1, 0);
                     
-                    pLoc.getWorld().spawnParticle(Particle.FLASH, pLoc, 1);
+                    pLoc.getWorld().spawnParticle(Particle.FLASH, pLoc, 1, 0, 0, 0, 0, Color.WHITE);
                     pLoc.getWorld().playSound(pLoc, Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1.0f, 1.5f);
 
                     // 独自のアイスボルト（聖属性エフェクト）
@@ -194,7 +197,7 @@ public class IcePilgrim extends CustomMob {
                 
                 // 剣の予兆エフェクト
                 Location currentSword = swordLoc.clone().subtract(0, ticks * 0.5, 0);
-                finalTarget.getWorld().spawnParticle(Particle.FLASH, currentSword, 5, 0.5, 2.0, 0.5, 0.1);
+                finalTarget.getWorld().spawnParticle(Particle.FLASH, currentSword, 5, 0.5, 2.0, 0.5, 0.1, Color.WHITE);
                 finalTarget.getWorld().spawnParticle(Particle.DUST, currentSword, 20, 0.3, 3.0, 0.3, 0, new Particle.DustOptions(Color.WHITE, 2.0f));
                 
                 if (ticks % 5 == 0) {
@@ -255,9 +258,7 @@ public class IcePilgrim extends CustomMob {
             for (double d = 0; d < 15; d += 0.5) {
                 Location point = center.clone().add(dir.clone().multiply(d));
                 center.getWorld().spawnParticle(Particle.DUST, point, 1, 0, 0, 0, 0, new Particle.DustOptions(Color.AQUA, 0.8f));
-                if (ticksLived % 5 == 0) {
-                    center.getWorld().spawnParticle(Particle.END_ROD, point, 1, 0, 0, 0, 0);
-                }
+                // END_ROD 削除 (視認性改善のため)
             }
 
             // 当たり判定 (RayTrace)
@@ -284,7 +285,7 @@ public class IcePilgrim extends CustomMob {
         for (int i = 0; i < 12; i++) {
             double angle = (Math.PI * 2 / 12) * i;
             Location swordSpawn = center.clone().add(Math.cos(angle)*3, 0, Math.sin(angle)*3);
-            swordSpawn.getWorld().spawnParticle(Particle.FLASH, swordSpawn, 1);
+            swordSpawn.getWorld().spawnParticle(Particle.FLASH, swordSpawn, 1, 0, 0, 0, 0, Color.WHITE);
             
             new BukkitRunnable() {
                 @Override

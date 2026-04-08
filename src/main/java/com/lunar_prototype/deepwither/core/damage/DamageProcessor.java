@@ -10,10 +10,14 @@ import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import org.bukkit.Bukkit;
+import com.github.retrooper.packetevents.PacketEvents;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityAnimation;
+import org.bukkit.*;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.util.Vector;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -84,6 +88,33 @@ public class DamageProcessor implements IManager {
             } else {
                 victim.damage(damage, attacker);
             }
+        }
+
+        // --- 被弾演出のブロードキャスト (PacketEvents + Sound + Knockback) ---
+        playDamageFeedback(context);
+    }
+
+    private void playDamageFeedback(DamageContext context) {
+        LivingEntity victim = context.getVictim();
+        LivingEntity attacker = context.getAttacker();
+
+        // 1. PacketEvents による被弾アニメーション (赤色フラッシュ)
+        WrapperPlayServerEntityAnimation hurtPacket = new WrapperPlayServerEntityAnimation(victim.getEntityId(), WrapperPlayServerEntityAnimation.EntityAnimationType.HURT);
+        victim.getWorld().getNearbyPlayers(victim.getLocation(), 40).forEach(p -> {
+            PacketEvents.getAPI().getPlayerManager().sendPacket(p, hurtPacket);
+        });
+
+        // 2. 音の再生 (被害者の種類に応じて)
+        Sound hurtSound = (victim instanceof Player) ? Sound.ENTITY_PLAYER_HURT : Sound.ENTITY_GENERIC_HURT;
+        victim.getWorld().playSound(victim.getLocation(), hurtSound, 1.0f, 1.0f);
+
+        // 3. ノックバックの適用
+        if (attacker != null) {
+            Vector dir = victim.getLocation().toVector().subtract(attacker.getLocation().toVector()).normalize();
+            dir.setY(0).normalize().multiply(0.4).setY(0.2); // 軽く横に弾き、少し浮かせる
+            
+            // プレイヤーかつシールドなどで防御していない場合、またはモブに適用
+            victim.setVelocity(dir);
         }
     }
 
