@@ -5,6 +5,9 @@ import com.lunar_prototype.deepwither.aethelgard.PlayerQuestManager;
 import com.lunar_prototype.deepwither.core.engine.IModule;
 import com.lunar_prototype.deepwither.core.engine.ServiceContainer;
 import com.lunar_prototype.deepwither.modules.mob.service.*;
+import com.lunar_prototype.deepwither.modules.mob.framework.CustomMobManager;
+import com.lunar_prototype.deepwither.modules.mob.implementation.FireDemon;
+import com.lunar_prototype.deepwither.modules.mob.implementation.IcePilgrim;
 import com.lunar_prototype.deepwither.modules.mob.util.MobRegionService;
 
 public class MobModule implements IModule {
@@ -21,6 +24,9 @@ public class MobModule implements IModule {
 
         try {
             // Register services
+            CustomMobManager customMobManager = new CustomMobManager(plugin);
+            container.registerInstance(CustomMobManager.class, customMobManager);
+
             MobConfigService configService = new MobConfigService(plugin);
             container.registerInstance(MobConfigService.class, configService);
 
@@ -68,6 +74,12 @@ public class MobModule implements IModule {
             container.get(MobTraitService.class).init();
             container.get(MobLevelService.class).init();
             container.get(MobSpawnerService.class).init();
+
+            // Initialize CustomMob framework
+            CustomMobManager customMobManager = container.get(CustomMobManager.class);
+            customMobManager.init();
+            customMobManager.registerMob("FireDemon", FireDemon.class);
+            customMobManager.registerMob("IcePilgrim", IcePilgrim.class);
 
         } catch (Exception e) {
             plugin.getLogger().severe("Failed to start MobModule components.");

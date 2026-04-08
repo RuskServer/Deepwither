@@ -219,6 +219,15 @@ public class DamageManager implements Listener, IManager {
         handlePostDamageEffects(attacker, targetLiving, attackerStats, context.getFinalDamage());
     }
 
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onDeepwitherDamage(DeepwitherDamageEvent e) {
+        if (e.getAttacker() instanceof Player attacker && e.getVictim() instanceof Player victim) {
+            if (isPvPPrevented(attacker, victim)) {
+                e.setCancelled(true);
+            }
+        }
+    }
+
     private void applyComboAndCooldown(Player attacker, DamageContext context) {
         long currentTime = System.currentTimeMillis();
         SkillData skillData = Deepwither.getInstance().getSkilltreeManager().load(attacker.getUniqueId());

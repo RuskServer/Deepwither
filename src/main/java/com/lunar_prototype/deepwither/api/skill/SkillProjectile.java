@@ -11,7 +11,7 @@ import org.bukkit.util.Vector;
 
 public abstract class SkillProjectile extends BukkitRunnable {
 
-    protected final Player caster;
+    protected final LivingEntity caster;
     protected Location currentLocation;
     protected Vector direction;
 
@@ -20,7 +20,7 @@ public abstract class SkillProjectile extends BukkitRunnable {
     protected int maxTicks = 100;
     protected int ticksLived = 0;
 
-    public SkillProjectile(Player caster, Location spawnLoc, Vector direction) {
+    public SkillProjectile(LivingEntity caster, Location spawnLoc, Vector direction) {
         this.caster = caster;
         this.currentLocation = spawnLoc.clone();
         this.direction = direction.clone().normalize();
@@ -28,7 +28,7 @@ public abstract class SkillProjectile extends BukkitRunnable {
 
     @Override
     public void run() {
-        if (ticksLived >= maxTicks || !caster.isOnline()) {
+        if (ticksLived >= maxTicks || !caster.isValid()) {
             this.cancel();
             return;
         }

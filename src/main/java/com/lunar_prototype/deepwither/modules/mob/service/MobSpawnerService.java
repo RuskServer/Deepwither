@@ -132,6 +132,15 @@ public class MobSpawnerService implements IManager {
             return null;
         }
 
+        // --- CustomMob Framework Check ---
+        var customMobManager = DW.get(com.lunar_prototype.deepwither.modules.mob.framework.CustomMobManager.class);
+        if (customMobManager != null) {
+            var customMob = customMobManager.spawnMob(mobId, loc);
+            if (customMob != null) {
+                return customMob.getUniqueId();
+            }
+        }
+
         var activeMob = MythicBukkit.inst().getMobManager().spawnMob(mobId, loc);
         if (activeMob == null || activeMob.getEntity() == null) return null;
         org.bukkit.entity.Entity entity = activeMob.getEntity().getBukkitEntity();

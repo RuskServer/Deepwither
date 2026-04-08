@@ -22,19 +22,19 @@ import java.util.Collection;
 public class ChargeWarriorSkill implements ISkillLogic {
 
     @Override
-    public boolean cast(Player player, SkillDefinition def, int level) {
+    public boolean cast(LivingEntity caster, SkillDefinition def, int level) {
         // 1. 初期速度の付与 (velocity{m=ADD;x=0;y=0;z=5;r=true})
         // 視線方向に z=5 のパワーで加速
-        Vector direction = player.getLocation().getDirection().normalize();
+        Vector direction = caster.getEyeLocation().getDirection().normalize();
         Vector velocity = direction.clone().multiply(5.0);
         
         // y軸の過剰な上昇を防ぐため、少し補正するかそのままにするか
         // MMの z=5 は視線方向への強い推進力
-        player.setVelocity(velocity);
+        caster.setVelocity(velocity);
 
         // 発動音
-        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ZOMBIE_ATTACK_WOODEN_DOOR, 1.0f, 1.5f);
-        player.getWorld().playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_CHAIN, 1.0f, 0.8f);
+        caster.getWorld().playSound(caster.getLocation(), Sound.ENTITY_ZOMBIE_ATTACK_WOODEN_DOOR, 1.0f, 1.5f);
+        caster.getWorld().playSound(caster.getLocation(), Sound.ITEM_ARMOR_EQUIP_CHAIN, 1.0f, 0.8f);
 
         // 2. 継続タスク (repeat=20;i=1)
         new BukkitRunnable() {
@@ -42,31 +42,31 @@ public class ChargeWarriorSkill implements ISkillLogic {
 
             @Override
             public void run() {
-                if (ticks >= 20 || !player.isOnline()) {
+                if (ticks >= 20 || !caster.isValid()) {
                     this.cancel();
                     return;
                 }
 
                 // パーティクル表示 (高速移動感の強化)
                 // プレイヤーの足元
-                player.getWorld().spawnParticle(Particle.WAX_OFF, player.getLocation().add(0, 0.2, 0), 10, 0.2, 0.1, 0.2, 0.05);
+                caster.getWorld().spawnParticle(Particle.WAX_OFF, caster.getLocation().add(0, 0.2, 0), 10, 0.2, 0.1, 0.2, 0.05);
                 // プレイヤーの背後 (風の跡)
-                player.getWorld().spawnParticle(Particle.CLOUD, player.getLocation().subtract(direction.clone().multiply(0.5)), 3, 0.1, 0.1, 0.1, 0.02);
+                caster.getWorld().spawnParticle(Particle.CLOUD, caster.getLocation().subtract(direction.clone().multiply(0.5)), 3, 0.1, 0.1, 0.1, 0.02);
 
                 // 周囲の敵へのダメージとノックバック (CustomDamage{a=10;m=0.5} @EIR{r=2})
                 // a=10, m=0.5 は基礎威力5。レベルに応じて強化可能
                 double baseAtk = 10.0 + (level * 2.0); 
                 double damage = baseAtk * 0.5;
                 
-                Collection<Entity> targets = player.getNearbyEntities(2.5, 2.5, 2.5); // 少し判定を広めに
+                Collection<Entity> targets = caster.getNearbyEntities(2.5, 2.5, 2.5); // 少し判定を広めに
                 
                 for (Entity entity : targets) {
-                    if (entity instanceof LivingEntity target && !entity.equals(player)) {
+                    if (entity instanceof LivingEntity target && !entity.equals(caster)) {
                         
                         // 無敵時間のチェック (ユーザー要望: 無敵時間貫通なし)
                         if (target.getNoDamageTicks() == 0) {
                             DamageContext ctx = new DamageContext(
-                                    player, 
+                                    caster, 
                                     target, 
                                     DeepwitherDamageEvent.DamageType.PHYSICAL, 
                                     damage
@@ -87,7 +87,7 @@ public class ChargeWarriorSkill implements ISkillLogic {
                 // 突進中の速度維持
                 if (ticks < 15) { 
                     // 進行方向へのベクトルを維持しつつ、重力を少し軽減
-                    player.setVelocity(direction.clone().multiply(1.5).add(new Vector(0, 0.05, 0)));
+                    caster.setVelocity(direction.clone().multiply(1.5).add(new Vector(0, 0.05, 0)));
                 }
 
                 ticks++;

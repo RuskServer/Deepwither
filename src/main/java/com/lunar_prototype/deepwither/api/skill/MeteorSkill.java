@@ -21,9 +21,9 @@ import java.util.Collection;
 public class MeteorSkill implements ISkillLogic {
 
     @Override
-    public boolean cast(Player player, SkillDefinition def, int level) {
-        World world = player.getWorld();
-        Location eyeLoc = player.getEyeLocation();
+    public boolean cast(LivingEntity caster, SkillDefinition def, int level) {
+        World world = caster.getWorld();
+        Location eyeLoc = caster.getEyeLocation();
         Vector direction = eyeLoc.getDirection();
         
         // 最大24ブロック先までターゲット探索
@@ -70,7 +70,7 @@ public class MeteorSkill implements ISkillLogic {
                 ticks++;
                 if (ticks >= maxTicks) {
                     this.cancel();
-                    dropMeteor(player, targetLoc, radius, level);
+                    dropMeteor(caster, targetLoc, radius, level);
                 }
             }
         }.runTaskTimer(Deepwither.getInstance(), 0L, 1L);
@@ -78,7 +78,7 @@ public class MeteorSkill implements ISkillLogic {
         return true;
     }
 
-    private void dropMeteor(Player caster, Location targetLoc, double damageRadius, int level) {
+    private void dropMeteor(LivingEntity caster, Location targetLoc, double damageRadius, int level) {
         World world = targetLoc.getWorld();
         Location spawnLoc = targetLoc.clone().add(0, 15.0, 0); // 15ブロック上から
         Vector dropDir = new Vector(0, -1, 0); // 真下

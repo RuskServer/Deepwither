@@ -21,14 +21,14 @@ import java.util.Collection;
 public class BlackGravitySkill implements ISkillLogic {
 
     @Override
-    public boolean cast(Player player, SkillDefinition def, int level) {
+    public boolean cast(LivingEntity caster, SkillDefinition def, int level) {
         // 発動音
-        player.getWorld().playSound(player.getLocation(), Sound.ITEM_TRIDENT_RETURN, 1.0f, 0.0f);
+        caster.getWorld().playSound(caster.getLocation(), Sound.ITEM_TRIDENT_RETURN, 1.0f, 0.0f);
 
-        Location spawnLoc = player.getEyeLocation().add(player.getLocation().getDirection().multiply(1.0));
+        Location spawnLoc = caster.getEyeLocation().add(caster.getEyeLocation().getDirection().multiply(1.0));
         
         // MMの projectile{v=50} は超高速弾（ほぼ即着弾）
-        new SkillProjectile(player, spawnLoc, player.getLocation().getDirection()) {
+        new SkillProjectile(caster, spawnLoc, caster.getEyeLocation().getDirection()) {
             {
                 this.speed = 2.5; // v=50 に近い速度
                 this.hitboxRadius = 1.0;
@@ -71,14 +71,14 @@ public class BlackGravitySkill implements ISkillLogic {
         return true;
     }
 
-    private void startBlackHole(Player caster, Location center, int level) {
+    private void startBlackHole(LivingEntity caster, Location center, int level) {
         new BukkitRunnable() {
             int ticks = 0;
             final int maxTicks = 80; // repeat=80
 
             @Override
             public void run() {
-                if (ticks >= maxTicks || !caster.isOnline()) {
+                if (ticks >= maxTicks || !caster.isValid()) {
                     this.cancel();
                     // 終了時に少し爆発系パーティクル
                     center.getWorld().spawnParticle(Particle.SONIC_BOOM, center, 1, 0, 0, 0, 0, Color.WHITE);

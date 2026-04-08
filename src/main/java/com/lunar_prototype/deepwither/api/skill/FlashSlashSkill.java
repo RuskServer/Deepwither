@@ -25,14 +25,14 @@ public class FlashSlashSkill implements ISkillLogic {
     private final Random random = new Random();
 
     @Override
-    public boolean cast(Player player, SkillDefinition def, int level) {
+    public boolean cast(LivingEntity caster, SkillDefinition def, int level) {
         
         new BukkitRunnable() {
             int ticks = 0;
 
             @Override
             public void run() {
-                if (!player.isOnline()) {
+                if (!caster.isValid()) {
                     this.cancel();
                     return;
                 }
@@ -41,16 +41,16 @@ public class FlashSlashSkill implements ISkillLogic {
                 if (ticks < 2) {
                     if (ticks == 0) {
                         // 予兆音: 金属がこすれるような高い音
-                        player.getWorld().playSound(player.getLocation(), Sound.BLOCK_RESPAWN_ANCHOR_CHARGE, 0.6f, 2.0f);
+                        caster.getWorld().playSound(caster.getLocation(), Sound.BLOCK_RESPAWN_ANCHOR_CHARGE, 0.6f, 2.0f);
                     }
                     // 予兆パーティクル: プレイヤーを中心に収束する光
-                    Location pLoc = player.getEyeLocation().subtract(0, 0.3, 0);
-                    player.getWorld().spawnParticle(Particle.ENCHANTED_HIT, pLoc, 10, 0.5, 0.5, 0.5, 0.1);
+                    Location pLoc = caster.getEyeLocation().subtract(0, 0.3, 0);
+                    caster.getWorld().spawnParticle(Particle.ENCHANTED_HIT, pLoc, 10, 0.5, 0.5, 0.5, 0.1);
                 }
                 
                 // 2. 解放フェーズ (Flash Slash)
                 else if (ticks == 2) {
-                    executeSlash(player, level);
+                    executeSlash(caster, level);
                     this.cancel();
                 }
 
@@ -61,15 +61,15 @@ public class FlashSlashSkill implements ISkillLogic {
         return true;
     }
 
-    private void executeSlash(Player player, int level) {
-        Location center = player.getLocation().add(0, 1.0, 0);
+    private void executeSlash(LivingEntity caster, int level) {
+        Location center = caster.getLocation().add(0, 1.0, 0);
         
         // --- サウンド演出 ---
         // 重厚なベース音 (ユーザー指定)
-        player.getWorld().playSound(center, Sound.BLOCK_RESPAWN_ANCHOR_DEPLETE, 1.2f, 0.5f);
+        caster.getWorld().playSound(center, Sound.BLOCK_RESPAWN_ANCHOR_DEPLETE, 1.2f, 0.5f);
         // 金属的な斬撃音
-        player.getWorld().playSound(center, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1.0f, 0.8f);
-        player.getWorld().playSound(center, Sound.ENTITY_IRON_GOLEM_ATTACK, 0.8f, 1.5f);
+        caster.getWorld().playSound(center, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1.0f, 0.8f);
+        caster.getWorld().playSound(center, Sound.ENTITY_IRON_GOLEM_ATTACK, 0.8f, 1.5f);
 
         // --- 斬撃エフェクト (すさまじい数の斬撃) ---
         for (int i = 0; i < 24; i++) {
@@ -82,11 +82,11 @@ public class FlashSlashSkill implements ISkillLogic {
             Location slashLoc = center.clone().add(x, yOffset, z);
             
             // SWEEP_ATTACK をばらまく
-            player.getWorld().spawnParticle(Particle.SWEEP_ATTACK, slashLoc, 1, 0.2, 0.1, 0.2, 0);
+            caster.getWorld().spawnParticle(Particle.SWEEP_ATTACK, slashLoc, 1, 0.2, 0.1, 0.2, 0);
             
             // 跡に残る光 (END_ROD)
             if (i % 2 == 0) {
-                player.getWorld().spawnParticle(Particle.END_ROD, slashLoc, 2, 0.1, 0.1, 0.1, 0.05);
+                caster.getWorld().spawnParticle(Particle.END_ROD, slashLoc, 2, 0.1, 0.1, 0.1, 0.05);
             }
         }
 
@@ -95,7 +95,7 @@ public class FlashSlashSkill implements ISkillLogic {
             double angle = (Math.PI * 2 / 60) * j;
             double x = Math.cos(angle) * 3.2; // 半径3ブロック強
             double z = Math.sin(angle) * 3.2;
-            player.getWorld().spawnParticle(Particle.FIREWORK, center.clone().add(x, 0, z), 1, 0, 0, 0, 0);
+            caster.getWorld().spawnParticle(Particle.FIREWORK, center.clone().add(x, 0, z), 1, 0, 0, 0, 0);
         }
 
         // --- ダメージ判定 ---
@@ -103,12 +103,12 @@ public class FlashSlashSkill implements ISkillLogic {
         double multiplier = 1.2; // 補助スキル程度に少し抑えめ
         double finalDamage = baseDamage * multiplier;
 
-        Collection<Entity> targets = player.getNearbyEntities(3.0, 3.0, 3.0);
+        Collection<Entity> targets = caster.getNearbyEntities(3.0, 3.0, 3.0);
         for (Entity entity : targets) {
-            if (entity instanceof LivingEntity target && !entity.equals(player)) {
+            if (entity instanceof LivingEntity target && !entity.equals(caster)) {
                 
                 DamageContext ctx = new DamageContext(
-                        player, 
+                        caster, 
                         target, 
                         DeepwitherDamageEvent.DamageType.PHYSICAL, 
                         finalDamage
@@ -120,7 +120,7 @@ public class FlashSlashSkill implements ISkillLogic {
                 target.getWorld().playSound(target.getLocation(), Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, 0.6f, 1.5f);
                 
                 // わずかにノックバックさせて「斬られた」感を出す
-                Vector kb = target.getLocation().toVector().subtract(player.getLocation().toVector()).normalize().multiply(0.3);
+                Vector kb = target.getLocation().toVector().subtract(caster.getLocation().toVector()).normalize().multiply(0.3);
                 target.setVelocity(target.getVelocity().add(kb));
             }
         }

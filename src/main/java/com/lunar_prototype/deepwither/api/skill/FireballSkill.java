@@ -17,15 +17,15 @@ import org.bukkit.potion.PotionEffectType;
 public class FireballSkill implements ISkillLogic {
 
     @Override
-    public boolean cast(Player player, SkillDefinition def, int level) {
+    public boolean cast(LivingEntity caster, SkillDefinition def, int level) {
         // 発射音
-        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_GHAST_SHOOT, 0.8f, 1.2f);
-        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_BLAZE_SHOOT, 1.0f, 0.8f);
+        caster.getWorld().playSound(caster.getLocation(), Sound.ENTITY_GHAST_SHOOT, 0.8f, 1.2f);
+        caster.getWorld().playSound(caster.getLocation(), Sound.ENTITY_BLAZE_SHOOT, 1.0f, 0.8f);
 
         // 発射位置 (EyeLocation から少し前方)
-        Location spawnLoc = player.getEyeLocation().add(player.getLocation().getDirection().multiply(1.2));
+        Location spawnLoc = caster.getEyeLocation().add(caster.getEyeLocation().getDirection().multiply(1.2));
         
-        new SkillProjectile(player, spawnLoc, player.getLocation().getDirection()) {
+        new SkillProjectile(caster, spawnLoc, caster.getLocation().getDirection()) {
             {
                 // MMの fireball projectileに相当する設定
                 this.speed = 1.0; // v=8 (0.4 blocks/tick)、だがMMの弾速は独自計算が入る。とりあえず1.0にする

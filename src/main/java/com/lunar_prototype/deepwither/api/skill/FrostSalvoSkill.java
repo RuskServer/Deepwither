@@ -34,19 +34,19 @@ public class FrostSalvoSkill implements ISkillLogic {
     private final Random random = new Random();
 
     @Override
-    public boolean cast(Player player, SkillDefinition def, int level) {
+    public boolean cast(LivingEntity caster, SkillDefinition def, int level) {
         // ターゲット地点の特定 (視線方向 30ブロック先まで)
-        RayTraceResult ray = player.getWorld().rayTraceBlocks(player.getEyeLocation(), player.getLocation().getDirection(), 30.0, FluidCollisionMode.NEVER, true);
+        RayTraceResult ray = caster.getWorld().rayTraceBlocks(caster.getEyeLocation(), caster.getEyeLocation().getDirection(), 30.0, FluidCollisionMode.NEVER, true);
         Location targetLoc;
         if (ray != null && ray.getHitPosition() != null) {
-            targetLoc = ray.getHitPosition().toLocation(player.getWorld());
+            targetLoc = ray.getHitPosition().toLocation(caster.getWorld());
         } else {
-            targetLoc = player.getEyeLocation().add(player.getLocation().getDirection().multiply(24.0));
+            targetLoc = caster.getEyeLocation().add(caster.getEyeLocation().getDirection().multiply(24.0));
         }
 
         // 初期音
-        player.getWorld().playSound(player.getLocation(), Sound.BLOCK_GLASS_BREAK, 1.2f, 0.5f);
-        player.getWorld().playSound(targetLoc, Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1.5f, 0.8f);
+        caster.getWorld().playSound(caster.getLocation(), Sound.BLOCK_GLASS_BREAK, 1.2f, 0.5f);
+        caster.getWorld().playSound(targetLoc, Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1.5f, 0.8f);
 
         // 魔法陣の展開座標を算出 (半球状に 30個)
         List<Location> portalLocations = new ArrayList<>();
@@ -69,7 +69,7 @@ public class FrostSalvoSkill implements ISkillLogic {
 
             @Override
             public void run() {
-                if (currentIdx >= portalLocations.size() || !player.isOnline()) {
+                if (currentIdx >= portalLocations.size() || !caster.isValid()) {
                     this.cancel();
                     return;
                 }
@@ -77,14 +77,14 @@ public class FrostSalvoSkill implements ISkillLogic {
                 Location pLoc = portalLocations.get(currentIdx);
                 // 魔法陣を描画 (1tick 1個のペースで展開)
                 drawAura(pLoc, targetLoc);
-                player.getWorld().playSound(pLoc, Sound.BLOCK_AMETHYST_CLUSTER_STEP, 0.5f, 1.5f);
+                caster.getWorld().playSound(pLoc, Sound.BLOCK_AMETHYST_CLUSTER_STEP, 0.5f, 1.5f);
 
                 // 20ticks(1秒)後にその場所から射撃
                 new BukkitRunnable() {
                     @Override
                     public void run() {
-                        if (player.isOnline()) {
-                            fireIceBolt(player, pLoc, targetLoc, level);
+                        if (caster.isValid()) {
+                            fireIceBolt(caster, pLoc, targetLoc, level);
                         }
                     }
                 }.runTaskLater(Deepwither.getInstance(), 20L);
@@ -139,7 +139,7 @@ public class FrostSalvoSkill implements ISkillLogic {
     /**
      * アイスボルトの射撃
      */
-    private void fireIceBolt(Player player, Location pLoc, Location centerTarget, int level) {
+    private void fireIceBolt(LivingEntity caster, Location pLoc, Location centerTarget, int level) {
         // 広範囲に散らす (半径8ブロック程度)
         double spread = 8.0;
         Location finalTarget = centerTarget.clone().add(
@@ -154,7 +154,7 @@ public class FrostSalvoSkill implements ISkillLogic {
         pLoc.getWorld().playSound(pLoc, Sound.BLOCK_GLASS_BREAK, 0.5f, 2.0f);
         pLoc.getWorld().playSound(pLoc, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.3f, 1.5f);
 
-        new SkillProjectile(player, pLoc, direction) {
+        new SkillProjectile(caster, pLoc, direction) {
             {
                 this.speed = 1.8; // さらに高速化
                 this.maxTicks = 60;
