@@ -1012,6 +1012,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         register(new RegenTask(this));
         register(new MarketApiController(this));
         register(new PlayerInventoryRestrictor(this));
+        new com.lunar_prototype.deepwither.core.listener.EnvironmentListener(this);
     }
 
     /**

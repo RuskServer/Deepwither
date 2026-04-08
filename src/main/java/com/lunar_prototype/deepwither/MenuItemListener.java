@@ -43,7 +43,7 @@ public class MenuItemListener implements Listener, IManager {
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
         Player player = e.getPlayer();
-        giveMenuItem(player);
+        updateMenuItem(player);
     }
 
     @EventHandler
@@ -62,6 +62,14 @@ public class MenuItemListener implements Listener, IManager {
         }
     }
 
+    public void updateMenuItem(Player player) {
+        if (Deepwither.getInstance().getSettingsManager().isEnabled(player, PlayerSettingsManager.SettingType.SHOW_MENU_ITEM)) {
+            giveMenuItem(player);
+        } else {
+            removeMenuItem(player);
+        }
+    }
+
     public void giveMenuItem(Player player) {
         ItemStack menuBtn = new ItemStack(Material.COMPASS);
         ItemMeta meta = menuBtn.getItemMeta();
@@ -71,6 +79,13 @@ public class MenuItemListener implements Listener, IManager {
         menuBtn.setItemMeta(meta);
 
         player.getInventory().setItem(8, menuBtn);
+    }
+
+    public void removeMenuItem(Player player) {
+        ItemStack item = player.getInventory().getItem(8);
+        if (item != null && item.hasItemMeta() && ITEM_NAME.equals(item.getItemMeta().displayName())) {
+            player.getInventory().setItem(8, null);
+        }
     }
 
     @EventHandler

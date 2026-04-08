@@ -55,6 +55,7 @@ public class SettingsGUI implements Listener, IManager {
         inv.setItem(14, createToggleItem(player, PlayerSettingsManager.SettingType.SHOW_MITIGATION, Material.SHIELD));
         inv.setItem(16, createToggleItem(player, PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, Material.ENCHANTED_BOOK));
         inv.setItem(18, createToggleItem(player, PlayerSettingsManager.SettingType.SHOW_PICKUP_LOG, Material.HOPPER));
+        inv.setItem(22, createToggleItem(player, PlayerSettingsManager.SettingType.SHOW_MENU_ITEM, Material.COMPASS));
 
         inv.setItem(20, createRarityFilterItem(player));
 
@@ -154,9 +155,13 @@ public class SettingsGUI implements Listener, IManager {
         else if (slot == 14) type = PlayerSettingsManager.SettingType.SHOW_MITIGATION;
         else if (slot == 16) type = PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG;
         else if (slot == 18) type = PlayerSettingsManager.SettingType.SHOW_PICKUP_LOG;
+        else if (slot == 22) type = PlayerSettingsManager.SettingType.SHOW_MENU_ITEM;
 
         if (type != null) {
             settingsManager.toggle(player, type);
+            if (type == PlayerSettingsManager.SettingType.SHOW_MENU_ITEM) {
+                plugin.getMenuItemListener().updateMenuItem(player);
+            }
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
             open(player);
         }
