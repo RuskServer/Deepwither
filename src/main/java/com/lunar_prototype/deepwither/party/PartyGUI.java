@@ -40,6 +40,10 @@ public class PartyGUI implements Listener {
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
+    public PartyTagGUI getPartyTagGUI() {
+        return partyTagGUI;
+    }
+
     public void open(Player player) {
         openPage(player, 0);
     }

@@ -51,10 +51,12 @@ public class PartyTagGUI implements Listener {
         // ガイド用アイテム
         ItemStack infoItem = new ItemStack(Material.BOOK);
         ItemMeta infoMeta = infoItem.getItemMeta();
-        infoMeta.displayName(Component.text("タグを選択してください (複数可)", NamedTextColor.AQUA, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false));
+        infoMeta.displayName(Component.text("募集設定を完了してください", NamedTextColor.AQUA, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false));
         List<Component> infoLore = new ArrayList<>();
-        infoLore.add(Component.text("最低でも1つのタグを選択しないと", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
-        infoLore.add(Component.text("公開（募集開始）できません。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
+        infoLore.add(Component.text("・最低1つのタグを選択", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
+        infoLore.add(Component.text("・最大人数を設定 (2〜6人)", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
+        infoLore.add(Component.empty());
+        infoLore.add(Component.text("これらが完了しないと公開できません。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
         infoMeta.lore(infoLore);
         infoItem.setItemMeta(infoMeta);
         inv.setItem(4, infoItem);
@@ -67,6 +69,9 @@ public class PartyTagGUI implements Listener {
                 inv.setItem(slots[i], createTagItem(tags[i], party.getTags().contains(tags[i])));
             }
         }
+
+        // 最大人数設定ボタン
+        inv.setItem(40, createMaxMembersItem(party.getMaxMembers()));
 
         // 決定ボタン
         inv.setItem(48, createCancelButton());
@@ -107,6 +112,26 @@ public class PartyTagGUI implements Listener {
         return item;
     }
 
+    private ItemStack createMaxMembersItem(int current) {
+        ItemStack item = new ItemStack(Material.RECOVERY_COMPASS);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("[ 最大人数設定 ]", NamedTextColor.GOLD, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false));
+        
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.empty());
+        lore.add(Component.text("設定値: ", NamedTextColor.GRAY)
+                .append(Component.text(current + " 人", NamedTextColor.WHITE))
+                .decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.empty());
+        lore.add(Component.text("▶ 左クリックで +1", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text("▶ 右クリックで -1", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text("(制限: 2 〜 6人)", NamedTextColor.DARK_GRAY).decoration(TextDecoration.ITALIC, false));
+        
+        meta.lore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
     private ItemStack createCancelButton() {
         ItemStack item = new ItemStack(Material.RED_DYE);
         ItemMeta meta = item.getItemMeta();
@@ -139,6 +164,28 @@ public class PartyTagGUI implements Listener {
                 partyManager.setPartyPublic(player, true);
                 player.closeInventory();
             }
+            return;
+        }
+
+        // 最大人数設定ボタン (slot 40)
+        if (slot == 40) {
+            int current = party.getMaxMembers();
+            if (e.isLeftClick()) {
+                if (current < 6) {
+                    party.setMaxMembers(current + 1);
+                    player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1.2f);
+                } else {
+                    player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 0.5f);
+                }
+            } else if (e.isRightClick()) {
+                if (current > 2) {
+                    party.setMaxMembers(current - 1);
+                    player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 0.8f);
+                } else {
+                    player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 0.5f);
+                }
+            }
+            open(player);
             return;
         }
 

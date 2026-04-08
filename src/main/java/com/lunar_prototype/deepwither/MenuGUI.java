@@ -65,6 +65,10 @@ public class MenuGUI implements Listener, IManager {
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
+    public com.lunar_prototype.deepwither.party.PartyGUI getPartyGUI() {
+        return partyGUI;
+    }
+
     @Override
     public void shutdown() {}
 

@@ -87,7 +87,10 @@ public class PartyVoiceManager {
         if (vc == null) return;
 
         vc.getGuild().retrieveMemberById(discordId).queue(
-                member -> vc.getManager().putPermissionOverride(member, EnumSet.of(Permission.VOICE_CONNECT), null).queue(),
+                member -> {
+                    // ChannelManagerの競合を防ぐためバッチを使わず単一で上書きする
+                    vc.upsertPermissionOverride(member).setAllow(Permission.VOICE_CONNECT).queue();
+                },
                 error -> {} // メンバーがギルドにいない場合などのエラー無視
         );
     }
@@ -109,7 +112,14 @@ public class PartyVoiceManager {
         if (vc == null) return;
 
         vc.getGuild().retrieveMemberById(discordId).queue(
-                member -> vc.getManager().removePermissionOverride(member).queue(),
+                member -> {
+                    vc.getManager().removePermissionOverride(member).queue();
+                    // 接続中の場合は切断（キック）する
+                    if (member.getVoiceState() != null && member.getVoiceState().inVoiceChannel() &&
+                        member.getVoiceState().getChannel() != null && member.getVoiceState().getChannel().getId().equals(vcId)) {
+                        vc.getGuild().kickVoiceMember(member).queue();
+                    }
+                },
                 error -> {} 
         );
     }

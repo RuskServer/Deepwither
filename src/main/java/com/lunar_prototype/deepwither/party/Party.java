@@ -15,6 +15,7 @@ public class Party {
     private boolean isPublic = false;
     private final Set<PartyTag> tags = EnumSet.noneOf(PartyTag.class);
     private String discordVoiceChannelId = null;
+    private int maxMembers = 4; // デフォルト 4人
 
     public Party(UUID leaderId) {
         this.leaderId = leaderId;
@@ -40,6 +41,14 @@ public class Party {
 
     public void setDiscordVoiceChannelId(String discordVoiceChannelId) {
         this.discordVoiceChannelId = discordVoiceChannelId;
+    }
+
+    public int getMaxMembers() {
+        return maxMembers;
+    }
+
+    public void setMaxMembers(int maxMembers) {
+        this.maxMembers = maxMembers;
     }
 
     public void addMember(UUID playerId) {

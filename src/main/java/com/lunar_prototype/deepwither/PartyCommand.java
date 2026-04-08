@@ -248,6 +248,19 @@ public class PartyCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handlePublic(Player player, @SuppressWarnings("unused") String[] args) {
+        Party party = partyManager.getParty(player);
+        if (party == null || !party.getLeaderId().equals(player.getUniqueId())) {
+            player.sendMessage(Component.text("公開設定の変更権限がありません（リーダーのみ）。", NamedTextColor.RED));
+            return;
+        }
+
+        // タグが設定されていない場合はGUIを開いて強制的に設定させる
+        if (party.getTags().isEmpty()) {
+            player.sendMessage(Component.text("募集タグが設定されていません。設定画面を開きます...", NamedTextColor.YELLOW));
+            Deepwither.getInstance().getMenuGUI().getPartyGUI().getPartyTagGUI().open(player);
+            return;
+        }
+
         partyManager.setPartyPublic(player, true);
     }
 

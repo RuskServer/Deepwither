@@ -109,6 +109,11 @@ public class PartyManager implements IManager {
             return;
         }
 
+        if (party.getMemberIds().size() >= party.getMaxMembers()) {
+            player.sendMessage(Component.text("このパーティーは満員です (" + party.getMaxMembers() + "名)。", NamedTextColor.RED));
+            return;
+        }
+
         party.addMember(player.getUniqueId());
         playerPartyMap.put(player.getUniqueId(), party);
 
