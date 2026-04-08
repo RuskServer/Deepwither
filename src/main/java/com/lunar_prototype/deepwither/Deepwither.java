@@ -50,6 +50,7 @@ import com.lunar_prototype.deepwither.mythic.CustomDropListener;
 import com.lunar_prototype.deepwither.outpost.OutpostDamageListener;
 import com.lunar_prototype.deepwither.outpost.OutpostManager;
 import com.lunar_prototype.deepwither.outpost.OutpostRegionListener;
+import com.lunar_prototype.deepwither.party.PartyChatListener;
 import com.lunar_prototype.deepwither.party.PartyManager;
 import com.lunar_prototype.deepwither.profession.ProfessionDatabase;
 import com.lunar_prototype.deepwither.profession.ProfessionManager;
@@ -758,6 +759,8 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         getCommand("trader").setExecutor(new TraderCommand(traderManager));
         getCommand("credit").setExecutor(new CreditCommand(creditManager));
         getCommand("companion").setExecutor(new CompanionCommand(companionManager));
+
+        Bukkit.getPluginManager().registerEvents(new PartyChatListener(partyManager),this);
 
         ItemCommand itemCommand = new ItemCommand(this);
         getCommand("giveitem").setExecutor(itemCommand);

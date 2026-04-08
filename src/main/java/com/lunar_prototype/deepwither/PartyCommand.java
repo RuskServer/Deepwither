@@ -70,6 +70,9 @@ public class PartyCommand implements CommandExecutor, TabCompleter {
             case "private":
                 handlePrivate(player);
                 break;
+            case "chat":
+                partyManager.toggleChatMode(player);
+                break;
             default:
                 sendHelp(player);
                 break;
@@ -97,6 +100,7 @@ public class PartyCommand implements CommandExecutor, TabCompleter {
             subCommands.add("info");
             subCommands.add("public");
             subCommands.add("private");
+            subCommands.add("chat");
 
             StringUtil.copyPartialMatches(args[0], subCommands, completions);
             Collections.sort(completions);
@@ -245,6 +249,7 @@ public class PartyCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(Component.text("/party private", NamedTextColor.RED).append(Component.text(" - パーティーを非公開(リーダーのみ)", NamedTextColor.GRAY)));
         player.sendMessage(Component.text("/party kick <player>", NamedTextColor.RED).append(Component.text(" - メンバーを追放(リーダーのみ)", NamedTextColor.GRAY)));
         player.sendMessage(Component.text("/party disband", NamedTextColor.RED).append(Component.text(" - パーティー解散(リーダーのみ)", NamedTextColor.GRAY)));
+        player.sendMessage(Component.text("/party chat", NamedTextColor.LIGHT_PURPLE).append(Component.text(" - チャットモード(グローバル/パーティー)を切り替え", NamedTextColor.GRAY)));
     }
 
     private void handlePublic(Player player, @SuppressWarnings("unused") String[] args) {

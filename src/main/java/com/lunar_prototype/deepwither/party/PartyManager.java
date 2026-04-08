@@ -18,6 +18,8 @@ public class PartyManager implements IManager {
 
     // 招待リスト: 招待された人(UUID) -> 招待したリーダー(UUID)
     private final Map<UUID, UUID> pendingInvites = new HashMap<>();
+    // パーティーチャットモードのプレイヤー
+    private final Set<UUID> partyChatModePlayers = new HashSet<>();
     private final JavaPlugin plugin;
     private final PartyVoiceManager voiceManager;
 
@@ -149,6 +151,8 @@ public class PartyManager implements IManager {
         playerPartyMap.remove(player.getUniqueId());
 
         player.sendMessage(Component.text("パーティーから脱退しました。", NamedTextColor.YELLOW));
+        partyChatModePlayers.remove(player.getUniqueId());
+        
         Component msg = Component.text(player.getName() + " が脱退しました。", NamedTextColor.YELLOW);
         party.getOnlineMembers().forEach(p -> p.sendMessage(msg));
     }
@@ -187,6 +191,8 @@ public class PartyManager implements IManager {
         playerPartyMap.remove(target.getUniqueId());
 
         target.sendMessage(Component.text("パーティーから追放されました。", NamedTextColor.RED));
+        partyChatModePlayers.remove(target.getUniqueId());
+        
         Component msg = Component.text(target.getName() + " が追放されました。", NamedTextColor.YELLOW);
         party.getOnlineMembers().forEach(p -> p.sendMessage(msg));
     }
@@ -207,6 +213,7 @@ public class PartyManager implements IManager {
         // 全員に通知 & Mapから削除
         for (UUID memberId : party.getMemberIds()) {
             playerPartyMap.remove(memberId);
+            partyChatModePlayers.remove(memberId);
             Player p = Bukkit.getPlayer(memberId);
             if (p != null && p.isOnline()) {
                 p.sendMessage(Component.text("パーティーが解散されました。", NamedTextColor.RED));
@@ -292,5 +299,27 @@ public class PartyManager implements IManager {
         }
 
         joinPartyLogic(player, targetParty);
+    }
+
+    /**
+     * チャットモードを切り替える
+     */
+    public void toggleChatMode(Player player) {
+        if (!playerPartyMap.containsKey(player.getUniqueId())) {
+            player.sendMessage(Component.text("パーティーに参加していないためチャットモードを切り替えられません。", NamedTextColor.RED));
+            return;
+        }
+
+        if (partyChatModePlayers.contains(player.getUniqueId())) {
+            partyChatModePlayers.remove(player.getUniqueId());
+            player.sendMessage(Component.text("チャットモードを [グローバル] に切り替えました。", NamedTextColor.YELLOW));
+        } else {
+            partyChatModePlayers.add(player.getUniqueId());
+            player.sendMessage(Component.text("チャットモードを [パーティー] に切り替えました。", NamedTextColor.GREEN));
+        }
+    }
+
+    public boolean isInPartyChatMode(UUID uuid) {
+        return partyChatModePlayers.contains(uuid);
     }
 }
