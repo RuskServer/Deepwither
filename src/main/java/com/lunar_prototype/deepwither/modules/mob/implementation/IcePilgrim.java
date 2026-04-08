@@ -75,7 +75,7 @@ public class IcePilgrim extends CustomMob {
         // 常に体に冷気のパーティクルを纏う
         if (ticksLived % 2 == 0) {
             entity.getWorld().spawnParticle(Particle.SNOWFLAKE, entity.getLocation().add(0, 1, 0), 5, 0.5, 1.0, 0.5, 0.02);
-            entity.getWorld().spawnParticle(Particle.INSTANT_EFFECT, entity.getLocation().add(0, 1, 0), 2, 0.4, 0.8, 0.4, 0);
+            entity.getWorld().spawnParticle(Particle.ENCHANTED_HIT, entity.getLocation().add(0, 1, 0), 2, 0.4, 0.8, 0.4, 0);
         }
     }
 
