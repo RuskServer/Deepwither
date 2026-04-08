@@ -252,7 +252,15 @@ public class RouteLootChestManager implements IManager, Listener {
         event.selection = selection;
         event.binding = layerBindings.get(selection.tier());
 
+        // 位置の候補から階層表示名を取得
+        String tierDisplay = "";
+        CandidateLocation candidate = event.binding != null ? event.binding.pickCandidate(random) : null;
+        if (candidate != null) {
+            tierDisplay = getTierDisplay(candidate.toLocation());
+        }
+
         Bukkit.broadcast(Component.text("[ルートチェスト] ", NamedTextColor.GOLD)
+                .append(tierDisplay.isEmpty() ? Component.empty() : Component.text(tierDisplay + " ", NamedTextColor.GOLD, TextDecoration.BOLD))
                 .append(Component.text("次回の戦利品チェストは ", NamedTextColor.WHITE))
                 .append(Component.text(selection.layerLabel(), NamedTextColor.YELLOW, TextDecoration.BOLD))
                 .append(Component.text(" に出現予定です。", NamedTextColor.WHITE))
@@ -296,18 +304,25 @@ public class RouteLootChestManager implements IManager, Listener {
         }
 
         Location announceLocation = candidate.toLocation();
-        if (!isSpawnLocationValid(announceLocation)) {
-            Bukkit.broadcast(Component.text("[ルートチェスト] ", NamedTextColor.GRAY)
-                    .append(Component.text("出現予定地点が不正だったため、この回の出現は見送られます。", NamedTextColor.WHITE)));
-            cancelPendingEvent();
-            scheduleNextEvent();
-            return;
+        if (announceLocation != null) {
+            Location validated = getValidatedSpawnLocation(announceLocation);
+            if (validated != null) {
+                announceLocation = validated;
+            } else {
+                Bukkit.broadcast(Component.text("[ルートチェスト] ", NamedTextColor.GRAY)
+                        .append(Component.text("出現予定地点が不正だったため、この回の出現は見送られます。", NamedTextColor.WHITE)));
+                cancelPendingEvent();
+                scheduleNextEvent();
+                return;
+            }
         }
 
         event.candidate = candidate;
         event.spawnLocation = announceLocation;
 
+        String tierDisplay = getTierDisplay(announceLocation);
         Bukkit.broadcast(Component.text("[ルートチェスト] ", NamedTextColor.GOLD)
+                .append(tierDisplay.isEmpty() ? Component.empty() : Component.text(tierDisplay + " ", NamedTextColor.GOLD, TextDecoration.BOLD))
                 .append(Component.text("出現予定座標: ", NamedTextColor.WHITE))
                 .append(Component.text(String.format("%s %.1f %.1f %.1f", candidate.world, candidate.x, candidate.y, candidate.z), NamedTextColor.AQUA))
                 .append(Component.text(" / ", NamedTextColor.DARK_GRAY))
@@ -354,10 +369,15 @@ public class RouteLootChestManager implements IManager, Listener {
         }
 
         Location spawnLocation = candidate.toLocation();
-        if (!isSpawnLocationValid(spawnLocation)) {
-            plugin.getLogger().warning("Invalid route loot spawn location for tier " + event.selection.tier() + ": " + candidate);
-            scheduleNextEvent();
-            return;
+        if (spawnLocation != null) {
+            Location validated = getValidatedSpawnLocation(spawnLocation);
+            if (validated != null) {
+                spawnLocation = validated;
+            } else {
+                plugin.getLogger().warning("Invalid route loot spawn location for tier " + event.selection.tier() + ": " + candidate);
+                scheduleNextEvent();
+                return;
+            }
         }
 
         spawnChest(event.selection.tier(), event.binding, spawnLocation, event.selection.playerCount(), event.selection.activityScore());
@@ -446,7 +466,32 @@ public class RouteLootChestManager implements IManager, Listener {
         }
         Block block = location.getBlock();
         Block below = block.getRelative(0, -1, 0);
-        return block.getType() == Material.AIR && below.getType().isSolid();
+        // 上が空気（または透過ブロック）かつ下が固形ブロックであることを確認
+        return (block.getType() == Material.AIR || !block.getType().isSolid()) && below.getType().isSolid();
+    }
+
+    private Location getValidatedSpawnLocation(Location original) {
+        if (isSpawnLocationValid(original)) {
+            return original;
+        }
+
+        // 周囲1ブロック（上下を含む）を検索して、最適な場所を探す
+        for (int y = 1; y >= -1; y--) {
+            Location candidate = original.clone().add(0, y, 0);
+            if (isSpawnLocationValid(candidate)) {
+                return candidate.getBlock().getLocation().add(0.5, 0, 0.5);
+            }
+        }
+        return null;
+    }
+
+    private String getTierDisplay(Location loc) {
+        if (loc == null) return "";
+        com.lunar_prototype.deepwither.modules.mob.util.MobRegionService regionService = 
+                com.lunar_prototype.deepwither.api.DW.get(com.lunar_prototype.deepwither.modules.mob.util.MobRegionService.class);
+        if (regionService == null) return "";
+        int tier = regionService.getTierFromLocation(loc);
+        return tier > 0 ? "第 " + tier + " 層" : "";
     }
 
     public void handleChestInteract(Player player, Block block) {
@@ -992,7 +1037,8 @@ public class RouteLootChestManager implements IManager, Listener {
             if (bukkitWorld == null) {
                 return null;
             }
-            return new Location(bukkitWorld, x, y, z);
+            // ブロックの中心を指定するように修正
+            return new Location(bukkitWorld, Math.floor(x) + 0.5, y, Math.floor(z) + 0.5);
         }
 
         @Override
