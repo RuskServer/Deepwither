@@ -27,6 +27,7 @@ public class CustomMobManager implements IManager, Listener {
 
     private final Deepwither plugin;
     private final Map<String, Class<? extends CustomMob>> mobRegistry = new HashMap<>();
+    private final Map<String, EntityType> mobEntityTypes = new HashMap<>();
     private final Map<UUID, CustomMob> activeMobs = new ConcurrentHashMap<>();
     private final NamespacedKey mobIdKey;
 
@@ -50,14 +51,23 @@ public class CustomMobManager implements IManager, Listener {
      * 新しいカスタムモブの種類を登録します
      */
     public void registerMob(String id, Class<? extends CustomMob> clazz) {
-        mobRegistry.put(id, clazz);
+        registerMob(id, clazz, EntityType.ZOMBIE);
     }
 
     /**
-     * カスタムモブをスポーンさせます
+     * 新しいカスタムモブの種類を特定のエンティティタイプと共に登録します
+     */
+    public void registerMob(String id, Class<? extends CustomMob> clazz, EntityType type) {
+        mobRegistry.put(id, clazz);
+        mobEntityTypes.put(id, type);
+    }
+
+    /**
+     * カスタムモブを登録されたエンティティタイプでスポーンさせます
      */
     public CustomMob spawnMob(String id, Location loc) {
-        return spawnMob(id, loc, EntityType.ZOMBIE); // デフォルト
+        EntityType type = mobEntityTypes.getOrDefault(id, EntityType.ZOMBIE);
+        return spawnMob(id, loc, type);
     }
 
     /**

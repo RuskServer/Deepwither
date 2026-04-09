@@ -10,6 +10,7 @@ import com.lunar_prototype.deepwither.modules.mob.framework.CustomMobManager;
 import com.lunar_prototype.deepwither.modules.mob.implementation.FireDemon;
 import com.lunar_prototype.deepwither.modules.mob.implementation.IcePilgrim;
 import com.lunar_prototype.deepwither.modules.mob.util.MobRegionService;
+import org.bukkit.entity.EntityType;
 
 public class MobModule implements IModule {
 
@@ -79,10 +80,11 @@ public class MobModule implements IModule {
             // Initialize CustomMob framework
             CustomMobManager customMobManager = container.get(CustomMobManager.class);
             customMobManager.init();
-            customMobManager.registerMob("FireDemon", FireDemon.class);
-            customMobManager.registerMob("IcePilgrim", IcePilgrim.class);
-            customMobManager.registerMob("SilentWatcher", SilentWatcher.class);
-            customMobManager.registerMob("EngravedExecutor", com.lunar_prototype.deepwither.modules.mob.implementation.EngravedExecutor.class);
+            customMobManager.registerMob("FireDemon", FireDemon.class, EntityType.ZOMBIE);
+            customMobManager.registerMob("IcePilgrim", IcePilgrim.class, EntityType.WITHER_SKELETON);
+            customMobManager.registerMob("SilentWatcher", com.lunar_prototype.deepwither.modules.mob.implementation.SilentWatcher.class, EntityType.HUSK);
+            customMobManager.registerMob("EngravedExecutor", com.lunar_prototype.deepwither.modules.mob.implementation.EngravedExecutor.class, EntityType.WITHER_SKELETON);
+
 
         } catch (Exception e) {
             plugin.getLogger().severe("Failed to start MobModule components.");
