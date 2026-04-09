@@ -69,13 +69,13 @@ public class EngravedExecutor extends CustomMob {
             // スキル1: 執行者の瞬歩 (距離が遠い & CD終了)
             if (distance > 12.0 && dashCooldown <= 0) {
                 executeExecutorDash(target);
-                dashCooldown = 200; // 10秒
+                dashCooldown = 300; // 15秒
             }
 
             // スキル2: 刻印の剣雨 (近接時 & CD終了)
             if (distance < 5.0 && swordRainCooldown <= 0) {
                 executeSwordRain(target);
-                swordRainCooldown = 100; // 5秒
+                swordRainCooldown = 200; // 10秒
             }
         }
     }

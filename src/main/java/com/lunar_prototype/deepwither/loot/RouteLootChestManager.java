@@ -417,7 +417,7 @@ public class RouteLootChestManager implements IManager, Listener {
         List<LayerSelection> selections = new ArrayList<>(layerStats.values());
         Collections.shuffle(selections, random);
         return selections.stream()
-                .filter(sel -> sel.playerCount > 0)
+                .filter(sel -> sel.playerCount >= 2)
                 .sorted(Comparator
                         .comparingInt(LayerSelection::playerCount).reversed()
                         .thenComparing(Comparator.comparingDouble(LayerSelection::activityScore).reversed()))
