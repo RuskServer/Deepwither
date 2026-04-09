@@ -16,6 +16,7 @@ public abstract class CustomMob {
 
     protected LivingEntity entity;
     protected UUID uuid;
+    protected String mobId;
     protected int ticksLived = 0;
 
     /**
@@ -25,6 +26,14 @@ public abstract class CustomMob {
         this.entity = entity;
         this.uuid = entity.getUniqueId();
         onSpawn();
+    }
+
+    public String getMobId() {
+        return mobId;
+    }
+
+    public void setMobId(String mobId) {
+        this.mobId = mobId;
     }
 
     /**

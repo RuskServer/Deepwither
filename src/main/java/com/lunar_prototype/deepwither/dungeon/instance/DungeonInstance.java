@@ -8,6 +8,7 @@ import org.bukkit.World;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
+import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -52,13 +53,21 @@ public class DungeonInstance {
 
     public void addPlayer(UUID uuid) {
         currentPlayers.add(uuid);
-        timerBar.addPlayer(Bukkit.getPlayer(uuid));
+        if (timerTask != null) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null) {
+                timerBar.addPlayer(p);
+            }
+        }
         lastEmptyTime = -1;
     }
 
     public void removePlayer(UUID uuid) {
         currentPlayers.remove(uuid);
-        timerBar.removePlayer(Bukkit.getPlayer(uuid));
+        Player p = Bukkit.getPlayer(uuid);
+        if (p != null) {
+            timerBar.removePlayer(p);
+        }
         if (currentPlayers.isEmpty()) {
             lastEmptyTime = System.currentTimeMillis();
         }
@@ -68,6 +77,14 @@ public class DungeonInstance {
     public long getLastEmptyTime() { return lastEmptyTime; }
 
     public void startLifeCycle() {
+        // すでに既存のプレイヤーがいる場合は、タイマーを表示させる
+        for (UUID uuid : currentPlayers) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null) {
+                timerBar.addPlayer(p);
+            }
+        }
+
         timerTask = new BukkitRunnable() {
             @Override
             public void run() {
@@ -98,7 +115,7 @@ public class DungeonInstance {
     private void handleTimeLimit() {
         if (currentPlayers.isEmpty()) return;
         for (UUID uuid : currentPlayers) {
-            org.bukkit.entity.Player p = Bukkit.getPlayer(uuid);
+            Player p = Bukkit.getPlayer(uuid);
             if (p != null) {
                 p.sendMessage(Component.text("[Dungeon] ", NamedTextColor.RED, TextDecoration.BOLD)
                         .append(Component.text("制限時間が経過しました。ダンジョンは崩壊します...", NamedTextColor.DARK_RED)));

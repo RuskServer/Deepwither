@@ -4,6 +4,7 @@ import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.aethelgard.PlayerQuestManager;
 import com.lunar_prototype.deepwither.core.engine.IModule;
 import com.lunar_prototype.deepwither.core.engine.ServiceContainer;
+import com.lunar_prototype.deepwither.modules.mob.implementation.SilentWatcher;
 import com.lunar_prototype.deepwither.modules.mob.service.*;
 import com.lunar_prototype.deepwither.modules.mob.framework.CustomMobManager;
 import com.lunar_prototype.deepwither.modules.mob.implementation.FireDemon;
@@ -80,6 +81,8 @@ public class MobModule implements IModule {
             customMobManager.init();
             customMobManager.registerMob("FireDemon", FireDemon.class);
             customMobManager.registerMob("IcePilgrim", IcePilgrim.class);
+            customMobManager.registerMob("SilentWatcher", SilentWatcher.class);
+            customMobManager.registerMob("EngravedExecutor", com.lunar_prototype.deepwither.modules.mob.implementation.EngravedExecutor.class);
 
         } catch (Exception e) {
             plugin.getLogger().severe("Failed to start MobModule components.");

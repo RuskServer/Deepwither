@@ -73,6 +73,7 @@ public class CustomMobManager implements IManager, Listener {
             CustomMob mobLogic = clazz.getDeclaredConstructor().newInstance();
             entity.getPersistentDataContainer().set(mobIdKey, PersistentDataType.STRING, id);
             
+            mobLogic.setMobId(id);
             mobLogic.init(entity);
             activeMobs.put(entity.getUniqueId(), mobLogic);
             return mobLogic;
@@ -81,6 +82,15 @@ public class CustomMobManager implements IManager, Listener {
             entity.remove();
             return null;
         }
+    }
+
+    /**
+     * エンティティに付与されたカスタムモブIDを取得します。
+     * 永続データから取得するため、アクティブでないモブでも機能します。
+     */
+    public String getCustomMobId(Entity entity) {
+        if (entity == null) return null;
+        return entity.getPersistentDataContainer().get(mobIdKey, PersistentDataType.STRING);
     }
 
     private void startTickTask() {

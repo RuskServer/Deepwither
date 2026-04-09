@@ -26,3 +26,11 @@ database:
   # true の場合、メインスレッドでDB操作が行われると例外をスローします。
   # false の場合、警告ログを出力します。
   fail-fast: false
+
+# モブ経験値設定
+mob-exp:
+  # MythicMobs または CustomMob の ID を指定
+  FireDemon: 150
+  IcePilgrim: 5000
+  SilentWatcher: 250
+  EngravedExecutor: 350

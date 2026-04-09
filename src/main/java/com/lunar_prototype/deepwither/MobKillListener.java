@@ -1,6 +1,7 @@
 package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.booster.BoosterManager;
+import com.lunar_prototype.deepwither.modules.mob.framework.CustomMobManager;
 import com.lunar_prototype.deepwither.outpost.OutpostEvent;
 import com.lunar_prototype.deepwither.outpost.OutpostManager;
 import com.lunar_prototype.deepwither.loot.RouteLootChestManager;
@@ -18,13 +19,14 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerExpChangeEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
-@DependsOn({LevelManager.class, OutpostManager.class, PartyManager.class, BoosterManager.class})
+@DependsOn({LevelManager.class, OutpostManager.class, PartyManager.class, BoosterManager.class, CustomMobManager.class})
 public class MobKillListener implements Listener, IManager {
     private LevelManager levelManager;
     private final FileConfiguration mobExpConfig;
@@ -72,6 +74,27 @@ public class MobKillListener implements Listener, IManager {
             if (mobOutpostId != null && mobOutpostId.equals(activeEvent.getOutpostRegionId())) {
                 activeEvent.mobDefeated(e.getEntity(), killer.getUniqueId());
             }
+        }
+    }
+
+    @EventHandler
+    public void onEntityDeath(EntityDeathEvent e) {
+        if (!(e.getEntity().getKiller() instanceof Player killer)) return;
+
+        // CustomMobManager を取得
+        CustomMobManager customMobManager = Deepwither.getInstance().getBootstrap().getContainer().get(CustomMobManager.class);
+        if (customMobManager == null) return;
+
+        String mobId = customMobManager.getCustomMobId(e.getEntity());
+        if (mobId == null) return;
+
+        // MythicMobDeathEvent で既に処理されている可能性があるため、
+        // もし MythicMob なら二重付与を避ける（必要に応じて）
+        // 現状の構成では CustomMob は MythicMob とは別系統なので、そのまま処理
+        
+        double baseExp = mobExpConfig.getDouble("mob-exp." + mobId, 0);
+        if (baseExp > 0) {
+            handleExpDistribution(killer, baseExp);
         }
     }
 
