@@ -9,6 +9,7 @@ import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.entity.FishHook;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
@@ -64,32 +65,69 @@ public class FishingListener implements Listener, IManager {
 
     @EventHandler
     public void onFish(PlayerFishEvent event) {
+        // 釣り失敗時のコンボリセット
+        if (event.getState() == PlayerFishEvent.State.FAILED_ATTEMPT || event.getState() == PlayerFishEvent.State.IN_GROUND) {
+            Deepwither.getInstance().getFishingManager().resetCombo(event.getPlayer());
+            return;
+        }
+
         // 魚を釣り上げた状態かチェック
         if (event.getState() != PlayerFishEvent.State.CAUGHT_FISH) return;
         if (!(event.getCaught() instanceof Item)) return;
 
         Player player = event.getPlayer();
         Item caughtEntity = (Item) event.getCaught();
+        FishingManager fishingManager = Deepwither.getInstance().getFishingManager();
 
         // カスタム釣果の計算
-        ItemStack customLoot = Deepwither.getInstance().getFishingManager().catchFish(player);
+        FishingManager.FishingResult result = fishingManager.catchFish(player);
 
-        if (customLoot != null) {
+        if (result != null) {
+            ItemStack customLoot = result.item();
+            String rarityKey = result.rarityKey();
+
             // ドロップアイテムを置き換え
             caughtEntity.setItemStack(customLoot);
 
-            // オプション: 釣ったアイテムの名前を表示する
+            // コンボ更新
+            int combo = fishingManager.updateCombo(player);
+            double comboBonus = fishingManager.getComboBonus(combo);
+
+            // 経験値計算
+            FishingManager.RaritySettings settings = fishingManager.getRaritySettings(rarityKey);
+            int baseExp = (settings != null) ? settings.baseExp : 20;
+
+            // 基礎EXP + ランダム(0-5)
+            int randomBonus = (int)(Math.random() * 6);
+            int expToGive = (int)((baseExp + randomBonus) * comboBonus);
+
+            // アクションバー表示
             if (customLoot.hasItemMeta()) {
                 Component displayName = customLoot.getItemMeta().hasDisplayName() ? customLoot.getItemMeta().displayName() : Component.text(customLoot.getType().name());
-                Component msg = Component.text("釣り上げた! -> ", NamedTextColor.GRAY).append(displayName);
+
+                Component comboMsg = combo > 1
+                    ? Component.text(combo + " COMBO! ", NamedTextColor.GOLD, TextDecoration.BOLD)
+                    : Component.empty();
+
+                Component msg = comboMsg
+                    .append(displayName)
+                    .append(Component.text(" を釣り上げた！ ", NamedTextColor.GRAY))
+                    .append(Component.text("+" + expToGive + " EXP", NamedTextColor.GREEN));
+
                 DW.ui(player).simpleActionBar(msg);
             }
-        }
 
-        // 経験値の付与 (ProfessionManager)
-        // 基礎EXP + ランダム性などはお好みで調整
-        int expToGive = 15 + (int)(Math.random() * 10);
-        Deepwither.getInstance().getProfessionManager().addExp(player, ProfessionType.FISHING, expToGive);
-        Deepwither.getInstance().getLevelManager().addExp(player,expToGive);
+            // プレミアム演出 (EPIC以上)
+            if (rarityKey.equals("EPIC") || rarityKey.equals("LEGENDARY")) {
+                player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_FIREWORK_ROCKET_TWINKLE, 1.0f, 1.2f);
+                player.spawnParticle(org.bukkit.Particle.TOTEM_OF_UNDYING, caughtEntity.getLocation(), 20, 0.5, 0.5, 0.5, 0.1);
+            } else {
+                player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 1.5f);
+            }
+
+            // 経験値の付与
+            Deepwither.getInstance().getProfessionManager().addExp(player, ProfessionType.FISHING, expToGive);
+            Deepwither.getInstance().getLevelManager().addExp(player, expToGive);
+        }
     }
 }

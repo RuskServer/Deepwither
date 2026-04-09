@@ -25,7 +25,14 @@ public class FishingManager implements IManager {
     private final Deepwither plugin;
     private final Map<String, RaritySettings> rarityMap = new LinkedHashMap<>(); // 順序保持のためLinkedHashMap
     private final Map<String, List<LootEntry>> lootTable = new HashMap<>();
+    private final Map<UUID, Integer> comboMap = new HashMap<>();
+    private final Map<UUID, Long> lastCatchTimeMap = new HashMap<>();
     private final Random random = new Random();
+
+    // コンボ有効期間 (ミリ秒) - 60秒
+    private static final long COMBO_EXPIRY = 60 * 1000L;
+    // 最大コンボ（ボーナス上限）
+    private static final int MAX_COMBO = 20;
 
     // 抽選順序を固定するためのリスト
     private static final List<String> RARITY_ORDER = List.of("LEGENDARY", "EPIC", "RARE", "UNCOMMON");
@@ -40,7 +47,10 @@ public class FishingManager implements IManager {
     }
 
     @Override
-    public void shutdown() {}
+    public void shutdown() {
+        comboMap.clear();
+        lastCatchTimeMap.clear();
+    }
 
     public void loadConfig() {
         rarityMap.clear();
@@ -62,7 +72,8 @@ public class FishingManager implements IManager {
                 );
                 double baseChance = raritySection.getDouble(key + ".base_chance", 0.0);
                 double levelBonus = raritySection.getDouble(key + ".level_bonus", 0.0);
-                rarityMap.put(key, new RaritySettings(name, baseChance, levelBonus));
+                int baseExp = raritySection.getInt(key + ".base_exp", 20);
+                rarityMap.put(key, new RaritySettings(name, baseChance, levelBonus, baseExp));
             }
         }
 
@@ -86,7 +97,7 @@ public class FishingManager implements IManager {
     /**
      * プレイヤーのレベルに基づいてアイテムを選出する
      */
-    public ItemStack catchFish(Player player) {
+    public FishingResult catchFish(Player player) {
         // 1. 釣りレベルの取得
         int level = plugin.getProfessionManager().getLevel(
                 plugin.getProfessionManager().getData(player).getExp(ProfessionType.FISHING)
@@ -125,14 +136,47 @@ public class FishingManager implements IManager {
         LootEntry wonEntry = getWeightedRandom(entries);
 
         // 4. ItemFactoryからアイテム生成
-        // ItemFactory内のメソッドを利用してアイテムスタックを取得
         ItemStack item = plugin.getItemFactory().getCustomItemStack(wonEntry.id);
 
         if (item == null) {
             plugin.getLogger().log(Level.WARNING, "Fishing Error: Item ID '" + wonEntry.id + "' not found in ItemFactory.");
+            return null;
         }
 
-        return item;
+        return new FishingResult(item, selectedRarity);
+    }
+
+    public int updateCombo(Player player) {
+        UUID uuid = player.getUniqueId();
+        long now = System.currentTimeMillis();
+        long last = lastCatchTimeMap.getOrDefault(uuid, 0L);
+
+        int currentCombo = comboMap.getOrDefault(uuid, 0);
+
+        if (now - last > COMBO_EXPIRY) {
+            currentCombo = 1;
+        } else {
+            currentCombo++;
+        }
+
+        comboMap.put(uuid, currentCombo);
+        lastCatchTimeMap.put(uuid, now);
+        return currentCombo;
+    }
+
+    public void resetCombo(Player player) {
+        comboMap.remove(player.getUniqueId());
+        lastCatchTimeMap.remove(player.getUniqueId());
+    }
+
+    public double getComboBonus(int combo) {
+        // 1コンボにつき5%アップ、最大20コンボで+100% (2倍)
+        int cappedCombo = Math.min(combo, MAX_COMBO);
+        return 1.0 + (cappedCombo * 0.05);
+    }
+
+    public RaritySettings getRaritySettings(String rarityKey) {
+        return rarityMap.get(rarityKey);
     }
 
     public Component buildStatusTooltip(Player player) {
@@ -221,15 +265,19 @@ public class FishingManager implements IManager {
     }
 
     // --- 内部クラス ---
-    private static class RaritySettings {
+    public record FishingResult(ItemStack item, String rarityKey) {}
+
+    public static class RaritySettings {
         final String displayName;
         final double baseChance;
         final double levelBonus;
+        final int baseExp;
 
-        RaritySettings(String displayName, double baseChance, double levelBonus) {
+        RaritySettings(String displayName, double baseChance, double levelBonus, int baseExp) {
             this.displayName = displayName;
             this.baseChance = baseChance;
             this.levelBonus = levelBonus;
+            this.baseExp = baseExp;
         }
     }
 
