@@ -159,8 +159,14 @@ public class EngravedExecutor extends CustomMob {
         Collection<Entity> targets = loc.getWorld().getNearbyEntities(loc, radius, radius, radius);
         for (Entity e : targets) {
             if (e instanceof Player p && !e.equals(entity)) {
+                // 無敵時間チェック
+                if (p.getNoDamageTicks() > 10) continue;
+
                 DamageContext ctx = new DamageContext(entity, p, type, damage);
                 Deepwither.getInstance().getDamageProcessor().process(ctx);
+
+                // 無敵時間を付与
+                p.setNoDamageTicks(10);
             }
         }
     }

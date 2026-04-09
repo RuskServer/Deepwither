@@ -46,10 +46,18 @@ public class SpreadHeatRaySkill implements ISkillLogic {
 
                 @Override
                 public void onHitEntity(LivingEntity target) {
+                    // 5方向の弾が多段ヒットしないよう無敵時間を確認
+                    if (target.getNoDamageTicks() > 10) {
+                        return;
+                    }
+
                     double damage = 25.0;
                     DamageContext ctx = new DamageContext(caster, target, DeepwitherDamageEvent.DamageType.MAGIC, damage);
                     Deepwither.getInstance().getDamageProcessor().process(ctx);
                     
+                    // 無敵時間を付与
+                    target.setNoDamageTicks(10); // 拡散弾は少し短め
+
                     // 強めのノックバック
                     Vector knockback = target.getLocation().toVector().subtract(caster.getLocation().toVector()).normalize().multiply(1.2);
                     knockback.setY(0.3); // 少し浮かせる

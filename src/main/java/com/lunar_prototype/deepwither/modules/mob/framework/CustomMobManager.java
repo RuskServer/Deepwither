@@ -125,6 +125,10 @@ public class CustomMobManager implements IManager, Listener {
     public void onEntityDeath(EntityDeathEvent e) {
         CustomMob mob = activeMobs.remove(e.getEntity().getUniqueId());
         if (mob != null) {
+            // バニラのドロップを全てクリア
+            e.getDrops().clear();
+            e.setDroppedExp(0);
+            
             mob.onDeath();
         }
     }

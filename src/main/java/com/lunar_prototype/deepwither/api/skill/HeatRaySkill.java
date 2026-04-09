@@ -46,9 +46,17 @@ public class HeatRaySkill implements ISkillLogic {
 
             @Override
             public void onHitEntity(LivingEntity target) {
+                // 多段ヒット防止 (無敵時間のチェック)
+                if (target.getNoDamageTicks() > 10) {
+                    return;
+                }
+
                 double damage = 80.0;
                 DamageContext ctx = new DamageContext(caster, target, DeepwitherDamageEvent.DamageType.MAGIC, damage);
                 Deepwither.getInstance().getDamageProcessor().process(ctx);
+
+                // 無敵時間をセット (20ticks = 1秒。10tick程度が妥当か)
+                target.setNoDamageTicks(20);
 
                 // 着弾エフェクト
                 target.getWorld().spawnParticle(Particle.FLASH, target.getLocation().add(0, 1, 0), 1);
