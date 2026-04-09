@@ -50,6 +50,54 @@ public class DamageProcessor implements IManager {
         LivingEntity victim = context.getVictim();
         LivingEntity attacker = context.getAttacker();
 
+        // 0. ステータスによる一括補正計算 (一本化)
+        double damage = context.getFinalDamage();
+        
+        if (attacker instanceof Player player) {
+            com.lunar_prototype.deepwither.StatMap stats = statManager.getTotalStats(player);
+            
+            // 基礎攻撃力加算 (物理/魔法)
+            if (context.isMagic()) {
+                damage += stats.getFlat(com.lunar_prototype.deepwither.StatType.MAGIC_DAMAGE);
+            } else {
+                damage += stats.getFlat(com.lunar_prototype.deepwither.StatType.ATTACK_DAMAGE);
+            }
+
+            // 武器種別の追加ダメージ加算
+            com.lunar_prototype.deepwither.StatType weaponType = context.getWeaponStatType();
+            if (weaponType != null) {
+                damage += stats.getFlat(weaponType);
+            }
+
+            // クリティカル倍率適用
+            if (context.isCrit()) {
+                double critMultiplier = stats.getFinal(com.lunar_prototype.deepwither.StatType.CRIT_DAMAGE) / 100.0;
+                damage *= Math.max(1.0, critMultiplier);
+            }
+
+            // 距離倍率適用 (遠距離武器)
+            if (context.getDistanceMultiplier() > 0) {
+                damage *= context.getDistanceMultiplier();
+            }
+        }
+
+        // ターゲット側の防御ステータス反映 (プレイヤー/モブ共通)
+        if (victim != null) {
+            com.lunar_prototype.deepwither.StatMap vStats = (victim instanceof Player p) ? statManager.getTotalStats(p) : new com.lunar_prototype.deepwither.StatMap();
+            double defenseValue;
+            double divisor = (victim instanceof Player) ? 500.0 : 100.0;
+
+            if (context.isMagic()) {
+                defenseValue = vStats.getFlat(com.lunar_prototype.deepwither.StatType.MAGIC_RESIST);
+            } else {
+                defenseValue = vStats.getFlat(com.lunar_prototype.deepwither.StatType.DEFENSE);
+            }
+            
+            damage = DamageCalculator.applyDefense(damage, defenseValue, divisor);
+        }
+
+        context.setFinalDamage(Math.max(0.1, damage));
+
         // 1. イベント発火 (DeepwitherDamageEvent)
         DeepwitherDamageEvent dwEvent = new DeepwitherDamageEvent(
                 victim, attacker, context.getFinalDamage(), context.getDamageType());

@@ -131,29 +131,22 @@ public class DamageManager implements Listener, IManager {
 
         // 1. ダメージコンテキストの作成
         StatMap attackerStats = statManager.getTotalStats(attacker);
-        StatMap defenderStats = getDefenderStats(targetLiving);
         StatType weaponType = getWeaponStatType(item);
         
         DeepwitherDamageEvent.DamageType damageType = isProjectile ? DeepwitherDamageEvent.DamageType.PROJECTILE : DeepwitherDamageEvent.DamageType.PHYSICAL;
         
-        double attackPowerFlat = attackerStats.getFlat(isProjectile ? StatType.PROJECTILE_DAMAGE : StatType.ATTACK_DAMAGE);
-        double attackPowerPercent = attackerStats.getPercent(isProjectile ? StatType.PROJECTILE_DAMAGE : StatType.ATTACK_DAMAGE);
-        double weaponFlat = (weaponType != null) ? attackerStats.getFlat(weaponType) : 0;
-        double weaponPercent = (weaponType != null) ? attackerStats.getPercent(weaponType) : 0;
-
-        double baseDamage = (e.getDamage() + attackPowerFlat + weaponFlat);
-        double totalMultiplier = 1.0 + ((attackPowerPercent + weaponPercent) / 100.0);
-        baseDamage *= totalMultiplier;
+        // ベースダメージはバニラ（武器属性）の威力のみ。ステータス加算は Processor で一本化される。
+        double baseDamage = e.getDamage();
+        StatMap defenderStats = getDefenderStats(targetLiving);
 
         DamageContext context = new DamageContext(attacker, targetLiving, damageType, baseDamage);
         context.setProjectile(isProjectile);
         context.setWeapon(item);
         context.setWeaponStatType(weaponType);
 
-        // 2. クリティカル判定
+        // 2. クリティカル判定 (フラグのみ設定。具体的な倍率は Processor が計算する)
         if (DamageCalculator.rollChance(attackerStats.getFinal(StatType.CRIT_CHANCE))) {
             context.setCrit(true);
-            context.setFinalDamage(context.getFinalDamage() * (attackerStats.getFinal(StatType.CRIT_DAMAGE) / 100.0));
         }
 
         Deepwither.getInstance().getArtifactManager().handleArtifactSetTrigger(context, ItemFactory.ArtifactSetTrigger.ATTACK_HIT);
@@ -161,29 +154,16 @@ public class DamageManager implements Listener, IManager {
             Deepwither.getInstance().getArtifactManager().handleArtifactSetTrigger(context, ItemFactory.ArtifactSetTrigger.CRIT);
         }
 
-        // 3. 距離補正 (遠距離)
+        // 3. 距離補正 (倍率の取得のみ。計算は Processor)
         if (isProjectile) {
             double distMult = DamageCalculator.calculateDistanceMultiplier(attacker.getLocation(), targetLiving.getLocation());
             context.setDistanceMultiplier(distMult);
-            context.setFinalDamage(context.getFinalDamage() * distMult);
         }
 
-        // 4. 武器メカニクスとOn-Hit (防御計算前に適用する必要があるもの)
+        // 4. 武器メカニクスとOn-Hit
         dw.getWeaponMechanicManager().handleWeaponMechanics(context, processor);
 
-        // 5. 防御力計算
-        double defenseDivisor = (targetLiving instanceof Player) ? PLAYER_DEFENSE_DIVISOR : DEFENSE_DIVISOR;
-        double defenseValue = defenderStats.getFinal(StatType.DEFENSE);
-
-        double defenseBypassPercent = context.getDefenseBypassPercent();
-        if (context.hasTag("DEFENSE_BYPASS")) {
-            defenseBypassPercent = Math.max(defenseBypassPercent, 50.0);
-        }
-        if (defenseBypassPercent > 0) {
-            defenseValue *= (1.0 - Math.min(defenseBypassPercent, 100.0) / 100.0);
-        }
-        
-        context.setFinalDamage(DamageCalculator.applyDefense(context.getFinalDamage(), defenseValue, defenseDivisor));
+        // 5. 防御力計算 (DamageProcessor 内で一貫して行うため、ここではスキップ)
 
         // 6. 特殊効果 (コンボ、クールダウン)
         applyComboAndCooldown(attacker, context);

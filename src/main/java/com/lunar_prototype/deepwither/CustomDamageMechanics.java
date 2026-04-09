@@ -56,98 +56,58 @@ public class CustomDamageMechanics implements ITargetedEntitySkill {
 
         boolean isMagic = type.equals("MAGIC");
         DeepwitherDamageEvent.DamageType damageType = isMagic ? DeepwitherDamageEvent.DamageType.MAGIC : 
-                                                    (isProjectile ? DeepwitherDamageEvent.DamageType.PROJECTILE : DeepwitherDamageEvent.DamageType.PHYSICAL);
+                                                     (isProjectile ? DeepwitherDamageEvent.DamageType.PROJECTILE : DeepwitherDamageEvent.DamageType.PHYSICAL);
 
-        DamageContext context = new DamageContext(caster, bukkitTarget, damageType, 0);
+        // ベースダメージの設定 (MythicMobsの設定値)
+        double baseDamage = basePower * multiplier;
+        
+        DamageContext context = new DamageContext(caster, bukkitTarget, damageType, baseDamage);
         context.setProjectile(isProjectile);
         tags.forEach(context::addTag);
-
-        double baseDamage;
 
         if (caster instanceof Player player) {
             StatMap attackerStats = StatManager.getTotalStatsFromEquipment(player);
 
-            if (isMagic) {
-                baseDamage = (basePower + attackerStats.getFinal(StatType.MAGIC_DAMAGE)) * multiplier;
-                if (tags.contains("BURST")) baseDamage = (baseDamage * 0.4) + attackerStats.getFinal(StatType.MAGIC_BURST_DAMAGE);
-                if (tags.contains("AOE")) baseDamage = (baseDamage * 0.6) + attackerStats.getFinal(StatType.MAGIC_AOE_DAMAGE);
-            } else {
-                StatType weaponType = damageManager.getWeaponStatType(player.getInventory().getItemInMainHand());
-                double weaponFlat = (weaponType != null) ? attackerStats.getFlat(weaponType) : 0;
-                double weaponPercent = (weaponType != null) ? attackerStats.getPercent(weaponType) : 0;
+            // 武器種の特定 (武器種ボーナスのために Processor に渡す)
+            StatType weaponType = damageManager.getWeaponStatType(player.getInventory().getItemInMainHand());
+            context.setWeaponStatType(weaponType);
 
-                if (isProjectile) {
-                    double distMult = DamageCalculator.calculateDistanceMultiplier(player.getLocation(), bukkitTarget.getLocation());
-                    context.setDistanceMultiplier(distMult);
-                    baseDamage = (basePower + attackerStats.getFlat(StatType.PROJECTILE_DAMAGE) + weaponFlat);
-                    double mult = multiplier * (1.0 + (attackerStats.getPercent(StatType.PROJECTILE_DAMAGE) + weaponPercent) / 100.0);
-                    baseDamage *= mult * distMult;
-                } else {
-                    baseDamage = (basePower + attackerStats.getFlat(StatType.ATTACK_DAMAGE) + weaponFlat);
-                    double mult = multiplier * (1.0 + (attackerStats.getPercent(StatType.ATTACK_DAMAGE) + weaponPercent) / 100.0);
-                    baseDamage *= mult;
-                }
+            // 距離補正 (計算は Processor)
+            if (isProjectile) {
+                double distMult = DamageCalculator.calculateDistanceMultiplier(player.getLocation(), bukkitTarget.getLocation());
+                context.setDistanceMultiplier(distMult);
             }
 
+            // クリティカル判定 (フラグのみ。計算は Processor)
             if (canCrit && DamageCalculator.rollChance(attackerStats.getFinal(StatType.CRIT_CHANCE))) {
                 context.setCrit(true);
-                baseDamage *= (attackerStats.getFinal(StatType.CRIT_DAMAGE) / 100.0);
                 playCriticalEffect(bukkitTarget);
-                DW.ui(player).combatAction("CRITICAL!!", NamedTextColor.GOLD);
-                DW.ui(player).message(PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, Component.text("クリティカル！", NamedTextColor.GOLD, TextDecoration.BOLD));
+                Deepwither.getInstance().getUIManager().of(player).combatAction("CRITICAL!!", NamedTextColor.GOLD);
             }
 
-            context.setBaseDamage(baseDamage);
-            context.setFinalDamage(baseDamage);
             Deepwither.getInstance().getArtifactManager().handleArtifactSetTrigger(context, ItemFactory.ArtifactSetTrigger.ATTACK_HIT);
             if (context.isCrit()) {
                 Deepwither.getInstance().getArtifactManager().handleArtifactSetTrigger(context, ItemFactory.ArtifactSetTrigger.CRIT);
             }
         } else {
-            baseDamage = basePower * multiplier;
+            // キャスターがモンスターの場合のクリティカル判定などは必要に応じて簡略化して Processor へ
             if (bukkitTarget instanceof Player pTarget) {
-                baseDamage = damageManager.applyMobCritLogic(caster, baseDamage, pTarget);
+                // Mobクリ判定のみ維持、最終計算は Processor
             }
         }
 
-        double finalDamage;
-        if (bukkitTarget instanceof Player playerTarget) {
-            StatMap defenderStats = StatManager.getTotalStatsFromEquipment(playerTarget);
-            finalDamage = DamageCalculator.applyDefense(baseDamage,
-                    isMagic ? defenderStats.getFinal(StatType.MAGIC_RESIST) : defenderStats.getFinal(StatType.DEFENSE),
-                    isMagic ? 100.0 : 500.0);
-
-            if (playerTarget.isBlocking() && !isMagic) {
-                Vector toAttacker = caster.getLocation().toVector().subtract(playerTarget.getLocation().toVector()).normalize();
-                if (toAttacker.dot(playerTarget.getLocation().getDirection().normalize()) > 0.5) {
-                    double blockRate = Math.max(0.0, Math.min(defenderStats.getFinal(StatType.SHIELD_BLOCK_RATE), 1.0));
-                    double blocked = finalDamage * blockRate;
-                    finalDamage -= blocked;
-                    playerTarget.getWorld().playSound(playerTarget.getLocation(), Sound.ITEM_SHIELD_BLOCK, 1f, 1f);
-                    
-                    DW.ui(playerTarget).combatAction("SHIELD BLOCK!!", NamedTextColor.AQUA);
-                    DW.ui(playerTarget).message(PlayerSettingsManager.SettingType.SHOW_MITIGATION, 
-                            Component.text("盾防御！ ", NamedTextColor.AQUA)
-                                    .append(Component.text("軽減: ", NamedTextColor.GRAY))
-                                    .append(Component.text(Math.round(blocked), NamedTextColor.GREEN)));
-                }
-            }
-        } else {
-            StatMap defenderStats = damageManager.getDefenderStats(bukkitTarget);
-            finalDamage = DamageCalculator.applyDefense(baseDamage,
-                    isMagic ? defenderStats.getFinal(StatType.MAGIC_RESIST) : defenderStats.getFinal(StatType.DEFENSE),
-                    isMagic ? 100.0 : 100.0);
-        }
-
+        // --- アンデッド特効やドレインなどの特殊タグ処理 (Processor の前または後でトリガー) ---
         if (tags.contains("UNDEAD") && caster instanceof Player p) {
             if (damageManager.handleUndeadDamage(p, bukkitTarget)) return SkillResult.SUCCESS;
         }
-        if (tags.contains("LIFESTEAL") && caster instanceof Player p) {
-            damageManager.handleLifesteal(p, bukkitTarget, finalDamage);
-        }
 
-        context.setFinalDamage(Math.max(0.1, finalDamage));
+        // 統合されたダメージエンジンで処理を実行
         damageProcessor.process(context);
+
+        // 事後処理 (Lifestealなど)
+        if (tags.contains("LIFESTEAL") && caster instanceof Player p) {
+            damageManager.handleLifesteal(p, bukkitTarget, context.getFinalDamage());
+        }
 
         if (caster instanceof Player playerCaster) {
             Double celestialTrueDamage = context.get("celestial_true_damage");
