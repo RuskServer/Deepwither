@@ -78,11 +78,9 @@ public class CustomDamageMechanics implements ITargetedEntitySkill {
                 context.setDistanceMultiplier(distMult);
             }
 
-            // クリティカル判定 (フラグのみ。計算は Processor)
+            // クリティカル判定 (フラグのみ。効果や倍率計算は Processor)
             if (canCrit && DamageCalculator.rollChance(attackerStats.getFinal(StatType.CRIT_CHANCE))) {
                 context.setCrit(true);
-                playCriticalEffect(bukkitTarget);
-                Deepwither.getInstance().getUIManager().of(player).combatAction("CRITICAL!!", NamedTextColor.GOLD);
             }
 
             Deepwither.getInstance().getArtifactManager().handleArtifactSetTrigger(context, ItemFactory.ArtifactSetTrigger.ATTACK_HIT);
@@ -96,17 +94,17 @@ public class CustomDamageMechanics implements ITargetedEntitySkill {
             }
         }
 
-        // --- アンデッド特効やドレインなどの特殊タグ処理 (Processor の前または後でトリガー) ---
+        // --- アンデッド特効やドレインなどの特殊タグ処理 ---
         if (tags.contains("UNDEAD") && caster instanceof Player p) {
-            if (damageManager.handleUndeadDamage(p, bukkitTarget)) return SkillResult.SUCCESS;
+            if (handleUndeadDamage(p, bukkitTarget)) return SkillResult.SUCCESS;
         }
 
         // 統合されたダメージエンジンで処理を実行
         damageProcessor.process(context);
 
-        // 事後処理 (Lifestealなど)
+        // 事後処理 (スキル専用Lifesteal)
         if (tags.contains("LIFESTEAL") && caster instanceof Player p) {
-            damageManager.handleLifesteal(p, bukkitTarget, context.getFinalDamage());
+            handleLifesteal(p, bukkitTarget, context.getFinalDamage());
         }
 
         if (caster instanceof Player playerCaster) {
@@ -137,20 +135,30 @@ public class CustomDamageMechanics implements ITargetedEntitySkill {
         return SkillResult.SUCCESS;
     }
 
-    private void playCriticalEffect(LivingEntity target) {
-        Location hitLoc = target.getLocation().add(0, 1.2, 0);
-        World world = hitLoc.getWorld();
-        if (world == null) return;
+    private static final java.util.Set<String> UNDEAD_MOB_IDS = java.util.Set.of("melee_skeleton", "ranged_skeleton", "melee_zombi");
 
-        world.spawnParticle(Particle.FLASH, hitLoc, 1, 0, 0, 0, 0, Color.WHITE);
-        world.spawnParticle(Particle.SONIC_BOOM, hitLoc, 1, 0, 0, 0, 0);
-        world.spawnParticle(Particle.LAVA, hitLoc, 8, 0.4, 0.4, 0.4, 0.1);
-        world.spawnParticle(Particle.CRIT, hitLoc, 30, 0.5, 0.5, 0.5, 0.5);
-        world.spawnParticle(Particle.LARGE_SMOKE, hitLoc, 15, 0.2, 0.2, 0.2, 0.05);
+    private boolean handleUndeadDamage(Player player, LivingEntity target) {
+        var activeMobOptional = io.lumine.mythic.bukkit.MythicBukkit.inst().getMobManager().getActiveMob(target.getUniqueId());
+        if (activeMobOptional.isPresent()) {
+            String mobId = activeMobOptional.get().getType().getInternalName();
+            if (mobId != null && UNDEAD_MOB_IDS.contains(mobId)) {
+                double damage = target.getHealth() * 0.5;
+                Deepwither.getInstance().getUIManager().of(player).combatAction("HOLY SMITE!!", NamedTextColor.LIGHT_PURPLE);
+                Deepwither.getInstance().getUIManager().of(player).message(PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, Component.text("聖特攻！ ", NamedTextColor.LIGHT_PURPLE, TextDecoration.BOLD).append(Component.text("アンデッドに50%ダメージ！", NamedTextColor.WHITE)));
+                target.getWorld().playSound(target.getLocation(), Sound.BLOCK_ANVIL_LAND, 1.0f, 0.5f);
+                DamageContext holyContext = new DamageContext(player, target, DeepwitherDamageEvent.DamageType.MAGIC, damage);
+                Deepwither.getInstance().getDamageProcessor().process(holyContext);
+                return true;
+            }
+        }
+        return false;
+    }
 
-        world.playSound(hitLoc, Sound.ENTITY_PLAYER_ATTACK_CRIT, 1.2f, 0.8f);
-        world.playSound(hitLoc, Sound.BLOCK_ANVIL_LAND, 0.6f, 0.5f);
-        world.playSound(hitLoc, Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, 0.8f, 0.6f);
-        world.playSound(hitLoc, Sound.ITEM_TRIDENT_HIT, 1.0f, 0.7f);
+    private void handleLifesteal(Player player, LivingEntity target, double finalDamage) {
+        double heal = target.getMaxHealth() * (finalDamage / 100.0 / 100.0);
+        heal = Math.min(heal, player.getMaxHealth() * 0.20);
+        Deepwither.getInstance().getStatManager().heal(player, heal);
+        Deepwither.getInstance().getUIManager().of(player).message(PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, Component.text("LS！ ", NamedTextColor.GREEN, TextDecoration.BOLD).append(Component.text(String.format("%.1f", heal) + " 回復", NamedTextColor.DARK_GREEN)));
+        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 2f);
     }
 }

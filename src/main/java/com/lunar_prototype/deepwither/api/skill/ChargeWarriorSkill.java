@@ -14,6 +14,9 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * チャージウォーリアスキル: 高速移動突進
@@ -39,12 +42,24 @@ public class ChargeWarriorSkill implements ISkillLogic {
         // 2. 継続タスク (repeat=20;i=1)
         new BukkitRunnable() {
             int ticks = 0;
-
+            final Set<UUID> hitEntities = new HashSet<>();
+            
             @Override
             public void run() {
                 if (ticks >= 20 || !caster.isValid()) {
                     this.cancel();
                     return;
+                }
+
+                // 壁衝突検知: 速度が著しく低下している場合 (突進開始直後は加速待ちのため ticks > 2)
+                if (ticks > 2) {
+                    double speed = caster.getVelocity().length();
+                    if (speed < 0.2) {
+                        this.cancel();
+                        // 衝突フィードバック
+                        caster.getWorld().playSound(caster.getLocation(), Sound.ENTITY_ITEM_BREAK, 0.5f, 0.8f);
+                        return;
+                    }
                 }
 
                 // パーティクル表示 (高速移動感の強化)
@@ -63,6 +78,9 @@ public class ChargeWarriorSkill implements ISkillLogic {
                 for (Entity entity : targets) {
                     if (entity instanceof LivingEntity target && !entity.equals(caster)) {
                         
+                        // 多段ヒット防止: すでにこの突進でダメージを与えた敵は無視
+                        if (hitEntities.contains(target.getUniqueId())) continue;
+
                         // 無敵時間のチェック (ユーザー要望: 無敵時間貫通なし)
                         if (target.getNoDamageTicks() == 0) {
                             DamageContext ctx = new DamageContext(
@@ -72,6 +90,9 @@ public class ChargeWarriorSkill implements ISkillLogic {
                                     damage
                             );
                             Deepwither.getInstance().getDamageProcessor().process(ctx);
+
+                            // ヒット済みに追加
+                            hitEntities.add(target.getUniqueId());
 
                             // ノックバック処理: 突進の進行方向に弾き飛ばす (THE 高速移動感)
                             Vector targetKnockback = direction.clone().multiply(0.8).add(new Vector(0, 0.3, 0));

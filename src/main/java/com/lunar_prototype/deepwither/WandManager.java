@@ -137,7 +137,7 @@ public class WandManager implements Listener, IManager {
 
                         // ヒット演出
                         livingTarget.getWorld().playSound(livingTarget.getLocation(), Sound.ENTITY_ARROW_HIT_PLAYER, 1.0f, 1.2f);
-                        livingTarget.getWorld().spawnParticle(Particle.FLASH, livingTarget.getLocation().add(0, 1, 0), 1);
+                        livingTarget.getWorld().spawnParticle(Particle.FLASH, livingTarget.getLocation().add(0, 1, 0), 1, 0, 0, 0, 0, Color.WHITE);
 
                         this.cancel();
                         return;

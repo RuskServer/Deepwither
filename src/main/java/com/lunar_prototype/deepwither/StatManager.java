@@ -29,26 +29,45 @@ public class StatManager implements IManager, IStatManager {
     private static final UUID MAX_HEALTH_MODIFIER_ID = UUID.fromString("ff5dd7e3-d781-4fee-b3d4-bfe3a5fda85d");
 
     @Override
-    public void init() {}
+    public void init() {
+    }
 
     @Override
-    public void shutdown() {}
+    public void shutdown() {
+    }
 
     @Override
     public PlayerStat of(Player player) {
         return new PlayerStat() {
             @Override
-            public double getHP() { return getActualCurrentHealth(player); }
+            public double getHP() {
+                return getActualCurrentHealth(player);
+            }
+
             @Override
-            public void setHP(double health) { setActualCurrentHealth(player, health); }
+            public void setHP(double health) {
+                setActualCurrentHealth(player, health);
+            }
+
             @Override
-            public double getMaxHP() { return getActualMaxHealth(player); }
+            public double getMaxHP() {
+                return getActualMaxHealth(player);
+            }
+
             @Override
-            public void heal(double amount) { StatManager.this.heal(player, amount); }
+            public void heal(double amount) {
+                StatManager.this.heal(player, amount);
+            }
+
             @Override
-            public StatMap getAll() { return getTotalStats(player); }
+            public StatMap getAll() {
+                return getTotalStats(player);
+            }
+
             @Override
-            public void update() { updatePlayerStats(player); }
+            public void update() {
+                updatePlayerStats(player);
+            }
         };
     }
 
@@ -56,7 +75,7 @@ public class StatManager implements IManager, IStatManager {
     public void updatePlayerStats(Player player) {
         StatMap total = getTotalStats(player);
         syncAttackDamage(player, total);
-        syncAttributes(player,total);
+        syncAttributes(player, total);
         syncBukkitHealth(player);
     }
 
@@ -99,7 +118,8 @@ public class StatManager implements IManager, IStatManager {
         double currentHp = getActualCurrentHealth(player);
         double maxHp = getActualMaxHealth(player);
 
-        if (currentHp >= maxHp) return;
+        if (currentHp >= maxHp)
+            return;
 
         StatMap stats = getTotalStats(player);
         double regenPercent = stats.getFinal(StatType.HP_REGEN) / 100.0;
@@ -108,7 +128,8 @@ public class StatManager implements IManager, IStatManager {
         double actualRegenAmount = baseRegenPerSecond * seconds;
 
         setActualCurrentHealth(player, currentHp + actualRegenAmount);
-        player.getWorld().spawnParticle(org.bukkit.Particle.HEART, player.getLocation().add(0, 2, 0), 1, 0.5, 0.5, 0.5, 0);
+        player.getWorld().spawnParticle(org.bukkit.Particle.HEART, player.getLocation().add(0, 2, 0), 1, 0.5, 0.5, 0.5,
+                0);
     }
 
     @Override
@@ -152,7 +173,8 @@ public class StatManager implements IManager, IStatManager {
     }
 
     public void syncBukkitHealth(Player player) {
-        if (player.isDead()) return;
+        if (player.isDead())
+            return;
 
         double actualMax = getActualMaxHealth(player);
         double actualCurrent = getActualCurrentHealth(player);
@@ -164,8 +186,10 @@ public class StatManager implements IManager, IStatManager {
 
         AttributeInstance maxHealthAttr = player.getAttribute(Attribute.MAX_HEALTH);
         if (maxHealthAttr != null && maxHealthAttr.getValue() != 20.0) {
-            AttributeModifier existing = maxHealthAttr.getModifier(new NamespacedKey("minecraft",MAX_HEALTH_MODIFIER_ID.toString()));
-            if (existing != null) maxHealthAttr.removeModifier(existing);
+            AttributeModifier existing = maxHealthAttr
+                    .getModifier(new NamespacedKey("minecraft", MAX_HEALTH_MODIFIER_ID.toString()));
+            if (existing != null)
+                maxHealthAttr.removeModifier(existing);
             maxHealthAttr.setBaseValue(20.0);
         }
 
@@ -276,52 +300,54 @@ public class StatManager implements IManager, IStatManager {
     @Deprecated
     public static StatMap readStatsFromItem(ItemStack item) {
         StatMap stats = new StatMap();
-        if (item == null || !item.hasItemMeta()) return stats;
+        if (item == null || !item.hasItemMeta())
+            return stats;
 
         PersistentDataContainer container = item.getItemMeta().getPersistentDataContainer();
         for (StatType type : StatType.values()) {
-            Double flat = container.get(new NamespacedKey("rpgstats", type.name().toLowerCase() + "_flat"), PersistentDataType.DOUBLE);
-            Double percent = container.get(new NamespacedKey("rpgstats", type.name().toLowerCase() + "_percent"), PersistentDataType.DOUBLE);
-            if (flat != null) stats.setFlat(type, flat);
-            if (percent != null) stats.setPercent(type, percent);
+            Double flat = container.get(new NamespacedKey("rpgstats", type.name().toLowerCase() + "_flat"),
+                    PersistentDataType.DOUBLE);
+            Double percent = container.get(new NamespacedKey("rpgstats", type.name().toLowerCase() + "_percent"),
+                    PersistentDataType.DOUBLE);
+            if (flat != null)
+                stats.setFlat(type, flat);
+            if (percent != null)
+                stats.setPercent(type, percent);
         }
         return stats;
     }
 
     public static void syncAttackDamage(Player player, StatMap stats) {
-        double flat = stats.getFlat(StatType.ATTACK_DAMAGE);
-        double percent = stats.getPercent(StatType.ATTACK_DAMAGE);
-        double value = flat * (1 + percent / 100.0);
-
         AttributeInstance attr = player.getAttribute(Attribute.ATTACK_DAMAGE);
-        if (attr == null) return;
+        if (attr == null)
+            return;
 
-        AttributeModifier existing = attr.getModifier(new NamespacedKey("minecraft",ATTACK_DAMAGE_MODIFIER_ID.toString()));
-        if (existing != null) attr.removeModifier(existing);
+        // 1. 特定のUUIDベースのモディファイアを削除
+        AttributeModifier existing = attr
+                .getModifier(new NamespacedKey("minecraft", ATTACK_DAMAGE_MODIFIER_ID.toString()));
+        if (existing != null)
+            attr.removeModifier(existing);
 
-        if (value == 0) return;
+        // 2. 汎用的な "RPG" キー (NamespacedKey) 由来の残骸も掃除
+        syncAttribute(player, Attribute.ATTACK_DAMAGE, 0);
 
-        AttributeModifier modifier = new AttributeModifier(
-                new NamespacedKey("minecraft",ATTACK_DAMAGE_MODIFIER_ID.toString()),
-                value,
-                AttributeModifier.Operation.ADD_NUMBER
-        );
-        attr.addModifier(modifier);
+        // ※ 独自のダメージエンジン (DamageProcessor) で計算するため、新規加算は行わない
     }
 
     public static void syncAttributes(Player player, StatMap stats) {
-        syncAttribute(player, Attribute.ARMOR, stats.getFinal(StatType.DEFENSE));
+        // 防御力は DamageProcessor で計算するため属性同期を停止 (HUDの防具ゲージは表示されなくなります)
+        syncAttribute(player, Attribute.ARMOR, 0); 
         syncAttribute(player, Attribute.KNOCKBACK_RESISTANCE, stats.getFinal(StatType.KNOCKBACK_RESISTANCE));
         if (stats.getFinal(StatType.ATTACK_SPEED) > 0.1){
             double modifierValue = stats.getFinal(StatType.ATTACK_SPEED) - 4.0;
             syncAttribute(player,Attribute.ATTACK_SPEED,modifierValue);
         }
-
+ 
         syncAttribute(player,Attribute.ENTITY_INTERACTION_RANGE,stats.getFinal(StatType.REACH));
-
+  
         double speedBonus = stats.getFinal(StatType.MOVE_SPEED);
 
-        if (speedBonus < 0) {
+        if (speedBonus < 0) {  
             double resistance = stats.getFinal(StatType.REDUCES_MOVEMENT_SPEED_DECREASE);
             if (resistance > 0) {
                 double reductionFactor = Math.min(100.0, resistance) / 100.0;
@@ -335,11 +361,11 @@ public class StatManager implements IManager, IStatManager {
         AttributeInstance attr = player.getAttribute(attrType);
         if (attr == null) return;
 
-        NamespacedKey att_key = new NamespacedKey(Deepwither.getInstance(),"RPG");
+        NamespacedKey att_key = new NamespacedKey(Deepwither.getInstance (),"RPG");
         NamespacedKey baseAttackSpeed = NamespacedKey.minecraft("base_attack_speed");
         attr.removeModifier(baseAttackSpeed);
 
-        for (AttributeModifier mod : new HashSet<>(attr.getModifiers())) {
+        for (AttributeModifier mod : new HashSet<>(attr.getModifiers())) { 
             if (mod.getKey().equals(att_key)) {
                 attr.removeModifier(mod);
             }
@@ -350,13 +376,15 @@ public class StatManager implements IManager, IStatManager {
         AttributeModifier modifier = new AttributeModifier(att_key,value, AttributeModifier.Operation.ADD_NUMBER);
         attr.addModifier(modifier);
     }
+            
 
-    private static boolean isOffHandEquipment(ItemStack item) {
+    private static boolean isOffHandEquipment(ItemStack item) { 
         if (item == null || !item.hasItemMeta()) return false;
 
         ItemMeta meta = item.getItemMeta();
         if (meta.hasLore()) {
             List<Component> lore = meta.lore();
+            
             if (lore != null) {
                 for (Component line : lore) {
                     String strippedLine = PlainTextComponentSerializer.plainText().serialize(line);
@@ -365,6 +393,7 @@ public class StatManager implements IManager, IStatManager {
             }
         }
         return false;
+                        
     }
 
     private static boolean shouldReadStats(ItemStack item) {
@@ -372,7 +401,8 @@ public class StatManager implements IManager, IStatManager {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return true;
 
-        if (meta instanceof Damageable damageable) {
+        if (meta instanceof Damageable damageable) 
+            
             if (damageable.hasMaxDamage()) {
                 int maxDurability = damageable.getMaxDamage();
                 if (maxDurability > 0) {
@@ -382,11 +412,11 @@ public class StatManager implements IManager, IStatManager {
             } else {
                 int vanillaMax = item.getType().getMaxDurability();
                 if (vanillaMax > 0) {
+                        
                     int currentDamage = damageable.getDamage();
                     if (vanillaMax - currentDamage <= 1) return false;
                 }
             }
-        }
         return true;
     }
 }
