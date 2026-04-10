@@ -3,7 +3,6 @@ package com.lunar_prototype.deepwither.modules.mob.implementation;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent;
-import com.lunar_prototype.deepwither.api.skill.utils.SkillParticleUtil;
 import com.lunar_prototype.deepwither.core.damage.DamageContext;
 import com.lunar_prototype.deepwither.modules.mob.framework.CustomMob;
 import org.bukkit.*;
@@ -24,6 +23,7 @@ import java.util.Random;
 
 /**
  * ボス: 残氷の巡礼者 (Ice Pilgrim)
+ * 演出大幅強化版
  */
 public class IcePilgrim extends CustomMob {
 
@@ -32,6 +32,10 @@ public class IcePilgrim extends CustomMob {
     private boolean isPhase2 = false;
     private int skillCooldown = 0;
     private double beamAngle = 0;
+
+    // 回転攻撃管理
+    private int spinDurationLeft = 0;
+    private int spinCooldown = 0;
 
     @Override
     public void onSpawn() {
@@ -61,25 +65,63 @@ public class IcePilgrim extends CustomMob {
             broadcastMessage("§b§l残氷の巡礼者: §f「この氷の静寂こそが、汝らへの救済である……」");
             entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_WITHER_DEATH, 2.0f, 0.8f);
             
+            // フェーズ2 突入バースト演出
+            Location loc = entity.getLocation();
+            loc.getWorld().spawnParticle(Particle.EXPLOSION_EMITTER, loc, 5);
+            loc.getWorld().spawnParticle(Particle.SNOWFLAKE, loc, 100, 5, 2, 5, 0.1);
+            loc.getWorld().playSound(loc, Sound.BLOCK_GLASS_BREAK, 2.0f, 0.5f);
+
             // フェーズ2は移動停止 (固定砲台化)
             entity.getAttribute(Attribute.MOVEMENT_SPEED).setBaseValue(0);
         }
 
-        if (skillCooldown > 0) {
-            skillCooldown--;
-        } else {
+        // CD管理
+        if (skillCooldown > 0) skillCooldown--;
+        if (spinCooldown > 0) spinCooldown--;
+
+        // 回転攻撃の更新
+        if (spinDurationLeft > 0) {
+            updateSpinAttack();
+        } else if (skillCooldown <= 0) {
             selectAndExecuteSkill();
         }
 
-        // フェーズ2常時発動: クアッド・ビーム
-        if (isPhase2) {
-            executeQuadBeam();
+        // 環境演出 (吹雪・オーラ)
+        updateEnvironmentalEffects();
+    }
+
+    private void updateEnvironmentalEffects() {
+        Location loc = entity.getLocation().add(0, 1, 0);
+        World world = entity.getWorld();
+
+        // 共通オーラ
+        if (ticksLived % 2 == 0) {
+            world.spawnParticle(Particle.CLOUD, loc, 5, 0.5, 1.0, 0.5, 0.02);
+            world.spawnParticle(Particle.SNOWFLAKE, loc, 2, 0.5, 1.0, 0.5, 0);
         }
 
-        // 常に体に冷気のパーティクルを纏う
-        if (ticksLived % 2 == 0) {
-            entity.getWorld().spawnParticle(Particle.CLOUD, entity.getLocation().add(0, 1, 0), 5, 0.5, 1.0, 0.5, 0.02);
-            entity.getWorld().spawnParticle(Particle.CRIT, entity.getLocation().add(0, 1, 0), 2, 0.4, 0.8, 0.4, 0);
+        if (isPhase2) {
+            // フェーズ2: ブリザード
+            if (ticksLived % 3 == 0) {
+                // 広範囲の吹雪
+                for (Player p : world.getNearbyPlayers(entity.getLocation(), 30)) {
+                    p.spawnParticle(Particle.SNOWFLAKE, p.getLocation().add(0, 2, 0), 20, 10, 5, 10, 0.05);
+                    p.spawnParticle(Particle.CLOUD, p.getLocation().add(0, 2, 0), 10, 10, 5, 10, 0.02);
+                }
+            }
+            
+            // ボスの背後の冷気の翼/輪
+            double angle = (ticksLived * 0.1) % (Math.PI * 2);
+            for (int i = 0; i < 2; i++) {
+                double side = (i == 0 ? 1 : -1);
+                Vector offset = new Vector(Math.cos(angle) * side, 1.5 + Math.sin(angle * 2) * 0.2, Math.sin(angle) * side);
+                world.spawnParticle(Particle.DUST, loc.clone().add(offset), 1, 0, 0, 0, 0, new Particle.DustOptions(Color.AQUA, 1.0f));
+            }
+
+            // 足元の霜
+            if (ticksLived % 5 == 0) {
+                world.spawnParticle(Particle.ITEM_SNOWBALL, entity.getLocation(), 10, 3, 0.1, 3, 0.02);
+            }
         }
     }
 
@@ -87,7 +129,6 @@ public class IcePilgrim extends CustomMob {
         if (bossBar == null) return;
         bossBar.setProgress(Math.max(0, Math.min(1.0, getHealth() / getMaxHealth())));
         
-        // 近くのプレイヤーを表示対象に追加
         Collection<Player> nearby = entity.getWorld().getNearbyPlayers(entity.getLocation(), 40);
         bossBar.getPlayers().forEach(p -> {
             if (!nearby.contains(p)) bossBar.removePlayer(p);
@@ -98,8 +139,14 @@ public class IcePilgrim extends CustomMob {
     }
 
     private void selectAndExecuteSkill() {
+        // 回転攻撃 (フェーズ2限定, CD優先)
+        if (isPhase2 && spinCooldown <= 0) {
+            startSpinAttack();
+            skillCooldown = 300; // 発動中は他のスキルを抑える
+            return;
+        }
+
         double roll = random.nextDouble();
-        
         if (isPhase2 && roll < 0.3) {
             executeSwordBarrage();
             skillCooldown = 150;
@@ -115,6 +162,46 @@ public class IcePilgrim extends CustomMob {
         }
     }
 
+    private void startSpinAttack() {
+        broadcastMessage("§b§l残氷の巡礼者: §3「旋れ、極限の旋律よ！ 万物は凍てつき沈黙する！」");
+        spinDurationLeft = 300; // 15秒
+        entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_WITHER_SPAWN, 2.0f, 0.5f);
+    }
+
+    private void updateSpinAttack() {
+        beamAngle += 0.05;
+        Location center = entity.getEyeLocation();
+        
+        // 環境音 (突風)
+        if (spinDurationLeft % 20 == 0) {
+            center.getWorld().playSound(center, Sound.ITEM_ELYTRA_FLYING, 1.5f, 0.5f);
+            center.getWorld().playSound(center, Sound.BLOCK_BEACON_AMBIENT, 1.0f, 0.5f);
+        }
+
+        for (int i = 0; i < 4; i++) {
+            double angle = beamAngle + (i * Math.PI / 2);
+            Vector dir = new Vector(Math.cos(angle), 0, Math.sin(angle));
+            
+            for (double d = 0; d < 15; d += 0.5) {
+                Location point = center.clone().add(dir.clone().multiply(d));
+                center.getWorld().spawnParticle(Particle.DUST, point, 3, 0.05, 0.05, 0.05, 0, new Particle.DustOptions(Color.AQUA, 1.2f));
+                if (d % 2 == 0) center.getWorld().spawnParticle(Particle.SNOWFLAKE, point, 1, 0, 0, 0, 0);
+            }
+
+            RayTraceResult ray = center.getWorld().rayTraceEntities(center, dir, 15, e -> e instanceof Player);
+            if (ray != null && ray.getHitEntity() instanceof Player p) {
+                DamageContext ctx = new DamageContext(entity, p, DeepwitherDamageEvent.DamageType.MAGIC, 15.0);
+                Deepwither.getInstance().getDamageProcessor().process(ctx);
+                p.setNoDamageTicks(0); 
+            }
+        }
+        
+        spinDurationLeft--;
+        if (spinDurationLeft <= 0) {
+            spinCooldown = 1200; // 60秒
+        }
+    }
+
     /**
      * ① 聖なる氷雨
      */
@@ -122,6 +209,12 @@ public class IcePilgrim extends CustomMob {
         broadcastMessage("§b§l残氷の巡礼者: §e「天より降り注げ、清浄なる光よ！」");
         Location center = entity.getLocation();
         
+        // 天空の亀裂演出
+        for(int i=0; i<5; i++) {
+            Location crack = center.clone().add((random.nextDouble()-0.5)*15, 15, (random.nextDouble()-0.5)*15);
+            center.getWorld().spawnParticle(Particle.FLASH, crack, 10, 2, 0.1, 2, 0, Color.WHITE);
+        }
+
         for (int i = 0; i < 20; i++) {
             new BukkitRunnable() {
                 @Override
@@ -131,8 +224,6 @@ public class IcePilgrim extends CustomMob {
                     
                     pLoc.getWorld().spawnParticle(Particle.FLASH, pLoc, 1, 0, 0, 0, 0, Color.WHITE);
                     pLoc.getWorld().playSound(pLoc, Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1.0f, 1.5f);
-
-                    // 独自のアイスボルト（聖属性エフェクト）
                     spawnHolyBolt(pLoc, dir);
                 }
             }.runTaskLater(Deepwither.getInstance(), i * 2L);
@@ -145,15 +236,16 @@ public class IcePilgrim extends CustomMob {
             @Override
             public void run() {
                 if (life > 40 || loc.getBlock().getType().isSolid()) {
-                    loc.getWorld().spawnParticle(Particle.FIREWORK, loc, 10, 0.3, 0.3, 0.3, 0.1);
-                    loc.getWorld().playSound(loc, Sound.BLOCK_GLASS_BREAK, 1.0f, 1.5f);
+                    loc.getWorld().spawnParticle(Particle.EXPLOSION, loc, 5, 0.2, 0.2, 0.2, 0.05);
+                    loc.getWorld().spawnParticle(Particle.ITEM_SNOWBALL, loc, 15, 0.5, 0.5, 0.5, 0.1);
+                    loc.getWorld().playSound(loc, Sound.BLOCK_GLASS_BREAK, 1.2f, 1.8f);
                     applyRadiusDamage(loc, 4.0, 45.0, DeepwitherDamageEvent.DamageType.MAGIC);
                     this.cancel();
                     return;
                 }
                 loc.add(dir.clone().multiply(0.8));
                 loc.getWorld().spawnParticle(Particle.END_ROD, loc, 2, 0.1, 0.1, 0.1, 0.02);
-                loc.getWorld().spawnParticle(Particle.DUST, loc, 5, 0.1, 0.1, 0.1, 0, new Particle.DustOptions(Color.YELLOW, 1.0f));
+                loc.getWorld().spawnParticle(Particle.DUST, loc, 5, 0.1, 0.1, 0.1, 0, new Particle.DustOptions(Color.YELLOW, 1.2f));
                 life++;
             }
         }.runTaskTimer(Deepwither.getInstance(), 0L, 1L);
@@ -165,7 +257,6 @@ public class IcePilgrim extends CustomMob {
     private void executeJudgement() {
         Player target = null;
         double lowestHpRatio = 1.0;
-
         for (Player p : entity.getWorld().getNearbyPlayers(entity.getLocation(), 30)) {
             double ratio = p.getHealth() / p.getAttribute(Attribute.MAX_HEALTH).getValue();
             if (ratio < 0.5 && ratio < lowestHpRatio) {
@@ -173,7 +264,6 @@ public class IcePilgrim extends CustomMob {
                 lowestHpRatio = ratio;
             }
         }
-
         if (target == null) return;
 
         broadcastMessage("§b§l残氷の巡礼者: §c「死の淵にある者よ。その魂、我に献上せよ…… §4§l第七黙示録 -ジャッジメント-§c」");
@@ -185,24 +275,28 @@ public class IcePilgrim extends CustomMob {
             @Override
             public void run() {
                 if (ticks > 40 || !finalTarget.isValid()) {
-                    // 巨大な剣の着弾
                     Location hitLoc = finalTarget.getLocation();
-                    hitLoc.getWorld().spawnParticle(Particle.EXPLOSION_EMITTER, hitLoc, 5);
+                    hitLoc.getWorld().spawnParticle(Particle.EXPLOSION_EMITTER, hitLoc, 8);
+                    hitLoc.getWorld().spawnParticle(Particle.SNOWFLAKE, hitLoc, 50, 2, 2, 2, 0.2);
                     hitLoc.getWorld().playSound(hitLoc, Sound.ENTITY_LIGHTNING_BOLT_IMPACT, 2.0f, 0.5f);
-                    hitLoc.getWorld().playSound(hitLoc, Sound.ENTITY_WITHER_SPAWN, 1.5f, 0.5f);
+                    hitLoc.getWorld().playSound(hitLoc, Sound.BLOCK_ANVIL_LAND, 2.0f, 0.5f);
                     
                     applyRadiusDamage(hitLoc, 5.0, 150.0, DeepwitherDamageEvent.DamageType.MAGIC);
                     this.cancel();
                     return;
                 }
                 
-                // 剣の予兆エフェクト
+                // ターゲット拘束演出
+                if (ticks < 20) {
+                    finalTarget.spawnParticle(Particle.INSTANT_EFFECT, finalTarget.getLocation().add(0, 1, 0), 5, 0.5, 0.5, 0.5, 0.02);
+                }
+
                 Location currentSword = swordLoc.clone().subtract(0, ticks * 0.5, 0);
-                finalTarget.getWorld().spawnParticle(Particle.FLASH, currentSword, 5, 0.5, 2.0, 0.5, 0.1, Color.WHITE);
-                finalTarget.getWorld().spawnParticle(Particle.DUST, currentSword, 20, 0.3, 3.0, 0.3, 0, new Particle.DustOptions(Color.WHITE, 2.0f));
+                finalTarget.getWorld().spawnParticle(Particle.FLASH, currentSword, 8, 0.5, 2.0, 0.5, 0.1, Color.WHITE);
+                finalTarget.getWorld().spawnParticle(Particle.DUST, currentSword, 30, 0.3, 3.0, 0.3, 0, new Particle.DustOptions(Color.WHITE, 2.5f));
                 
                 if (ticks % 5 == 0) {
-                    finalTarget.getWorld().playSound(finalTarget.getLocation(), Sound.BLOCK_BEACON_AMBIENT, 1.0f, 0.5f + (ticks * 0.02f));
+                    finalTarget.getWorld().playSound(finalTarget.getLocation(), Sound.BLOCK_BEACON_AMBIENT, 1.2f, 0.5f + (ticks * 0.02f));
                 }
                 ticks++;
             }
@@ -215,6 +309,9 @@ public class IcePilgrim extends CustomMob {
     private void executeGroundSlam() {
         broadcastMessage("§b§l残氷の巡礼者: §f「地に伏せよ！」");
         entity.setVelocity(new Vector(0, 1.5, 0));
+        // 飛び上がりエフェクト
+        entity.getWorld().spawnParticle(Particle.EXPLOSION, entity.getLocation(), 10, 1.0, 0.1, 1.0, 0.1);
+        entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_HORSE_JUMP, 2.0f, 0.5f);
         
         new BukkitRunnable() {
             boolean falling = false;
@@ -227,53 +324,22 @@ public class IcePilgrim extends CustomMob {
                 
                 if (falling && entity.isOnGround()) {
                     Location land = entity.getLocation();
-                    land.getWorld().spawnParticle(Particle.EXPLOSION_EMITTER, land, 3);
-                    land.getWorld().spawnParticle(Particle.CLOUD, land, 50, 5.0, 0.5, 5.0, 0.2);
-                    land.getWorld().playSound(land, Sound.ENTITY_GENERIC_EXPLODE, 2.0f, 0.6f);
-                    land.getWorld().playSound(land, Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, 1.5f, 0.5f);
+                    land.getWorld().spawnParticle(Particle.EXPLOSION_EMITTER, land, 5);
+                    land.getWorld().spawnParticle(Particle.CLOUD, land, 80, 6.0, 0.5, 6.0, 0.3);
+                    land.getWorld().spawnParticle(Particle.SNOWFLAKE, land, 100, 6.0, 1.0, 6.0, 0.1);
+                    land.getWorld().playSound(land, Sound.ENTITY_GENERIC_EXPLODE, 2.0f, 0.5f);
+                    land.getWorld().playSound(land, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 1.5f, 0.6f);
                     
-                    applyRadiusDamage(land, 6.0, 80.0, DeepwitherDamageEvent.DamageType.PHYSICAL);
+                    applyRadiusDamage(land, 7.0, 80.0, DeepwitherDamageEvent.DamageType.PHYSICAL);
                     this.cancel();
                     return;
                 }
                 
                 if (falling) {
-                    entity.getWorld().spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, entity.getLocation(), 5, 0.2, 0.2, 0.2, 0.05);
+                    entity.getWorld().spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, entity.getLocation(), 10, 0.3, 0.3, 0.3, 0.05);
                 }
             }
         }.runTaskTimer(Deepwither.getInstance(), 10L, 1L);
-    }
-
-    /**
-     * ④ フェーズ2: クアッド・ビーム
-     */
-    private void executeQuadBeam() {
-        beamAngle += 0.05; // 回転速度
-        Location center = entity.getEyeLocation();
-        
-        for (int i = 0; i < 4; i++) {
-            double angle = beamAngle + (i * Math.PI / 2);
-            Vector dir = new Vector(Math.cos(angle), 0, Math.sin(angle));
-            
-            // ビームの描画
-            for (double d = 0; d < 15; d += 0.5) {
-                Location point = center.clone().add(dir.clone().multiply(d));
-                center.getWorld().spawnParticle(Particle.DUST, point, 1, 0, 0, 0, 0, new Particle.DustOptions(Color.AQUA, 0.8f));
-                // END_ROD 削除 (視認性改善のため)
-            }
-
-            // 当たり判定 (RayTrace)
-            RayTraceResult ray = center.getWorld().rayTraceEntities(center, dir, 15, entity -> entity instanceof Player);
-            if (ray != null && ray.getHitEntity() instanceof Player p) {
-                DamageContext ctx = new DamageContext(entity, p, DeepwitherDamageEvent.DamageType.MAGIC, 15.0);
-                Deepwither.getInstance().getDamageProcessor().process(ctx);
-                p.setNoDamageTicks(0); // 連続ヒット
-            }
-        }
-        
-        if (ticksLived % 20 == 0) {
-            center.getWorld().playSound(center, Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.5f, 0.5f);
-        }
     }
 
     /**
@@ -294,7 +360,7 @@ public class IcePilgrim extends CustomMob {
                     Player target = findRandomTarget();
                     if (target != null) {
                         Vector dir = target.getLocation().toVector().subtract(swordSpawn.toVector()).normalize();
-                        spawnHolyBolt(swordSpawn, dir); // 氷雨と同じ弾丸を転用
+                        spawnHolyBolt(swordSpawn, dir);
                     }
                 }
             }.runTaskLater(Deepwither.getInstance(), 20L + (i * 2L));
@@ -331,8 +397,7 @@ public class IcePilgrim extends CustomMob {
         }
         broadcastMessage("§b§l残氷の巡礼者: §f「この氷も……いつかは溶け、光に還るのだな……」");
 
-        // 討伐報酬のドロップ (holy_iron_ingot, abyssal_eye / 5〜8個)
-        int amount = random.nextInt(4) + 5; // 5, 6, 7, 8
+        int amount = random.nextInt(4) + 5;
         ItemStack ingot = DW.items().getItem("holy_iron_ingot", amount);
         ItemStack eye = DW.items().getItem("abyssal_eye", amount);
 

@@ -53,11 +53,9 @@ public class SilentWatcher extends CustomMob {
 
         if (target != null) {
             double distance = entity.getLocation().distance(target.getLocation());
-
-            // AI: 距離維持ロジック
             if (distance < 10.0) {
-                // 近すぎる場合は後退
-                Vector away = entity.getLocation().toVector().subtract(target.getLocation().toVector()).normalize().multiply(0.4);
+                // 近すぎる場合は後退 (速度を緩和 0.4 -> 0.1)
+                Vector away = entity.getLocation().toVector().subtract(target.getLocation().toVector()).normalize().multiply(0.1);
                 entity.setVelocity(entity.getVelocity().add(away));
                 
                 // 接近されたら拡散熱光線で迎撃 (1.5秒おき程度)
@@ -72,10 +70,10 @@ public class SilentWatcher extends CustomMob {
                 entity.setVelocity(entity.getVelocity().multiply(0.5));
             }
 
-            // メイン攻撃: 高速熱光線 (2秒おき)
+            // メイン攻撃: 高速熱光線 (10秒おき)
             if (attackCooldown <= 0 && distance < 30.0) {
                 castSkill(new HeatRaySkill(), 1);
-                attackCooldown = 40;
+                attackCooldown = 200;
                 
                 // 射撃時に少し反動
                 Vector recoil = entity.getLocation().toVector().subtract(target.getLocation().toVector()).normalize().multiply(0.2);
