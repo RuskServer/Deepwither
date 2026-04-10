@@ -27,6 +27,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.EntityPotionEffectEvent;
 import org.bukkit.event.entity.EntityRegainHealthEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -202,6 +203,18 @@ public class DamageManager implements Listener, IManager {
     }
 
 
+
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onWitherEffect(EntityPotionEffectEvent e) {
+        if (!(e.getEntity() instanceof Player)) return;
+        if (e.getModifiedType() != PotionEffectType.WITHER) return;
+        
+        // モブの攻撃（Wither Skeleton等）によるウィザー付与のみを防止
+        if (e.getCause() == EntityPotionEffectEvent.Cause.ATTACK) {
+            e.setCancelled(true);
+        }
+    }
 
 
     @EventHandler(priority = EventPriority.HIGHEST)
