@@ -130,8 +130,10 @@ public class WandManager implements Listener, IManager {
                 for (Entity target : loc.getWorld().getNearbyEntities(loc, 0.8, 0.8, 0.8)) {
                     if (target instanceof LivingEntity livingTarget && target != shooter) {
 
-                        // ダメージ適用 (DamageManagerを経由させることで防御計算などを適用)
-                        Deepwither.getInstance().getDamageManager().applyCustomDamage(livingTarget, finalDamage, shooter);
+                        // ダメージ適用 (DamageProcessorへ直接委譲)
+                        com.lunar_prototype.deepwither.core.damage.DamageContext context = new com.lunar_prototype.deepwither.core.damage.DamageContext(shooter, livingTarget, com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent.DamageType.MAGIC, finalDamage);
+                        context.setProjectile(true);
+                        Deepwither.getInstance().getDamageProcessor().process(context);
 
                         // ヒット演出
                         livingTarget.getWorld().playSound(livingTarget.getLocation(), Sound.ENTITY_ARROW_HIT_PLAYER, 1.0f, 1.2f);

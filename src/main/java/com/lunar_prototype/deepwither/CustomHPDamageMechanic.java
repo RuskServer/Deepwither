@@ -10,6 +10,9 @@ import io.lumine.mythic.api.skills.SkillMetadata;
 import io.lumine.mythic.api.skills.SkillResult;
 import io.lumine.mythic.bukkit.BukkitAdapter;
 
+import com.lunar_prototype.deepwither.core.damage.DamageContext;
+import com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent;
+
 public class CustomHPDamageMechanic implements ITargetedEntitySkill {
 
     // ダメージのパーセンテージ (例: 0.10 は 10% ダメージ)
@@ -27,6 +30,7 @@ public class CustomHPDamageMechanic implements ITargetedEntitySkill {
     @Override
     public SkillResult castAtEntity(SkillMetadata data, AbstractEntity target) {
         LivingEntity bukkitTarget = (LivingEntity) BukkitAdapter.adapt(target);
+        LivingEntity caster = (LivingEntity) data.getCaster().getEntity().getBukkitEntity();
 
         // ターゲットがプレイヤーであるかを確認
         if (!(bukkitTarget instanceof Player)) {
@@ -36,17 +40,19 @@ public class CustomHPDamageMechanic implements ITargetedEntitySkill {
 
         Player playerTarget = (Player) bukkitTarget;
 
-        // プレイヤーの現在のカスタムHPを取得する（架空のメソッド）
+        // プレイヤーの現在のカスタムHPを取得する
         double maxCustomHP = Deepwither.getInstance().getStatManager().getActualMaxHealth(playerTarget);
-        double currentCustomHP = Deepwither.getInstance().getStatManager().getActualCurrentHealth(playerTarget);
 
         // パーセントダメージを計算
         double damageAmount = maxCustomHP * this.percentDamage;
 
-        double newCustomHP = currentCustomHP - damageAmount;
+        // ダメージコンテキストを作成し、TRUE_DAMAGEフラグを立てて防御等無視する
+        DamageContext context = new DamageContext(caster, playerTarget, DeepwitherDamageEvent.DamageType.MAGIC, damageAmount);
+        context.setTrueDamage(true);
+        context.addTag("HP_PERCENT_DAMAGE");
 
-        // 計算されたダメージを適用する（架空のメソッド）
-        Deepwither.getInstance().getStatManager().setActualCurrentHealth(playerTarget, newCustomHP);
+        // 計算された割合ダメージをプロセッサへ委譲
+        Deepwither.getInstance().getDamageProcessor().process(context);
 
         return SkillResult.SUCCESS;
     }

@@ -24,6 +24,7 @@ public class DamageContext {
     private boolean isProjectile = false;
     private double distanceMultiplier = 1.0;
     private double defenseBypassPercent = 0.0;
+    private boolean isTrueDamage = false;
 
     private final Set<String> tags = new HashSet<>();
     private final java.util.Map<String, Object> metadata = new java.util.HashMap<>();
@@ -66,6 +67,9 @@ public class DamageContext {
     public void setDefenseBypassPercent(double defenseBypassPercent) {
         this.defenseBypassPercent = Math.max(0.0, Math.min(100.0, defenseBypassPercent));
     }
+
+    public boolean isTrueDamage() { return isTrueDamage; }
+    public void setTrueDamage(boolean trueDamage) { isTrueDamage = trueDamage; }
 
     public Set<String> getTags() { return tags; }
     public void addTag(String tag) { tags.add(tag); }
