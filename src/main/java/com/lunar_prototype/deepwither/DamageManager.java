@@ -176,6 +176,32 @@ public class DamageManager implements Listener, IManager {
         }
     }
 
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBloodSurgeHit(DeepwitherDamageEvent e) {
+        if (!(e.getAttacker() instanceof Player attacker)) return;
+        
+        // 物理または遠距離攻撃（プロジェクタイル）のヒット時のみ発動
+        if (e.getType() != DeepwitherDamageEvent.DamageType.PHYSICAL &&
+            e.getType() != DeepwitherDamageEvent.DamageType.PROJECTILE) return;
+
+        com.lunar_prototype.deepwither.api.skill.aura.AuraManager auraManager = Deepwither.getInstance().getAuraManager();
+        if (!auraManager.hasAura(attacker, "blood_surge")) return;
+
+        LivingEntity victim = e.getVictim();
+        if (victim == null || victim.isDead()) return;
+
+        // --- 1. LIFESTEAL (攻撃ダメージの50%を回復) ---
+        double healAmount = e.getDamage() * 0.5;
+        Deepwither.getInstance().getStatManager().heal(attacker, healAmount);
+
+        // --- 2. 演出 ---
+        attacker.getWorld().playSound(attacker.getLocation(), Sound.ENTITY_PLAYER_ATTACK_CRIT, 1.0f, 0.5f);
+        
+        victim.getWorld().spawnParticle(Particle.CRIT, victim.getLocation().add(0, 1, 0), 10, 0.3, 0.3, 0.3, 0.2);
+        victim.getWorld().spawnParticle(Particle.BLOCK, victim.getLocation().add(0, 1.2, 0), 5, 0.2, 0.2, 0.2, 0.1, Bukkit.createBlockData(Material.REDSTONE_BLOCK));
+    }
+
+
 
 
     @EventHandler(priority = EventPriority.HIGHEST)

@@ -198,6 +198,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     private SkillSlotManager skillSlotManager;
     private SkillCastManager skillCastManager;
     private SkillRegistry skillRegistry;
+    private com.lunar_prototype.deepwither.api.skill.aura.AuraManager auraManager;
     private SkillAssignmentGUI skillAssignmentGUI;
     private CooldownManager cooldownManager;
     private ArtifactManager artifactManager;
@@ -387,6 +388,10 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
 
     public SkillRegistry getSkillRegistry() {
         return skillRegistry;
+    }
+
+    public com.lunar_prototype.deepwither.api.skill.aura.AuraManager getAuraManager() {
+        return auraManager;
     }
 
     public SkillAssignmentGUI getSkillAssignmentGUI() {
@@ -917,6 +922,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.skillSlotManager = register(new SkillSlotManager(this));
         this.skillCastManager = register(new SkillCastManager());
         this.skillRegistry = register(new SkillRegistry());
+        this.auraManager = register(new com.lunar_prototype.deepwither.api.skill.aura.AuraManager());
         // this.chargeManager = ... handled above
         // this.settingsManager = ... handled above
 

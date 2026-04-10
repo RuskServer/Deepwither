@@ -102,8 +102,8 @@ public class HeatRaySkill implements ISkillLogic {
                 hitLoc = result.getHitPosition().toLocation(world);
                 dist = eyeLoc.distance(hitLoc);
                 
-                // ダメージ適用 (80.0)
-                double damage = 80.0;
+                // ダメージ適用 (40.0) - 威力調整: 80.0 -> 40.0
+                double damage = 40.0;
                 DamageContext ctx = new DamageContext(caster, target, DeepwitherDamageEvent.DamageType.MAGIC, damage);
                 Deepwither.getInstance().getDamageProcessor().process(ctx);
 

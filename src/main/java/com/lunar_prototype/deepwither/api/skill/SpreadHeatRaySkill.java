@@ -51,7 +51,8 @@ public class SpreadHeatRaySkill implements ISkillLogic {
                         return;
                     }
 
-                    double damage = 25.0;
+                    // ダメージ適用 (12.5) - 威力調整: 25.0 -> 12.5
+                    double damage = 12.5;
                     DamageContext ctx = new DamageContext(caster, target, DeepwitherDamageEvent.DamageType.MAGIC, damage);
                     Deepwither.getInstance().getDamageProcessor().process(ctx);
                     

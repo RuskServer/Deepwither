@@ -26,6 +26,7 @@ public class EngravedExecutor extends CustomMob {
     private final Random random = new Random();
     private int dashCooldown = 0;
     private int swordRainCooldown = 0;
+    private int globalCooldown = 0; // スキル共通クールダウン
 
     @Override
     public void onSpawn() {
@@ -33,12 +34,12 @@ public class EngravedExecutor extends CustomMob {
         entity.setCustomName("§4§lEngraved Executor");
         entity.setCustomNameVisible(true);
 
-        // 属性設定 (1.21形式) - 難易度調整: 攻撃力を適正化(108->48)
+        // 属性設定 (1.21形式) - 難易度調整: 攻撃力をさらに半分に(48->24)
         if (entity.getAttribute(Attribute.ATTACK_DAMAGE) != null) {
-            entity.getAttribute(Attribute.ATTACK_DAMAGE).setBaseValue(48.0);
+            entity.getAttribute(Attribute.ATTACK_DAMAGE).setBaseValue(24.0);
         }
         if (entity.getAttribute(Attribute.MOVEMENT_SPEED) != null) {
-            entity.getAttribute(Attribute.MOVEMENT_SPEED).setBaseValue(0.2); // 通常移動をわずかに強化
+            entity.getAttribute(Attribute.MOVEMENT_SPEED).setBaseValue(0.2);
         }
 
         // 装備
@@ -55,27 +56,31 @@ public class EngravedExecutor extends CustomMob {
         Mob mob = (Mob) entity;
         LivingEntity target = mob.getTarget();
 
+        // クールダウン減少処理
         if (dashCooldown > 0) dashCooldown--;
         if (swordRainCooldown > 0) swordRainCooldown--;
+        if (globalCooldown > 0) globalCooldown--;
 
         // 足元の魔法陣パーティクル
         if (getTicksLived() % 5 == 0) {
             drawCircle(entity.getLocation(), 1.0, Color.MAROON);
         }
 
-        if (target != null) {
+        if (target != null && globalCooldown <= 0) {
             double distance = entity.getLocation().distance(target.getLocation());
 
-            // スキル1: 執行者の瞬歩 (調整: 接近速度を緩和)
+            // スキル1: 執行者の瞬歩 (個別CD延長: 15s -> 25s)
             if (distance > 12.0 && dashCooldown <= 0) {
                 executeExecutorDash(target);
-                dashCooldown = 300; // 15秒
+                dashCooldown = 500; 
+                globalCooldown = 100; // 共通CD 5秒
             }
 
-            // スキル2: 刻印の剣雨 (近接時 & CD終了)
-            if (distance < 5.0 && swordRainCooldown <= 0) {
+            // スキル2: 刻印の剣雨 (個別CD延長: 10s -> 20s)
+            else if (distance < 5.0 && swordRainCooldown <= 0) {
                 executeSwordRain(target);
-                swordRainCooldown = 200; // 10秒
+                swordRainCooldown = 400; 
+                globalCooldown = 100; // 共通CD 5秒
             }
         }
     }
@@ -88,7 +93,7 @@ public class EngravedExecutor extends CustomMob {
         entity.getWorld().playSound(entity.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 1.0f, 2.0f);
 
         Vector direction = target.getLocation().toVector().subtract(entity.getLocation().toVector()).normalize();
-        entity.setVelocity(direction.multiply(1.3).setY(0.2)); // 速度を 2.0 -> 1.3 へ緩和
+        entity.setVelocity(direction.multiply(1.3).setY(0.2));
 
         // 軌跡パーティクル
         new BukkitRunnable() {
@@ -103,7 +108,7 @@ public class EngravedExecutor extends CustomMob {
     }
 
     /**
-     * 刻印の剣雨 - 上空から剣を降らせる (調整: 予兆後のディレイと威力緩和)
+     * 刻印の剣雨 - 上空から剣を降らせる
      */
     private void executeSwordRain(LivingEntity target) {
         entity.getWorld().playSound(entity.getLocation(), Sound.BLOCK_BEACON_DEACTIVATE, 1.0f, 2.0f);
@@ -114,11 +119,11 @@ public class EngravedExecutor extends CustomMob {
         // 魔法陣の展開 (予兆)
         drawCircle(targetLoc, 5.0, Color.RED);
         
-        // 20tick(1秒)の猶予を追加
+        // 20tick(1秒)の猶予
         new BukkitRunnable() {
             @Override
             public void run() {
-                for (int i = 0; i < 15; i++) {
+                for (int i = 0; i < 10; i++) {
                     new BukkitRunnable() {
                         @Override
                         public void run() {
@@ -140,11 +145,12 @@ public class EngravedExecutor extends CustomMob {
             @Override
             public void run() {
                 if (life > 20 || loc.getBlock().getType().isSolid()) {
-                    // 着弾ダメージ - 威力緩和(30->15)
+                    // 着弾ダメージ
                     loc.getWorld().spawnParticle(Particle.CRIT, loc, 10, 0.5, 0.5, 0.5, 0.1);
                     loc.getWorld().playSound(loc, Sound.BLOCK_ANVIL_BREAK, 0.5f, 1.5f);
                     
-                    applyRadiusDamage(loc, 2.0, 15.0, DeepwitherDamageEvent.DamageType.MAGIC);
+                    // 着弾ダメージ - 威力調整: 15.0 -> 7.5
+                    applyRadiusDamage(loc, 2.0, 7.5, DeepwitherDamageEvent.DamageType.MAGIC);
                     this.cancel();
                     return;
                 }
