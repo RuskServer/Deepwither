@@ -30,11 +30,7 @@ import com.lunar_prototype.deepwither.layer_move.BossKillListener;
 import com.lunar_prototype.deepwither.layer_move.LayerMoveCommand;
 import com.lunar_prototype.deepwither.layer_move.LayerMoveManager;
 import com.lunar_prototype.deepwither.layer_move.LayerSignListener;
-import com.lunar_prototype.deepwither.listeners.ArmorSetListener;
-import com.lunar_prototype.deepwither.listeners.ItemGlowHandler;
-import com.lunar_prototype.deepwither.listeners.ItemUpgradeListener;
-import com.lunar_prototype.deepwither.listeners.PvPWorldListener;
-import com.lunar_prototype.deepwither.listeners.VoteListener;
+import com.lunar_prototype.deepwither.listeners.*;
 import com.lunar_prototype.deepwither.loot.LootChestListener;
 import com.lunar_prototype.deepwither.loot.LootChestManager;
 import com.lunar_prototype.deepwither.loot.RouteLootChestManager;
@@ -285,6 +281,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     private FishingManager fishingManager;
     private RaidBossManager raidBossManager;
     private LayerMoveManager layerMoveManager;
+    private ResourcePackListener resourcePackListener;
 
     public GlobalMarketManager getGlobalMarketManager() {
         return globalMarketManager;
@@ -797,6 +794,8 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
             new LevelPlaceholderExpansion(levelManager, manaManager, statManager).register();
             getLogger().info("PlaceholderAPI拡張を登録しました。");
         }
+
+        initializeResourcePack();
         // コマンド登録
         getCommand("attributes").setExecutor(new AttributeCommand());
         try {
@@ -1020,6 +1019,8 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         register(new RegenTask(this));
         register(new MarketApiController(this));
         register(new PlayerInventoryRestrictor(this));
+        resourcePackListener = new ResourcePackListener(this);
+        Bukkit.getPluginManager().registerEvents(resourcePackListener, this);
         new com.lunar_prototype.deepwither.core.listener.EnvironmentListener(this);
     }
 
@@ -1108,6 +1109,33 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
      */
     public void saveSafeZoneSpawns() {
         safeZoneListener.saveSafeZoneSpawns();
+    }
+
+    private void initializeResourcePack() {
+        String url = getConfig().getString("resource-pack.url");
+        if (url == null || url.isEmpty()) return;
+
+        asyncExecutor.submit(() -> {
+            try {
+                long start = System.currentTimeMillis();
+                java.net.URL resourcePackUrl = new java.net.URI(url).toURL();
+                java.net.URLConnection connection = resourcePackUrl.openConnection();
+                try (java.io.InputStream is = connection.getInputStream()) {
+                    java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-1");
+                    byte[] buffer = new byte[8192];
+                    int n;
+                    while ((n = is.read(buffer)) != -1) {
+                        md.update(buffer, 0, n);
+                    }
+                    byte[] hash = md.digest();
+                    resourcePackListener.setResourcePackHash(hash);
+                    long end = System.currentTimeMillis();
+                    getLogger().info("Successfully computed resource pack hash in " + (end - start) + "ms");
+                }
+            } catch (Exception e) {
+                getLogger().log(Level.WARNING, "Failed to compute resource pack hash: " + e.getMessage());
+            }
+        });
     }
 
     /**
