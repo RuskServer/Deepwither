@@ -785,14 +785,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
 
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             for (Player p : Bukkit.getOnlinePlayers()) {
-                ManaData mana = Deepwither.getInstance().getManaManager().get(p.getUniqueId());
-                double regenAmount = mana.getMaxMana() * 0.01; // 1%
-                mana.regen(regenAmount);
-            }
-        }, 20L, 20L); // 毎秒実行
-
-        Bukkit.getScheduler().runTaskTimer(this, () -> {
-            for (Player p : Bukkit.getOnlinePlayers()) {
                 AttributeInstance attr = p.getAttribute(Attribute.ATTACK_SPEED);
                 if (attr == null)
                     return;

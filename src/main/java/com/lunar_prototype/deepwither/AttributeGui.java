@@ -20,7 +20,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.ArrayList;
 import java.util.List;
 
-@DependsOn({AttributeManager.class})
+@DependsOn({ AttributeManager.class })
 public class AttributeGui implements Listener, IManager {
 
     private final JavaPlugin plugin;
@@ -36,11 +36,13 @@ public class AttributeGui implements Listener, IManager {
     }
 
     @Override
-    public void shutdown() {}
+    public void shutdown() {
+    }
 
     public static void open(Player player) {
         PlayerAttributeData data = Deepwither.getInstance().getAttributeManager().get(player.getUniqueId());
-        if (data == null) return;
+        if (data == null)
+            return;
 
         Inventory gui = Bukkit.createInventory(null, 27, GUI_TITLE);
 
@@ -74,14 +76,17 @@ public class AttributeGui implements Listener, IManager {
 
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text(type.getDisplayName(), NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false));
+        meta.displayName(
+                Component.text(type.getDisplayName(), NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false));
 
         List<Component> lore = new ArrayList<>();
         lore.add(Component.empty());
         lore.add(Component.text("ポイント: ", NamedTextColor.GRAY)
                 .append(Component.text(data.getAllocated(type), NamedTextColor.GOLD))
                 .append(Component.text(" / ", NamedTextColor.GRAY))
-                .append(Component.text(Deepwither.getInstance().getAttributeManager().getMaxAllocatable(player.getUniqueId(), type), NamedTextColor.GOLD))
+                .append(Component.text(
+                        Deepwither.getInstance().getAttributeManager().getMaxAllocatable(player.getUniqueId(), type),
+                        NamedTextColor.GOLD))
                 .decoration(TextDecoration.ITALIC, false));
         lore.add(Component.text("現在の" + type.getDisplayName() + "レベル: ", NamedTextColor.GRAY)
                 .append(Component.text(data.getAllocated(type), NamedTextColor.GOLD, TextDecoration.BOLD))
@@ -89,11 +94,15 @@ public class AttributeGui implements Listener, IManager {
         lore.add(Component.empty());
         lore.add(Component.text("効果:", NamedTextColor.DARK_GRAY).decoration(TextDecoration.ITALIC, false));
         for (String buff : StatEffectText.getBuffDescription(type, data.getAllocated(type))) {
-            lore.add(Component.text("  ✤ ", NamedTextColor.GRAY).append(Component.text(buff, NamedTextColor.BLUE)).decoration(TextDecoration.ITALIC, false));
+            lore.add(Component.text("  ✤ ", NamedTextColor.GRAY).append(Component.text(buff, NamedTextColor.BLUE))
+                    .decoration(TextDecoration.ITALIC, false));
         }
         lore.add(Component.empty());
-        lore.add(Component.text("右クリックで1ポイント消費してレベルアップする。", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
-        lore.add(Component.text("◆ 現在所持: ", NamedTextColor.YELLOW).append(Component.text(data.getRemainingPoints() + " ポイント", NamedTextColor.AQUA)).decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text("右クリックで1ポイント消費してレベルアップする。", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC,
+                false));
+        lore.add(Component.text("◆ 現在所持: ", NamedTextColor.YELLOW)
+                .append(Component.text(data.getRemainingPoints() + " ポイント", NamedTextColor.AQUA))
+                .decoration(TextDecoration.ITALIC, false));
 
         meta.lore(lore);
         item.setItemMeta(meta);
@@ -102,8 +111,10 @@ public class AttributeGui implements Listener, IManager {
 
     @EventHandler
     public void onClick(InventoryClickEvent e) {
-        if (!(e.getWhoClicked() instanceof Player player)) return;
-        if (!e.getView().title().equals(GUI_TITLE)) return;
+        if (!(e.getWhoClicked() instanceof Player player))
+            return;
+        if (!e.getView().title().equals(GUI_TITLE))
+            return;
 
         e.setCancelled(true);
 
@@ -117,7 +128,8 @@ public class AttributeGui implements Listener, IManager {
             default -> null;
         };
 
-        if (type == null) return;
+        if (type == null)
+            return;
 
         PlayerAttributeData data = Deepwither.getInstance().getAttributeManager().get(player.getUniqueId());
         if (data == null || data.getRemainingPoints() <= 0) {
@@ -125,7 +137,8 @@ public class AttributeGui implements Listener, IManager {
             return;
         }
 
-        if (data.getAllocated(type) >= Deepwither.getInstance().getAttributeManager().getMaxAllocatable(player.getUniqueId(), type)) {
+        if (data.getAllocated(type) >= Deepwither.getInstance().getAttributeManager()
+                .getMaxAllocatable(player.getUniqueId(), type)) {
             player.sendMessage(Component.text("上限に達しています！", NamedTextColor.RED));
             return;
         }
