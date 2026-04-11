@@ -216,7 +216,18 @@ public class TraderGUI implements Listener, IManager {
             String dispName = PlainTextComponentSerializer.plainText().serialize(meta.displayName());
 
             if (e.getSlot() == e.getInventory().getSize() - 1 && dispName.contains("売却画面へ")) {
-                SellGUI.openSellGUI(player, Deepwither.getInstance().getTraderManager());
+                // インベントリの他のスロット（デイリータスクボタンなど）からトレーダーIDを取得
+                String traderId = null;
+                for (ItemStack item : e.getInventory().getContents()) {
+                    if (item != null && item.hasItemMeta()) {
+                        String tid = item.getItemMeta().getPersistentDataContainer().get(new NamespacedKey(Deepwither.getInstance(), TRADER_ID_KEY), PersistentDataType.STRING);
+                        if (tid != null) {
+                            traderId = tid;
+                            break;
+                        }
+                    }
+                }
+                SellGUI.openSellGUI(player, Deepwither.getInstance().getTraderManager(), traderId);
                 return;
             }
 

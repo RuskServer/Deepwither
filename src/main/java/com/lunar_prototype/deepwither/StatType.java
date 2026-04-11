@@ -56,7 +56,8 @@ public enum StatType {
     BLEED_CHANCE("出血付与", NamedTextColor.DARK_RED, "🩸"),
     LIFESTEAL("ドレイン", NamedTextColor.RED, "❤"),
     FREEZE_CHANCE("凍結付与", NamedTextColor.AQUA, "❄"),
-    AOE_CHANCE("拡散攻撃", NamedTextColor.YELLOW, "💥");
+    AOE_CHANCE("拡散攻撃", NamedTextColor.YELLOW, "💥"),
+    MANA_REGEN("マナ回復", NamedTextColor.AQUA, "✦");
 
     private final String displayName;
     private final NamedTextColor color;
@@ -86,8 +87,10 @@ public enum StatType {
  */
 class LoreBuilder {
 
-    private static final Component WEAR_LORE_PREFIX = Component.text("損耗率: ", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false);
-    private static final Component MASTERY_LORE_PREFIX = Component.text("マスタリー: ", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false);
+    private static final Component WEAR_LORE_PREFIX = Component.text("損耗率: ", NamedTextColor.GRAY)
+            .decoration(TextDecoration.ITALIC, false);
+    private static final Component MASTERY_LORE_PREFIX = Component.text("マスタリー: ", NamedTextColor.GRAY)
+            .decoration(TextDecoration.ITALIC, false);
     private static final Component SEPARATOR = Component.text("----------------------------", NamedTextColor.GRAY)
             .decoration(TextDecoration.STRIKETHROUGH, true)
             .decoration(TextDecoration.ITALIC, false);
@@ -96,13 +99,14 @@ class LoreBuilder {
      * 既存のアイテムのLoreを読み込み、提供されたStatMapと修理ステータス（損耗率、マスタリー）
      * に基づいて部分的に更新または行を追加する。
      *
-     * @param item アイテムスタック
+     * @param item         アイテムスタック
      * @param newStats     新しいカスタムステータス (StatMap)
      * @param wearRate     損耗率
      * @param masteryLevel マスタリーレベル
      * @return 更新されたLoreのリスト
      */
-    public static List<Component> updateExistingLore(ItemStack item, StatMap newStats, double wearRate, int masteryLevel) {
+    public static List<Component> updateExistingLore(ItemStack item, StatMap newStats, double wearRate,
+            int masteryLevel) {
         ItemMeta meta = item.getItemMeta();
         // Metaがない、またはLoreがない場合は新規作成（build）へ
         if (meta == null || !meta.hasLore()) {
@@ -160,14 +164,14 @@ class LoreBuilder {
         // --- 5. 修理ステータス（損耗率とマスタリー）の追加 ---
         if (wearRate > 0) {
             Component wearLine = WEAR_LORE_PREFIX.append(
-                    Component.text(String.format("%.0f", wearRate) + "%", NamedTextColor.WHITE)
-            ).decoration(TextDecoration.STRIKETHROUGH, false).decoration(TextDecoration.ITALIC, false);
+                    Component.text(String.format("%.0f", wearRate) + "%", NamedTextColor.WHITE))
+                    .decoration(TextDecoration.STRIKETHROUGH, false).decoration(TextDecoration.ITALIC, false);
             newLore.add(wearLine);
         }
         if (masteryLevel > 0) {
             Component masteryLine = MASTERY_LORE_PREFIX.append(
-                    Component.text(String.valueOf(masteryLevel), NamedTextColor.AQUA)
-            ).decoration(TextDecoration.ITALIC, false);
+                    Component.text(String.valueOf(masteryLevel), NamedTextColor.AQUA))
+                    .decoration(TextDecoration.ITALIC, false);
             newLore.add(masteryLine);
         }
 
@@ -192,9 +196,10 @@ class LoreBuilder {
     /**
      * 2列レイアウト用のメインビルドロジック（修正版）
      */
-    public static List<Component> build(StatMap stats, boolean compact, String itemType, String artifactFullsetType, List<String> flavorText,
-                                     ItemLoader.RandomStatTracker tracker, String rarity, Map<StatType, Double> appliedModifiers,
-                                     FabricationGrade grade, List<Component> runeLore) {
+    public static List<Component> build(StatMap stats, boolean compact, String itemType, String artifactFullsetType,
+            List<String> flavorText,
+            ItemLoader.RandomStatTracker tracker, String rarity, Map<StatType, Double> appliedModifiers,
+            FabricationGrade grade, List<Component> runeLore) {
         List<Component> lore = new ArrayList<>();
         LegacyComponentSerializer serializer = LegacyComponentSerializer.legacySection();
 
@@ -204,16 +209,17 @@ class LoreBuilder {
         }
 
         Component infoLine = Component.empty();
-        if (rarity != null) { 
-             infoLine = infoLine.append(LegacyComponentSerializer.legacyAmpersand().deserialize(rarity));
+        if (rarity != null) {
+            infoLine = infoLine.append(LegacyComponentSerializer.legacyAmpersand().deserialize(rarity));
         }
         if (itemType != null) {
-            if (rarity != null) { 
-                 infoLine = infoLine.append(Component.text(" | ", NamedTextColor.WHITE));
+            if (rarity != null) {
+                infoLine = infoLine.append(Component.text(" | ", NamedTextColor.WHITE));
             }
-             infoLine = infoLine.append(Component.text(itemType, NamedTextColor.GRAY));
+            infoLine = infoLine.append(Component.text(itemType, NamedTextColor.GRAY));
         }
-        if (!infoLine.equals(Component.empty())) lore.add(infoLine.decoration(TextDecoration.ITALIC, false));
+        if (!infoLine.equals(Component.empty()))
+            lore.add(infoLine.decoration(TextDecoration.ITALIC, false));
 
         if (artifactFullsetType != null && !artifactFullsetType.isBlank()) {
             lore.add(Component.text("フルセット種別: ", NamedTextColor.GRAY)
@@ -233,23 +239,29 @@ class LoreBuilder {
 
         if (tracker != null) {
             double ratio = tracker.getRatio() * 100.0;
-            NamedTextColor color = (ratio >= 90) ? NamedTextColor.GOLD : (ratio >= 70) ? NamedTextColor.YELLOW : (ratio >= 50) ? NamedTextColor.GREEN : NamedTextColor.GRAY;
-            lore.add(Component.text("品質: ", NamedTextColor.WHITE).append(Component.text(Math.round(ratio) + "%", color)).decoration(TextDecoration.ITALIC, false));
+            NamedTextColor color = (ratio >= 90) ? NamedTextColor.GOLD
+                    : (ratio >= 70) ? NamedTextColor.YELLOW
+                            : (ratio >= 50) ? NamedTextColor.GREEN : NamedTextColor.GRAY;
+            lore.add(Component.text("品質: ", NamedTextColor.WHITE).append(Component.text(Math.round(ratio) + "%", color))
+                    .decoration(TextDecoration.ITALIC, false));
         }
 
         // --- フレーバー ---
         if (flavorText != null && !flavorText.isEmpty()) {
             lore.add(Component.empty());
             for (String line : flavorText) {
-                lore.add(LegacyComponentSerializer.legacyAmpersand().deserialize("&8&o" + line).decoration(TextDecoration.ITALIC, true)); // Keep flavor italic but controlled
+                lore.add(LegacyComponentSerializer.legacyAmpersand().deserialize("&8&o" + line)
+                        .decoration(TextDecoration.ITALIC, true)); // Keep flavor italic but controlled
             }
         }
 
-        lore.add(Component.text("-----------------------------", NamedTextColor.DARK_GRAY).decoration(TextDecoration.STRIKETHROUGH, true).decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text("-----------------------------", NamedTextColor.DARK_GRAY)
+                .decoration(TextDecoration.STRIKETHROUGH, true).decoration(TextDecoration.ITALIC, false));
 
         // --- [ルーン] セクション ---
         if (runeLore != null && !runeLore.isEmpty()) {
-            lore.add(Component.text(" [ソケット]", NamedTextColor.AQUA, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false));
+            lore.add(Component.text(" [ソケット]", NamedTextColor.AQUA, TextDecoration.BOLD)
+                    .decoration(TextDecoration.ITALIC, false));
             for (Component rune : runeLore) {
                 lore.add(Component.text(" ").append(rune).decoration(TextDecoration.ITALIC, false));
             }
@@ -258,7 +270,8 @@ class LoreBuilder {
 
         // --- [付加能力] セクション ---
         if (appliedModifiers != null && !appliedModifiers.isEmpty()) {
-            lore.add(Component.text(" [付加能力]", NamedTextColor.LIGHT_PURPLE, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false));
+            lore.add(Component.text(" [付加能力]", NamedTextColor.LIGHT_PURPLE, TextDecoration.BOLD)
+                    .decoration(TextDecoration.ITALIC, false));
 
             List<Component> mods = new ArrayList<>();
             for (Map.Entry<StatType, Double> entry : appliedModifiers.entrySet()) {
@@ -270,25 +283,29 @@ class LoreBuilder {
         }
 
         // --- [基礎ステータス] セクション ---
-        lore.add(Component.text(" [基礎ステータス]", NamedTextColor.WHITE, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text(" [基礎ステータス]", NamedTextColor.WHITE, TextDecoration.BOLD)
+                .decoration(TextDecoration.ITALIC, false));
 
         List<Component> baseStats = new ArrayList<>();
         for (StatType type : stats.getAllTypes()) {
             double flat = stats.getFlat(type);
             double percent = stats.getPercent(type);
-            if (flat == 0 && percent == 0) continue;
+            if (flat == 0 && percent == 0)
+                continue;
             baseStats.add(formatStat(type, flat, percent, compact));
         }
         // 中身だけを2列化
         addTwoColumnLore(lore, baseStats);
 
-        lore.add(Component.text("-----------------------------", NamedTextColor.DARK_GRAY).decoration(TextDecoration.STRIKETHROUGH, true));
+        lore.add(Component.text("-----------------------------", NamedTextColor.DARK_GRAY)
+                .decoration(TextDecoration.STRIKETHROUGH, true));
         return lore;
     }
 
     // 2列レイアウト生成メソッドの微調整
     private static void addTwoColumnLore(List<Component> mainLore, List<Component> items) {
-        if (items.isEmpty()) return;
+        if (items.isEmpty())
+            return;
 
         int maxLeftWidth = 0;
         List<String> legacyItems = new ArrayList<>();
@@ -303,7 +320,8 @@ class LoreBuilder {
         // まず左側にくる要素の中で「最大の幅」を計算
         for (int i = 0; i < items.size(); i += 2) {
             int width = getMinecraftStringWidth(legacyItems.get(i));
-            if (width > maxLeftWidth) maxLeftWidth = width;
+            if (width > maxLeftWidth)
+                maxLeftWidth = width;
         }
 
         // 目標幅の設定
@@ -327,7 +345,7 @@ class LoreBuilder {
     }
 
     /**
-     *パディング生成メソッド（安定化版）
+     * パディング生成メソッド（安定化版）
      */
     private static Component padToWidth(Component textComponent, String textLegacy, int targetPx) {
         int currentPx = getMinecraftStringWidth(textLegacy);
@@ -343,8 +361,9 @@ class LoreBuilder {
         int spacesNeeded = (int) Math.ceil(neededPx / 4.0);
 
         // 念のため最低1つは入れる
-        if (spacesNeeded < 1) spacesNeeded = 1;
-        
+        if (spacesNeeded < 1)
+            spacesNeeded = 1;
+
         return textComponent.append(Component.text(" ".repeat(spacesNeeded)));
     }
 
@@ -353,24 +372,38 @@ class LoreBuilder {
      */
     private static int getCharWidth(char c) {
         // 1. 特殊アイコン (ここがズレの原因になりやすいので少し大きめに見積もる)
-        if (c == '❤') return 9;
-        if (c == '➸') return 11; // 10->11
-        if (c == '✠') return 11; // 10->11
-        if (c == '☆') return 9;
-        if (c == '■') return 8;
-        if (c == '⌛') return 10; // 9->10 (ここが怪しい)
-        if (c == '•') return 5;
-        if (c == '»') return 9;
+        if (c == '❤')
+            return 9;
+        if (c == '➸')
+            return 11; // 10->11
+        if (c == '✠')
+            return 11; // 10->11
+        if (c == '☆')
+            return 9;
+        if (c == '■')
+            return 8;
+        if (c == '⌛')
+            return 10; // 9->10 (ここが怪しい)
+        if (c == '•')
+            return 5;
+        if (c == '»')
+            return 9;
 
         // 2. 特殊な幅の半角記号
-        if ("i.:,;|!".indexOf(c) != -1) return 2;
-        if ("l'".indexOf(c) != -1) return 3;
-        if ("I[]t".indexOf(c) != -1) return 4;
-        if ("<>\"()*".indexOf(c) != -1) return 5;
-        if (c == ' ') return 4;
+        if ("i.:,;|!".indexOf(c) != -1)
+            return 2;
+        if ("l'".indexOf(c) != -1)
+            return 3;
+        if ("I[]t".indexOf(c) != -1)
+            return 4;
+        if ("<>\"()*".indexOf(c) != -1)
+            return 5;
+        if (c == ' ')
+            return 4;
 
         // 3. 全角文字
-        if (c > 255) return 13;
+        if (c > 255)
+            return 13;
 
         // 4. 標準
         return 6;
@@ -378,7 +411,8 @@ class LoreBuilder {
 
     // getMinecraftStringWidth メソッドは変更不要ですが、念のため記載
     private static int getMinecraftStringWidth(String text) {
-        if (text == null || text.isEmpty()) return 0;
+        if (text == null || text.isEmpty())
+            return 0;
         int length = 0;
         boolean isBold = false;
         boolean nextIsColor = false;
@@ -410,8 +444,8 @@ class LoreBuilder {
     }
 
     private static Component formatModifierStat(StatType type, double value) {
-        return Component.text("• ", NamedTextColor.LIGHT_PURPLE) 
-                .append(Component.text(type.getIcon() + " " + type.getDisplayName() + ": ")) 
+        return Component.text("• ", NamedTextColor.LIGHT_PURPLE)
+                .append(Component.text(type.getIcon() + " " + type.getDisplayName() + ": "))
                 .append(Component.text("+" + String.format("%.1f", value), NamedTextColor.LIGHT_PURPLE))
                 .decoration(TextDecoration.ITALIC, false);
     }
@@ -426,9 +460,9 @@ class LoreBuilder {
         } else {
             valComp = Component.text(String.valueOf(flat));
         }
-        
-        return Component.text("• ", NamedTextColor.WHITE) 
-                .append(Component.text(type.getIcon() + " " + type.getDisplayName() + ": ")) 
+
+        return Component.text("• ", NamedTextColor.WHITE)
+                .append(Component.text(type.getIcon() + " " + type.getDisplayName() + ": "))
                 .append(valComp.color(NamedTextColor.WHITE))
                 .decoration(TextDecoration.ITALIC, false);
     }

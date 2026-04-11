@@ -41,6 +41,17 @@ public class RegenTask extends BukkitRunnable implements IManager {
             // 死亡していないかチェック (HPが0.0でなければ回復)
             if (statManager.getActualCurrentHealth(player) > 0.0) {
                 statManager.naturalRegeneration(player, INTERVAL_SECONDS);
+
+                // マナの自然回復
+                StatMap stats = statManager.getTotalStats(player);
+                double maxMana = stats.getFinal(StatType.MAX_MANA);
+                double manaRegen = stats.getFinal(StatType.MANA_REGEN);
+
+                // 基礎回復量 (最大マナの2%) + ステータスによる回復量
+                double baseManaRegenPerSecond = maxMana * 0.02 + manaRegen;
+                double actualManaRegen = baseManaRegenPerSecond * INTERVAL_SECONDS;
+
+                Deepwither.getInstance().getManaManager().get(player.getUniqueId()).regen(actualManaRegen);
             }
         }
     }

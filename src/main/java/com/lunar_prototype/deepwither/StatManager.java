@@ -111,6 +111,12 @@ public class StatManager implements IManager, IStatManager {
         }
 
         syncBukkitHealth(player);
+
+        // マナの全回復
+        ManaData mana = Deepwither.getInstance().getManaManager().get(player.getUniqueId());
+        if (mana != null) {
+            mana.setCurrentMana(getTotalStats(player).getFinal(StatType.MAX_MANA));
+        }
     }
 
     @Override
@@ -208,6 +214,15 @@ public class StatManager implements IManager, IStatManager {
         StatMap total = new StatMap();
         PlayerLevelData data = Deepwither.getInstance().getLevelManager().get(player);
 
+        // 体力の基礎値とレベルボーナスを最初に追加 (これでパーセント補正が基礎値にも乗るようになる)
+        double baseHp = 20.0;
+        double levelhp = 2 * data.getLevel();
+        total.addFlat(StatType.MAX_HEALTH, baseHp + levelhp);
+
+        // マナの基礎値を追加
+        double baseMana = 100.0;
+        total.addFlat(StatType.MAX_MANA, baseMana);
+
         ItemStack mainHand = player.getInventory().getItemInMainHand();
         if (shouldReadStats(mainHand)) {
             total.add(readStatsFromItem(mainHand));
@@ -251,6 +266,8 @@ public class StatManager implements IManager, IStatManager {
                         total.setFlat(StatType.CRIT_DAMAGE, val + points * 1.5);
                         double pDmgPercent = total.getPercent(StatType.PROJECTILE_DAMAGE);
                         total.setPercent(StatType.PROJECTILE_DAMAGE, pDmgPercent + (points * 1.5));
+                        double manaRegenPercent = total.getPercent(StatType.MANA_REGEN);
+                        total.setPercent(StatType.MANA_REGEN, manaRegenPercent + (points * 1.5));
                     }
                     case INT -> {
                         double cdVal = total.getFlat(StatType.COOLDOWN_REDUCTION);
@@ -278,15 +295,6 @@ public class StatManager implements IManager, IStatManager {
         if (tempBuff != null) {
             total.add(tempBuff);
         }
-
-        double currentHp = total.getFinal(StatType.MAX_HEALTH);
-        double baseHp = 20.0;
-        double levelhp = 2 * data.getLevel();
-        total.setFlat(StatType.MAX_HEALTH, currentHp + baseHp + levelhp);
-
-        double currentMana = total.getFinal(StatType.MAX_MANA);
-        double baseMana = 100.0;
-        total.setFlat(StatType.MAX_MANA, currentMana + baseMana);
 
         return total;
     }
@@ -336,18 +344,18 @@ public class StatManager implements IManager, IStatManager {
 
     public static void syncAttributes(Player player, StatMap stats) {
         // 防御力は DamageProcessor で計算するため属性同期を停止 (HUDの防具ゲージは表示されなくなります)
-        syncAttribute(player, Attribute.ARMOR, 0); 
+        syncAttribute(player, Attribute.ARMOR, 0);
         syncAttribute(player, Attribute.KNOCKBACK_RESISTANCE, stats.getFinal(StatType.KNOCKBACK_RESISTANCE));
-        if (stats.getFinal(StatType.ATTACK_SPEED) > 0.1){
+        if (stats.getFinal(StatType.ATTACK_SPEED) > 0.1) {
             double modifierValue = stats.getFinal(StatType.ATTACK_SPEED) - 4.0;
-            syncAttribute(player,Attribute.ATTACK_SPEED,modifierValue);
+            syncAttribute(player, Attribute.ATTACK_SPEED, modifierValue);
         }
- 
-        syncAttribute(player,Attribute.ENTITY_INTERACTION_RANGE,stats.getFinal(StatType.REACH));
-  
+
+        syncAttribute(player, Attribute.ENTITY_INTERACTION_RANGE, stats.getFinal(StatType.REACH));
+
         double speedBonus = stats.getFinal(StatType.MOVE_SPEED);
 
-        if (speedBonus < 0) {  
+        if (speedBonus < 0) {
             double resistance = stats.getFinal(StatType.REDUCES_MOVEMENT_SPEED_DECREASE);
             if (resistance > 0) {
                 double reductionFactor = Math.min(100.0, resistance) / 100.0;
@@ -357,64 +365,71 @@ public class StatManager implements IManager, IStatManager {
         syncAttribute(player, Attribute.MOVEMENT_SPEED, speedBonus);
     }
 
-    private static void syncAttribute(Player player, Attribute attrType,double value) {
+    private static void syncAttribute(Player player, Attribute attrType, double value) {
         AttributeInstance attr = player.getAttribute(attrType);
-        if (attr == null) return;
+        if (attr == null)
+            return;
 
-        NamespacedKey att_key = new NamespacedKey(Deepwither.getInstance (),"RPG");
+        NamespacedKey att_key = new NamespacedKey(Deepwither.getInstance(), "RPG");
         NamespacedKey baseAttackSpeed = NamespacedKey.minecraft("base_attack_speed");
         attr.removeModifier(baseAttackSpeed);
 
-        for (AttributeModifier mod : new HashSet<>(attr.getModifiers())) { 
+        for (AttributeModifier mod : new HashSet<>(attr.getModifiers())) {
             if (mod.getKey().equals(att_key)) {
                 attr.removeModifier(mod);
             }
         }
 
-        if (value == 0) return;
+        if (value == 0)
+            return;
 
-        AttributeModifier modifier = new AttributeModifier(att_key,value, AttributeModifier.Operation.ADD_NUMBER);
+        AttributeModifier modifier = new AttributeModifier(att_key, value, AttributeModifier.Operation.ADD_NUMBER);
         attr.addModifier(modifier);
     }
-            
 
-    private static boolean isOffHandEquipment(ItemStack item) { 
-        if (item == null || !item.hasItemMeta()) return false;
+    private static boolean isOffHandEquipment(ItemStack item) {
+        if (item == null || !item.hasItemMeta())
+            return false;
 
         ItemMeta meta = item.getItemMeta();
         if (meta.hasLore()) {
             List<Component> lore = meta.lore();
-            
+
             if (lore != null) {
                 for (Component line : lore) {
                     String strippedLine = PlainTextComponentSerializer.plainText().serialize(line);
-                    if (strippedLine.contains("カテゴリ:オフハンド装備")) return true;
+                    if (strippedLine.contains("カテゴリ:オフハンド装備"))
+                        return true;
                 }
             }
         }
         return false;
-                        
+
     }
 
     private static boolean shouldReadStats(ItemStack item) {
-        if (item == null || item.getType().isAir()) return false;
+        if (item == null || item.getType().isAir())
+            return false;
         ItemMeta meta = item.getItemMeta();
-        if (meta == null) return true;
+        if (meta == null)
+            return true;
 
-        if (meta instanceof Damageable damageable) 
-            
+        if (meta instanceof Damageable damageable)
+
             if (damageable.hasMaxDamage()) {
                 int maxDurability = damageable.getMaxDamage();
                 if (maxDurability > 0) {
                     int currentDamage = damageable.getDamage();
-                    if (maxDurability - currentDamage <= 1) return false;
+                    if (maxDurability - currentDamage <= 1)
+                        return false;
                 }
             } else {
                 int vanillaMax = item.getType().getMaxDurability();
                 if (vanillaMax > 0) {
-                        
+
                     int currentDamage = damageable.getDamage();
-                    if (vanillaMax - currentDamage <= 1) return false;
+                    if (vanillaMax - currentDamage <= 1)
+                        return false;
                 }
             }
         return true;

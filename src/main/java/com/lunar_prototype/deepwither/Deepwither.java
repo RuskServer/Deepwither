@@ -771,6 +771,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         getCommand("companion").setExecutor(new CompanionCommand(companionManager));
 
         Bukkit.getPluginManager().registerEvents(new PartyChatListener(partyManager),this);
+        Bukkit.getPluginManager().registerEvents(new com.lunar_prototype.deepwither.listeners.SkillAuraListener(), this);
 
         ItemCommand itemCommand = new ItemCommand(this);
         getCommand("giveitem").setExecutor(itemCommand);

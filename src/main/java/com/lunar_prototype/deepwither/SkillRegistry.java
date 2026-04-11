@@ -24,6 +24,8 @@ public class SkillRegistry implements IManager {
         register("heat_ray", new com.lunar_prototype.deepwither.api.skill.HeatRaySkill());
         register("spread_heat_ray", new com.lunar_prototype.deepwither.api.skill.SpreadHeatRaySkill());
         register("sky_cleave", new com.lunar_prototype.deepwither.api.skill.SkyCleaveSkill());
+        register("collapse", new com.lunar_prototype.deepwither.api.skill.CollapseSkill());
+        register("scorching_slash", new com.lunar_prototype.deepwither.api.skill.ScorchingSlashSkill());
     }
 
     @Override

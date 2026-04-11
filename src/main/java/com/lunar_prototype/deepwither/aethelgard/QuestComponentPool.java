@@ -112,8 +112,8 @@ public class QuestComponentPool {
      * 難易度に基づいて討伐数を計算します。
      */
     public static int calculateRandomQuantity(int difficultyLevel) {
-        // 難易度に応じて 15〜50 の間でランダムな値を返す
-        return 10 + (difficultyLevel * 5) + RANDOM.nextInt(36);
+        // 難易度に応じて基礎値を5, 難易度係数を3, ランダム幅を16に変更（従来の約1/2）
+        return 5 + (difficultyLevel * 3) + RANDOM.nextInt(16);
     }
 
     /**

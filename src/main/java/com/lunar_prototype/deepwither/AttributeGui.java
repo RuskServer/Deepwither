@@ -149,6 +149,7 @@ class StatEffectText {
             case MND -> {
                 list.add("+ " + (level * 1.5) + "% クリティカルダメージ");
                 list.add("+ " + (level * 1.5) + "% 発射体ダメージ");
+                list.add("+ " + (level * 1.5) + "% マナ回復速度");
             }
             case INT -> {
                 list.add("+ " + (level * 0.1) + "% CD短縮");

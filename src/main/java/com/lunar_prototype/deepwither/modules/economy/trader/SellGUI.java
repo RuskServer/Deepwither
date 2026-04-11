@@ -58,6 +58,7 @@ public class SellGUI implements Listener, IManager {
     @Override
     public void shutdown() {}
 
+    private static final String TRADER_ID_KEY = "trader_id";
     public static final Component SELL_GUI_TITLE = Component.text("[売却] ", NamedTextColor.DARK_GRAY).append(Component.text("総合売却所", NamedTextColor.WHITE)).decoration(TextDecoration.ITALIC, false);
 
     /**
@@ -68,12 +69,20 @@ public class SellGUI implements Listener, IManager {
      *
      * @param player  the player who will receive and view the sell GUI
      * @param manager the TraderManager providing context for subsequent GUI interactions
+     * @param traderId identify of the trader who was opened before this GUI
      */
-    public static void openSellGUI(Player player, TraderManager manager) {
+    public static void openSellGUI(Player player, TraderManager manager, String traderId) {
         Inventory gui = Bukkit.createInventory(player, 27, SELL_GUI_TITLE);
 
         ItemStack filler = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, Component.text(" ").decoration(TextDecoration.ITALIC, false));
         ItemStack backButton = createGuiItem(Material.ARROW, Component.text("<< 戻る", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+
+        // traderIdをメタデータとして埋め込む（戻るボタンに保持させる）
+        if (traderId != null) {
+            ItemMeta meta = backButton.getItemMeta();
+            meta.getPersistentDataContainer().set(new NamespacedKey(Deepwither.getInstance(), TRADER_ID_KEY), PersistentDataType.STRING, traderId);
+            backButton.setItemMeta(meta);
+        }
 
         for (int i = 0; i < 9; i++) {
             gui.setItem(i, filler);
@@ -152,13 +161,36 @@ public class SellGUI implements Listener, IManager {
             int totalCost = pricePerItem * amount;
             econ.depositPlayer(player, totalCost);
 
+            // 信用度の加算処理
+            String traderId = null;
+            ItemStack backButton = e.getInventory().getItem(22);
+            if (backButton != null && backButton.hasItemMeta()) {
+                traderId = backButton.getItemMeta().getPersistentDataContainer().get(new NamespacedKey(Deepwither.getInstance(), TRADER_ID_KEY), PersistentDataType.STRING);
+            }
+
+            int addedCredit = 0;
+            if (traderId != null) {
+                DailyTaskManager taskManager = Deepwither.getInstance().getDailyTaskManager();
+                com.lunar_prototype.deepwither.data.DailyTaskData data = taskManager.getTaskData(player);
+                
+                // 売却額の1%（最低1）を計算
+                int creditAmount = Math.max(1, (int) (totalCost * 0.01));
+                addedCredit = data.addDailySellCredit(traderId, creditAmount);
+            }
+
             if (e.isShiftClick()) e.setCurrentItem(null);
             else e.getCursor().setAmount(0);
 
             Component itemDisplayName = itemToSell.hasItemMeta() && itemToSell.getItemMeta().hasDisplayName() ? itemToSell.getItemMeta().displayName() : Component.text(itemToSell.getType().name());
-            player.sendMessage(Component.text("", NamedTextColor.GREEN)
+            Component message = Component.text("", NamedTextColor.GREEN)
                     .append(itemDisplayName)
-                    .append(Component.text(" x" + amount + " を売却し、" + econ.format(totalCost) + " を獲得しました。", NamedTextColor.GREEN)));
+                    .append(Component.text(" x" + amount + " を売却し、" + econ.format(totalCost) + " を獲得しました。", NamedTextColor.GREEN));
+            
+            if (addedCredit > 0) {
+                message = message.append(Component.text(" (信用度 +" + addedCredit + ")", NamedTextColor.AQUA));
+            }
+            
+            player.sendMessage(message);
 
         } else {
             player.sendMessage(Component.text("このアイテムは売却できません。", NamedTextColor.RED));

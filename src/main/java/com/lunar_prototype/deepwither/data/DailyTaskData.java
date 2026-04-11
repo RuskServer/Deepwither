@@ -23,12 +23,16 @@ public class DailyTaskData implements ConfigurationSerializable {
     // ★追加: Key: Trader ID, Value: Target Mob ID (Internal Name)
     private final Map<String, String> targetMobIds;
 
+    // ★追加: Key: Trader ID, Value: Today's accumulated credit from sales
+    private final Map<String, Integer> dailySellCredits;
+
     public DailyTaskData(UUID playerId) {
         this.playerId = playerId;
         this.lastResetDate = LocalDate.now();
         this.completionCounts = new HashMap<>();
         this.currentProgress = new HashMap<>();
         this.targetMobIds = new HashMap<>(); // ★初期化
+        this.dailySellCredits = new HashMap<>(); // ★初期化
     }
 
     public UUID getPlayerId() {
@@ -43,6 +47,7 @@ public class DailyTaskData implements ConfigurationSerializable {
         map.put("lastResetDate", lastResetDate.toString());
         map.put("completionCounts", completionCounts);
         map.put("targetMobIds", targetMobIds); // ★保存
+        map.put("dailySellCredits", dailySellCredits); // ★保存
 
         Map<String, List<Integer>> progressForSerialization = new HashMap<>();
         for (Map.Entry<String, int[]> entry : currentProgress.entrySet()) {
@@ -77,15 +82,52 @@ public class DailyTaskData implements ConfigurationSerializable {
             data.targetMobIds.putAll((Map<String, String>) map.get("targetMobIds"));
         }
 
+        if (map.containsKey("dailySellCredits")) {
+            data.dailySellCredits.putAll((Map<String, Integer>) map.get("dailySellCredits"));
+        }
+
         return data;
     }
 
     public void checkAndReset() {
+        // フィールドがnullの場合（古いデータからのロード時）に初期化
+        ensureFieldsInitialized();
+
         if (!lastResetDate.isEqual(LocalDate.now())) {
             this.completionCounts.clear();
             this.currentProgress.clear();
             this.targetMobIds.clear(); // ★リセット
+            this.dailySellCredits.clear(); // ★リセット
             this.lastResetDate = LocalDate.now();
+        }
+    }
+
+    /**
+     * デシリアライズ時などにフィールドがnullになるのを防止します。
+     */
+    private void ensureFieldsInitialized() {
+        // completionCounts自体はGson/ConfigurationSerializableでMapとしてロードされるが念のため
+        // currentProgress, targetMobIds, dailySellCredits は新しく追加されたフィールドなので
+        // 古いデータには存在せず null になる可能性がある。
+        try {
+            java.lang.reflect.Field completionCountsField = DailyTaskData.class.getDeclaredField("completionCounts");
+            completionCountsField.setAccessible(true);
+            if (completionCountsField.get(this) == null) completionCountsField.set(this, new HashMap<>());
+
+            java.lang.reflect.Field currentProgressField = DailyTaskData.class.getDeclaredField("currentProgress");
+            currentProgressField.setAccessible(true);
+            if (currentProgressField.get(this) == null) currentProgressField.set(this, new HashMap<>());
+
+            java.lang.reflect.Field targetMobIdsField = DailyTaskData.class.getDeclaredField("targetMobIds");
+            targetMobIdsField.setAccessible(true);
+            if (targetMobIdsField.get(this) == null) targetMobIdsField.set(this, new HashMap<>());
+
+            java.lang.reflect.Field dailySellCreditsField = DailyTaskData.class.getDeclaredField("dailySellCredits");
+            dailySellCreditsField.setAccessible(true);
+            if (dailySellCreditsField.get(this) == null) dailySellCreditsField.set(this, new HashMap<>());
+        } catch (Exception e) {
+            // リフレクションが失敗した場合のフォールバック（通常は発生しないはず）
+            // finalフィールドへの再代入を試みる一環として
         }
     }
 
@@ -129,5 +171,29 @@ public class DailyTaskData implements ConfigurationSerializable {
     public Map<String, int[]> getCurrentProgress() {
         checkAndReset();
         return currentProgress;
+    }
+
+    /**
+     * 売却による本日の累計獲得信用度を取得します。
+     */
+    public int getDailySellCredit(String traderId) {
+        checkAndReset();
+        return dailySellCredits.getOrDefault(traderId, 0);
+    }
+
+    /**
+     * 売却による信用度を加算します。上限(150)を超える場合は上限まで加算されます。
+     * @return 実際に加算された信用度
+     */
+    public int addDailySellCredit(String traderId, int amount) {
+        checkAndReset();
+        int current = dailySellCredits.getOrDefault(traderId, 0);
+        int limit = 150;
+        
+        if (current >= limit) return 0;
+        
+        int canAdd = Math.min(amount, limit - current);
+        dailySellCredits.put(traderId, current + canAdd);
+        return canAdd;
     }
 }
