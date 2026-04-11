@@ -213,6 +213,19 @@ public class DatabaseManager implements IManager, IDatabaseManager {
                     clan_id TEXT,
                     FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE
                 )""");
+
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS player_fast_travel (
+                    uuid TEXT NOT NULL,
+                    point_id TEXT NOT NULL,
+                    world TEXT,
+                    x REAL,
+                    y REAL,
+                    z REAL,
+                    yaw REAL,
+                    pitch REAL,
+                    PRIMARY KEY (uuid, point_id)
+                )""");
         }
     }
 

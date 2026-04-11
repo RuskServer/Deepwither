@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager;
+import com.lunar_prototype.deepwither.fasttravel.FastTravelManager;
+import com.lunar_prototype.deepwither.fasttravel.FastTravelPoint;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
@@ -130,6 +132,9 @@ public class SafeZoneListener implements Listener, IManager {
 
             setSafeZoneSpawn(player.getUniqueId(), to);
             saveSafeZoneSpawns();
+
+            // ファストトラベル地点の解放チェック
+            checkFastTravelUnlock(player, to);
         }
         else if (!isNewInSafeZone && isOldInSafeZone) {
             Title title = Title.title(
@@ -138,6 +143,21 @@ public class SafeZoneListener implements Listener, IManager {
             );
             player.showTitle(title);
             player.sendMessage(Component.text(">> 危険区域へ移動しました。", NamedTextColor.RED));
+        }
+    }
+
+    private void checkFastTravelUnlock(Player player, Location loc) {
+        RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+        RegionQuery query = container.createQuery();
+        ApplicableRegionSet set = query.getApplicableRegions(BukkitAdapter.adapt(loc));
+
+        FastTravelManager ftm = plugin.get(FastTravelManager.class);
+        if (ftm == null) return;
+
+        for (ProtectedRegion region : set) {
+            if (region.getId().toLowerCase().contains("safezone")) {
+                ftm.unlock(player, region.getId(), loc);
+            }
         }
     }
 

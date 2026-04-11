@@ -2,6 +2,8 @@ package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.companion.CompanionGui;
 import com.lunar_prototype.deepwither.data.DailyTaskData;
+import com.lunar_prototype.deepwither.fasttravel.FastTravelGUI;
+import com.lunar_prototype.deepwither.fasttravel.FastTravelManager;
 import com.lunar_prototype.deepwither.mail.MailInboxGUI;
 import com.lunar_prototype.deepwither.modules.economy.trader.DailyTaskManager;
 import com.lunar_prototype.deepwither.profession.PlayerProfessionData;
@@ -44,6 +46,7 @@ public class MenuGUI implements Listener, IManager {
     private DailyTaskManager dailyTaskManager;
     private MailInboxGUI mailInboxGUI;
     private com.lunar_prototype.deepwither.party.PartyGUI partyGUI;
+    private FastTravelGUI fastTravelGUI;
 
     public static final Component GUI_TITLE = Component.text("Main Menu", NamedTextColor.DARK_GRAY).decoration(TextDecoration.ITALIC, false);
     private static final int GUI_SIZE = 54;
@@ -61,6 +64,7 @@ public class MenuGUI implements Listener, IManager {
         this.dailyTaskManager = plugin.getDailyTaskManager();
         this.mailInboxGUI = plugin.getMailInboxGUI();
         this.partyGUI = new com.lunar_prototype.deepwither.party.PartyGUI(plugin.getPartyManager(), plugin);
+        this.fastTravelGUI = new FastTravelGUI(plugin, plugin.get(FastTravelManager.class));
 
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
@@ -108,6 +112,11 @@ public class MenuGUI implements Listener, IManager {
         inv.setItem(41, createNavButton(Material.WRITABLE_BOOK, Component.text("スキルセット", NamedTextColor.LIGHT_PURPLE, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false),
                 Component.text("習得したスキルを", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false), 
                 Component.text("スロットに装備します。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false), 
+                Component.empty(), Component.text("▶ クリックして開く", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false)));
+
+        inv.setItem(31, createNavButton(Material.CHEST_MINECART, Component.text("ファストトラベル", NamedTextColor.YELLOW, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false),
+                Component.text("解放済みのセーフゾーンへ", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false),
+                Component.text("瞬時に移動します。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false),
                 Component.empty(), Component.text("▶ クリックして開く", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false)));
 
         inv.setItem(42, createNavButton(Material.AMETHYST_SHARD, Component.text("アーティファクト", NamedTextColor.DARK_PURPLE, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false),
@@ -386,6 +395,10 @@ public class MenuGUI implements Listener, IManager {
             case 41:
                 player.closeInventory();
                 Deepwither.getInstance().getSkillAssignmentGUI().open(player);
+                break;
+            case 31:
+                player.closeInventory();
+                fastTravelGUI.open(player);
                 break;
             case 42:
                 player.closeInventory();

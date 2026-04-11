@@ -949,6 +949,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.partyManager = register(new PartyManager(this));
         this.roguelikeBuffManager = register(new RoguelikeBuffManager(this));
         this.roguelikeBuffGUI = register(new RoguelikeBuffGUI(this));
+        register(new com.lunar_prototype.deepwither.fasttravel.FastTravelManager(this));
 
         // --- Group E ---
         this.fileDailyTaskDataStore = serviceManager.get(FileDailyTaskDataStore.class); // Explicit cast if generic
