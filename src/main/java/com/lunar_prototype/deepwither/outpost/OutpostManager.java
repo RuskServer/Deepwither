@@ -125,4 +125,8 @@ public class OutpostManager implements IManager {
     public OutpostEvent getActiveEvent() {
         return activeEvent;
     }
+
+    public OutpostConfig getConfig() {
+        return config;
+    }
 }

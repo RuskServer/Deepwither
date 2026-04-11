@@ -248,6 +248,8 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
 
     private PvPvEDungeonManager pvPvEDungeonManager;
     private SkilltreeGUI skilltreeGUI;
+    private MaterialGuideManager materialGuideManager;
+    private MaterialGuideGUI materialGuideGUI;
     private MenuGUI menuGUI;
     private ResetGUI resetGUI;
     private MenuItemListener menuItemListener;
@@ -515,6 +517,14 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     @Deprecated
     public CraftingManager getCraftingManager() {
         return craftingManager;
+    }
+
+    public MaterialGuideManager getMaterialGuideManager() {
+        return materialGuideManager;
+    }
+
+    public MaterialGuideGUI getMaterialGuideGUI() {
+        return materialGuideGUI;
     }
 
     /**
@@ -975,6 +985,9 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.craftingGUI = register(new CraftingGUI(this));
         this.traderGUI = register(new TraderGUI(this));
         this.sellGUI = register(new SellGUI(this));
+        
+        this.materialGuideManager = register(new MaterialGuideManager(this));
+        this.materialGuideGUI = new MaterialGuideGUI(this, materialGuideManager);
 
         // --- Standalone Listeners (Managed) ---
         register(new PlayerConnectionListener(this));

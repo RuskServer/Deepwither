@@ -86,6 +86,33 @@ public class WeaponMechanicManager implements IManager {
 
         // 5. ハンマーの溜め攻撃
         handleHammerCrash(attacker, context.getVictim(), context.getFinalDamage(), item, processor);
+
+        // 6. 武器の特殊エフェクト (lava等)
+        handleWeaponEffects(context);
+    }
+
+    private void handleWeaponEffects(DamageContext context) {
+        ItemStack item = context.getWeapon();
+        if (item == null || !item.hasItemMeta()) return;
+        
+        ItemMeta meta = item.getItemMeta();
+        String effect = meta.getPersistentDataContainer().get(ItemLoader.WEAPON_EFFECT_KEY, PersistentDataType.STRING);
+        if (effect == null) return;
+
+        if ("lava".equals(effect)) {
+            // 武器の攻撃力の10%を毎秒ダメージとして設定
+            double dotDamage = context.getFinalDamage() * 0.1;
+            
+            Map<String, Object> metadata = new HashMap<>();
+            metadata.put("damage_per_tick", dotDamage);
+            metadata.put("attacker", context.getAttacker());
+
+            // 5秒間（100tick）の独自延焼を付与
+            plugin.getAuraManager().addAura(context.getVictim(), "lava_burn", 100, metadata);
+            
+            // ヒットパーティクル
+            context.getVictim().getWorld().spawnParticle(Particle.LAVA, context.getVictim().getLocation().add(0, 1, 0), 4, 0.2, 0.2, 0.2, 0.05);
+        }
     }
 
     private void handleHalberdAttack(Player attacker, LivingEntity target, double damage, DamageProcessor processor) {

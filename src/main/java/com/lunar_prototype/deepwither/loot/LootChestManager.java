@@ -55,12 +55,28 @@ public class LootChestManager implements IManager {
         removeAllLootChests();
     }
 
-    private static class WeightedTemplate {
+    public Map<Integer, List<WeightedTemplate>> getTieredTemplates() {
+        return tieredTemplates;
+    }
+
+    public Map<String, LootChestTemplate> getTemplates() {
+        return templates;
+    }
+
+    public static class WeightedTemplate {
         final LootChestTemplate template;
         final int weight;
         WeightedTemplate(LootChestTemplate template, int weight) {
             this.template = template;
             this.weight = weight;
+        }
+
+        public LootChestTemplate getTemplate() {
+            return template;
+        }
+
+        public int getWeight() {
+            return weight;
         }
     }
 

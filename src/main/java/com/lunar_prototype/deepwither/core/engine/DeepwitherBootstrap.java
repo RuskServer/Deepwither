@@ -48,6 +48,20 @@ public class DeepwitherBootstrap {
         moduleManager.startModules();
 
         logger.info("Deepwither Engine initialized successfully.");
+
+        // オーラマネージャーの定期処理タスクの開始 (毎回20tick = 1秒ごと)
+        new org.bukkit.scheduler.BukkitRunnable() {
+            @Override
+            public void run() {
+                com.lunar_prototype.deepwither.api.skill.aura.AuraManager auraManager = plugin.getAuraManager();
+                if (auraManager != null) {
+                    auraManager.tick();
+                }
+            }
+        }.runTaskTimer(plugin, 20L, 20L);
+
+        // 武器の視覚演出タスクの開始 (2tick毎)
+        new com.lunar_prototype.deepwither.WeaponEffectTask(plugin).runTaskTimer(plugin, 5L, 2L);
     }
 
     /**

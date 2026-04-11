@@ -47,6 +47,7 @@ public class ItemLoader {
     public static final NamespacedKey CHARGE_ATTACK_KEY = new NamespacedKey(Deepwither.getInstance(), "charge_attack");
     public static final NamespacedKey SPECIAL_ACTION_KEY = new NamespacedKey(Deepwither.getInstance(), "special_action_type");
     public static final NamespacedKey IS_WAND = new NamespacedKey(Deepwither.getInstance(), "is_wand");
+    public static final NamespacedKey WEAPON_EFFECT_KEY = new NamespacedKey(Deepwither.getInstance(), "weapon_effect");
 
     // 品質判定用Enum
     enum QualityRank {
@@ -428,6 +429,10 @@ public class ItemLoader {
                 }
                 if ((itemType != null && itemType.contains("杖")) || config.getBoolean(key + ".is_wand")) {
                     meta.getPersistentDataContainer().set(IS_WAND, PersistentDataType.BOOLEAN, true);
+                }
+                String weaponEffect = config.getString(key + ".weapon_effect");
+                if (weaponEffect != null) {
+                    meta.getPersistentDataContainer().set(WEAPON_EFFECT_KEY, PersistentDataType.STRING, weaponEffect.toLowerCase());
                 }
                 String setPartner = config.getString(key + ".set_partner");
                 if (setPartner != null) {

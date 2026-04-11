@@ -47,6 +47,7 @@ public class MenuGUI implements Listener, IManager {
     private MailInboxGUI mailInboxGUI;
     private com.lunar_prototype.deepwither.party.PartyGUI partyGUI;
     private FastTravelGUI fastTravelGUI;
+    private MaterialGuideGUI materialGuideGUI;
 
     public static final Component GUI_TITLE = Component.text("Main Menu", NamedTextColor.DARK_GRAY).decoration(TextDecoration.ITALIC, false);
     private static final int GUI_SIZE = 54;
@@ -65,6 +66,7 @@ public class MenuGUI implements Listener, IManager {
         this.mailInboxGUI = plugin.getMailInboxGUI();
         this.partyGUI = new com.lunar_prototype.deepwither.party.PartyGUI(plugin.getPartyManager(), plugin);
         this.fastTravelGUI = new FastTravelGUI(plugin, plugin.get(FastTravelManager.class));
+        this.materialGuideGUI = plugin.getMaterialGuideGUI();
 
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
@@ -117,6 +119,11 @@ public class MenuGUI implements Listener, IManager {
         inv.setItem(31, createNavButton(Material.CHEST_MINECART, Component.text("ファストトラベル", NamedTextColor.YELLOW, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false),
                 Component.text("解放済みのセーフゾーンへ", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false),
                 Component.text("瞬時に移動します。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false),
+                Component.empty(), Component.text("▶ クリックして開く", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false)));
+
+        inv.setItem(32, createNavButton(Material.RAW_GOLD, Component.text("素材入手ガイド", NamedTextColor.GOLD, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false),
+                Component.text("素材アイテムの入手場所を", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false),
+                Component.text("動的に確認できます。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false),
                 Component.empty(), Component.text("▶ クリックして開く", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false)));
 
         inv.setItem(42, createNavButton(Material.AMETHYST_SHARD, Component.text("アーティファクト", NamedTextColor.DARK_PURPLE, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false),
@@ -399,6 +406,12 @@ public class MenuGUI implements Listener, IManager {
             case 31:
                 player.closeInventory();
                 fastTravelGUI.open(player);
+                break;
+            case 32:
+                player.closeInventory();
+                if (materialGuideGUI != null) {
+                    materialGuideGUI.open(player, 0);
+                }
                 break;
             case 42:
                 player.closeInventory();

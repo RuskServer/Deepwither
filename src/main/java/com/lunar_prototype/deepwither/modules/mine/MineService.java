@@ -155,6 +155,10 @@ public class MineService implements IManager {
         }
     }
 
+    public Map<org.bukkit.Material, OreRule> getRuleCache() {
+        return ruleCache;
+    }
+
     private void completeMine(org.bukkit.entity.Player player, Block block, BlockPos pos, OreState state,
                               MiningSkillService.MiningProfile profile, boolean allowGeologicalBreak) {
         cancelRespawn(state);
@@ -572,10 +576,10 @@ public class MineService implements IManager {
         return location.getWorld().getUID() + ":" + location.getBlockX() + ":" + location.getBlockY() + ":" + location.getBlockZ() + ":" + radius;
     }
 
-    private record DropDefinition(String itemId, double chance) {}
+    public record DropDefinition(String itemId, double chance) {}
 
-    private record OreRule(Material material, int durability, long respawnTicks, int exp, int barLength,
-                           NamedTextColor filledColor, NamedTextColor emptyColor,
+    public record OreRule(org.bukkit.Material material, int durability, long respawnTicks, int exp, int barLength,
+                           net.kyori.adventure.text.format.NamedTextColor filledColor, net.kyori.adventure.text.format.NamedTextColor emptyColor,
                            List<DropDefinition> drops) {}
 
     private static final class OreState {

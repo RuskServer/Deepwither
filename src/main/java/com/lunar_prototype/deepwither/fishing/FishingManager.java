@@ -52,6 +52,10 @@ public class FishingManager implements IManager {
         lastCatchTimeMap.clear();
     }
 
+    public Map<String, List<LootEntry>> getLootTable() {
+        return lootTable;
+    }
+
     public void loadConfig() {
         rarityMap.clear();
         lootTable.clear();
@@ -281,13 +285,21 @@ public class FishingManager implements IManager {
         }
     }
 
-    private static class LootEntry {
-        final String id;
-        final int weight;
+    public static class LootEntry {
+        public final String id;
+        public final int weight;
 
-        LootEntry(String id, int weight) {
+        public LootEntry(String id, int weight) {
             this.id = id;
             this.weight = weight;
+        }
+
+        public String getId() {
+            return id;
+        }
+
+        public int getWeight() {
+            return weight;
         }
     }
 }

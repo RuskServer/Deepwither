@@ -130,6 +130,10 @@ public class RouteLootChestManager implements IManager, Listener {
         clearActiveChest();
     }
 
+    public Map<Integer, LayerBinding> getLayerBindings() {
+        return layerBindings;
+    }
+
     public boolean isEventPvpAllowed(Location location) {
         EventChest chest = getActiveChest();
         if (chest == null || location == null || location.getWorld() == null) {
@@ -992,13 +996,13 @@ public class RouteLootChestManager implements IManager, Listener {
         }
     }
 
-    private static final class LayerBinding {
-        private final String rangeLabel;
-        private final int minTier;
-        private final int maxTier;
-        private final LayerConfig config;
+    public static final class LayerBinding {
+        public final String rangeLabel;
+        public final int minTier;
+        public final int maxTier;
+        public final LayerConfig config;
 
-        private LayerBinding(String rangeLabel, int minTier, int maxTier, LayerConfig config) {
+        public LayerBinding(String rangeLabel, int minTier, int maxTier, LayerConfig config) {
             this.rangeLabel = rangeLabel;
             this.minTier = minTier;
             this.maxTier = maxTier;
@@ -1096,13 +1100,13 @@ public class RouteLootChestManager implements IManager, Listener {
         }
     }
 
-    private static final class LayerConfig {
-        private final String name;
-        private final LootChestTemplate commonTemplate;
-        private final LootChestTemplate rareTemplate;
+    public static final class LayerConfig {
+        public final String name;
+        public final LootChestTemplate commonTemplate;
+        public final LootChestTemplate rareTemplate;
         private final List<CandidateLocation> candidates;
 
-        private LayerConfig(String name, LootChestTemplate commonTemplate, LootChestTemplate rareTemplate, List<CandidateLocation> candidates) {
+        public LayerConfig(String name, LootChestTemplate commonTemplate, LootChestTemplate rareTemplate, List<CandidateLocation> candidates) {
             this.name = name;
             this.commonTemplate = commonTemplate;
             this.rareTemplate = rareTemplate;
