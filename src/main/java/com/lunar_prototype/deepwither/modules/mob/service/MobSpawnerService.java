@@ -93,6 +93,11 @@ public class MobSpawnerService implements IManager {
         int tier = regionService.getTierFromLocation(playerLoc);
         if (tier == 0) return;
 
+        // 第一層（Tier 1）ではスポーンレートを 1/2 に制限
+        if (tier == 1 && plugin.getRandom().nextDouble() >= 0.5) {
+            return;
+        }
+
         MobConfigService.MobTierConfig config = configService.getTierConfig(tier);
         if (config == null || config.getRegularMobs().isEmpty()) return;
 
@@ -103,6 +108,14 @@ public class MobSpawnerService implements IManager {
         Location spawnLoc = getRandomSpawnLocation(playerLoc, 15);
         if (spawnLoc == null) return;
 
+        // 色あせた苔ブロック（PALE_MOSS_BLOCK）の上ではさらに湧きにくくする（追加で 75% キャンセル）
+        org.bukkit.block.Block blockBelow = spawnLoc.clone().subtract(0, 1, 0).getBlock();
+        if (isPaleMossBlock(blockBelow.getType())) {
+            if (plugin.getRandom().nextDouble() >= 0.25) {
+                return;
+            }
+        }
+
         if (mobType.equalsIgnoreCase("bandit")) {
             spawnBanditGroup(playerId, config, spawnLoc, tier);
         } else {
@@ -110,20 +123,54 @@ public class MobSpawnerService implements IManager {
         }
     }
 
+    private boolean isPaleMossBlock(Material material) {
+        // PALE_MOSS_BLOCK が定義されているバージョン（1.21+）と、そうでない場合の両方に対応
+        if (material.name().equals("PALE_MOSS_BLOCK")) return true;
+        return false;
+    }
+
     private void spawnBanditGroup(UUID playerId, MobConfigService.MobTierConfig config, Location spawnLoc, int tier) {
         List<String> banditList = config.getBanditMobs();
         if (banditList.isEmpty()) return;
+
+        // 周囲 15ブロック以内に Bandit が 3体以上いればスポーンをキャンセル
+        if (countNearbyBandits(spawnLoc, 15.0) >= 3) {
+            return;
+        }
         
         int numBandits;
-        int weight = plugin.getRandom().nextInt(10);
-        if (weight < 6) numBandits = 1;
-        else if (weight < 9) numBandits = 2;
-        else numBandits = 3;
+        if (tier == 1) {
+            // 第一層（Tier 1）では常に 1体のみスポーン
+            numBandits = 1;
+        } else {
+            int weight = plugin.getRandom().nextInt(10);
+            if (weight < 6) numBandits = 1;
+            else if (weight < 9) numBandits = 2;
+            else numBandits = 3;
+        }
 
         for (int i = 0; i < numBandits; i++) {
             String banditMobId = banditList.get(plugin.getRandom().nextInt(banditList.size()));
             trackSpawnedMobIfPresent(playerId, spawnMythicMob(banditMobId, spawnLoc, tier));
         }
+    }
+
+    private int countNearbyBandits(Location loc, double radius) {
+        int count = 0;
+        double radiusSquared = radius * radius;
+        for (io.lumine.mythic.core.mobs.ActiveMob am : io.lumine.mythic.bukkit.MythicBukkit.inst().getMobManager().getActiveMobs()) {
+            if (am.getEntity() == null || am.getEntity().getBukkitEntity() == null) continue;
+            org.bukkit.entity.Entity entity = am.getEntity().getBukkitEntity();
+            
+            if (!entity.getWorld().equals(loc.getWorld())) continue;
+            if (entity.getLocation().distanceSquared(loc) > radiusSquared) continue;
+
+            // エンティティ名または内部タイプ名に "bandit" が含まれるかチェック
+            if (am.getMobType().toLowerCase().contains("bandit")) {
+                count++;
+            }
+        }
+        return count;
     }
 
     public UUID spawnMythicMob(String mobId, Location loc, int tier) {
