@@ -30,6 +30,7 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityPotionEffectEvent;
 import org.bukkit.event.entity.EntityRegainHealthEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -46,8 +47,8 @@ public class DamageManager implements Listener, IManager {
     private final com.lunar_prototype.deepwither.core.UIManager uiManager;
     private final JavaPlugin plugin;
 
-    private static final double DEFENSE_DIVISOR = 100.0;
-    private static final double PLAYER_DEFENSE_DIVISOR = 500.0;
+    private static final double DEFENSE_DIVISOR = 250.0;
+    private static final double PLAYER_DEFENSE_DIVISOR = 250.0;
 
     private final Map<UUID, Long> iFrameEndTimes = new HashMap<>();
     private static final long DAMAGE_I_FRAME_MS = 300;
@@ -379,21 +380,23 @@ public class DamageManager implements Listener, IManager {
 
     public StatType getWeaponStatType(ItemStack item) {
         if (item == null || !item.hasItemMeta()) return null;
-        List<Component> lore = item.lore();
-        if (lore == null) return null;
-        for (Component lineComp : lore) {
-            String line = PlainTextComponentSerializer.plainText().serialize(lineComp);
-            if (!line.contains("カテゴリ:")) continue;
-            if (line.contains("鎌")) return StatType.SCYTHE_DAMAGE;
-            if (line.contains("大剣")) return StatType.GREATSWORD_DAMAGE;
-            if (line.contains("槍")) return StatType.SPEAR_DAMAGE;
-            if (line.contains("斧")) return StatType.AXE_DAMAGE;
-            if (line.contains("メイス")) return StatType.MACE_DAMAGE;
-            if (line.contains("剣")) return StatType.SWORD_DAMAGE;
-            if (line.contains("マチェット")) return StatType.MACHETE_DAMAGE;
-            if (line.contains("ハンマー")) return StatType.HAMMER_DAMAGE;
-            if (line.contains("ハルバード")) return StatType.HALBERD_DAMAGE;
-        }
+        ItemMeta meta = item.getItemMeta();
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        if (!pdc.has(ItemFactory.ITEM_TYPE_KEY, PersistentDataType.STRING)) return null;
+
+        String category = pdc.get(ItemFactory.ITEM_TYPE_KEY, PersistentDataType.STRING);
+        if (category == null) return null;
+
+        if (category.contains("鎌")) return StatType.SCYTHE_DAMAGE;
+        if (category.contains("大剣")) return StatType.GREATSWORD_DAMAGE;
+        if (category.contains("槍")) return StatType.SPEAR_DAMAGE;
+        if (category.contains("斧")) return StatType.AXE_DAMAGE;
+        if (category.contains("メイス")) return StatType.MACE_DAMAGE;
+        if (category.contains("剣")) return StatType.SWORD_DAMAGE;
+        if (category.contains("マチェット")) return StatType.MACHETE_DAMAGE;
+        if (category.contains("ハンマー")) return StatType.HAMMER_DAMAGE;
+        if (category.contains("ハルバード")) return StatType.HALBERD_DAMAGE;
+        
         return null;
     }
     

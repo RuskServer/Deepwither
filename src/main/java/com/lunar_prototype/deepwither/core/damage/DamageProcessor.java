@@ -90,16 +90,6 @@ public class DamageProcessor implements IManager {
             com.lunar_prototype.deepwither.StatType weaponType = context.getWeaponStatType();
             if (weaponType != null) {
                 damage += attackerStats.getFlat(weaponType);
-                
-                // 槍（SPEAR）の距離減衰ロジック: 3ブロック未満の至近距離ではダメージ50%減少
-                if (weaponType == com.lunar_prototype.deepwither.StatType.SPEAR_DAMAGE) {
-                    double distance = player.getLocation().distance(victim.getLocation());
-                    if (distance < 3.0) {
-                        damage *= 0.5;
-                        uiManager.of(player).message(PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG,
-                                Component.text("間合いが近すぎる！ (ダメージ減少)", NamedTextColor.GRAY));
-                    }
-                }
             }
 
             // クリティカル倍率適用
@@ -116,6 +106,17 @@ public class DamageProcessor implements IManager {
             // コンボとクールダウン (近接物理ダメージのみ)
             if (!context.isProjectile() && !context.isMagic()) {
                 damage = applyComboAndCooldown(player, damage, context);
+
+                // 槍（SPEAR）の距離減衰ロジック: 3ブロック未満の至近距離では最終ダメージ50%減少
+                // すべての倍率（クリティカル、コンボ等）が乗った後の最終値に対して適用する
+                if (weaponType == com.lunar_prototype.deepwither.StatType.SPEAR_DAMAGE) {
+                    double distance = player.getLocation().distance(victim.getLocation());
+                    if (distance < 3.0) {
+                        damage *= 0.5;
+                        uiManager.of(player).message(PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG,
+                                Component.text("間合いが近すぎる！ (ダメージ減少)", NamedTextColor.GRAY));
+                    }
+                }
             }
         }
 
@@ -143,7 +144,7 @@ public class DamageProcessor implements IManager {
             
             // 防御力計算
             double defenseValue;
-            double divisor = (victim instanceof Player) ? 500.0 : 100.0;
+            double divisor = 250.0; // 統一除数
             if (context.isMagic()) {
                 defenseValue = vStats.getFlat(com.lunar_prototype.deepwither.StatType.MAGIC_RESIST);
             } else {

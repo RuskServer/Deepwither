@@ -92,7 +92,7 @@ public class BlackGravitySkill implements ISkillLogic {
                 // 周囲から中心へ吸い込まれる安定した演出 (drawSuckParticle)
                 for (int i = 0; i < 3; i++) {
                     double angle = Math.random() * Math.PI * 2;
-                    double r = 4.0;
+                    double r = 4.0; // 演出範囲を元に戻す
                     double x = Math.cos(angle) * r;
                     double z = Math.sin(angle) * r;
                     Location edge = center.clone().add(x, (Math.random() - 0.5) * 2, z);
@@ -125,17 +125,17 @@ public class BlackGravitySkill implements ISkillLogic {
                 }
 
                 // --- 3. 脱出可能なSoft-Pull (吸引処理) ---
-                // 半径8以内の対象を吸引
+                // 半径8以内の対象を吸引 (8.0ブロック)
                 Collection<Entity> pullTargets = center.getWorld().getNearbyEntities(center, 8.0, 8.0, 8.0);
                 
-                // 吸引力の決定 (MMの delay と repeat に基づいた段階的な処理)
+                // 吸引力の決定 (引き寄せる力を弱める方向に調整)
                 double pullPower = 0.0;
                 if (ticks < 10) {
-                    pullPower = 0.3; // v=6相当
+                    pullPower = 0.12; // 0.3 -> 0.12
                 } else if (ticks < 30) {
-                    pullPower = 0.15; // v=3相当
+                    pullPower = 0.06; // 0.15 -> 0.06
                 } else {
-                    pullPower = 0.05; // v=1相当
+                    pullPower = 0.02; // 0.05 -> 0.02
                 }
 
                 for (Entity entity : pullTargets) {

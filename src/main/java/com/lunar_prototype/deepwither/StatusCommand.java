@@ -172,16 +172,12 @@ public class StatusCommand implements CommandExecutor {
     }
 
     private Component buildEffectiveHPHover(double maxHp, double statValue) {
-        double pveEhp = maxHp * (1.0 + (statValue / 100.0));
-        double pvpEhp = maxHp * (1.0 + (statValue / 500.0));
+        double ehp = maxHp * (1.0 + (statValue / 250.0));
 
         return Component.text("実効HP (Total HP)", NamedTextColor.YELLOW, TextDecoration.BOLD)
                 .append(Component.newline())
-                .append(Component.text(" PvE: ", NamedTextColor.GRAY))
-                .append(Component.text(String.format("%,.0f", pveEhp), NamedTextColor.GREEN))
-                .append(Component.newline())
-                .append(Component.text(" PvP: ", NamedTextColor.GRAY))
-                .append(Component.text(String.format("%,.0f", pvpEhp), NamedTextColor.RED));
+                .append(Component.text(" 全体: ", NamedTextColor.GRAY))
+                .append(Component.text(String.format("%,.0f", ehp), NamedTextColor.GREEN));
     }
 
     private String formatProfessionName(ProfessionType type) {

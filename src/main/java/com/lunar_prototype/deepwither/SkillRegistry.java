@@ -17,6 +17,8 @@ public class SkillRegistry implements IManager {
         register("fireball", new com.lunar_prototype.deepwither.api.skill.FireballSkill());
         register("meteor", new com.lunar_prototype.deepwither.api.skill.MeteorSkill());
         register("black_gravity", new com.lunar_prototype.deepwither.api.skill.BlackGravitySkill());
+        register("explosion_arrow", new com.lunar_prototype.deepwither.api.skill.ExplosionArrowSkill());
+        register("cluster_explosion_arrow", new com.lunar_prototype.deepwither.api.skill.ClusterExplosionArrowSkill());
         register("blood_surge", new com.lunar_prototype.deepwither.api.skill.BloodSurgeSkill());
         register("charge_warrior", new com.lunar_prototype.deepwither.api.skill.ChargeWarriorSkill());
         register("flash_slash", new com.lunar_prototype.deepwither.api.skill.FlashSlashSkill());

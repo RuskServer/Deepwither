@@ -42,6 +42,7 @@ import com.lunar_prototype.deepwither.mail.MailInboxGUI;
 import com.lunar_prototype.deepwither.mail.MailManager;
 import com.lunar_prototype.deepwither.modules.economy.trader.*;
 import com.lunar_prototype.deepwither.modules.mine.MiningSkillService;
+import com.lunar_prototype.deepwither.modules.mine.MineService;
 import com.lunar_prototype.deepwither.mythic.CustomDropListener;
 import com.lunar_prototype.deepwither.modules.outpost.OutpostDamageListener;
 import com.lunar_prototype.deepwither.modules.outpost.OutpostManager;
@@ -938,6 +939,9 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.fileDailyTaskDataStore = serviceManager.get(FileDailyTaskDataStore.class); // Explicit cast if generic
                                                                                         // needed
         this.dailyTaskManager = serviceManager.get(DailyTaskManager.class);
+
+        // Mine Module Bridge
+        serviceManager.register(serviceManager.get(MineService.class));
 
         // Aethelgard Managers
         GuildQuestManager guildQuestManager = serviceManager.get(GuildQuestManager.class);

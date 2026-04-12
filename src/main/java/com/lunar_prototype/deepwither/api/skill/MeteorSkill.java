@@ -39,10 +39,10 @@ public class MeteorSkill implements ISkillLogic {
             targetLoc = new Location(world, endLoc.getX(), y + 1.0, endLoc.getZ());
         }
 
-        // --- フェーズ1: 予測円描画とチャージ (約0.5秒 = 10Tick) ---
+        // --- フェーズ1: 予測円描画とチャージ (約1.5秒 = 30Tick) ---
         new BukkitRunnable() {
             int ticks = 0;
-            final int maxTicks = 10;
+            final int maxTicks = 30;
             final double radius = 5.0; // AOE半径
             final Color[] warningColors = {
                 Color.fromRGB(255, 30, 0),
@@ -87,9 +87,9 @@ public class MeteorSkill implements ISkillLogic {
 
         new SkillProjectile(caster, spawnLoc, dropDir) {
             {
-                this.speed = 2.0; // かなり速く。約7.5Tickで着弾
+                this.speed = 1.0; // 速度を落として着弾までの時間を稼ぐ
                 this.hitboxRadius = 1.5;
-                this.maxTicks = 60;
+                this.maxTicks = 100; // 落下距離に合わせて最大Tickも増やす
             }
 
             @Override
