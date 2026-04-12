@@ -51,7 +51,7 @@ import com.lunar_prototype.deepwither.party.PartyManager;
 import com.lunar_prototype.deepwither.profession.ProfessionDatabase;
 import com.lunar_prototype.deepwither.profession.ProfessionManager;
 import com.lunar_prototype.deepwither.profiler.CombatAnalyzer;
-import com.lunar_prototype.deepwither.aethelgard.*;
+import com.lunar_prototype.deepwither.modules.aethelgard.*;
 import com.lunar_prototype.deepwither.api.DeepwitherAPI;
 import com.lunar_prototype.deepwither.api.database.IDatabaseManager;
 import com.lunar_prototype.deepwither.api.stat.IStatManager;
@@ -182,7 +182,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         return bootstrap;
     }
 
-    private FileConfiguration questConfig;
     private CacheManager cacheManager;
     private PlayerDataManager playerDataManager;
     private LevelManager levelManager;
@@ -233,9 +232,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     private MobSpawnManager mobSpawnManager;
     private ItemNameResolver itemNameResolver;
     private MobKillListener mobKillListener;
-    private QuestDataStore questDataStore;
-    private GuildQuestManager guildQuestManager;
-    private PlayerQuestManager playerQuestManager;
     private ExecutorService asyncExecutor;
     private FileDailyTaskDataStore fileDailyTaskDataStore;
     private LootChestManager lootChestManager;
@@ -279,7 +275,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     private ProfessionDatabase professionDatabase;
     private SettingsGUI settingsGUI;
     private CompanionManager companionManager;
-    private PlayerQuestDataStore playerQuestDataStore;
     private FishingManager fishingManager;
     private RaidBossManager raidBossManager;
     private LayerMoveManager layerMoveManager;
@@ -505,7 +500,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
      */
     @Deprecated
     public PlayerQuestManager getPlayerQuestManager() {
-        return playerQuestManager;
+        return serviceManager.get(PlayerQuestManager.class);
     }
 
     /**
@@ -723,11 +718,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     public void onEnable() {
         // Plugin startup logic
         instance = this;
-        ConfigurationSerialization.registerClass(RewardDetails.class);
-        ConfigurationSerialization.registerClass(LocationDetails.class);
-        ConfigurationSerialization.registerClass(GeneratedQuest.class);
         ConfigurationSerialization.registerClass(DailyTaskData.class);
-
 
         // loadSafeZoneSpawns(); // Moved to SafeZoneListener
 
@@ -756,19 +747,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
             e.printStackTrace();
             getServer().getPluginManager().disablePlugin(this);
             return;
-        }
-
-        // クエスト設定のロード
-        loadGuildQuestConfig();
-
-        // クエストコンポーネントの初期化
-        if (questConfig != null) {
-            ConfigurationSection questComponents = questConfig.getConfigurationSection("quest_components");
-            if (questComponents != null) {
-                QuestComponentPool.loadComponents(questComponents);
-            } else {
-                getLogger().severe("guild_quest_config.yml に 'quest_components' セクションが見つかりません！");
-            }
         }
 
         this.partyAPI = new DeepwitherPartyAPI(partyManager); // ★ 初期化
@@ -833,7 +811,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         getCommand("menu").setExecutor(new MenuCommand(menuGUI));
         getCommand("skills").setExecutor(new SkillAssignmentCommand());
         getCommand("blacksmith").setExecutor(new BlacksmithCommand());
-        getCommand("questnpc").setExecutor(new QuestCommand(this, guildQuestManager));
         getCommand("task").setExecutor(new TaskCommand(this));
         PartyCommand partyCommand = new PartyCommand(partyManager);
         getCommand("party").setExecutor(partyCommand);
@@ -965,10 +942,11 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.fileDailyTaskDataStore = serviceManager.get(FileDailyTaskDataStore.class); // Explicit cast if generic
                                                                                         // needed
         this.dailyTaskManager = serviceManager.get(DailyTaskManager.class);
-        this.questDataStore = serviceManager.get(QuestDataStore.class);
-        this.guildQuestManager = serviceManager.get(GuildQuestManager.class);
-        this.playerQuestDataStore = serviceManager.get(PlayerQuestDataStore.class); // cast?
-        this.playerQuestManager = serviceManager.get(PlayerQuestManager.class);
+
+        // Aethelgard Managers
+        GuildQuestManager guildQuestManager = serviceManager.get(GuildQuestManager.class);
+        PlayerQuestManager playerQuestManager = serviceManager.get(PlayerQuestManager.class);
+
         this.professionManager = register(new ProfessionManager(this, professionDatabase));
         this.aiEngine = register(new SeekerAIEngine());
         this.outpostManager = register(new OutpostManager(this));
@@ -1019,7 +997,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         register(new DropPreventionListener(this));
         register(new PlayerInteractListener(this));
         register(new PlayerListener(this, playerQuestManager));
-        register(new GUIListener(playerQuestManager));
         register(new WandManager(this));
         register(new FishingListener(this));
         register(new MobKillListener(this));
@@ -1152,25 +1129,5 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         });
     }
 
-    /**
-     * guild_quest_config.ymlをデータフォルダからロードし、存在しない場合はリソースからコピーします。
-     */
-    private void loadGuildQuestConfig() {
-        File configFile = new File(getDataFolder(), "guild_quest_config.yml");
-
-        if (!configFile.exists()) {
-            // ファイルが存在しない場合、リソースからコピーする
-            getLogger().info("guild_quest_config.yml が見つかりませんでした。リソースからコピーします。");
-            saveResource("guild_quest_config.yml", false);
-        }
-
-        // ファイルから設定をロード
-        try {
-            questConfig = YamlConfiguration.loadConfiguration(configFile);
-            getLogger().info("guild_quest_config.yml を正常にロードしました。");
-        } catch (Exception e) {
-            getLogger().log(Level.SEVERE, "guild_quest_config.yml のロード中に致命的なエラーが発生しました。", e);
-            questConfig = null;
-        }
-    }
 }
+

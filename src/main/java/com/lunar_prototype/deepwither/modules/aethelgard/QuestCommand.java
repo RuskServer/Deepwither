@@ -1,6 +1,4 @@
-package com.lunar_prototype.deepwither;
-
-import com.lunar_prototype.deepwither.aethelgard.GuildQuestManager;
+package com.lunar_prototype.deepwither.modules.aethelgard;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;

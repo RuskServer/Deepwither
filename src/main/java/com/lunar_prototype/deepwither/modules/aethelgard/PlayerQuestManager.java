@@ -1,14 +1,16 @@
-package com.lunar_prototype.deepwither.aethelgard;
+package com.lunar_prototype.deepwither.modules.aethelgard;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.LevelManager;
+import com.lunar_prototype.deepwither.api.IItemFactory;
 import com.lunar_prototype.deepwither.data.FilePlayerQuestDataStore;
 import com.lunar_prototype.deepwither.data.PlayerQuestDataStore;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.HashSet;
 import java.util.Map;
@@ -18,17 +20,24 @@ import java.util.concurrent.ConcurrentHashMap;
 @DependsOn({GuildQuestManager.class, FilePlayerQuestDataStore.class})
 public class PlayerQuestManager implements IManager {
 
-    private final JavaPlugin plugin;
+    private final Deepwither plugin;
     private final GuildQuestManager guildQuestManager;
     private final PlayerQuestDataStore dataStore;
+    private final LevelManager levelManager;
+    private final IItemFactory itemFactory;
+    private final Economy economy;
 
     private static final int MAX_ACTIVE_QUESTS = 1;
     private final Map<UUID, PlayerQuestData> playerQuestCache;
 
-    public PlayerQuestManager(JavaPlugin plugin, GuildQuestManager guildQuestManager, PlayerQuestDataStore dataStore) {
+    public PlayerQuestManager(Deepwither plugin, GuildQuestManager guildQuestManager, PlayerQuestDataStore dataStore,
+                              LevelManager levelManager, IItemFactory itemFactory, Economy economy) {
         this.plugin = plugin;
         this.guildQuestManager = guildQuestManager;
         this.dataStore = dataStore;
+        this.levelManager = levelManager;
+        this.itemFactory = itemFactory;
+        this.economy = economy;
         this.playerQuestCache = new ConcurrentHashMap<>();
     }
 
@@ -131,12 +140,14 @@ public class PlayerQuestManager implements IManager {
 
         RewardDetails rewardDetails = progress.getQuestDetails().getRewardDetails();
 
-        if (Deepwither.getInstance() != null) {
-            Deepwither.getInstance().getLevelManager().addExp(player, rewardDetails.getExperiencePoints());
-            Deepwither.getEconomy().depositPlayer(player, rewardDetails.getGuildCoin());
-            Deepwither.getInstance().getItemFactory().getCustomItem(player, rewardDetails.getItemRewardId());
-        } else {
-            plugin.getLogger().warning("Deepwither instance is null. Cannot grant rewards.");
+        if (levelManager != null) {
+            levelManager.addExp(player, rewardDetails.getExperiencePoints());
+        }
+        if (economy != null) {
+            economy.depositPlayer(player, rewardDetails.getGuildCoin());
+        }
+        if (itemFactory != null) {
+            itemFactory.giveItem(player, rewardDetails.getItemRewardId());
         }
 
         playerQuestCache.get(player.getUniqueId()).removeQuest(questId);

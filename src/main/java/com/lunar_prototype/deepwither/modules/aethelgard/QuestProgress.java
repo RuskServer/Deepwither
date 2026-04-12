@@ -1,4 +1,4 @@
-package com.lunar_prototype.deepwither.aethelgard;
+package com.lunar_prototype.deepwither.modules.aethelgard;
 
 import java.util.concurrent.atomic.AtomicInteger;
 

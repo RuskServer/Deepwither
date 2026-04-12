@@ -1,6 +1,6 @@
-package com.lunar_prototype.deepwither;
+package com.lunar_prototype.deepwither.modules.aethelgard;
 
-import com.lunar_prototype.deepwither.aethelgard.PlayerQuestManager;
+import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
@@ -42,7 +42,7 @@ public class GUIListener implements Listener, IManager {
     public void onInventoryClick(InventoryClickEvent event) {
         InventoryHolder holder = event.getInventory().getHolder();
 
-        if (!(holder instanceof com.lunar_prototype.deepwither.QuestGUI questGUI)) {
+        if (!(holder instanceof QuestGUI questGUI)) {
             return;
         }
 

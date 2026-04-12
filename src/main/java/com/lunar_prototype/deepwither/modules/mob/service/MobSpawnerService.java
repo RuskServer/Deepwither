@@ -1,10 +1,10 @@
 package com.lunar_prototype.deepwither.modules.mob.service;
 
 import com.lunar_prototype.deepwither.Deepwither;
-import com.lunar_prototype.deepwither.aethelgard.LocationDetails;
-import com.lunar_prototype.deepwither.aethelgard.PlayerQuestData;
-import com.lunar_prototype.deepwither.aethelgard.PlayerQuestManager;
-import com.lunar_prototype.deepwither.aethelgard.QuestProgress;
+import com.lunar_prototype.deepwither.modules.aethelgard.LocationDetails;
+import com.lunar_prototype.deepwither.modules.aethelgard.PlayerQuestData;
+import com.lunar_prototype.deepwither.modules.aethelgard.PlayerQuestManager;
+import com.lunar_prototype.deepwither.modules.aethelgard.QuestProgress;
 import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.modules.mine.MineService;
 import com.lunar_prototype.deepwither.modules.mob.util.MobRegionService;

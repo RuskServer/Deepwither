@@ -5,7 +5,7 @@ import com.lunar_prototype.deepwither.modules.mob.service.*;
 import com.lunar_prototype.deepwither.modules.mob.util.MobRegionService;
 import com.lunar_prototype.deepwither.modules.mine.MineService;
 import com.lunar_prototype.deepwither.outpost.OutpostEvent;
-import com.lunar_prototype.deepwither.aethelgard.PlayerQuestManager;
+import com.lunar_prototype.deepwither.modules.aethelgard.PlayerQuestManager;
 import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;

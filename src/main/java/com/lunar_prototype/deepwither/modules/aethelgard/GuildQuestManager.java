@@ -1,11 +1,10 @@
-package com.lunar_prototype.deepwither.aethelgard;
+package com.lunar_prototype.deepwither.modules.aethelgard;
 
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.data.QuestDataStore;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
-import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -15,10 +14,10 @@ import java.util.logging.Level;
  * ギルドクエストの中央管理クラス。
  * クエストの永続化、生成、周期的な更新を処理します。
  */
-@DependsOn({QuestDataStore.class})
+@DependsOn({QuestDataStore.class, QuestComponentPool.class})
 public class GuildQuestManager implements Runnable, IManager {
 
-    private final JavaPlugin plugin;
+    private final Deepwither plugin;
     private final QuestGenerator questGenerator;
     private final QuestDataStore dataStore;
 
@@ -29,13 +28,12 @@ public class GuildQuestManager implements Runnable, IManager {
     private Integer schedulerTaskId = null;
     private static final long UPDATE_PERIOD_TICKS = 20L * 60 * 60; // 1時間 = 20 * 60秒 * 60分
 
-    public GuildQuestManager(JavaPlugin plugin, QuestDataStore dataStore) {
+    public GuildQuestManager(Deepwither plugin, QuestDataStore dataStore, QuestComponentPool componentPool) {
         this.plugin = plugin;
         this.dataStore = dataStore;
-        this.questGenerator = new QuestGenerator();
+        this.questGenerator = new QuestGenerator(plugin, componentPool);
 
         // 初期ギルドロケーションの設定 (ハードコードまたはConfigからロード)
-        // ここで設定されるのは受付NPCの場所ではなく、クエストリストのIDと名前
         initializeGuildLocations();
     }
 
@@ -49,7 +47,7 @@ public class GuildQuestManager implements Runnable, IManager {
      * 実際のサーバーでは、Configから読み込むべきです。
      */
     private void initializeGuildLocations() {
-        // ダミーのロケーションデータ（QuestLocationのコンストラクタからLocationとradiusが削除されました）
+        // ダミーのロケーションデータ
         guildLocations.add(new QuestLocation("t3_city", "第三層都市", new ArrayList<>()));
     }
 
@@ -83,7 +81,7 @@ public class GuildQuestManager implements Runnable, IManager {
                                         UPDATE_PERIOD_TICKS
                                 ).getTaskId();
                                 plugin.getLogger().info("Guild Quest Manager started periodic update task.");
-                            }, Bukkit.getScheduler().getMainThreadExecutor(Deepwither.getInstance())); // Bukkit APIへのアクセスは不要なので、thenRunAsyncでも可
+                            }, Bukkit.getScheduler().getMainThreadExecutor(plugin));
                 })
                 .exceptionally(e -> {
                     plugin.getLogger().severe("Failed to load quests: " + e.getMessage());
@@ -127,29 +125,24 @@ public class GuildQuestManager implements Runnable, IManager {
                     // 失敗しても、次の run() は実行される
                     return null;
                 });
-        // run() メソッドはこれ以上同期タスクをスケジュールしません
     }
 
     /**
      * サーバー停止時に実行される処理。周期タスクを停止し、データを最終保存します。
      */
+    @Override
     public void shutdown() {
         // 周期タスクを停止
-        if (this.schedulerTaskId != -1) {
+        if (this.schedulerTaskId != null && this.schedulerTaskId != -1) {
             Bukkit.getScheduler().cancelTask(this.schedulerTaskId);
             this.schedulerTaskId = -1;
         }
 
-        // ★ 最終保存処理：同期的に実行されるメソッドを呼び出すように変更
-        // (データストアに 'saveAllQuestsSynchronous' のようなメソッドを追加する必要があります)
-
-        // 仮に dataStore の CompletableFuture を返す saveAllQuests() をブロックして待つ場合:
+        // 最終保存処理
         try {
-            // 非同期保存メソッドを呼び出し、完了するまでブロック (join() or get())
             dataStore.saveAllQuests(this.guildLocations).join();
             plugin.getLogger().info("Synchronous final save of guild quests completed.");
         } catch (Exception e) {
-            // join() は実行時例外をラップするため、キャッチ
             plugin.getLogger().log(Level.SEVERE, "Failed to complete final synchronous quest save.", e);
         }
     }
@@ -163,16 +156,11 @@ public class GuildQuestManager implements Runnable, IManager {
         List<CompletableFuture<Void>> refillFutures = new ArrayList<>();
 
         for (QuestLocation location : guildLocations) {
-            // ★修正: 期限切れクエストの削除処理
-            // ConcurrentModificationExceptionを防ぐため、一旦コピーを作成してループさせる
-            // (QuestLocationの実装がスレッドセーフか不明なため、念のためリストコピーをとる)
             List<GeneratedQuest> snapshot = new ArrayList<>(location.getCurrentQuests());
             int removedCount = 0;
 
             for (GeneratedQuest quest : snapshot) {
                 if (quest.isExpired()) {
-                    // ★重要: リストから直接 remove するのではなく、location のメソッド経由で削除する
-                    // これにより確実に QuestLocation 内のデータが更新される
                     GeneratedQuest removed = location.removeQuest(quest.getQuestId());
                     if (removed != null) {
                         removedCount++;
@@ -184,31 +172,22 @@ public class GuildQuestManager implements Runnable, IManager {
                 plugin.getLogger().info(String.format("[%s] Removed %d expired quests.", location.getLocationName(), removedCount));
             }
 
-            // 削除処理が終わった後で、現在の数を再取得する
             int currentCount = location.getQuestCount();
             int requiredRefill = QuestLocation.MAX_QUESTS - currentCount;
 
             if (requiredRefill > 0) {
                 plugin.getLogger().info(String.format("[%s] Quests missing: %d. Starting generation...", location.getLocationName(), requiredRefill));
 
-                // ★ クエスト生成処理を非同期で実行
-                // final変数をラムダ式内で使うための変数定義
                 final int refillAmount = requiredRefill;
 
                 CompletableFuture<Void> refillFuture = CompletableFuture.runAsync(() -> {
-                            // 非同期スレッドで必要な数だけクエストを生成
                             for (int i = 0; i < refillAmount; i++) {
                                 int difficulty = 1 + (int)(Math.random() * 3);
-
-                                // 時間のかかる処理: クエスト生成
                                 GeneratedQuest newQuest = questGenerator.generateQuest(difficulty);
-
-                                // クエストリストへの追加
                                 location.addQuest(newQuest);
                             }
-                        }, Deepwither.getInstance().getAsyncExecutor()) // ★ プラグインの非同期Executorを利用
+                        }, plugin.getAsyncExecutor())
                         .thenRun(() -> {
-                            // 非同期処理完了後、Bukkit APIは使用せずログのみ出力
                             plugin.getLogger().info(String.format("[%s] Refilled to %d quests (Async generation finished).", location.getLocationName(), location.getQuestCount()));
                         });
 
@@ -246,7 +225,6 @@ public class GuildQuestManager implements Runnable, IManager {
         if (location != null) {
             GeneratedQuest quest = location.removeQuest(questId);
             if (quest != null) {
-                // クエストが削除されたことを永続化
                 dataStore.saveAllQuests(this.guildLocations);
                 return quest;
             }

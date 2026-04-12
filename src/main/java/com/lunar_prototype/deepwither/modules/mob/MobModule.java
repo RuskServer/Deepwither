@@ -1,10 +1,9 @@
 package com.lunar_prototype.deepwither.modules.mob;
 
 import com.lunar_prototype.deepwither.Deepwither;
-import com.lunar_prototype.deepwither.aethelgard.PlayerQuestManager;
+import com.lunar_prototype.deepwither.modules.aethelgard.PlayerQuestManager;
 import com.lunar_prototype.deepwither.core.engine.IModule;
 import com.lunar_prototype.deepwither.core.engine.ServiceContainer;
-import com.lunar_prototype.deepwither.modules.mob.implementation.SilentWatcher;
 import com.lunar_prototype.deepwither.modules.mob.service.*;
 import com.lunar_prototype.deepwither.modules.mob.framework.CustomMobManager;
 import com.lunar_prototype.deepwither.modules.mob.implementation.FireDemon;

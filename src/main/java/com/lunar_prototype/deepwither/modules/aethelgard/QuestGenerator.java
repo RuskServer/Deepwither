@@ -1,4 +1,4 @@
-package com.lunar_prototype.deepwither.aethelgard;
+package com.lunar_prototype.deepwither.modules.aethelgard;
 
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.MobSpawnManager;
@@ -14,6 +14,8 @@ import java.util.regex.Pattern;
 
 public class QuestGenerator {
 
+    private final Deepwither plugin;
+    private final QuestComponentPool componentPool;
     private final AethelgardDialogueGenerator dialogueGenerator;
     private final Random random;
 
@@ -28,7 +30,9 @@ public class QuestGenerator {
     private static final Pattern FLOOR_PATTERN = Pattern.compile("第([0-9一二三四五六七八九十百千]+)階層");
     private static final Pattern TIER_PATTERN = Pattern.compile("(?:^|[^a-zA-Z])t([0-9]+)(?:[^a-zA-Z]|$)");
 
-    public QuestGenerator() {
+    public QuestGenerator(Deepwither plugin, QuestComponentPool componentPool) {
+        this.plugin = plugin;
+        this.componentPool = componentPool;
         this.dialogueGenerator = new AethelgardDialogueGenerator();
         this.random = new Random();
     }
@@ -36,14 +40,14 @@ public class QuestGenerator {
     public GeneratedQuest generateQuest(int difficultyLevel) {
         LocationDetails locationDetails = pickWeightedLocation(difficultyLevel);
         TargetMob targetMob = pickWeightedTargetMob(locationDetails, difficultyLevel);
-        String motivation = QuestComponentPool.getRandomMotivation();
-        int quantity = QuestComponentPool.calculateRandomQuantity(difficultyLevel);
+        String motivation = componentPool.getRandomMotivation();
+        int quantity = componentPool.calculateRandomQuantity(difficultyLevel);
 
-        QuestComponentPool.RewardValue rewardValue = QuestComponentPool.calculateBaseCurrencyAndExp(difficultyLevel);
-        String rewardItemId = QuestComponentPool.getRandomRewardItemId();
-        int rewardItemQuantity = QuestComponentPool.getRandomItemQuantity(rewardItemId, difficultyLevel);
+        QuestComponentPool.RewardValue rewardValue = componentPool.calculateBaseCurrencyAndExp(difficultyLevel);
+        String rewardItemId = componentPool.getRandomRewardItemId();
+        int rewardItemQuantity = componentPool.getRandomItemQuantity(rewardItemId, difficultyLevel);
 
-        String rewardItemDisplayName = Deepwither.getInstance().getItemNameResolver().resolveItemDisplayName(rewardItemId);
+        String rewardItemDisplayName = plugin.getItemNameResolver().resolveItemDisplayName(rewardItemId);
 
         RewardDetails rewardDetails = new RewardDetails(
                 rewardValue.coin,
@@ -79,7 +83,6 @@ public class QuestGenerator {
     private TargetMob pickWeightedTargetMob(LocationDetails locationDetails, int difficultyLevel) {
         int tier = getTierFromHierarchy(locationDetails.getHierarchy());
 
-        Deepwither plugin = Deepwither.getInstance();
         MobSpawnManager spawnManager = plugin.getMobSpawnManager();
         if (spawnManager != null && tier > 0) {
             List<String> candidateMobIds = spawnManager.getQuestCandidateMobIdsByTier(tier);
@@ -122,7 +125,7 @@ public class QuestGenerator {
     }
 
     private LocationDetails pickWeightedLocation(int difficultyLevel) {
-        List<LocationDetails> locations = QuestComponentPool.getAllLocationDetails();
+        List<LocationDetails> locations = componentPool.getAllLocationDetails();
         if (locations.isEmpty()) {
             throw new IllegalStateException("Quest locations are not loaded.");
         }

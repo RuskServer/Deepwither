@@ -1,8 +1,4 @@
-package com.lunar_prototype.deepwither;
-
-import com.lunar_prototype.deepwither.aethelgard.GeneratedQuest;
-import com.lunar_prototype.deepwither.aethelgard.GuildQuestManager;
-import com.lunar_prototype.deepwither.aethelgard.QuestLocation;
+package com.lunar_prototype.deepwither.modules.aethelgard;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;

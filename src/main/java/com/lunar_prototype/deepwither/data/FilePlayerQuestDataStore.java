@@ -1,7 +1,7 @@
 package com.lunar_prototype.deepwither.data;
 
 import com.lunar_prototype.deepwither.DatabaseManager;
-import com.lunar_prototype.deepwither.aethelgard.PlayerQuestData;
+import com.lunar_prototype.deepwither.modules.aethelgard.PlayerQuestData;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 

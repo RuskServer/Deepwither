@@ -1,4 +1,4 @@
-package com.lunar_prototype.deepwither.aethelgard;
+package com.lunar_prototype.deepwither.modules.aethelgard;
 
 public enum AethelgardQuestPersona {
     GUILD_OFFICIAL("ギルド事務官", "事務的で冷徹な口調。効率と事実を重視する。"),

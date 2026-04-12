@@ -1,7 +1,7 @@
 package com.lunar_prototype.deepwither.core.playerdata;
 
 import com.lunar_prototype.deepwither.*;
-import com.lunar_prototype.deepwither.aethelgard.PlayerQuestData;
+import com.lunar_prototype.deepwither.modules.aethelgard.PlayerQuestData;
 import com.lunar_prototype.deepwither.crafting.CraftingData;
 import com.lunar_prototype.deepwither.data.DailyTaskData;
 import com.lunar_prototype.deepwither.profession.PlayerProfessionData;

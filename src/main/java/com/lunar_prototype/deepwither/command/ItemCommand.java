@@ -3,8 +3,9 @@ package com.lunar_prototype.deepwither.command;
 import com.lunar_prototype.deepwither.*;
 import com.lunar_prototype.deepwither.PlayerAttributeData;
 import com.lunar_prototype.deepwither.SkillData;
-import com.lunar_prototype.deepwither.aethelgard.GeneratedQuest;
-import com.lunar_prototype.deepwither.aethelgard.QuestGenerator;
+import com.lunar_prototype.deepwither.modules.aethelgard.GeneratedQuest;
+import com.lunar_prototype.deepwither.modules.aethelgard.QuestComponentPool;
+import com.lunar_prototype.deepwither.modules.aethelgard.QuestGenerator;
 import com.lunar_prototype.deepwither.outpost.OutpostManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -15,11 +16,9 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.File;
 import java.util.*;
 import java.util.logging.Level;
 
@@ -117,7 +116,8 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
             final UUID playerUuid = player.getUniqueId();
             Bukkit.getScheduler().runTaskAsynchronously(this.plugin, () -> {
                 try {
-                    GeneratedQuest quest = new QuestGenerator().generateQuest(5);
+                    QuestComponentPool pool = plugin.get(QuestComponentPool.class);
+                    GeneratedQuest quest = new QuestGenerator(plugin, pool).generateQuest(5);
                     Bukkit.getScheduler().runTask(this.plugin, () -> {
                         Player p = Bukkit.getPlayer(playerUuid);
                         if (p == null || !p.isOnline()) return;
