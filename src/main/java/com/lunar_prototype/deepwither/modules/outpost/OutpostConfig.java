@@ -1,22 +1,33 @@
-package com.lunar_prototype.deepwither.outpost;
+package com.lunar_prototype.deepwither.modules.outpost;
 
+import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.plugin.Plugin;
 import java.io.File;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class OutpostConfig {
+public class OutpostConfig implements IManager {
 
-    private final Map<String, OutpostData> outposts;
-    private final GlobalSettings globalSettings;
-    private final ScoreWeights weights;
+    private final Plugin plugin;
+    private final String fileName;
+    private Map<String, OutpostData> outposts = new HashMap<>();
+    private GlobalSettings globalSettings = new GlobalSettings();
+    private ScoreWeights weights = new ScoreWeights();
 
-    // --- コンストラクタ ---
-    public OutpostConfig(JavaPlugin plugin, String fileName) {
-        // 設定ファイルのロードと初期化処理
+    public OutpostConfig(Plugin plugin) {
+        this(plugin, "outpost.yml");
+    }
+
+    public OutpostConfig(Plugin plugin, String fileName) {
+        this.plugin = plugin;
+        this.fileName = fileName;
+    }
+
+    @Override
+    public void init() throws Exception {
         File configFile = new File(plugin.getDataFolder(), fileName);
         if (!configFile.exists()) {
             plugin.saveResource(fileName, false);
@@ -26,6 +37,11 @@ public class OutpostConfig {
         this.globalSettings = loadGlobalSettings(config);
         this.weights = loadScoreWeights(config);
         this.outposts = loadOutposts(config);
+    }
+
+    @Override
+    public void shutdown() {
+        // No cleanup needed
     }
 
     // --- ロード処理メソッド ---

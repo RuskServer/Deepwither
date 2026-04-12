@@ -6,7 +6,7 @@ import com.lunar_prototype.deepwither.SkillData;
 import com.lunar_prototype.deepwither.modules.aethelgard.GeneratedQuest;
 import com.lunar_prototype.deepwither.modules.aethelgard.QuestComponentPool;
 import com.lunar_prototype.deepwither.modules.aethelgard.QuestGenerator;
-import com.lunar_prototype.deepwither.outpost.OutpostManager;
+import com.lunar_prototype.deepwither.modules.outpost.OutpostManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -196,7 +196,8 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 1 && args[0].equalsIgnoreCase("spawnoutpost")) {
-            OutpostManager.getInstance().startRandomOutpost();
+            OutpostManager manager = plugin.get(OutpostManager.class);
+            if (manager != null) manager.startRandomOutpost();
             return true;
         }
 

@@ -1,9 +1,10 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.booster.BoosterManager;
 import com.lunar_prototype.deepwither.modules.mob.framework.CustomMobManager;
-import com.lunar_prototype.deepwither.outpost.OutpostEvent;
-import com.lunar_prototype.deepwither.outpost.OutpostManager;
+import com.lunar_prototype.deepwither.modules.outpost.OutpostEvent;
+import com.lunar_prototype.deepwither.modules.outpost.OutpostManager;
 import com.lunar_prototype.deepwither.loot.RouteLootChestManager;
 import com.lunar_prototype.deepwither.party.Party;
 import com.lunar_prototype.deepwither.party.PartyManager;
@@ -12,7 +13,6 @@ import com.lunar_prototype.deepwither.util.IManager;
 import io.lumine.mythic.bukkit.events.MythicMobDeathEvent;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
@@ -42,10 +42,10 @@ public class MobKillListener implements Listener, IManager {
 
     @Override
     public void init() {
-        this.levelManager = Deepwither.getInstance().getLevelManager();
-        this.outpostManager = OutpostManager.getInstance();
-        this.partyManager = Deepwither.getInstance().getPartyManager();
-        this.boosterManager = Deepwither.getInstance().getBoosterManager();
+        this.levelManager = DW.get(LevelManager.class);
+        this.outpostManager = DW.get(OutpostManager.class);
+        this.partyManager = DW.get(PartyManager.class);
+        this.boosterManager = DW.get(BoosterManager.class);
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
@@ -63,14 +63,14 @@ public class MobKillListener implements Listener, IManager {
             handleExpDistribution(killer, baseExp);
         }
 
-        RouteLootChestManager routeLootChestManager = Deepwither.getInstance().getRouteLootChestManager();
+        RouteLootChestManager routeLootChestManager = DW.get(RouteLootChestManager.class);
         if (routeLootChestManager != null) {
             routeLootChestManager.recordMobKill(killer);
         }
 
         OutpostEvent activeEvent = outpostManager.getActiveEvent();
         if (activeEvent != null) {
-            String mobOutpostId = Deepwither.getInstance().getMobSpawnManager().getMobOutpostId(e.getEntity());
+            String mobOutpostId = DW.get(MobSpawnManager.class).getMobOutpostId(e.getEntity());
             if (mobOutpostId != null && mobOutpostId.equals(activeEvent.getOutpostRegionId())) {
                 activeEvent.mobDefeated(e.getEntity(), killer.getUniqueId());
             }
@@ -82,7 +82,7 @@ public class MobKillListener implements Listener, IManager {
         if (!(e.getEntity().getKiller() instanceof Player killer)) return;
 
         // CustomMobManager を取得
-        CustomMobManager customMobManager = Deepwither.getInstance().getBootstrap().getContainer().get(CustomMobManager.class);
+        CustomMobManager customMobManager = DW.get(CustomMobManager.class);
         if (customMobManager == null) return;
 
         String mobId = customMobManager.getCustomMobId(e.getEntity());

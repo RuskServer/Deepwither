@@ -1,4 +1,4 @@
-package com.lunar_prototype.deepwither.outpost;
+package com.lunar_prototype.deepwither.modules.outpost;
 
 import java.util.Comparator;
 import java.util.HashMap;

@@ -43,9 +43,9 @@ import com.lunar_prototype.deepwither.mail.MailManager;
 import com.lunar_prototype.deepwither.modules.economy.trader.*;
 import com.lunar_prototype.deepwither.modules.mine.MiningSkillService;
 import com.lunar_prototype.deepwither.mythic.CustomDropListener;
-import com.lunar_prototype.deepwither.outpost.OutpostDamageListener;
-import com.lunar_prototype.deepwither.outpost.OutpostManager;
-import com.lunar_prototype.deepwither.outpost.OutpostRegionListener;
+import com.lunar_prototype.deepwither.modules.outpost.OutpostDamageListener;
+import com.lunar_prototype.deepwither.modules.outpost.OutpostManager;
+import com.lunar_prototype.deepwither.modules.outpost.OutpostRegionListener;
 import com.lunar_prototype.deepwither.party.PartyChatListener;
 import com.lunar_prototype.deepwither.party.PartyManager;
 import com.lunar_prototype.deepwither.profession.ProfessionDatabase;
@@ -75,16 +75,12 @@ import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
-import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.configuration.serialization.ConfigurationSerialization;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -949,7 +945,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
 
         this.professionManager = register(new ProfessionManager(this, professionDatabase));
         this.aiEngine = register(new SeekerAIEngine());
-        this.outpostManager = register(new OutpostManager(this));
 
         // --- UI & Listeners (Managed) ---
         this.artifactGUI = register(new ArtifactGUI());
@@ -989,8 +984,6 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         register(new VoteListener(this));
         register(new DungeonSignListener(this));
         register(new PvPvEChestListener(this));
-        register(new OutpostRegionListener(this));
-        register(new OutpostDamageListener(this));
         register(new ItemDurabilityFix(this));
         register(new AttributeGui(this));
         register(new BlacksmithListener(this));

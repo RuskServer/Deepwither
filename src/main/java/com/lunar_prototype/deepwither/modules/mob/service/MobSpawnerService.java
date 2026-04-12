@@ -8,7 +8,7 @@ import com.lunar_prototype.deepwither.modules.aethelgard.QuestProgress;
 import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.modules.mine.MineService;
 import com.lunar_prototype.deepwither.modules.mob.util.MobRegionService;
-import com.lunar_prototype.deepwither.outpost.OutpostEvent;
+import com.lunar_prototype.deepwither.modules.outpost.OutpostEvent;
 import com.lunar_prototype.deepwither.util.IManager;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import net.kyori.adventure.text.Component;
@@ -92,11 +92,6 @@ public class MobSpawnerService implements IManager {
 
         int tier = regionService.getTierFromLocation(playerLoc);
         if (tier == 0) return;
-
-        // 第一層（Tier 1）ではスポーンレートを 1/2 に制限
-        if (tier == 1 && plugin.getRandom().nextDouble() >= 0.5) {
-            return;
-        }
 
         MobConfigService.MobTierConfig config = configService.getTierConfig(tier);
         if (config == null || config.getRegularMobs().isEmpty()) return;

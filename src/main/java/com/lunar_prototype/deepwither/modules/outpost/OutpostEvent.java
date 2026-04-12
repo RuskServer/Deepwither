@@ -1,4 +1,4 @@
-package com.lunar_prototype.deepwither.outpost;
+package com.lunar_prototype.deepwither.modules.outpost;
 
 import com.lunar_prototype.deepwither.Deepwither;
 import net.kyori.adventure.text.Component;
@@ -16,7 +16,7 @@ import java.util.*;
 
 public class OutpostEvent {
 
-    private final JavaPlugin plugin;
+    private final Deepwither plugin;
     private final OutpostManager manager;
     private final OutpostConfig.OutpostData outpostData;
     private final ContributionTracker tracker;
@@ -28,12 +28,12 @@ public class OutpostEvent {
     private int initialWaitTaskId = -1;
     private static final int INITIAL_WAIT_SECONDS = 120;
 
-    public OutpostEvent(JavaPlugin plugin, OutpostManager manager, OutpostConfig.OutpostData data, OutpostConfig.ScoreWeights weights) {
+    public OutpostEvent(Deepwither plugin, OutpostManager manager, OutpostConfig.OutpostData data, OutpostConfig.ScoreWeights weights) {
         this.plugin = plugin;
         this.manager = manager;
         this.outpostData = data;
         this.tracker = new ContributionTracker(weights);
-        Deepwither.getInstance().getMobSpawnManager().disableNormalSpawning(data.getRegionName());
+        plugin.getMobSpawnManager().disableNormalSpawning(data.getRegionName());
     }
 
     public void startEvent() {
@@ -64,7 +64,7 @@ public class OutpostEvent {
             if (participants.isEmpty()) {
                 Bukkit.broadcast(Component.text("【Outpost】", NamedTextColor.RED)
                         .append(Component.text("参加者がいなかったため、イベント「" + outpostData.getDisplayName() + "」はキャンセルされました。", NamedTextColor.WHITE)));
-                Deepwither.getInstance().getMobSpawnManager().enableNormalSpawning(outpostData.getRegionName());
+                plugin.getMobSpawnManager().enableNormalSpawning(outpostData.getRegionName());
                 manager.endActiveEvent();
             } else {
                 Bukkit.broadcast(Component.text("【Outpost】", NamedTextColor.GREEN)
@@ -105,7 +105,7 @@ public class OutpostEvent {
     }
 
     private void forceNextWave() {
-        Deepwither.getInstance().getMobSpawnManager().removeAllOutpostMobs(outpostData.getRegionName());
+        plugin.getMobSpawnManager().removeAllOutpostMobs(outpostData.getRegionName());
         totalMobs = 0;
         sendParticipantMessage(Component.text("ウェーブ時間切れ！残存Mobを処理し、次のウェーブへ移行します。", NamedTextColor.RED));
         runNextWave();
@@ -167,7 +167,7 @@ public class OutpostEvent {
             int count = 0;
             while (count < mobsPerBatch && !spawnQueue.isEmpty()) {
                 String mobId = spawnQueue.remove(0);
-                Deepwither.getInstance().getMobSpawnManager().spawnOutpostMobs(mobId, 1, outpostData.getRegionName(), fixedY, this);
+                plugin.getMobSpawnManager().spawnOutpostMobs(mobId, 1, outpostData.getRegionName(), fixedY, this);
                 count++;
             }
         }, 0L, intervalTicks).getTaskId();
@@ -177,7 +177,7 @@ public class OutpostEvent {
 
     public void mobDefeated(Entity mob, UUID killer) {
         if (totalMobs > 0) totalMobs--;
-        Deepwither.getInstance().getMobSpawnManager().untrackOutpostMob(mob.getUniqueId());
+        plugin.getMobSpawnManager().untrackOutpostMob(mob.getUniqueId());
         tracker.addKill(killer);
         if (totalMobs <= 0) {
             if (waveTaskId != -1) Bukkit.getScheduler().cancelTask(waveTaskId);
@@ -186,7 +186,7 @@ public class OutpostEvent {
     }
 
     private void finishEvent() {
-        Deepwither.getInstance().getMobSpawnManager().enableNormalSpawning(outpostData.getRegionName());
+        plugin.getMobSpawnManager().enableNormalSpawning(outpostData.getRegionName());
         manager.endActiveEvent();
     }
 
@@ -254,8 +254,8 @@ public class OutpostEvent {
             rewards.forEach(reward -> {
                 int min = reward.getMinQuantity();
                 int max = reward.getMaxQuantity();
-                int quantity = Deepwither.getInstance().getRandom().nextInt(max - min + 1) + min;
-                ItemStack customItem = Deepwither.getInstance().itemFactory.getCustomCountItemStack(reward.getCustomItemId(), quantity);
+                int quantity = plugin.getRandom().nextInt(max - min + 1) + min;
+                ItemStack customItem = plugin.getItemFactory().getItem(reward.getCustomItemId(), quantity);
 
                 if (customItem != null) {
                     p.getInventory().addItem(customItem);

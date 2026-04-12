@@ -1,7 +1,5 @@
-package com.lunar_prototype.deepwither.outpost;
+package com.lunar_prototype.deepwither.modules.outpost;
 
-import com.lunar_prototype.deepwither.outpost.OutpostEvent;
-import com.lunar_prototype.deepwither.outpost.OutpostManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
@@ -23,17 +21,14 @@ import org.bukkit.plugin.java.JavaPlugin;
 @DependsOn({OutpostManager.class})
 public class OutpostRegionListener implements Listener, IManager {
 
-    private OutpostManager manager;
-    private final JavaPlugin plugin;
+    private final OutpostManager manager;
 
-    public OutpostRegionListener(JavaPlugin plugin) {
-        this.plugin = plugin;
+    public OutpostRegionListener(OutpostManager manager) {
+        this.manager = manager;
     }
 
     @Override
     public void init() {
-        this.manager = OutpostManager.getInstance();
-        org.bukkit.Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
     @Override

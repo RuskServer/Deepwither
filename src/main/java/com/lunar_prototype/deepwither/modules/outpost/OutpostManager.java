@@ -1,52 +1,37 @@
-package com.lunar_prototype.deepwither.outpost;
+package com.lunar_prototype.deepwither.modules.outpost;
 
+import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
-import org.bukkit.plugin.java.JavaPlugin;
 import java.util.concurrent.TimeUnit;
 import java.util.Random;
 
-@DependsOn({})
+@DependsOn({OutpostConfig.class})
 public class OutpostManager implements IManager {
 
-    private static OutpostManager instance;
-    private final JavaPlugin plugin;
-    private OutpostConfig config;
+    private final Deepwither plugin;
+    private final OutpostConfig config;
     private OutpostEvent activeEvent = null;
     private long cooldownEnds = 0;
     private final Random random = new Random();
     private double currentBonusChance = 0.0;
 
-    public OutpostManager(JavaPlugin plugin) {
+    public OutpostManager(Deepwither plugin, OutpostConfig config) {
         this.plugin = plugin;
+        this.config = config;
     }
 
     @Override
     public void init() {
-        instance = this;
-        this.config = new OutpostConfig(plugin, "outpost.yml");
         startScheduler();
     }
 
     @Override
     public void shutdown() {
         if (activeEvent != null) {
-            // イベント強制終了などの処理があれば
+            // イベント強制終了などの処理
         }
-    }
-
-    public static OutpostManager initialize(JavaPlugin plugin, OutpostConfig config) {
-        if (instance == null) {
-            instance = new OutpostManager(plugin);
-            instance.config = config;
-            instance.startScheduler();
-        }
-        return instance;
-    }
-
-    public static OutpostManager getInstance() {
-        return instance;
     }
 
     /**

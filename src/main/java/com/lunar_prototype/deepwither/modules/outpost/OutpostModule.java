@@ -1,0 +1,67 @@
+package com.lunar_prototype.deepwither.modules.outpost;
+
+import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.core.engine.IModule;
+import com.lunar_prototype.deepwither.core.engine.ModuleRegistrar;
+import com.lunar_prototype.deepwither.core.engine.ServiceContainer;
+
+public class OutpostModule implements IModule {
+
+    private final Deepwither plugin;
+
+    public OutpostModule(Deepwither plugin) {
+        this.plugin = plugin;
+    }
+
+    @Override
+    public void configure(ServiceContainer container) {
+        plugin.getLogger().info("OutpostModule: configure()");
+
+        OutpostConfig config = new OutpostConfig(plugin);
+        container.registerInstance(OutpostConfig.class, config);
+
+        OutpostManager manager = new OutpostManager(plugin, config);
+        container.registerInstance(OutpostManager.class, manager);
+
+        container.registerInstance(OutpostDamageListener.class, new OutpostDamageListener(manager));
+        container.registerInstance(OutpostRegionListener.class, new OutpostRegionListener(manager));
+    }
+
+    @Override
+    public void start() {
+        ServiceContainer container = plugin.getBootstrap().getContainer();
+        ModuleRegistrar registrar = container.get(ModuleRegistrar.class);
+
+        try {
+            plugin.getLogger().info("Starting Outpost Module...");
+
+            container.get(OutpostConfig.class).init();
+            container.get(OutpostManager.class).init();
+
+            // Register Listeners
+            registrar.registerListener(container.get(OutpostDamageListener.class));
+            registrar.registerListener(container.get(OutpostRegionListener.class));
+
+        } catch (Exception e) {
+            plugin.getLogger().severe("Failed to start Outpost Module.");
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void stop() {
+        ServiceContainer container = plugin.getBootstrap().getContainer();
+        try {
+            plugin.getLogger().info("Stopping Outpost Module...");
+
+            container.get(OutpostManager.class).shutdown();
+            container.get(OutpostDamageListener.class).shutdown();
+            container.get(OutpostRegionListener.class).shutdown();
+            container.get(OutpostConfig.class).shutdown();
+
+        } catch (Exception e) {
+            plugin.getLogger().severe("Failed to stop Outpost Module.");
+            e.printStackTrace();
+        }
+    }
+}
