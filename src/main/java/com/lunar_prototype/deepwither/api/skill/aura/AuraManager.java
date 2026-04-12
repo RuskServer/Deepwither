@@ -34,6 +34,7 @@ public class AuraManager implements IManager {
         public long getEndTime() { return endTime; }
         @SuppressWarnings("unchecked")
         public <T> T getMetadata(String key) { return (T) metadata.get(key); }
+        public Map<String, Object> getAllMetadata() { return metadata; }
         public boolean isExpired() { return System.currentTimeMillis() > endTime; }
     }
 
@@ -79,6 +80,30 @@ public class AuraManager implements IManager {
      */
     public void removeAura(Player player, String auraId) {
         removeAura((LivingEntity) player, auraId);
+    }
+
+    /**
+     * 特定のオーラインスタンスを取得します。
+     */
+    public AuraInstance getAuraInstance(LivingEntity entity, String auraId) {
+        Map<String, AuraInstance> entityAuras = activeAuras.get(entity.getUniqueId());
+        if (entityAuras == null) return null;
+
+        AuraInstance instance = entityAuras.get(auraId);
+        if (instance == null) return null;
+
+        if (instance.isExpired()) {
+            entityAuras.remove(auraId);
+            return null;
+        }
+        return instance;
+    }
+
+    /**
+     * 互換用: 特定のオーラインスタンスを取得します。
+     */
+    public AuraInstance getAuraInstance(Player player, String auraId) {
+        return getAuraInstance((LivingEntity) player, auraId);
     }
 
     /**

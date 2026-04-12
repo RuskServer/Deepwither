@@ -23,7 +23,13 @@ public class WeaponEffectTask extends BukkitRunnable {
     @Override
     public void run() {
         ticks++;
+        PlayerSettingsManager settingsManager = plugin.get(PlayerSettingsManager.class);
+
         for (Player player : Bukkit.getOnlinePlayers()) {
+            if (settingsManager != null && !settingsManager.isEnabled(player, PlayerSettingsManager.SettingType.WEAPON_EFFECT)) {
+                continue;
+            }
+
             ItemStack item = player.getInventory().getItemInMainHand();
             if (item == null || item.getType().isAir() || !item.hasItemMeta()) continue;
 
@@ -42,7 +48,7 @@ public class WeaponEffectTask extends BukkitRunnable {
         Location loc = player.getLocation();
         double radius = 1.0;    // 螺旋の半径
         double heightMax = 2.0; // 螺旋の高さ
-        double step = 0.25;     // パーティクルの垂直間隔
+        double step = 0.5;      // パーティクルの垂直間隔 (0.25から0.5に増やして密度を減少)
         double speed = 0.3;     // 回転速度
 
         // プレイヤーの周囲に炎の螺旋を描画

@@ -186,13 +186,28 @@ public class DamageManager implements Listener, IManager {
             e.getType() != DeepwitherDamageEvent.DamageType.PROJECTILE) return;
 
         com.lunar_prototype.deepwither.api.skill.aura.AuraManager auraManager = Deepwither.getInstance().getAuraManager();
-        if (!auraManager.hasAura(attacker, "blood_surge")) return;
+        com.lunar_prototype.deepwither.api.skill.aura.AuraManager.AuraInstance aura = auraManager.getAuraInstance(attacker, "blood_surge");
+        if (aura == null) return;
+
+        // --- 回数制限チェック ---
+        Integer remaining = aura.getMetadata("remaining_hits");
+        if (remaining == null || remaining <= 0) {
+            auraManager.removeAura(attacker, "blood_surge");
+            return;
+        }
 
         LivingEntity victim = e.getVictim();
         if (victim == null || victim.isDead()) return;
 
-        // --- 1. LIFESTEAL (攻撃ダメージの50%を回復) ---
-        double healAmount = e.getDamage() * 0.5;
+        // --- 回数消費 ---
+        int nextValue = remaining - 1;
+        aura.getAllMetadata().put("remaining_hits", nextValue);
+        if (nextValue <= 0) {
+            auraManager.removeAura(attacker, "blood_surge");
+        }
+
+        // --- 1. LIFESTEAL (攻撃ダメージの30%を回復) ---
+        double healAmount = e.getDamage() * 0.3;
         Deepwither.getInstance().getStatManager().heal(attacker, healAmount);
 
         // --- 2. 演出 ---

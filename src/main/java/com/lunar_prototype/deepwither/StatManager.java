@@ -87,7 +87,7 @@ public class StatManager implements IManager, IStatManager {
     @Override
     public double getActualMaxHealth(Player player) {
         StatMap total = getTotalStats(player);
-        return total.getFlat(StatType.MAX_HEALTH);
+        return total.getFinal(StatType.MAX_HEALTH);
     }
 
     @Override
@@ -153,7 +153,9 @@ public class StatManager implements IManager, IStatManager {
 
     @Override
     public double getActualCurrentHealth(Player player) {
-        return actualCurrentHealth.getOrDefault(player.getUniqueId(), getActualMaxHealth(player));
+        double max = getActualMaxHealth(player);
+        double current = actualCurrentHealth.getOrDefault(player.getUniqueId(), max);
+        return Math.min(current, max);
     }
 
     @Override
@@ -173,7 +175,7 @@ public class StatManager implements IManager, IStatManager {
     @Deprecated
     @Override
     public void setActualCurrenttoMaxHelth(Player player) {
-        double max = getTotalStats(player).getFinal(StatType.MAX_HEALTH);
+        double max = getActualMaxHealth(player);
         actualCurrentHealth.put(player.getUniqueId(), max);
         syncBukkitHealth(player);
     }
@@ -183,11 +185,15 @@ public class StatManager implements IManager, IStatManager {
             return;
 
         double actualMax = getActualMaxHealth(player);
-        double actualCurrent = getActualCurrentHealth(player);
+        UUID uuid = player.getUniqueId();
+        
+        // キャッシュされている生の値を取得 (getActualCurrentHealth()を使うと丸められてしまうので直接Mapから)
+        double rawCurrent = actualCurrentHealth.getOrDefault(uuid, actualMax);
 
-        if (actualCurrent > actualMax) {
-            actualCurrent = actualMax;
-            actualCurrentHealth.put(player.getUniqueId(), actualCurrent);
+        // キャッシュ値が最大値を超えていたら、キャッシュ自体を強制的に最大値に更新する
+        if (rawCurrent > actualMax) {
+            rawCurrent = actualMax;
+            actualCurrentHealth.put(uuid, rawCurrent);
         }
 
         AttributeInstance maxHealthAttr = player.getAttribute(Attribute.MAX_HEALTH);
@@ -199,10 +205,10 @@ public class StatManager implements IManager, IStatManager {
             maxHealthAttr.setBaseValue(20.0);
         }
 
-        double ratio = (actualMax > 0) ? actualCurrent / actualMax : 0.0;
+        double ratio = (actualMax > 0) ? rawCurrent / actualMax : 0.0;
         double bukkitHealth = ratio * 20.0;
 
-        if (actualCurrent > 0 && bukkitHealth < 0.5) {
+        if (rawCurrent > 0 && bukkitHealth < 0.5) {
             bukkitHealth = 0.5;
         }
 
@@ -279,7 +285,8 @@ public class StatManager implements IManager, IStatManager {
                         double critChanceVal = total.getFlat(StatType.CRIT_CHANCE);
                         total.setFlat(StatType.CRIT_CHANCE, critChanceVal + points * 0.2);
                         double speedVal = total.getFlat(StatType.MOVE_SPEED);
-                        total.setFlat(StatType.MOVE_SPEED, speedVal + points * 0.0025);
+                        // 5ポイント毎に 0.0125 (1ポイントあたり0.0025相当) 加算
+                        total.setFlat(StatType.MOVE_SPEED, speedVal + (points / 5) * 0.0125);
                     }
                 }
             }

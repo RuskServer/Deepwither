@@ -4,6 +4,8 @@ import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.core.CacheManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 
 import java.sql.*;
 import java.util.EnumMap;
@@ -96,9 +98,47 @@ public class AttributeManager implements IManager {
         if (data == null || data.getRemainingPoints() <= 0) return;
 
         int current = data.getAllocated(type);
-        if (current >= getMaxAllocatable(uuid, type)) return;
+        // 修正: 明示的に現在のデータを渡して上限を計算
+        if (current >= getMaxAllocatable(data, type)) return;
 
         data.addPoint(type);
+        
+        // 追加後に他ステータスの上限超過をチェックし、還元する
+        validateAndRefundExcessPoints(uuid, data);
+
+        // プレイヤーのステータスを即座に同期
+        Player player = Bukkit.getPlayer(uuid);
+        if (player != null) {
+            DW.get(StatManager.class).updatePlayerStats(player);
+        }
+    }
+
+    /**
+     * 上限を超えたステータスをチェックし、超過分をポイントとして還元する
+     */
+    private void validateAndRefundExcessPoints(UUID uuid, PlayerAttributeData data) {
+        boolean changed = false;
+        for (StatType type : new StatType[]{StatType.STR, StatType.VIT, StatType.MND, StatType.INT, StatType.AGI}) {
+            int current = data.getAllocated(type);
+            // 修正: 明示的に現在のデータを渡して上限を計算
+            int max = getMaxAllocatable(data, type);
+            
+            if (current > max) {
+                int excess = current - max;
+                data.setAllocated(type, max);
+                data.addPoints(excess);
+                changed = true;
+            }
+        }
+        
+        if (changed) {
+            save(uuid);
+            // プレイヤーがオンラインならステータスを即座に再計算して同期する
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null) {
+                DW.get(StatManager.class).updatePlayerStats(player);
+            }
+        }
     }
 
     public void givePoints(UUID uuid, int amount) {
@@ -108,11 +148,14 @@ public class AttributeManager implements IManager {
         }
     }
 
+    public int getMaxAllocatable(UUID uuid, StatType target) {
+        return getMaxAllocatable(get(uuid), target);
+    }
+
     /**
      * トレードオフを含めた最大割り振り可能値を取得
      */
-    public int getMaxAllocatable(UUID uuid, StatType target) {
-        PlayerAttributeData data = get(uuid);
+    public int getMaxAllocatable(PlayerAttributeData data, StatType target) {
         if (data == null) return MAX_PER_STAT;
 
         int penalty = 0;

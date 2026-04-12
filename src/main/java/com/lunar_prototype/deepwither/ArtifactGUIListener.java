@@ -29,9 +29,9 @@ public class ArtifactGUIListener implements Listener, IManager {
 
     private ArtifactGUI artifactGUI;
     private IStatManager statManager;
-    private final JavaPlugin plugin;
+    private final Deepwither plugin;
 
-    public ArtifactGUIListener(JavaPlugin plugin) {
+    public ArtifactGUIListener(Deepwither plugin) {
         this.plugin = plugin;
     }
 
@@ -47,7 +47,8 @@ public class ArtifactGUIListener implements Listener, IManager {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        if (!PlainTextComponentSerializer.plainText().serialize(event.getView().title()).contains("アーティファクト")) {
+        String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
+        if (!title.contains("Artifacts & Equipment")) {
             return;
         }
 
@@ -114,10 +115,10 @@ public class ArtifactGUIListener implements Listener, IManager {
 
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
-        if (PlainTextComponentSerializer.plainText().serialize(event.getView().title()).contains("アーティファクト")) {
+        String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
+        if (title.contains("Artifacts & Equipment")) {
             Player player = (Player) event.getPlayer();
             Inventory guiInventory = event.getInventory();
-            Deepwither plugin = Deepwither.getInstance();
 
             List<ItemStack> artifacts = new ArrayList<>();
             List<ItemStack> rejectedItems = new ArrayList<>();
@@ -210,7 +211,7 @@ public class ArtifactGUIListener implements Listener, IManager {
             }
         }
 
-        return Deepwither.getInstance().getArtifactManager().wouldExceedTypeLimit(items, candidate, -1);
+        return plugin.getArtifactManager().wouldExceedTypeLimit(items, candidate, -1);
     }
 
     private void returnRejectedArtifacts(Player player, List<ItemStack> rejectedItems) {

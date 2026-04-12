@@ -31,8 +31,10 @@ public class BloodSurgeSkill implements ISkillLogic {
         selfCtx.setTrueDamage(true);
         Deepwither.getInstance().getDamageProcessor().process(selfCtx);
 
-        // --- 2. オーラ付与 (10秒 = 200 tick) ---
-        Deepwither.getInstance().getAuraManager().addAura(player, "blood_surge", 200);
+        // --- 2. オーラ付与 (10秒 = 200 tick, 最大3回発動) ---
+        java.util.Map<String, Object> meta = new java.util.HashMap<>();
+        meta.put("remaining_hits", 3);
+        Deepwither.getInstance().getAuraManager().addAura(player, "blood_surge", 200, meta);
 
         // --- 演出 ---
         player.getWorld().playSound(player.getLocation(), Sound.ENTITY_WITHER_SHOOT, 1.2f, 0.5f);

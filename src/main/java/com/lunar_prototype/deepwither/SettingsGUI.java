@@ -57,6 +57,7 @@ public class SettingsGUI implements Listener, IManager {
         inv.setItem(18, createToggleItem(player, PlayerSettingsManager.SettingType.SHOW_PICKUP_LOG, Material.HOPPER));
         inv.setItem(22, createToggleItem(player, PlayerSettingsManager.SettingType.SHOW_MENU_ITEM, Material.COMPASS));
         inv.setItem(24, createToggleItem(player, PlayerSettingsManager.SettingType.AUTO_STEP, Material.LEATHER_BOOTS));
+        inv.setItem(26, createToggleItem(player, PlayerSettingsManager.SettingType.WEAPON_EFFECT, Material.BLAZE_POWDER));
 
         inv.setItem(20, createRarityFilterItem(player));
 
@@ -158,6 +159,7 @@ public class SettingsGUI implements Listener, IManager {
         else if (slot == 18) type = PlayerSettingsManager.SettingType.SHOW_PICKUP_LOG;
         else if (slot == 22) type = PlayerSettingsManager.SettingType.SHOW_MENU_ITEM;
         else if (slot == 24) type = PlayerSettingsManager.SettingType.AUTO_STEP;
+        else if (slot == 26) type = PlayerSettingsManager.SettingType.WEAPON_EFFECT;
 
         if (type != null) {
             settingsManager.toggle(player, type);

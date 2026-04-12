@@ -21,8 +21,7 @@ public class ArtifactGUI implements IManager {
     public static final int[] BORDER_SLOTS = {0, 1, 2, 6, 7, 8};
     public static final int BACKPACK_SLOT = 13;
 
-    private static final Component TITLE = Component.text("[GUI] ", NamedTextColor.DARK_GRAY)
-            .append(Component.text("アーティファクト", NamedTextColor.GOLD))
+    private static final Component TITLE = Component.text("Artifacts & Equipment", NamedTextColor.GOLD)
             .decoration(TextDecoration.ITALIC, false);
 
     public ArtifactGUI() {}

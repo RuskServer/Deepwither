@@ -50,7 +50,7 @@ public class DamageProcessor implements IManager {
     private static final Set<String> UNDEAD_MOB_IDS = Set.of("melee_skeleton", "ranged_skeleton", "melee_zombi");
     private final Map<UUID, Integer> comboCounts = new HashMap<>();
     private final Map<UUID, Long> lastComboHitTimes = new HashMap<>();
-    private static final long COMBO_TIMEOUT_MS = 2000;
+    private static final long COMBO_TIMEOUT_MS = 1000;
     private static final long COOLDOWN_IGNORE_MS = 300;
     private final Map<UUID, Long> lastSpecialAttackTime = new HashMap<>();
 
@@ -90,6 +90,16 @@ public class DamageProcessor implements IManager {
             com.lunar_prototype.deepwither.StatType weaponType = context.getWeaponStatType();
             if (weaponType != null) {
                 damage += attackerStats.getFlat(weaponType);
+                
+                // 槍（SPEAR）の距離減衰ロジック: 3ブロック未満の至近距離ではダメージ50%減少
+                if (weaponType == com.lunar_prototype.deepwither.StatType.SPEAR_DAMAGE) {
+                    double distance = player.getLocation().distance(victim.getLocation());
+                    if (distance < 3.0) {
+                        damage *= 0.5;
+                        uiManager.of(player).message(PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG,
+                                Component.text("間合いが近すぎる！ (ダメージ減少)", NamedTextColor.GRAY));
+                    }
+                }
             }
 
             // クリティカル倍率適用
@@ -186,6 +196,8 @@ public class DamageProcessor implements IManager {
             if (currentTime - lastHit > COMBO_TIMEOUT_MS) currentCombo = 0;
 
             double comboMultiplier = 1.0 + (currentCombo * (comboValue / 100.0));
+            // 最大60%ボーナス (倍率1.6) に制限
+            comboMultiplier = Math.min(comboMultiplier, 1.6);
             damage *= comboMultiplier;
 
             if (currentCombo > 0) {

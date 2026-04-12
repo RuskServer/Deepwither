@@ -143,7 +143,9 @@ public class AttributeGui implements Listener, IManager {
             return;
         }
 
-        data.addPoint(type);
+        // 修正: AttributeManager経由でポイントを追加（バリデーションと同期を走らせる）
+        Deepwither.getInstance().getAttributeManager().addPoint(player.getUniqueId(), type);
+        
         player.sendMessage(Component.text(type.getDisplayName() + " に 1ポイント割り振りました！", NamedTextColor.GREEN));
         player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.2f);
         open(player);
