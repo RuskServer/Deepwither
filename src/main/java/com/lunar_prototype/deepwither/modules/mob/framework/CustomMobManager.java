@@ -95,6 +95,32 @@ public class CustomMobManager implements IManager, Listener {
     }
 
     /**
+     * 指定されたモブIDが登録されているか確認します。
+     */
+    public boolean hasRegistration(String id) {
+        return mobRegistry.containsKey(id);
+    }
+
+    /**
+     * 既存のエンティティにカスタムモブロジックを紐付けます。
+     */
+    public void bindExistingEntity(LivingEntity entity, String id) {
+        Class<? extends CustomMob> clazz = mobRegistry.get(id);
+        if (clazz == null) return;
+
+        try {
+            CustomMob mobLogic = clazz.getDeclaredConstructor().newInstance();
+            entity.getPersistentDataContainer().set(mobIdKey, PersistentDataType.STRING, id);
+            
+            mobLogic.setMobId(id);
+            mobLogic.init(entity);
+            activeMobs.put(entity.getUniqueId(), mobLogic);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
      * エンティティに付与されたカスタムモブIDを取得します。
      * 永続データから取得するため、アクティブでないモブでも機能します。
      */

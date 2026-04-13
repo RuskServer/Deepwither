@@ -176,17 +176,17 @@ public class MobSpawnerService implements IManager {
 
         // --- CustomMob Framework Check ---
         var customMobManager = DW.get(com.lunar_prototype.deepwither.modules.mob.framework.CustomMobManager.class);
-        if (customMobManager != null) {
-            var customMob = customMobManager.spawnMob(mobId, loc);
-            if (customMob != null) {
-                return customMob.getUniqueId();
-            }
-        }
-
+        
+        // MythicMobとしてスポーンさせる
         var activeMob = MythicBukkit.inst().getMobManager().spawnMob(mobId, loc);
         if (activeMob == null || activeMob.getEntity() == null) return null;
         org.bukkit.entity.Entity entity = activeMob.getEntity().getBukkitEntity();
         if (!(entity instanceof org.bukkit.entity.LivingEntity livingEntity)) return entity.getUniqueId();
+
+        // もし独自フレームワークに同じIDが登録されていれば、ロジックをバインドする
+        if (customMobManager != null && customMobManager.hasRegistration(mobId)) {
+            customMobManager.bindExistingEntity(livingEntity, mobId);
+        }
 
         int spawnLevel = calculateSpawnLevel(loc, tier);
         String mobDisplayName = activeMob.getType().getDisplayName().get();

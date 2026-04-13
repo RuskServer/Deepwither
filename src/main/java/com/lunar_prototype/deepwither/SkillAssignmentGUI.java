@@ -30,6 +30,8 @@ public class SkillAssignmentGUI implements Listener, IManager {
 
     /** 現在選択中のスキルID（2ステップ操作用） */
     private final Map<UUID, String> selectedSkillMap = new HashMap<>();
+    /** プレイヤーの現在のページ番号 (0-indexed) */
+    private final Map<UUID, Integer> playerPages = new HashMap<>();
     private SkillSlotManager slotManager;
     private SkillLoader skillLoader;
     private final JavaPlugin plugin;
@@ -52,31 +54,54 @@ public class SkillAssignmentGUI implements Listener, IManager {
 
     public void open(Player player) {
         Inventory gui = Bukkit.createInventory(null, 54, GUI_TITLE);
+        UUID uuid = player.getUniqueId();
+
+        SkillData data = Deepwither.getInstance().getSkilltreeManager().load(uuid);
+        String selectedId = selectedSkillMap.get(uuid);
+        
+        List<String> unlockedSkills = new ArrayList<>(data.getSkills().keySet());
+        int totalSkills = unlockedSkills.size();
+        int maxPage = Math.max(0, (totalSkills - 1) / 36);
+        
+        // 現在のページを取得・補正
+        int currentPage = playerPages.getOrDefault(uuid, 0);
+        if (currentPage > maxPage) currentPage = maxPage;
+        if (currentPage < 0) currentPage = 0;
+        playerPages.put(uuid, currentPage);
 
         // ---- スキル一覧（行0〜4, slots 0〜35） ----
-        SkillData data = Deepwither.getInstance().getSkilltreeManager().load(player.getUniqueId());
-        String selectedId = selectedSkillMap.get(player.getUniqueId());
-        int index = 0;
-
-        for (String skillId : data.getSkills().keySet()) {
-            if (index >= 36) break; // 最大36スキルまで表示
+        int startIndex = currentPage * 36;
+        int endIndex = Math.min(startIndex + 36, totalSkills);
+        
+        for (int i = startIndex; i < endIndex; i++) {
+            String skillId = unlockedSkills.get(i);
             SkillDefinition skill = skillLoader.get(skillId);
             if (skill == null) continue;
 
+            int slot = i - startIndex;
             ItemStack item = buildSkillItem(player, skill, skillId.equals(selectedId));
-            gui.setItem(index++, item);
+            gui.setItem(slot, item);
         }
 
-        // ---- セパレーター（行4, slots 36〜44） ----
+        // ---- セパレーターとページ切り替え（行4, slots 36〜44） ----
         ItemStack sep = buildSeparator();
         for (int i = 36; i <= 44; i++) {
             gui.setItem(i, sep);
         }
+        
+        // 「前へ」ボタン (slot 36)
+        if (currentPage > 0) {
+            gui.setItem(36, buildNavButton("前へ", "page:" + (currentPage - 1)));
+        }
+        // 「次へ」ボタン (slot 44)
+        if (currentPage < maxPage) {
+            gui.setItem(44, buildNavButton("次へ", "page:" + (currentPage + 1)));
+        }
 
         // ---- スキルスロット（行5, slots 45〜48） ----
-        SkillSlotData slotData = slotManager.get(player.getUniqueId());
+        SkillSlotData slotData = slotManager.get(uuid);
         for (int i = 0; i < 4; i++) {
-            gui.setItem(45 + i, buildSlotItem(i, slotData));
+            gui.setItem(45 + i, buildSlotItem(player, i, slotData));
         }
 
         // ---- 操作ガイド（slot 53） ----
@@ -146,30 +171,51 @@ public class SkillAssignmentGUI implements Listener, IManager {
         return item;
     }
 
-    /** スロットアイテム。割り当て済みならスキルのアイコン、未割り当てならグレーガラス */
-    private ItemStack buildSlotItem(int slotIndex, SkillSlotData slotData) {
+    /** スロットアイテム。割り当て済みならスキルのアイコンと説明、未割り当てならグレーガラス */
+    private ItemStack buildSlotItem(Player player, int slotIndex, SkillSlotData slotData) {
         String assigned = slotData.getSkill(slotIndex);
         String slotLabel = "スロット" + (slotIndex + 1);
 
         if (assigned != null) {
             SkillDefinition assignedSkill = skillLoader.get(assigned);
             if (assignedSkill != null) {
-                // スキル自体のアイコンをそのまま使用
                 ItemStack item = new ItemStack(assignedSkill.material);
                 ItemMeta meta = item.getItemMeta();
                 meta.displayName(Component.text(slotLabel, NamedTextColor.AQUA)
                         .decoration(TextDecoration.ITALIC, false));
-                meta.lore(List.of(
-                        Component.text("割り当て済み: " + assignedSkill.name, NamedTextColor.YELLOW)
-                                .decoration(TextDecoration.ITALIC, false),
-                        Component.empty(),
-                        Component.text("左クリック: 別のスキルを割り当て", NamedTextColor.GRAY)
-                                .decoration(TextDecoration.ITALIC, false),
-                        Component.text("右クリック: スロットをクリア", NamedTextColor.RED)
-                                .decoration(TextDecoration.ITALIC, false),
-                        Component.text("slot:" + slotIndex, NamedTextColor.DARK_GRAY)
-                                .decoration(TextDecoration.ITALIC, false)
-                ));
+                
+                List<Component> lore = new ArrayList<>();
+                lore.add(Component.text("割り当て済み: " + assignedSkill.name, NamedTextColor.YELLOW)
+                        .decoration(TextDecoration.ITALIC, false));
+                lore.add(Component.empty());
+
+                // スキルの詳細説明を追加
+                List<Component> tagsLore = SkillTags.buildTagLore(assignedSkill);
+                if (!tagsLore.isEmpty()) {
+                    lore.addAll(tagsLore);
+                    lore.add(Component.empty());
+                }
+
+                for (String loreLine : assignedSkill.lore) {
+                    double effectiveCooldown = StatManager.getEffectiveCooldown(player, assignedSkill.cooldown);
+                    double manaCost = assignedSkill.manaCost;
+                    String translated = loreLine
+                            .replace("{cooldown}", String.format("%.1f", effectiveCooldown))
+                            .replace("{mana}", String.format("%.1f", manaCost));
+                    lore.add(LegacyComponentSerializer.legacyAmpersand().deserialize(translated)
+                            .colorIfAbsent(NamedTextColor.GRAY)
+                            .decoration(TextDecoration.ITALIC, false));
+                }
+                lore.add(Component.empty());
+
+                lore.add(Component.text("左クリック: 別のスキルを割り当て", NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false));
+                lore.add(Component.text("右クリック: スロットをクリア", NamedTextColor.RED)
+                        .decoration(TextDecoration.ITALIC, false));
+                lore.add(Component.text("slot:" + slotIndex, NamedTextColor.DARK_GRAY)
+                        .decoration(TextDecoration.ITALIC, false));
+
+                meta.lore(lore);
                 item.setItemMeta(meta);
                 return item;
             }
@@ -194,6 +240,18 @@ public class SkillAssignmentGUI implements Listener, IManager {
         ItemStack item = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
         ItemMeta meta = item.getItemMeta();
         meta.displayName(Component.text(" "));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack buildNavButton(String name, String actionInfo) {
+        ItemStack item = new ItemStack(Material.ARROW);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text(name, NamedTextColor.GOLD).decoration(TextDecoration.ITALIC, false));
+        meta.lore(List.of(
+            Component.text("左クリックでページを切り替える", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false),
+            Component.text(actionInfo, NamedTextColor.DARK_GRAY).decoration(TextDecoration.ITALIC, false)
+        ));
         item.setItemMeta(meta);
         return item;
     }
@@ -236,6 +294,7 @@ public class SkillAssignmentGUI implements Listener, IManager {
         // Lore からスキルIDとスロット番号を解析
         String skillId = null;
         int slotIndex = -1;
+        int pageAction = -1;
 
         for (Component line : lore) {
             String plain = PlainTextComponentSerializer.plainText().serialize(line);
@@ -247,6 +306,18 @@ public class SkillAssignmentGUI implements Listener, IManager {
                     slotIndex = Integer.parseInt(plain.substring(5).trim());
                 } catch (NumberFormatException ignored) {}
             }
+            if (plain.startsWith("page:")) {
+                try {
+                    pageAction = Integer.parseInt(plain.substring(5).trim());
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        
+        // ---- ページ切り替えボタン ----
+        if (pageAction != -1) {
+            playerPages.put(uuid, pageAction);
+            open(player);
+            return;
         }
 
         // ---- スキルアイテムをクリック → 選択 ----

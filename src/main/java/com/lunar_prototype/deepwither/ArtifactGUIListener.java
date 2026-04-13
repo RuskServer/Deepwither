@@ -65,6 +65,7 @@ public class ArtifactGUIListener implements Listener, IManager {
             boolean isBackpack = (slot == ArtifactGUI.BACKPACK_SLOT);
 
             if (isArtifact || isBackpack) {
+                // プレースホルダーの持ち出し禁止
                 if (cursorItem.getType() == Material.AIR && currentItem != null && currentItem.getType() != Material.AIR) {
                     if (currentItem.getType() == Material.CYAN_STAINED_GLASS_PANE ||
                             currentItem.getType() == Material.PURPLE_STAINED_GLASS_PANE) {
@@ -72,6 +73,18 @@ public class ArtifactGUIListener implements Listener, IManager {
                         player.sendMessage(Component.text("このプレースホルダーは持ち出せません。", NamedTextColor.RED));
                         return;
                     }
+                    
+                    // アイテムを取り出した場合、プレースホルダーを即座に復活させる
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        ItemStack itemAfterClick = clickedInventory.getItem(slot);
+                        if (itemAfterClick == null || itemAfterClick.getType() == Material.AIR) {
+                            if (isArtifact) {
+                                clickedInventory.setItem(slot, ArtifactGUI.getArtifactPlaceholder());
+                            } else if (isBackpack) {
+                                clickedInventory.setItem(slot, ArtifactGUI.getBackpackPlaceholder());
+                            }
+                        }
+                    });
                     return;
                 }
 

@@ -8,6 +8,8 @@ import com.lunar_prototype.deepwither.modules.mob.service.*;
 import com.lunar_prototype.deepwither.modules.mob.framework.CustomMobManager;
 import com.lunar_prototype.deepwither.modules.mob.implementation.FireDemon;
 import com.lunar_prototype.deepwither.modules.mob.implementation.IcePilgrim;
+import com.lunar_prototype.deepwither.modules.mob.implementation.VanguardSkeleton;
+import com.lunar_prototype.deepwither.modules.mob.implementation.CrimsonLancer;
 import com.lunar_prototype.deepwither.modules.mob.util.MobRegionService;
 import org.bukkit.entity.EntityType;
 
@@ -83,6 +85,8 @@ public class MobModule implements IModule {
             customMobManager.registerMob("IcePilgrim", IcePilgrim.class, EntityType.WITHER_SKELETON);
             customMobManager.registerMob("SilentWatcher", com.lunar_prototype.deepwither.modules.mob.implementation.SilentWatcher.class, EntityType.HUSK);
             customMobManager.registerMob("EngravedExecutor", com.lunar_prototype.deepwither.modules.mob.implementation.EngravedExecutor.class, EntityType.WITHER_SKELETON);
+            customMobManager.registerMob("melee_skeleton", VanguardSkeleton.class, EntityType.SKELETON);
+            customMobManager.registerMob("melee_zombie2", CrimsonLancer.class, EntityType.ZOMBIE);
 
 
         } catch (Exception e) {

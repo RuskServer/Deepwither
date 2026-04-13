@@ -23,11 +23,27 @@ public class ExplosionUtil {
         World world = location.getWorld();
         if (world == null) return;
 
-        // 1. 演出
-        world.playSound(location, Sound.ENTITY_GENERIC_EXPLODE, 2.5f, 0.3f);
-        world.spawnParticle(Particle.EXPLOSION, location, 1, 0.1, 0.2, 0.1, 0);
-        world.spawnParticle(Particle.FIREWORK, location, 100, 2.0, 2.0, 2.0, 0.1); 
-        world.spawnParticle(Particle.GLOW, location, 80, 1.2, 1.2, 1.2, 0.05);
+        // 1. 演出 (強化版)
+        // 音の重層化
+        world.playSound(location, Sound.ENTITY_GENERIC_EXPLODE, 3.0f, 0.5f);
+        world.playSound(location, Sound.ENTITY_DRAGON_FIREBALL_EXPLODE, 2.0f, 0.6f);
+        world.playSound(location, Sound.ENTITY_LIGHTNING_BOLT_IMPACT, 1.0f, 0.5f);
+
+        // 中心部の閃光と巨大爆発
+        world.spawnParticle(Particle.FLASH, location, 2, 0, 0, 0, 0);
+        world.spawnParticle(Particle.EXPLOSION_EMITTER, location, 3, 0.2, 0.2, 0.2, 0);
+        world.spawnParticle(Particle.SONIC_BOOM, location, 1, 0, 0, 0, 0);
+
+        // 飛散する火花と破片
+        world.spawnParticle(Particle.LAVA, location, 40, 1.5, 1.5, 1.5, 0.2);
+        world.spawnParticle(Particle.FLAME, location, 60, 2.5, 2.5, 2.5, 0.1);
+
+        // 立ち昇る濃煙
+        world.spawnParticle(Particle.LARGE_SMOKE, location, 30, 1.0, 2.0, 1.0, 0.05);
+
+        // 魔法的な輝き
+        world.spawnParticle(Particle.FIREWORK, location, 150, 3.0, 3.0, 3.0, 0.1);
+        world.spawnParticle(Particle.GLOW, location, 100, 2.0, 2.0, 2.0, 0.05);
 
         // 2. ダメージとデバフ (半径1〜5mのリング状)
         double baseDamage = 10.0;

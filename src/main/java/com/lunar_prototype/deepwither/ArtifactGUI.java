@@ -18,7 +18,7 @@ import java.util.List;
 public class ArtifactGUI implements IManager {
 
     public static final int[] ARTIFACT_SLOTS = {3, 4, 5};
-    public static final int[] BORDER_SLOTS = {0, 1, 2, 6, 7, 8};
+    public static final int[] BORDER_SLOTS = {0, 1, 2, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17};
     public static final int BACKPACK_SLOT = 13;
 
     private static final Component TITLE = Component.text("Artifacts & Equipment", NamedTextColor.GOLD)
@@ -43,6 +43,22 @@ public class ArtifactGUI implements IManager {
         player.openInventory(inv);
     }
 
+    public static ItemStack getArtifactPlaceholder() {
+        ItemStack artifactPlaceholder = new ItemStack(Material.CYAN_STAINED_GLASS_PANE);
+        ItemMeta artifactMeta = artifactPlaceholder.getItemMeta();
+        artifactMeta.displayName(Component.text("【アーティファクトスロット】", NamedTextColor.AQUA).decoration(TextDecoration.ITALIC, false));
+        artifactPlaceholder.setItemMeta(artifactMeta);
+        return artifactPlaceholder;
+    }
+
+    public static ItemStack getBackpackPlaceholder() {
+        ItemStack bpPlaceholder = new ItemStack(Material.PURPLE_STAINED_GLASS_PANE);
+        ItemMeta bpMeta = bpPlaceholder.getItemMeta();
+        bpMeta.displayName(Component.text("【背中装備スロット】", NamedTextColor.LIGHT_PURPLE).decoration(TextDecoration.ITALIC, false));
+        bpPlaceholder.setItemMeta(bpMeta);
+        return bpPlaceholder;
+    }
+
     private Inventory buildInventory(Player player) {
         Inventory inv = Bukkit.createInventory(null, 18, TITLE);
 
@@ -56,20 +72,13 @@ public class ArtifactGUI implements IManager {
         }
 
         // アーティファクトスロットのプレースホルダー
-        ItemStack artifactPlaceholder = new ItemStack(Material.CYAN_STAINED_GLASS_PANE);
-        ItemMeta artifactMeta = artifactPlaceholder.getItemMeta();
-        artifactMeta.displayName(Component.text("【アーティファクトスロット】", NamedTextColor.AQUA).decoration(TextDecoration.ITALIC, false));
-        artifactPlaceholder.setItemMeta(artifactMeta);
+        ItemStack artifactPlaceholder = getArtifactPlaceholder();
         for (int i : ARTIFACT_SLOTS) {
             inv.setItem(i, artifactPlaceholder);
         }
 
         // 背中装備スロットのプレースホルダー
-        ItemStack bpPlaceholder = new ItemStack(Material.PURPLE_STAINED_GLASS_PANE);
-        ItemMeta bpMeta = bpPlaceholder.getItemMeta();
-        bpMeta.displayName(Component.text("【背中装備スロット】", NamedTextColor.LIGHT_PURPLE).decoration(TextDecoration.ITALIC, false));
-        bpPlaceholder.setItemMeta(bpMeta);
-        inv.setItem(BACKPACK_SLOT, bpPlaceholder);
+        inv.setItem(BACKPACK_SLOT, getBackpackPlaceholder());
 
         // 保存済みアーティファクトを読み込んで配置
         List<ItemStack> savedArtifacts = Deepwither.getInstance().getArtifactManager().getPlayerArtifacts(player);
