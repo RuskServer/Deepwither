@@ -29,29 +29,11 @@ public class RuneModule implements IModule {
     @Override
     public void start() {
         ServiceContainer container = plugin.getBootstrap().getContainer();
-        initSafely(container, RuneManager.class);
-        initSafely(container, RuneSocketGUI.class);
-        
         plugin.getCommand("rune").setExecutor(new RuneCommand(container.get(RuneSocketGUI.class), container.get(RuneManager.class)));
     }
 
     @Override
     public void stop() {
-        ServiceContainer container = plugin.getBootstrap().getContainer();
-        try {
-            container.get(RuneManager.class).shutdown();
-            container.get(RuneSocketGUI.class).shutdown();
-        } catch (Exception e) {
-            // Log if needed
-        }
-    }
-
-    private <T extends IManager> void initSafely(ServiceContainer container, Class<T> clazz) {
-        try {
-            container.get(clazz).init();
-        } catch (Exception e) {
-            plugin.getLogger().severe("Failed to initialize " + clazz.getSimpleName());
-            e.printStackTrace();
-        }
+        plugin.getLogger().info("Stopping RuneModule...");
     }
 }

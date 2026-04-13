@@ -29,15 +29,12 @@ public class MineModule implements IModule {
         ModuleRegistrar registrar = container.get(ModuleRegistrar.class);
         MineService mineService = container.get(MineService.class);
 
-        mineService.init();
         registrar.registerListener(new MineListener(mineService));
         registrar.registerListener(new MineMobSpawnListener(mineService));
     }
 
     @Override
     public void stop() {
-        ServiceContainer container = plugin.getBootstrap().getContainer();
-        MineService mineService = container.get(MineService.class);
-        mineService.shutdown();
+        plugin.getLogger().info("Stopping MineModule...");
     }
 }

@@ -81,32 +81,11 @@ public class CombatModule implements IModule {
      */
     @Override
     public void start() {
-        ServiceContainer container = plugin.getBootstrap().getContainer();
-        try {
-            plugin.getLogger().info("Initializing Combat Managers...");
-            container.get(DamageProcessor.class).init();
-            container.get(WeaponMechanicManager.class).init();
-            container.get(DamageManager.class).init();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        plugin.getLogger().info("Starting CombatModule (Managers are initialized by DI container)...");
     }
 
-    /**
-     * Shuts down combat-related managers in reverse initialization order.
-     *
-     * Retrieves the service container and calls `shutdown()` on DamageManager, then
-     * WeaponMechanicManager, and finally DamageProcessor. Any exception thrown
-     * during shutdown is caught and suppressed.
-     */
     @Override
     public void stop() {
-        ServiceContainer container = plugin.getBootstrap().getContainer();
-        try {
-            container.get(DamageManager.class).shutdown();
-            container.get(WeaponMechanicManager.class).shutdown();
-            container.get(DamageProcessor.class).shutdown();
-        } catch (Exception e) {
-        }
+        plugin.getLogger().info("Stopping CombatModule...");
     }
 }

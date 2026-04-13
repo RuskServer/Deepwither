@@ -54,30 +54,11 @@ public class QuestModule implements IModule {
      */
     @Override
     public void start() {
-        ServiceContainer container = plugin.getBootstrap().getContainer();
-        try {
-            plugin.getLogger().info("Initializing Quest Managers...");
-
-            container.get(FileDailyTaskDataStore.class).init();
-            container.get(DailyTaskManager.class).init();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        plugin.getLogger().info("Starting QuestModule (Managers are initialized by DI container)...");
     }
 
-    /**
-     * Shuts down quest-related managers and data stores retrieved from the plugin's service container.
-     */
     @Override
     public void stop() {
-        ServiceContainer container = plugin.getBootstrap().getContainer();
-        try {
-            container.get(DailyTaskManager.class).shutdown();
-            container.get(FileDailyTaskDataStore.class).shutdown();
-        } catch (Exception e) {
-            plugin.getLogger().severe("Failed to stop QuestModule components.");
-            e.printStackTrace();
-        }
+        plugin.getLogger().info("Stopping QuestModule...");
     }
 }

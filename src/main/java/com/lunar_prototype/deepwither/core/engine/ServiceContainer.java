@@ -59,6 +59,18 @@ public class ServiceContainer {
         }
         registeredInstances.put(clazz, instance);
         instances.put(clazz, instance);
+
+        // 自動インターフェース登録: 実装しているすべてのインターフェースでも引けるようにする
+        for (Class<?> iface : instance.getClass().getInterfaces()) {
+            // java.* や IManager 自体は除外（混乱を避けるため）
+            if (iface.getName().startsWith("java.") || iface == IManager.class) continue;
+            
+            // 既に具体的な登録がある場合は上書きしない
+            if (!registeredInstances.containsKey(iface)) {
+                registeredInstances.put(iface, instance);
+                instances.put(iface, instance);
+            }
+        }
     }
 
     public <T> T get(Class<T> clazz) {
@@ -99,6 +111,13 @@ public class ServiceContainer {
 
             T instance = clazz.cast(targetConstructor.newInstance(parameters));
             instances.put(clazz, instance);
+
+            // 自動インターフェース登録: 生成されたインスタンスをインターフェースでも引けるようにする
+            for (Class<?> iface : clazz.getInterfaces()) {
+                if (iface.getName().startsWith("java.") || iface == IManager.class) continue;
+                instances.putIfAbsent(iface, instance);
+            }
+
             return instance;
 
         } catch (Exception e) {
@@ -236,7 +255,10 @@ public class ServiceContainer {
 
         IManager instance = managerInstances.get(clazz);
         if (instance != null) {
-            orderedLifecycleManaged.add(instance);
+            // 同一のインスタンス（インターフェースと具象クラスの両方で登録されている場合など）の重複追加を防ぐ
+            if (!orderedLifecycleManaged.contains(instance)) {
+                orderedLifecycleManaged.add(instance);
+            }
         }
     }
 

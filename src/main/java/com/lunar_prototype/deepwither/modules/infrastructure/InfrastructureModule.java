@@ -69,50 +69,12 @@ public class InfrastructureModule implements IModule {
      */
     @Override
     public void start() {
-        // Module固有のstart処理
-        // DatabaseManager.init() は従来 ServiceManager.startAll() で呼ばれていた。
-        // 新体制ではここで呼ぶべきか？
-
-        // 移行期:
-        // ServiceManager は "IManager" を実装しているものを startAll で init() する。
-        // しかし、ServiceManager.services に入っていないと startAll 対象にならない。
-
-        // 案1: InfrastructureModule.start() で dbManager.init() を呼ぶ。
-        // 案2: ServiceManager が Container 内の IManager も探して init() する。(複雑)
-
-        // 案1を採用。
-        ServiceContainer container = plugin.getBootstrap().getContainer();
-        DatabaseManager dbManager = container.get(DatabaseManager.class);
-        try {
-            plugin.getLogger().info("Initializing DatabaseManager from InfrastructureModule...");
-            dbManager.init();
-        } catch (Exception e) {
-            plugin.getLogger().severe("Failed to initialize DatabaseManager");
-            e.printStackTrace();
-        }
-        
+        plugin.getLogger().info("Starting InfrastructureModule (Managers are initialized by DI container)...");
         plugin.getServer().getPluginManager().registerEvents(new LegacyNPCCleanupListener(plugin), plugin);
     }
 
-    /**
-     * Shuts down the DatabaseManager obtained from the module's service container, if present.
-     *
-     * <p>Retrieves the ServiceContainer from the plugin bootstrap, fetches the DatabaseManager
-     * instance and invokes its {@code shutdown()} method. Any exceptions thrown during retrieval
-     * or shutdown are caught and suppressed (e.g., if the manager is already disposed).</p>
-     */
     @Override
     public void stop() {
-        ServiceContainer container = plugin.getBootstrap().getContainer();
-        if (container != null) {
-            try {
-                DatabaseManager dbManager = container.get(DatabaseManager.class);
-                if (dbManager != null) {
-                    dbManager.shutdown();
-                }
-            } catch (Exception e) {
-                // 無視 (既に破棄されている場合など)
-            }
-        }
+        plugin.getLogger().info("Stopping InfrastructureModule...");
     }
 }

@@ -73,55 +73,11 @@ public class CoreModule implements IModule {
      */
     @Override
     public void start() {
-        ServiceContainer container = plugin.getBootstrap().getContainer();
-
-        plugin.getLogger().info("Initializing Core Managers...");
-        initSafely(container, CacheManager.class);
-        initSafely(container, PlayerDataManager.class);
-        initSafely(container, ItemFactory.class);
-        initSafely(container, StatManager.class);
-        initSafely(container, PlayerSettingsManager.class);
-        initSafely(container, ChargeManager.class);
-        initSafely(container, CooldownManager.class);
+        plugin.getLogger().info("CoreModule started (Managers are initialized by DI container).");
     }
 
-    /**
-     * Shuts down the module's core managers by invoking `shutdown()` on each managed component.
-     *
-     * Retrieves manager instances from the plugin's ServiceContainer and calls `shutdown()` in the
-     * following sequence: CooldownManager, ChargeManager, PlayerSettingsManager, StatManager,
-     * ItemFactory, PlayerDataManager, CacheManager. Any exception thrown during shutdown is caught
-     * and suppressed. 
-     */
     @Override
     public void stop() {
-        ServiceContainer container = plugin.getBootstrap().getContainer();
-        try {
-            container.get(CooldownManager.class).shutdown();
-            container.get(ChargeManager.class).shutdown();
-            container.get(PlayerSettingsManager.class).shutdown();
-            container.get(StatManager.class).shutdown();
-            container.get(ItemFactory.class).shutdown();
-            container.get(PlayerDataManager.class).shutdown();
-            container.get(CacheManager.class).shutdown();
-        } catch (Exception e) {
-        }
-    }
-
-    /**
-     * Initializes the manager of the specified type retrieved from the given ServiceContainer.
-     *
-     * If initialization throws an exception, the error is logged and the exception is suppressed.
-     *
-     * @param container the ServiceContainer to obtain the manager instance from
-     * @param clazz the manager class to initialize
-     */
-    private <T extends IManager> void initSafely(ServiceContainer container, Class<T> clazz) {
-        try {
-            container.get(clazz).init();
-        } catch (Exception e) {
-            plugin.getLogger().severe("Failed to initialize " + clazz.getSimpleName());
-            e.printStackTrace();
-        }
+        plugin.getLogger().info("CoreModule stopped (Managers are shutdown by DI container).");
     }
 }

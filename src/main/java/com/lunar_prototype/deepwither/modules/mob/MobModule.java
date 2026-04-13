@@ -69,25 +69,18 @@ public class MobModule implements IModule {
     public void start() {
         ServiceContainer container = plugin.getBootstrap().getContainer();
         try {
-            plugin.getLogger().info("Initializing Mob Services...");
-
-            container.get(MobConfigService.class).init();
-            container.get(MobRegistryService.class).init();
-            container.get(MobRegionService.class).init();
-            container.get(MobTraitService.class).init();
-            container.get(MobLevelService.class).init();
-            container.get(MobSpawnerService.class).init();
+            plugin.getLogger().info("Starting MobModule (Listeners & Framework Initialization)...");
 
             // Initialize CustomMob framework
             CustomMobManager customMobManager = container.get(CustomMobManager.class);
-            customMobManager.init();
+            // CustomMobManager is an IManager, its init() is handled by DI container.
+            // We just register the mobs here.
             customMobManager.registerMob("FireDemon", FireDemon.class, EntityType.ZOMBIE);
             customMobManager.registerMob("IcePilgrim", IcePilgrim.class, EntityType.WITHER_SKELETON);
             customMobManager.registerMob("SilentWatcher", com.lunar_prototype.deepwither.modules.mob.implementation.SilentWatcher.class, EntityType.HUSK);
             customMobManager.registerMob("EngravedExecutor", com.lunar_prototype.deepwither.modules.mob.implementation.EngravedExecutor.class, EntityType.WITHER_SKELETON);
             customMobManager.registerMob("melee_skeleton", VanguardSkeleton.class, EntityType.SKELETON);
             customMobManager.registerMob("melee_zombie2", CrimsonLancer.class, EntityType.ZOMBIE);
-
 
         } catch (Exception e) {
             plugin.getLogger().severe("Failed to start MobModule components.");
@@ -97,17 +90,6 @@ public class MobModule implements IModule {
 
     @Override
     public void stop() {
-        ServiceContainer container = plugin.getBootstrap().getContainer();
-        try {
-            container.get(MobSpawnerService.class).shutdown();
-            container.get(MobLevelService.class).shutdown();
-            container.get(MobTraitService.class).shutdown();
-            container.get(MobRegionService.class).shutdown();
-            container.get(MobRegistryService.class).shutdown();
-            container.get(MobConfigService.class).shutdown();
-        } catch (Exception e) {
-            plugin.getLogger().severe("Failed to stop MobModule components.");
-            throw new IllegalStateException("MobModule stop failed", e);
-        }
+        plugin.getLogger().info("Stopping MobModule...");
     }
 }

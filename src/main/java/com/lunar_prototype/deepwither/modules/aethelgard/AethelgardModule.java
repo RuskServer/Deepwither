@@ -74,14 +74,7 @@ public class AethelgardModule implements IModule {
         ModuleRegistrar registrar = container.get(ModuleRegistrar.class);
 
         try {
-            plugin.getLogger().info("Starting Aethelgard Module...");
-
-            container.get(QuestDataStore.class).init();
-            ((FilePlayerQuestDataStore) container.get(PlayerQuestDataStore.class)).init();
-            
-            container.get(QuestComponentPool.class).init();
-            container.get(GuildQuestManager.class).init();
-            container.get(PlayerQuestManager.class).init();
+            plugin.getLogger().info("Starting Aethelgard Module (Listeners & Commands)...");
 
             // Commands & Listeners
             PlayerQuestManager playerQuestManager = container.get(PlayerQuestManager.class);
@@ -98,19 +91,6 @@ public class AethelgardModule implements IModule {
 
     @Override
     public void stop() {
-        ServiceContainer container = plugin.getBootstrap().getContainer();
-        try {
-            plugin.getLogger().info("Stopping Aethelgard Module...");
-
-            container.get(PlayerQuestManager.class).shutdown();
-            container.get(GuildQuestManager.class).shutdown();
-            container.get(QuestComponentPool.class).shutdown();
-            
-            ((FilePlayerQuestDataStore) container.get(PlayerQuestDataStore.class)).shutdown();
-            container.get(QuestDataStore.class).shutdown();
-        } catch (Exception e) {
-            plugin.getLogger().severe("Failed to stop Aethelgard Module.");
-            e.printStackTrace();
-        }
+        plugin.getLogger().info("Stopping Aethelgard Module...");
     }
 }

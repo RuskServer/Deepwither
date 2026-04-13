@@ -33,10 +33,7 @@ public class OutpostModule implements IModule {
         ModuleRegistrar registrar = container.get(ModuleRegistrar.class);
 
         try {
-            plugin.getLogger().info("Starting Outpost Module...");
-
-            container.get(OutpostConfig.class).init();
-            container.get(OutpostManager.class).init();
+            plugin.getLogger().info("Starting Outpost Module (Listeners)...");
 
             // Register Listeners
             registrar.registerListener(container.get(OutpostDamageListener.class));
@@ -50,18 +47,6 @@ public class OutpostModule implements IModule {
 
     @Override
     public void stop() {
-        ServiceContainer container = plugin.getBootstrap().getContainer();
-        try {
-            plugin.getLogger().info("Stopping Outpost Module...");
-
-            container.get(OutpostManager.class).shutdown();
-            container.get(OutpostDamageListener.class).shutdown();
-            container.get(OutpostRegionListener.class).shutdown();
-            container.get(OutpostConfig.class).shutdown();
-
-        } catch (Exception e) {
-            plugin.getLogger().severe("Failed to stop Outpost Module.");
-            e.printStackTrace();
-        }
+        plugin.getLogger().info("Stopping Outpost Module...");
     }
 }

@@ -23,6 +23,10 @@ public class DeepwitherBootstrap {
 
         // 基本サービスの登録
         container.registerInstance(Deepwither.class, plugin);
+        // 親クラスやインターフェース型でも解決できるように登録
+        container.registerInstance(org.bukkit.plugin.java.JavaPlugin.class, plugin);
+        container.registerInstance(com.lunar_prototype.deepwither.api.DeepwitherAPI.class, plugin);
+        
         container.registerInstance(Logger.class, logger);
         container.registerInstance(ModuleRegistrar.class, new ModuleRegistrar(plugin, logger));
 
@@ -91,16 +95,12 @@ public class DeepwitherBootstrap {
     private void registerModules() {
         logger.info("Registering modules...");
         
-        // 1. Legacy Module (既存機能のインスタンス生成と登録) 
-        // 他のモジュールがこれらのインスタンスを参照できるように最優先で実行
-        moduleManager.registerModule(new LegacyModule(plugin));
-
-        // 2. Core & Foundation
+        // 1. Core & Foundation
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.core.CoreModule(plugin));
         moduleManager
                 .registerModule(new com.lunar_prototype.deepwither.modules.infrastructure.InfrastructureModule(plugin));
 
-        // 3. Functional Modules
+        // 2. Functional Modules
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.combat.CombatModule(plugin));
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.economy.EconomyModule(plugin));
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.quest.QuestModule(plugin));
@@ -108,6 +108,11 @@ public class DeepwitherBootstrap {
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.mob.MobModule(plugin));
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.integration.IntegrationModule(plugin));
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.outpost.OutpostModule(plugin));
+
+        // 3. Legacy Module (既存機能のインスタンス生成と登録)
+        // 他の全てのモジュールがコンテナにManagerを登録した「後」に実行し、
+        // 依存関係（DamageProcessorなど）を安全に get できるようにする
+        moduleManager.registerModule(new LegacyModule(plugin));
 
         logger.info("Modules registered.");
     }

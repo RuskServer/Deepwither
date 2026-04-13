@@ -881,24 +881,24 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         // --- Core ---
 
         // --- Group A & B & Base ---
-        this.attributeManager = register(new AttributeManager(databaseManager));
-        this.levelManager = register(new LevelManager(databaseManager));
-        this.skilltreeManager = register(new SkilltreeManager(databaseManager, this));
-        this.professionDatabase = register(new ProfessionDatabase(this, databaseManager));
-        this.boosterManager = register(new BoosterManager(databaseManager));
+        this.attributeManager = register(serviceManager.get(AttributeManager.class));
+        this.levelManager = register(serviceManager.get(LevelManager.class));
+        this.skilltreeManager = register(serviceManager.get(SkilltreeManager.class));
+        this.professionDatabase = register(serviceManager.get(ProfessionDatabase.class));
+        this.boosterManager = register(serviceManager.get(BoosterManager.class));
         this.globalMarketManager = serviceManager.get(GlobalMarketManager.class);
 
         // this.statManager = ... handled above
-        this.manaManager = register(new ManaManager());
+        this.manaManager = register(serviceManager.get(ManaManager.class));
         // this.cooldownManager = ... handled above
         // this.itemFactory = ... handled above
-        this.itemNameResolver = register(new ItemNameResolver(this));
+        this.itemNameResolver = register(serviceManager.get(ItemNameResolver.class));
 
-        this.skillLoader = register(new SkillLoader(this));
-        this.skillSlotManager = register(new SkillSlotManager(this));
-        this.skillCastManager = register(new SkillCastManager());
-        this.skillRegistry = register(new SkillRegistry());
-        this.auraManager = register(new com.lunar_prototype.deepwither.api.skill.aura.AuraManager());
+        this.skillLoader = register(serviceManager.get(SkillLoader.class));
+        this.skillSlotManager = register(serviceManager.get(SkillSlotManager.class));
+        this.skillCastManager = register(serviceManager.get(SkillCastManager.class));
+        this.skillRegistry = register(serviceManager.get(SkillRegistry.class));
+        this.auraManager = register(serviceManager.get(com.lunar_prototype.deepwither.api.skill.aura.AuraManager.class));
         // this.chargeManager = ... handled above
         // this.settingsManager = ... handled above
 
@@ -907,33 +907,33 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         this.damageManager = serviceManager.get(DamageManager.class);
 
         // --- Group C & D ---
-        this.artifactManager = register(new ArtifactManager(this));
-        this.backpackManager = register(new BackpackManager(this));
+        this.artifactManager = register(serviceManager.get(ArtifactManager.class));
+        this.backpackManager = register(serviceManager.get(BackpackManager.class));
         this.creditManager = serviceManager.get(CreditManager.class);
         this.traderManager = serviceManager.get(TraderManager.class);
-        this.lootChestManager = register(new LootChestManager(this));
-        this.lootLevelManager = register(new LootLevelManager(this));
-        this.lootDropManager = register(new LootDropManager(itemFactory));
-        this.mailManager = register(new MailManager(this, databaseManager));
-        this.routeLootChestManager = register(new RouteLootChestManager(this));
-        this.craftingManager = register(new CraftingManager(this));
-        this.marketGui = register(new MarketGui(this));
-        this.marketSearchHandler = register(new MarketSearchHandler(this));
+        this.lootChestManager = register(serviceManager.get(LootChestManager.class));
+        this.lootLevelManager = register(serviceManager.get(LootLevelManager.class));
+        this.lootDropManager = register(serviceManager.get(LootDropManager.class));
+        this.mailManager = register(serviceManager.get(MailManager.class));
+        this.routeLootChestManager = register(serviceManager.get(RouteLootChestManager.class));
+        this.craftingManager = register(serviceManager.get(CraftingManager.class));
+        this.marketGui = register(serviceManager.get(MarketGui.class));
+        this.marketSearchHandler = register(serviceManager.get(MarketSearchHandler.class));
 
-        this.companionManager = register(new CompanionManager(this));
-        this.raidBossManager = register(new RaidBossManager(this));
-        this.layerMoveManager = register(new LayerMoveManager(this));
-        this.pvPvEDungeonManager = register(new PvPvEDungeonManager(this));
+        this.companionManager = register(serviceManager.get(CompanionManager.class));
+        this.raidBossManager = register(serviceManager.get(RaidBossManager.class));
+        this.layerMoveManager = register(serviceManager.get(LayerMoveManager.class));
+        this.pvPvEDungeonManager = register(serviceManager.get(PvPvEDungeonManager.class));
 
-        register(new com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager(this));
-        this.dungeonExtractionManager = register(new DungeonExtractionManager(this));
-        this.fishingManager = register(new FishingManager(this));
-        this.townBurstManager = register(new TownBurstManager(this));
-        this.mythicMobSafeZoneManager = register(new MythicMobSafeZoneManager(this));
-        this.partyManager = register(new PartyManager(this));
-        this.roguelikeBuffManager = register(new RoguelikeBuffManager(this));
-        this.roguelikeBuffGUI = register(new RoguelikeBuffGUI(this));
-        register(new com.lunar_prototype.deepwither.fasttravel.FastTravelManager(this));
+        register(serviceManager.get(com.lunar_prototype.deepwither.dungeon.instance.DungeonInstanceManager.class));
+        this.dungeonExtractionManager = register(serviceManager.get(DungeonExtractionManager.class));
+        this.fishingManager = register(serviceManager.get(FishingManager.class));
+        this.townBurstManager = register(serviceManager.get(TownBurstManager.class));
+        this.mythicMobSafeZoneManager = register(serviceManager.get(MythicMobSafeZoneManager.class));
+        this.partyManager = register(serviceManager.get(PartyManager.class));
+        this.roguelikeBuffManager = register(serviceManager.get(RoguelikeBuffManager.class));
+        this.roguelikeBuffGUI = register(serviceManager.get(RoguelikeBuffGUI.class));
+        register(serviceManager.get(com.lunar_prototype.deepwither.fasttravel.FastTravelManager.class));
 
         // --- Group E ---
         this.fileDailyTaskDataStore = serviceManager.get(FileDailyTaskDataStore.class); // Explicit cast if generic
@@ -947,66 +947,67 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         GuildQuestManager guildQuestManager = serviceManager.get(GuildQuestManager.class);
         PlayerQuestManager playerQuestManager = serviceManager.get(PlayerQuestManager.class);
 
-        this.professionManager = register(new ProfessionManager(this, professionDatabase));
-        this.aiEngine = register(new SeekerAIEngine());
+        this.professionManager = register(serviceManager.get(ProfessionManager.class));
+        this.aiEngine = register(serviceManager.get(SeekerAIEngine.class));
 
         // --- UI & Listeners (Managed) ---
-        this.artifactGUI = register(new ArtifactGUI());
-        this.artifactGUIListener = register(new ArtifactGUIListener(this));
-        this.skillAssignmentGUI = register(new SkillAssignmentGUI(this));
-        this.settingsGUI = register(new SettingsGUI(this, settingsManager));
-        this.mailInboxGUI = register(new MailInboxGUI(this));
-        this.menuGUI = register(new MenuGUI(this));
-        this.resetGUI = register(new ResetGUI(this));
-        this.menuItemListener = register(new MenuItemListener(this));
-        this.craftingGUI = register(new CraftingGUI(this));
-        this.traderGUI = register(new TraderGUI(this));
-        this.sellGUI = register(new SellGUI(this));
+        this.artifactGUI = register(serviceManager.get(ArtifactGUI.class));
+        this.artifactGUIListener = register(serviceManager.get(ArtifactGUIListener.class));
+        this.skillAssignmentGUI = register(serviceManager.get(SkillAssignmentGUI.class));
+        this.settingsGUI = register(serviceManager.get(SettingsGUI.class));
+        this.mailInboxGUI = register(serviceManager.get(MailInboxGUI.class));
+        this.menuGUI = register(serviceManager.get(MenuGUI.class));
+        this.resetGUI = register(serviceManager.get(ResetGUI.class));
+        this.menuItemListener = register(serviceManager.get(MenuItemListener.class));
+        this.craftingGUI = register(serviceManager.get(CraftingGUI.class));
+        this.traderGUI = register(serviceManager.get(TraderGUI.class));
+        this.sellGUI = register(serviceManager.get(SellGUI.class));
         
-        this.materialGuideManager = register(new MaterialGuideManager(this));
-        this.materialGuideGUI = new MaterialGuideGUI(this, materialGuideManager);
+        this.materialGuideManager = register(serviceManager.get(MaterialGuideManager.class));
+        // MaterialGuideGUI might not be an IManager, just fetching it
+        this.materialGuideGUI = serviceManager.get(MaterialGuideGUI.class);
 
         // --- Standalone Listeners (Managed) ---
-        register(new PlayerConnectionListener(this));
-        register(new MythicMechanicListener(this));
-        register(new ArmorSetListener(this));
-        register(new ArtifactSetListener(this));
-        register(new ItemUpgradeListener(this));
-        register(new PlayerStatListener(this));
-        register(new SkillCastSessionManager(this));
-        register(new RaidBossListener(this));
-        register(new CraftingListener(this));
-        register(new CustomDropListener(this));
-        register(new TaskListener(this));
-        register(new LootChestListener(this));
-        register(new CompanionListener(this));
-        register(new CompanionGuiListener(companionManager));
-        register(new LayerSignListener(this));
-        register(new BossKillListener(this));
-        register(new PvPWorldListener(this));
-        register(new ItemGlowHandler(this));
-        register(new VoteListener(this));
-        register(new DungeonSignListener(this));
-        register(new PvPvEChestListener(this));
-        register(new ItemDurabilityFix(this));
-        register(new AttributeGui(this));
-        register(new BlacksmithListener(this));
-        register(new DropPreventionListener(this));
-        register(new PlayerInteractListener(this));
-        register(new PlayerListener(this, playerQuestManager));
-        register(new WandManager(this));
-        register(new FishingListener(this));
-        register(new MobKillListener(this));
-        register(new TutorialController(this));
-        register(new CombatAnalyzer(this));
-        this.safeZoneListener = register(new SafeZoneListener(this));
-        register(new AnimationListener(this));
-        register(new BackpackListener(this, backpackManager));
-        register(new CombatExperienceListener(this));
-        register(new SeekerAIEngine());
-        register(new RegenTask(this));
-        register(new MarketApiController(this));
-        register(new PlayerInventoryRestrictor(this));
+        register(serviceManager.get(PlayerConnectionListener.class));
+        register(serviceManager.get(MythicMechanicListener.class));
+        register(serviceManager.get(ArmorSetListener.class));
+        register(serviceManager.get(ArtifactSetListener.class));
+        register(serviceManager.get(ItemUpgradeListener.class));
+        register(serviceManager.get(PlayerStatListener.class));
+        register(serviceManager.get(SkillCastSessionManager.class));
+        register(serviceManager.get(RaidBossListener.class));
+        register(serviceManager.get(CraftingListener.class));
+        register(serviceManager.get(CustomDropListener.class));
+        register(serviceManager.get(TaskListener.class));
+        register(serviceManager.get(LootChestListener.class));
+        register(serviceManager.get(CompanionListener.class));
+        register(serviceManager.get(CompanionGuiListener.class));
+        register(serviceManager.get(LayerSignListener.class));
+        register(serviceManager.get(BossKillListener.class));
+        register(serviceManager.get(PvPWorldListener.class));
+        register(serviceManager.get(ItemGlowHandler.class));
+        register(serviceManager.get(VoteListener.class));
+        register(serviceManager.get(DungeonSignListener.class));
+        register(serviceManager.get(PvPvEChestListener.class));
+        register(serviceManager.get(ItemDurabilityFix.class));
+        register(serviceManager.get(AttributeGui.class));
+        register(serviceManager.get(BlacksmithListener.class));
+        register(serviceManager.get(DropPreventionListener.class));
+        register(serviceManager.get(PlayerInteractListener.class));
+        register(serviceManager.get(PlayerListener.class));
+        register(serviceManager.get(WandManager.class));
+        register(serviceManager.get(FishingListener.class));
+        register(serviceManager.get(MobKillListener.class));
+        register(serviceManager.get(TutorialController.class));
+        register(serviceManager.get(CombatAnalyzer.class));
+        this.safeZoneListener = register(serviceManager.get(SafeZoneListener.class));
+        register(serviceManager.get(AnimationListener.class));
+        register(serviceManager.get(BackpackListener.class));
+        register(serviceManager.get(CombatExperienceListener.class));
+        // SeekerAIEngine is already registered above, removing the duplicate.
+        register(serviceManager.get(RegenTask.class));
+        register(serviceManager.get(MarketApiController.class));
+        register(serviceManager.get(PlayerInventoryRestrictor.class));
         resourcePackListener = new ResourcePackListener(this);
         Bukkit.getPluginManager().registerEvents(resourcePackListener, this);
         new com.lunar_prototype.deepwither.core.listener.EnvironmentListener(this);

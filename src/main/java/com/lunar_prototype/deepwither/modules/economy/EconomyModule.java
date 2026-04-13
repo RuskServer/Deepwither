@@ -68,29 +68,11 @@ public class EconomyModule implements IModule {
      */
     @Override
     public void start() {
-        try {
-            plugin.getLogger().info("Initializing Economy Managers...");
-            container.get(GlobalMarketManager.class).init();
-            container.get(CreditManager.class).init();
-            container.get(TraderManager.class).init();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        plugin.getLogger().info("Starting EconomyModule (Managers are initialized by DI container)...");
     }
 
-    /**
-     * Shuts down economy-related managers obtained from the service container.
-     *
-     * Invokes `shutdown()` on TraderManager, CreditManager, and GlobalMarketManager. Any exceptions thrown during shutdown are caught and their stack traces are printed.
-     */
     @Override
     public void stop() {
-        try {
-            container.get(TraderManager.class).shutdown();
-            container.get(CreditManager.class).shutdown();
-            container.get(GlobalMarketManager.class).shutdown();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        plugin.getLogger().info("Stopping EconomyModule...");
     }
 }

@@ -28,16 +28,17 @@ repositories {
 }
 
 dependencies {
-    // Paper API (コンパイルに必要な最新バージョンを明示的に指定)
+    // Paper API (これはサーバーが提供するため同梱しない)
     val paperVersion = "1.21.10-R0.1-SNAPSHOT"
     compileOnly("io.papermc.paper:paper-api:$paperVersion")
     testImplementation("io.papermc.paper:paper-api:$paperVersion")
 
-    // Database & Utils
+    // Database & Utils (同梱対象)
     implementation("org.xerial:sqlite-jdbc:3.50.1.0")
     implementation("com.zaxxer:HikariCP:6.2.1")
+    implementation("com.google.code.gson:gson:2.11.0") // バージョンをPaperに合わせる
 
-    // Plugins API (Provided)
+    // Plugins API (Provided - サーバーに別途プラグインとして導入されるもの)
     val mythicVersion = "5.9.5"
     compileOnly("io.lumine:Mythic-Dist:$mythicVersion")
     testImplementation("io.lumine:Mythic-Dist:$mythicVersion")
@@ -54,21 +55,11 @@ dependencies {
     compileOnly("com.sk89q.worldguard:worldguard-bukkit:$worldguardVersion")
     testImplementation("com.sk89q.worldguard:worldguard-bukkit:$worldguardVersion")
 
-    val votifierVersion = "2.7.2"
-    compileOnly("com.github.NuVotifier:NuVotifier:$votifierVersion")
-    testImplementation("com.github.NuVotifier:NuVotifier:$votifierVersion")
-
-    val packeteventsVersion = "2.11.0"
-    compileOnly("com.github.retrooper:packetevents-spigot:$packeteventsVersion")
-    testImplementation("com.github.retrooper:packetevents-spigot:$packeteventsVersion")
-
-    val bettermodelVersion = "1.15.0"
-    compileOnly("io.github.toxicity188:bettermodel:$bettermodelVersion")
-    testImplementation("io.github.toxicity188:bettermodel:$bettermodelVersion")
-
-    val discordsrvVersion = "1.28.0"
-    compileOnly("com.discordsrv:discordsrv:$discordsrvVersion")
-    testImplementation("com.discordsrv:discordsrv:$discordsrvVersion")
+    // Libraries to be bundled (同梱対象に戻す)
+    implementation("com.github.NuVotifier:NuVotifier:2.7.2")
+    implementation("com.github.retrooper:packetevents-spigot:2.11.0")
+    implementation("io.github.toxicity188:bettermodel:1.15.0")
+    implementation("com.discordsrv:discordsrv:1.28.0")
 
     // Local library
     implementation(files("lib/EQF-Project-1.0-SNAPSHOT.jar"))
@@ -109,6 +100,11 @@ tasks {
     }
 
     build {
+        dependsOn(shadowJar)
+    }
+
+    // assembleタスク（buildの一部）が呼ばれた際にshadowJarをメインの成果物にする
+    assemble {
         dependsOn(shadowJar)
     }
 }
