@@ -200,13 +200,13 @@ public class DatabaseManager implements IManager, IDatabaseManager {
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS player_attributes (
                     uuid TEXT PRIMARY KEY, total_points INTEGER,
-                    str INTEGER, vit INTEGER, mnd INTEGER, int INTEGER, agi INTEGER
+                    str INTEGER, vit INTEGER, mnd INTEGER, "int" INTEGER, agi INTEGER
                 )""");
 
             // LevelManager用
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS player_levels (
-                    uuid TEXT PRIMARY KEY, level INTEGER, exp REAL
+                    uuid TEXT PRIMARY KEY, "level" INTEGER, exp REAL
                 )""");
 
             // SkilltreeManager用

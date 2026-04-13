@@ -61,14 +61,14 @@ public class AttributeManager implements IManager {
         try (Connection conn = db.getConnection();
              PreparedStatement ps = conn.prepareStatement("""
             INSERT INTO player_attributes (
-                uuid, total_points, str, vit, mnd, int, agi
+                uuid, total_points, str, vit, mnd, "int", agi
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(uuid) DO UPDATE SET
                 total_points = excluded.total_points,
                 str = excluded.str,
                 vit = excluded.vit,
                 mnd = excluded.mnd,
-                int = excluded.int,
+                "int" = excluded."int",
                 agi = excluded.agi
         """)) {
             ps.setString(1, uuid.toString());

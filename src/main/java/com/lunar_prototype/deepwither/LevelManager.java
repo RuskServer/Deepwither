@@ -31,7 +31,7 @@ public class LevelManager implements IManager {
 
     public void load(UUID uuid) {
         try (Connection conn = db.getConnection();
-             PreparedStatement ps = conn.prepareStatement("SELECT level, exp FROM player_levels WHERE uuid = ?")) {
+             PreparedStatement ps = conn.prepareStatement("SELECT \"level\", exp FROM player_levels WHERE uuid = ?")) {
             ps.setString(1, uuid.toString());
             try (ResultSet rs = ps.executeQuery()) {
                 PlayerLevelData data;
@@ -64,8 +64,8 @@ public class LevelManager implements IManager {
 
         try (Connection conn = db.getConnection();
              PreparedStatement ps = conn.prepareStatement("""
-            INSERT INTO player_levels (uuid, level, exp) VALUES (?, ?, ?)
-            ON CONFLICT(uuid) DO UPDATE SET level = excluded.level, exp = excluded.exp
+            INSERT INTO player_levels (uuid, "level", exp) VALUES (?, ?, ?)
+            ON CONFLICT(uuid) DO UPDATE SET "level" = excluded."level", exp = excluded.exp
         """)) {
             ps.setString(1, uuid.toString());
             ps.setInt(2, level);
