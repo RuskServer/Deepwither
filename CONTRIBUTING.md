@@ -91,30 +91,34 @@ moduleManager.registerModule(new MyFeatureModule(plugin));
 リスナー登録やコマンド登録は、`ModuleRegistrar` を通して行うことを推奨します。
 これにより、モジュール内に登録処理を閉じ込めつつ、解除や重複管理を一箇所へ集約できます。
 
-### 3. Managerの実装 (Manager Implementation)
+### 3. Managerの実装と自動ライフサイクル (Manager Implementation)
 Managerは、モジュール内のロジックをカプセル化したクラスです。
-必須ではありませんが、ライフサイクル管理のために `com.lunar_prototype.deepwither.util.IManager` インターフェースの実装を推奨します。
+ライフサイクル管理のために `com.lunar_prototype.deepwither.util.IManager` インターフェースの実装を強く推奨します。
+
+新アーキテクチャでは、**モジュールの `start()` 内で `manager.init()` を手動で呼び出してはいけません。**
+`IManager` を実装したクラスを `ServiceContainer` に登録しておけば、プラグイン起動時にコンテナが依存関係グラフを構築し、**正しい順番で全マネージャーの `init()` を自動的に一括実行**します。
 
 ```java
 import com.lunar_prototype.deepwither.util.IManager;
-import com.lunar_prototype.deepwither.util.DependsOn;
 
-// 特定のManagerに依存する場合、@DependsOnで順序制御が可能（ServiceManager経由の場合）
-// ※ Constructor Injectionを使う場合はServiceContainerが自動解決するため不要ですが、
-//    LegacyModuleとの互換性のために残すことがあります。
-@DependsOn({DatabaseManager.class})
+// 依存関係はコンストラクタ引数から自動抽出され、初期化順序が決定されます。
+// 暗黙的な依存（イベント順序など）がある場合のみ @DependsOn を使用します。
 public class MyManager implements IManager {
 
     private final Deepwither plugin;
+    private final DatabaseManager dbManager;
 
-    public MyManager(Deepwither plugin) {
+    // ServiceContainer が DatabaseManager を自動解決・注入し、
+    // DatabaseManager の init() が終わった後にこのクラスの init() を呼び出します。
+    public MyManager(Deepwither plugin, DatabaseManager dbManager) {
         this.plugin = plugin;
+        this.dbManager = dbManager;
     }
 
     /**
      * 初期化処理 (onEnable相当)
      * イベントリスナーの登録や、データのロードを行います。
-     * @throws Exception 初期化に失敗した場合、プラグイン全体が安全に停止します。
+     * 手動で呼び出さないでください。
      */
     @Override
     public void init() throws Exception {
@@ -124,6 +128,7 @@ public class MyManager implements IManager {
     /**
      * 終了処理 (onDisable相当)
      * データの保存やリソースの解放を行います。
+     * これもコンテナから自動で呼び出されます。
      */
     @Override
     public void shutdown() {
@@ -131,8 +136,6 @@ public class MyManager implements IManager {
     }
 }
 ```
-
-※ **注意**: `IManager` を実装したクラスは、モジュールの `start()` / `stop()` メソッド内で明示的に `init()` / `shutdown()` を呼ぶか、`ServiceManager` に登録して管理させる必要があります。新アーキテクチャでは、可能な限り `ServiceContainer` と `Module` のライフサイクルに統合することを推奨します。
 
 ## 💾 データベースアクセス (Database Access)
 
@@ -186,8 +189,8 @@ List<String> clanNames = DW.db().queryList(
 
 *   **Deepwitherクラスへのゲッター追加**: `Deepwither.java` にこれ以上 `public Manager getManager()` のようなメソッドを追加しないでください。新しい機能は `ServiceContainer` 経由で取得するか、モジュール内で完結させる必要があります。既存のゲッターは互換性のために残されていますが、新規追加は厳禁です。
 *   **`onEnable` への直接記述**: デバッグ目的以外で、`onEnable` メソッド内に直接ロジックを書くことは避けてください。
-*   **手動初期化**: `manager.init()` を手動で呼び出さないでください。`ServiceManager` に任せてください。
-*   **循環依存**: AがBに依存し、BがAに依存するような設計は避けてください。`ServiceManager` は循環依存を検出するとエラーをスローします。
+*   **手動初期化**: `manager.init()` および `manager.shutdown()` をモジュールや別クラスから**絶対に手動で呼び出さないでください**。二重初期化のバグを引き起こします。`ServiceContainer` の自動ライフサイクルに完全に任せてください。
+*   **循環依存**: AがBに依存し、BがAに依存するような設計は避けてください。`ServiceContainer` は循環依存を検出するとグラフ構築時に例外をスローし、起動を停止します。
 
 ---
 
