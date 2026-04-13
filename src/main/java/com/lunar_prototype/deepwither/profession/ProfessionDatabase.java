@@ -60,7 +60,8 @@ public class ProfessionDatabase implements IManager {
 
         public void savePlayer(PlayerProfessionData data) {
 
-            String query = "INSERT OR REPLACE INTO player_professions (player_id, profession_type, experience) VALUES (?, ?, ?)";
+            String query = "INSERT INTO player_professions (player_id, profession_type, experience) VALUES (?, ?, ?) " +
+                           "ON CONFLICT(player_id, profession_type) DO UPDATE SET experience = excluded.experience";
 
     
 

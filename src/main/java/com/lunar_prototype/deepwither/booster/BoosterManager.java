@@ -55,7 +55,7 @@ public class BoosterManager implements IManager {
     }
 
     private void save(UUID uuid, BoosterData data) {
-        String query = "INSERT OR REPLACE INTO player_boosters (uuid, multiplier, end_time) VALUES (?, ?, ?)";
+        String query = "INSERT INTO player_boosters (uuid, multiplier, end_time) VALUES (?, ?, ?) ON CONFLICT(uuid) DO UPDATE SET multiplier = excluded.multiplier, end_time = excluded.end_time";
         try (java.sql.Connection conn = db.getConnection();
              PreparedStatement ps = conn.prepareStatement(query)) {
             ps.setString(1, uuid.toString());

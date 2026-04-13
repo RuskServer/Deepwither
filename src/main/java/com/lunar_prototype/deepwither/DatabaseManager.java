@@ -58,10 +58,13 @@ public class DatabaseManager implements IManager, IDatabaseManager {
     public void init() throws Exception {
         org.bukkit.configuration.file.FileConfiguration config = plugin.getConfig();
         this.failFast = config.getBoolean("database.fail-fast", false);
-        String type = config.getString("database.type", "sqlite").toLowerCase();
+        // デフォルトを H2 に変更
+        String type = config.getString("database.type", "h2").toLowerCase();
 
         HikariConfig hikariConfig = new HikariConfig();
-        
+        File oldSqliteFile = new File(plugin.getDataFolder(), "database.db");
+        boolean doMigration = false;
+
         if (type.equals("mysql")) {
             String host = config.getString("database.mysql.host", "localhost");
             int port = config.getInt("database.mysql.port", 3306);
@@ -74,36 +77,38 @@ public class DatabaseManager implements IManager, IDatabaseManager {
             hikariConfig.setUsername(user);
             hikariConfig.setPassword(pass);
             hikariConfig.setDriverClassName("com.mysql.cj.jdbc.Driver");
-            
+
             // MySQL向けの最適化設定
             hikariConfig.addDataSourceProperty("cachePrepStmts", "true");
             hikariConfig.addDataSourceProperty("prepStmtCacheSize", "250");
             hikariConfig.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
             hikariConfig.addDataSourceProperty("useServerPrepStmts", "true");
-        } else {
-            // デフォルトは SQLite
-            File dbFile = new File(plugin.getDataFolder(), "database.db");
+        } else if (type.equals("sqlite")) {
+            // 後方互換性: Configで明示的に sqlite が指定されている場合
             if (!plugin.getDataFolder().exists()) plugin.getDataFolder().mkdirs();
-            hikariConfig.setJdbcUrl("jdbc:sqlite:" + dbFile.getAbsolutePath());
+            hikariConfig.setJdbcUrl("jdbc:sqlite:" + oldSqliteFile.getAbsolutePath());
             hikariConfig.setDriverClassName("org.sqlite.JDBC");
+        } else {
+            // H2 Database (PostgreSQL互換モード)
+            File dbFile = new File(plugin.getDataFolder(), "database");
+            if (!plugin.getDataFolder().exists()) plugin.getDataFolder().mkdirs();
+
+            File h2File = new File(plugin.getDataFolder(), "database.mv.db");
+            if (oldSqliteFile.exists() && !h2File.exists()) {
+                doMigration = true; // 初回起動時のみマイグレーションを実行
+            }
+
+            hikariConfig.setJdbcUrl("jdbc:h2:" + dbFile.getAbsolutePath() + ";MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH");
+            hikariConfig.setDriverClassName("org.h2.Driver");
         }
 
         hikariConfig.setPoolName("Deepwither-Pool");
-
-        // プール設定の読み込み
-        if (type.equals("sqlite")) {
-            // SQLiteは同時書き込み制限があるが、WALモードを有効にするため複数接続(読込)は可能。
-            // 接続数1ではメインスレッドが他スレッドの処理待ちでフリーズするため、緩和する。
-            hikariConfig.setMaximumPoolSize(config.getInt("database.pool.maximum-pool-size", 10));
-        } else {
-            hikariConfig.setMaximumPoolSize(config.getInt("database.pool.maximum-pool-size", 10));
-        }
-        
+        hikariConfig.setMaximumPoolSize(config.getInt("database.pool.maximum-pool-size", 10));
         hikariConfig.setMinimumIdle(config.getInt("database.pool.minimum-idle", 2));
         hikariConfig.setConnectionTimeout(config.getLong("database.pool.connection-timeout", 30000));
         hikariConfig.setIdleTimeout(config.getLong("database.pool.idle-timeout", 600000));
         hikariConfig.setMaxLifetime(config.getLong("database.pool.max-lifetime", 1800000));
-        
+
         hikariConfig.setConnectionTestQuery("SELECT 1");
 
         this.dataSource = new HikariDataSource(hikariConfig);
@@ -119,6 +124,73 @@ public class DatabaseManager implements IManager, IDatabaseManager {
 
         // 全てのテーブルをここで一括初期化
         setupTables();
+
+        if (doMigration) {
+            migrateFromSQLite(oldSqliteFile);
+        }
+    }
+
+    /**
+     * SQLiteデータベースからH2データベースへデータを自動移行します。
+     */
+    private void migrateFromSQLite(File sqliteFile) {
+        plugin.getLogger().info("Migrating data from SQLite to H2 database...");
+        String sqliteUrl = "jdbc:sqlite:" + sqliteFile.getAbsolutePath();
+        try (Connection h2Conn = dataSource.getConnection();
+             Connection sqliteConn = DriverManager.getConnection(sqliteUrl)) {
+
+            String[] tables = {
+                "player_attributes", "player_levels", "player_skilltree", "generic_configs",
+                "player_daily_tasks", "player_quests", "player_mailbox", "player_professions",
+                "player_boosters", "market_listings", "market_earnings", "clans", "clan_members",
+                "player_fast_travel"
+            };
+
+            for (String table : tables) {
+                try (Statement stmt = sqliteConn.createStatement();
+                     ResultSet rs = stmt.executeQuery("SELECT * FROM " + table)) {
+
+                    ResultSetMetaData meta = rs.getMetaData();
+                    int colCount = meta.getColumnCount();
+
+                    StringBuilder insertSql = new StringBuilder("INSERT INTO ").append(table).append(" VALUES (");
+                    for (int i = 0; i < colCount; i++) {
+                        insertSql.append("?");
+                        if (i < colCount - 1) insertSql.append(", ");
+                    }
+                    insertSql.append(")"); // 新規構築直後なので競合は発生しない前提
+
+                    try (PreparedStatement ps = h2Conn.prepareStatement(insertSql.toString())) {
+                        int count = 0;
+                        while (rs.next()) {
+                            for (int i = 1; i <= colCount; i++) {
+                                ps.setObject(i, rs.getObject(i));
+                            }
+                            ps.addBatch();
+                            count++;
+
+                            if (count % 500 == 0) { // メモリ節約のため定期的にバッチ実行
+                                ps.executeBatch();
+                            }
+                        }
+                        ps.executeBatch();
+                        plugin.getLogger().info("  -> Migrated " + count + " records for table '" + table + "'");
+                    }
+                } catch (SQLException e) {
+                    plugin.getLogger().warning("Failed to migrate table " + table + " (it may be empty or missing): " + e.getMessage());
+                }
+            }
+            plugin.getLogger().info("Migration completed successfully!");
+
+            // 二重移行を防ぐためリネーム
+            File backupFile = new File(sqliteFile.getParentFile(), sqliteFile.getName() + ".backup");
+            if (sqliteFile.renameTo(backupFile)) {
+                plugin.getLogger().info("Backed up old SQLite database to " + backupFile.getName());
+            }
+
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Failed to connect to SQLite for migration: " + e.getMessage());
+        }
     }
 
     private void setupTables() throws SQLException {

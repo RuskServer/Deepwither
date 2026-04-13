@@ -59,7 +59,10 @@ public class SkillAssignmentGUI implements Listener, IManager {
         SkillData data = Deepwither.getInstance().getSkilltreeManager().load(uuid);
         String selectedId = selectedSkillMap.get(uuid);
         
+        // プレイヤーが持つスキルリストを取得し、現在無効な(存在しない)スキルを事前に除外して詰める
         List<String> unlockedSkills = new ArrayList<>(data.getSkills().keySet());
+        unlockedSkills.removeIf(id -> skillLoader.get(id) == null);
+
         int totalSkills = unlockedSkills.size();
         int maxPage = Math.max(0, (totalSkills - 1) / 36);
         
@@ -81,6 +84,13 @@ public class SkillAssignmentGUI implements Listener, IManager {
             int slot = i - startIndex;
             ItemStack item = buildSkillItem(player, skill, skillId.equals(selectedId));
             gui.setItem(slot, item);
+        }
+
+        // 残りの空きスロット（0〜35のうち、スキルが配置されなかった部分）をプレースホルダーで埋める
+        ItemStack emptySlotItem = buildEmptySlotItem();
+        int filledSlots = endIndex - startIndex;
+        for (int slot = filledSlots; slot < 36; slot++) {
+            gui.setItem(slot, emptySlotItem);
         }
 
         // ---- セパレーターとページ切り替え（行4, slots 36〜44） ----
@@ -240,6 +250,14 @@ public class SkillAssignmentGUI implements Listener, IManager {
         ItemStack item = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
         ItemMeta meta = item.getItemMeta();
         meta.displayName(Component.text(" "));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack buildEmptySlotItem() {
+        ItemStack item = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("【空きスロット】", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
         item.setItemMeta(meta);
         return item;
     }

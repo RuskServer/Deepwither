@@ -74,10 +74,9 @@ public class FastTravelManager implements IManager, Listener {
         FastTravelPoint point = new FastTravelPoint(regionId, meta.name, location.clone(), meta.icon);
         playerPoints.put(regionId, point);
 
-        // DBに保存 (座標含む)
         plugin.get(DatabaseManager.class).runAsync(conn -> {
             try (PreparedStatement ps = conn.prepareStatement(
-                    "INSERT OR IGNORE INTO player_fast_travel (uuid, point_id, world, x, y, z, yaw, pitch) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
+                    "INSERT INTO player_fast_travel (uuid, point_id, world, x, y, z, yaw, pitch) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(uuid, point_id) DO NOTHING")) {
                 ps.setString(1, player.getUniqueId().toString());
                 ps.setString(2, regionId);
                 ps.setString(3, location.getWorld().getName());

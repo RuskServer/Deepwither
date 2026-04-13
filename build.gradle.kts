@@ -35,6 +35,7 @@ dependencies {
 
     // Database & Utils (同梱対象)
     implementation("org.xerial:sqlite-jdbc:3.50.1.0")
+    implementation("com.h2database:h2:2.2.224")
     implementation("com.zaxxer:HikariCP:6.2.1")
     implementation("com.google.code.gson:gson:2.11.0") // バージョンをPaperに合わせる
 
