@@ -2,6 +2,7 @@ package com.lunar_prototype.deepwither.core.engine;
 
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
+
 import java.lang.reflect.Constructor;
 import java.util.*;
 import java.util.logging.Level;
@@ -9,7 +10,7 @@ import java.util.logging.Logger;
 
 /**
  * 軽量なDependency Injection (DI) コンテナ。
- * 
+ *
  * <p>
  * 特徴:
  * </p>
@@ -37,7 +38,7 @@ public class ServiceContainer {
     private static class DependencyNode {
         final Class<?> clazz;
         final Set<Class<?>> dependencies = new LinkedHashSet<>();
-        
+
         DependencyNode(Class<?> clazz) {
             this.clazz = clazz;
         }
@@ -112,10 +113,10 @@ public class ServiceContainer {
      */
     public void initializeAll() throws Exception {
         if (initialized) return;
-        
+
         logger.info("--- [DI] Building Dependency Graph ---");
         resolveLifecycleOrder();
-        
+
         logger.info("--- [DI] Initialization Sequence ---");
         for (int i = 0; i < orderedLifecycleManaged.size(); i++) {
             IManager manager = orderedLifecycleManaged.get(i);
@@ -150,9 +151,12 @@ public class ServiceContainer {
         logger.info("--- [DI] All Services Stopped ---");
     }
 
-    private void resolveLifecycleOrder() {
+    /**
+     * 現在登録されている全マネージャーの初期化順序を解決します。
+     */
+    public void resolveLifecycleOrder() {
         orderedLifecycleManaged.clear();
-        
+
         // 1. ノードの構築
         Map<Class<?>, DependencyNode> nodes = new HashMap<>();
         Map<Class<?>, IManager> managerInstances = new HashMap<>();
@@ -172,6 +176,13 @@ public class ServiceContainer {
         for (Class<?> clazz : nodes.keySet()) {
             visit(clazz, nodes, managerInstances, visited, path);
         }
+    }
+
+    /**
+     * 解決されたマネージャーのリストを取得します。
+     */
+    public List<IManager> getOrderedManagers() {
+        return Collections.unmodifiableList(orderedLifecycleManaged);
     }
 
     private DependencyNode buildNode(Class<?> clazz) {
@@ -197,16 +208,16 @@ public class ServiceContainer {
         return node;
     }
 
-    private void visit(Class<?> clazz, Map<Class<?>, DependencyNode> nodes, 
-                       Map<Class<?>, IManager> managerInstances, 
+    private void visit(Class<?> clazz, Map<Class<?>, DependencyNode> nodes,
+                       Map<Class<?>, IManager> managerInstances,
                        Set<Class<?>> visited, Set<Class<?>> path) {
-        
+
         if (path.contains(clazz)) {
             List<String> cyclePath = path.stream().map(Class::getSimpleName).toList();
-            throw new IllegalStateException("Circular dependency detected in lifecycle: " 
-                + String.join(" -> ", cyclePath) + " -> " + clazz.getSimpleName());
+            throw new IllegalStateException("Circular dependency detected in lifecycle: "
+                    + String.join(" -> ", cyclePath) + " -> " + clazz.getSimpleName());
         }
-        
+
         if (visited.contains(clazz)) return;
 
         path.add(clazz);
@@ -222,7 +233,7 @@ public class ServiceContainer {
 
         path.remove(clazz);
         visited.add(clazz);
-        
+
         IManager instance = managerInstances.get(clazz);
         if (instance != null) {
             orderedLifecycleManaged.add(instance);
@@ -235,5 +246,54 @@ public class ServiceContainer {
         currentlyCreating.clear();
         orderedLifecycleManaged.clear();
         initialized = false;
+    }
+
+    /**
+     * 指定されたクラス群から、依存関係に基づいた初期化順序をシミュレーションします。
+     * インスタンス化は行いません。
+     */
+    public List<Class<?>> simulateLifecycleOrder(Collection<Class<?>> classes) {
+        List<Class<?>> ordered = new ArrayList<>();
+        Map<Class<?>, DependencyNode> nodes = new HashMap<>();
+        Set<Class<?>> classSet = new HashSet<>(classes);
+
+        for (Class<?> clazz : classes) {
+            nodes.put(clazz, buildNode(clazz));
+        }
+
+        Set<Class<?>> visited = new HashSet<>();
+        Set<Class<?>> path = new LinkedHashSet<>();
+
+        for (Class<?> clazz : nodes.keySet()) {
+            visitSimulation(clazz, nodes, classSet, visited, path, ordered);
+        }
+
+        return ordered;
+    }
+
+    private void visitSimulation(Class<?> clazz, Map<Class<?>, DependencyNode> nodes,
+                                 Set<Class<?>> availableClasses,
+                                 Set<Class<?>> visited, Set<Class<?>> path, List<Class<?>> ordered) {
+        if (path.contains(clazz)) {
+            List<String> cyclePath = path.stream().map(Class::getSimpleName).toList();
+            throw new IllegalStateException("Circular dependency detected in lifecycle: "
+                    + String.join(" -> ", cyclePath) + " -> " + clazz.getSimpleName());
+        }
+        if (visited.contains(clazz)) return;
+
+        path.add(clazz);
+        DependencyNode node = nodes.get(clazz);
+        if (node != null) {
+            for (Class<?> dep : node.dependencies) {
+                // 利用可能なクラスセットに含まれる場合のみ再帰探索
+                if (availableClasses.contains(dep)) {
+                    visitSimulation(dep, nodes, availableClasses, visited, path, ordered);
+                }
+            }
+        }
+
+        path.remove(clazz);
+        visited.add(clazz);
+        ordered.add(clazz);
     }
 }

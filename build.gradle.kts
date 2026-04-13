@@ -28,34 +28,68 @@ repositories {
 }
 
 dependencies {
-    // Paper API
-    compileOnly("io.papermc.paper:paper-api:1.21.10-R0.1-SNAPSHOT")
+    // Paper API (コンパイルに必要な最新バージョンを明示的に指定)
+    val paperVersion = "1.21.10-R0.1-SNAPSHOT"
+    compileOnly("io.papermc.paper:paper-api:$paperVersion")
+    testImplementation("io.papermc.paper:paper-api:$paperVersion")
 
     // Database & Utils
     implementation("org.xerial:sqlite-jdbc:3.50.1.0")
     implementation("com.zaxxer:HikariCP:6.2.1")
 
     // Plugins API (Provided)
-    compileOnly("io.lumine:Mythic-Dist:5.9.5")
-    compileOnly("me.clip:placeholderapi:2.11.6")
-    compileOnly("net.milkbowl.vault:VaultUnlockedAPI:2.16")
-    compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.0.13")
-    compileOnly("com.github.NuVotifier:NuVotifier:2.7.2")
-    compileOnly("com.github.retrooper:packetevents-spigot:2.11.0")
-    compileOnly("io.github.toxicity188:bettermodel:1.15.0")
-    compileOnly("com.discordsrv:discordsrv:1.28.0")
+    val mythicVersion = "5.9.5"
+    compileOnly("io.lumine:Mythic-Dist:$mythicVersion")
+    testImplementation("io.lumine:Mythic-Dist:$mythicVersion")
+
+    val papiVersion = "2.11.6"
+    compileOnly("me.clip:placeholderapi:$papiVersion")
+    testImplementation("me.clip:placeholderapi:$papiVersion")
+
+    val vaultVersion = "2.16"
+    compileOnly("net.milkbowl.vault:VaultUnlockedAPI:$vaultVersion")
+    testImplementation("net.milkbowl.vault:VaultUnlockedAPI:$vaultVersion")
+
+    val worldguardVersion = "7.0.13"
+    compileOnly("com.sk89q.worldguard:worldguard-bukkit:$worldguardVersion")
+    testImplementation("com.sk89q.worldguard:worldguard-bukkit:$worldguardVersion")
+
+    val votifierVersion = "2.7.2"
+    compileOnly("com.github.NuVotifier:NuVotifier:$votifierVersion")
+    testImplementation("com.github.NuVotifier:NuVotifier:$votifierVersion")
+
+    val packeteventsVersion = "2.11.0"
+    compileOnly("com.github.retrooper:packetevents-spigot:$packeteventsVersion")
+    testImplementation("com.github.retrooper:packetevents-spigot:$packeteventsVersion")
+
+    val bettermodelVersion = "1.15.0"
+    compileOnly("io.github.toxicity188:bettermodel:$bettermodelVersion")
+    testImplementation("io.github.toxicity188:bettermodel:$bettermodelVersion")
+
+    val discordsrvVersion = "1.28.0"
+    compileOnly("com.discordsrv:discordsrv:$discordsrvVersion")
+    testImplementation("com.discordsrv:discordsrv:$discordsrvVersion")
 
     // Local library
     implementation(files("lib/EQF-Project-1.0-SNAPSHOT.jar"))
+
+    // Test dependencies
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+    testImplementation("org.mockito:mockito-core:5.11.0")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 tasks {
+    test {
+        useJUnitPlatform()
+    }
     // JavaDoc settings
     javadoc {
         options {
             encoding = "UTF-8"
             locale = "ja_JP"
-            (this as StandardJavadocDocletOptions).addStringOption("apiNote", "a:API Note:")
+            val options = this as StandardJavadocDocletOptions
+            options.tags("apiNote:a:API Note:")
         }
     }
 
