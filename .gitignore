@@ -1,4 +1,12 @@
 /target/
+/build/
+/.gradle/
 /.paper-nms/
 .vscode/settings.json
 lib/deepwither-1.0-SNAPSHOT.jar
+.DS_Store
+*.iml
+.idea/
+/bin/
+/gradlew
+/gradlew.bat

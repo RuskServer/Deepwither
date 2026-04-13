@@ -90,14 +90,17 @@ public class DeepwitherBootstrap {
      */
     private void registerModules() {
         logger.info("Registering modules...");
-        // ここにモジュールを登録していく
-        // 将来的にはクラスパススキャンや外部Jar読み込みに対応予定
+        
+        // 1. Legacy Module (既存機能のインスタンス生成と登録) 
+        // 他のモジュールがこれらのインスタンスを参照できるように最優先で実行
+        moduleManager.registerModule(new LegacyModule(plugin));
 
+        // 2. Core & Foundation
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.core.CoreModule(plugin));
         moduleManager
                 .registerModule(new com.lunar_prototype.deepwither.modules.infrastructure.InfrastructureModule(plugin));
 
-        // Phase 3 Modules
+        // 3. Functional Modules
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.combat.CombatModule(plugin));
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.economy.EconomyModule(plugin));
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.quest.QuestModule(plugin));
@@ -106,8 +109,6 @@ public class DeepwitherBootstrap {
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.integration.IntegrationModule(plugin));
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.outpost.OutpostModule(plugin));
 
-        // Legacy Module (既存機能のラップ)
-        moduleManager.registerModule(new LegacyModule(plugin));
         logger.info("Modules registered.");
     }
 
