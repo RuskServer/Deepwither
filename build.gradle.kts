@@ -56,10 +56,13 @@ dependencies {
     testImplementation("com.sk89q.worldguard:worldguard-bukkit:$worldguardVersion")
 
     // Libraries to be bundled (同梱対象に戻す)
-    implementation("com.github.NuVotifier:NuVotifier:2.7.2")
-    implementation("com.github.retrooper:packetevents-spigot:2.11.0")
+    compileOnly("com.github.NuVotifier:NuVotifier:2.7.2")
+    compileOnly("com.github.retrooper:packetevents-spigot:2.11.0")
     implementation("io.github.toxicity188:bettermodel:1.15.0")
     implementation("com.discordsrv:discordsrv:1.28.0")
+
+    testImplementation("com.github.NuVotifier:NuVotifier:2.7.2")
+    testImplementation("com.github.retrooper:packetevents-spigot:2.11.0")
 
     // Local library
     implementation(files("lib/EQF-Project-1.0-SNAPSHOT.jar"))

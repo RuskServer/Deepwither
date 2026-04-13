@@ -128,7 +128,7 @@ public class VanguardSkeleton extends CustomMob {
         Vector dir = target.getLocation().toVector().subtract(entity.getLocation().toVector()).normalize();
         target.setVelocity(dir.multiply(1.2).setY(0.3));
         
-        target.getWorld().spawnParticle(Particle.FLASH, target.getLocation().add(0, 1, 0), 1);
+        target.getWorld().spawnParticle(Particle.EXPLOSION, target.getLocation().add(0, 1, 0), 1);
     }
 
     private void performCircularSwing() {

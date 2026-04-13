@@ -29,10 +29,9 @@ public class ExplosionUtil {
         world.playSound(location, Sound.ENTITY_DRAGON_FIREBALL_EXPLODE, 2.0f, 0.6f);
         world.playSound(location, Sound.ENTITY_LIGHTNING_BOLT_IMPACT, 1.0f, 0.5f);
 
-        // 中心部の閃光と巨大爆発
-        world.spawnParticle(Particle.FLASH, location, 2, 0, 0, 0, 0);
-        world.spawnParticle(Particle.EXPLOSION_EMITTER, location, 3, 0.2, 0.2, 0.2, 0);
-        world.spawnParticle(Particle.SONIC_BOOM, location, 1, 0, 0, 0, 0);
+        // 中心部の巨大爆発
+        world.spawnParticle(Particle.EXPLOSION, location, 3, 0.5, 0.5, 0.5, 0);
+        world.spawnParticle(Particle.EXPLOSION_EMITTER, location, 2, 0.2, 0.2, 0.2, 0);
 
         // 飛散する火花と破片
         world.spawnParticle(Particle.LAVA, location, 40, 1.5, 1.5, 1.5, 0.2);
