@@ -23,10 +23,17 @@ public class GreaterHealSkill implements ISkillLogic {
         caster.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, caster.getLocation().add(0, 1, 0), 30, 0.5, 0.5, 0.5, 0.1);
 
         // 1. HP回復 (最大体力の20%)
-        double maxHealth = caster.getAttribute(Attribute.MAX_HEALTH).getValue();
-        double healAmount = maxHealth * 0.2;
-        double newHealth = Math.min(maxHealth, caster.getHealth() + healAmount);
-        caster.setHealth(newHealth);
+        if (caster instanceof org.bukkit.entity.Player player) {
+            com.lunar_prototype.deepwither.api.stat.IStatManager statManager = Deepwither.getInstance().getStatManager();
+            double maxHealth = statManager.getActualMaxHealth(player);
+            double healAmount = maxHealth * 0.2;
+            statManager.heal(player, healAmount);
+        } else {
+            double maxHealth = caster.getAttribute(Attribute.MAX_HEALTH).getValue();
+            double healAmount = maxHealth * 0.2;
+            double newHealth = Math.min(maxHealth, caster.getHealth() + healAmount);
+            caster.setHealth(newHealth);
+        }
 
         // 2. デバフ除去 (有害なポーション効果を削除)
         java.util.Set<PotionEffectType> harmfulEffects = new java.util.HashSet<>();

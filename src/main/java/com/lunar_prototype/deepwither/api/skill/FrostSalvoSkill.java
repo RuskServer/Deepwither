@@ -202,12 +202,15 @@ public class FrostSalvoSkill implements ISkillLogic {
                 hitLoc.getWorld().playSound(hitLoc, Sound.ENTITY_GENERIC_EXPLODE, 0.6f, 1.2f);
                 hitLoc.getWorld().playSound(hitLoc, Sound.ENTITY_LIGHTNING_BOLT_IMPACT, 0.4f, 2.0f);
 
-                // ダメージ処理
-                double damage = 12.0 + (level * 3.0); // 威力も少し強化
+                // ダメージ処理 (基礎0、倍率1.0)
+                double baseDamage = 0.0;
+                double multiplier = 1.0;
+                double finalDamage = baseDamage * multiplier;
+                
                 Collection<Entity> targets = hitLoc.getWorld().getNearbyEntities(hitLoc, 4.0, 4.0, 4.0);
                 for (Entity entity : targets) {
                     if (entity instanceof LivingEntity living && !entity.equals(caster)) {
-                        DamageContext ctx = new DamageContext(caster, living, DeepwitherDamageEvent.DamageType.MAGIC, damage);
+                        DamageContext ctx = new DamageContext(caster, living, DeepwitherDamageEvent.DamageType.MAGIC, finalDamage);
                         Deepwither.getInstance().getDamageProcessor().process(ctx);
                         
                         // デバフ付与

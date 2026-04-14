@@ -30,7 +30,8 @@ public class PlayerSettingsManager implements IManager {
         SHOW_PICKUP_LOG("アイテム拾得ログ", true),     // 追加
         SHOW_MENU_ITEM("メニューアイテム表示", true),  // メニューアイテムの表示/非表示
         AUTO_STEP("オートステップ(段差昇降)", true),   // 段差を自動で登るか(1.0 or 0.6)
-        WEAPON_EFFECT("武器エフェクト表示", true);    // 武器の特殊エフェクトを表示するか
+        WEAPON_EFFECT("武器エフェクト表示", true),    // 武器の特殊エフェクトを表示するか
+        JAPANESE_CONVERSION("日本語変換", true);    // ローマ字を日本語に変換するか
 
         private final String displayName;
         private final boolean defValue;

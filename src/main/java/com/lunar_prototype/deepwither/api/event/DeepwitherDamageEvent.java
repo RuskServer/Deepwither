@@ -19,6 +19,7 @@ public class DeepwitherDamageEvent extends Event implements Cancellable {
     private double damage;
     private final boolean isMagic;
     private final DamageType type;
+    private boolean fullCharge = true;
 
     public enum DamageType {
         PHYSICAL,
@@ -28,11 +29,24 @@ public class DeepwitherDamageEvent extends Event implements Cancellable {
     }
 
     public DeepwitherDamageEvent(@NotNull LivingEntity victim, @Nullable LivingEntity attacker, double damage, DamageType type) {
+        this(victim, attacker, damage, type, true);
+    }
+
+    public DeepwitherDamageEvent(@NotNull LivingEntity victim, @Nullable LivingEntity attacker, double damage, DamageType type, boolean fullCharge) {
         this.victim = victim;
         this.attacker = attacker;
         this.damage = damage;
         this.type = type;
         this.isMagic = (type == DamageType.MAGIC);
+        this.fullCharge = fullCharge;
+    }
+
+    public boolean isFullCharge() {
+        return fullCharge;
+    }
+
+    public void setFullCharge(boolean fullCharge) {
+        this.fullCharge = fullCharge;
     }
 
     @NotNull

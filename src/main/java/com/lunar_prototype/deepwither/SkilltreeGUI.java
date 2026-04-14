@@ -246,9 +246,94 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
         Map<String, NodePosition> layout = new HashMap<>();
         if (starter == null) return layout;
         String starterId = (String) starter.get("id");
+
+        // 1. 深さ（X座標）の計算
         Map<String, Integer> depthMap = new HashMap<>();
         calculateMaxDepth(starterId, 0, nodeMap, depthMap);
-        placeNodeRecursive(starterId, 4, 2, nodeMap, layout, depthMap);
+
+        // 深さごとにノードをグループ化
+        int maxDepth = 0;
+        Map<Integer, List<String>> nodesByDepth = new HashMap<>();
+        for (Map.Entry<String, Integer> entry : depthMap.entrySet()) {
+            int d = entry.getValue();
+            maxDepth = Math.max(maxDepth, d);
+            nodesByDepth.computeIfAbsent(d, k -> new ArrayList<>()).add(entry.getKey());
+        }
+
+        // 2. Y座標の割り当て
+        // スターターノードは固定位置 (X=4, Y=2) ※Viewportの中心付近
+        int startX = 4;
+        int startY = 2;
+        layout.put(starterId, new NodePosition(startX, startY));
+
+        for (int d = 1; d <= maxDepth; d++) {
+            List<String> currentLevelNodes = nodesByDepth.getOrDefault(d, new ArrayList<>());
+
+            // 各ノードの「理想的なY座標」を親のY座標の平均から計算
+            Map<String, Double> idealY = new HashMap<>();
+            for (String nodeId : currentLevelNodes) {
+                Map<?, ?> node = nodeMap.get(nodeId);
+                List<String> reqs = (List<String>) node.get("requirements");
+                double sumY = 0;
+                int parentCount = 0;
+                if (reqs != null) {
+                    for (String req : reqs) {
+                        NodePosition parentPos = layout.get(req);
+                        if (parentPos != null) {
+                            sumY += parentPos.y();
+                            parentCount++;
+                        }
+                    }
+                }
+                if (parentCount > 0) {
+                    idealY.put(nodeId, sumY / parentCount);
+                } else {
+                    idealY.put(nodeId, (double) startY);
+                }
+            }
+
+            // 理想的なY座標でソート
+            currentLevelNodes.sort(Comparator.comparingDouble(n -> idealY.getOrDefault(n, (double) startY)));
+
+            // 重なりを避けてY座標を確定
+            int nextAvailableY = Integer.MIN_VALUE;
+            for (String nodeId : currentLevelNodes) {
+                int targetY = (int) Math.round(idealY.getOrDefault(nodeId, (double) startY));
+                
+                // もし目標のY座標がすでに使われているか、さらに下ならずらす
+                if (targetY < nextAvailableY) {
+                    targetY = nextAvailableY;
+                }
+                
+                layout.put(nodeId, new NodePosition(startX + d, targetY));
+                
+                // 次のノードは最低でも今のノードの1つ下
+                nextAvailableY = targetY + 1;
+            }
+            
+            // もしノード群が全体的に下にズレてしまった場合、中央寄せを試みる
+            if (!currentLevelNodes.isEmpty()) {
+                double actualAvgY = 0;
+                for (String nodeId : currentLevelNodes) {
+                    actualAvgY += layout.get(nodeId).y();
+                }
+                actualAvgY /= currentLevelNodes.size();
+                
+                double idealAvgY = 0;
+                for (String nodeId : currentLevelNodes) {
+                    idealAvgY += idealY.getOrDefault(nodeId, (double) startY);
+                }
+                idealAvgY /= currentLevelNodes.size();
+                
+                int shift = (int) Math.round(idealAvgY - actualAvgY);
+                if (shift != 0) {
+                    for (String nodeId : currentLevelNodes) {
+                        NodePosition pos = layout.get(nodeId);
+                        layout.put(nodeId, new NodePosition(pos.x(), pos.y() + shift));
+                    }
+                }
+            }
+        }
         return layout;
     }
 
@@ -265,34 +350,6 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
                 calculateMaxDepth(entry.getKey(), currentDepth + 1, nodeMap, depthMap);
             }
         }
-    }
-
-    private int placeNodeRecursive(String nodeId, int startX, int currentY,
-                                   Map<String, Map<?, ?>> nodeMap,
-                                   Map<String, NodePosition> layout,
-                                   Map<String, Integer> depthMap) {
-        if (layout.containsKey(nodeId)) {
-            return layout.get(nodeId).y();
-        }
-        int myDepth = depthMap.getOrDefault(nodeId, 0);
-        int myX = startX + myDepth;
-        layout.put(nodeId, new NodePosition(myX, currentY));
-        int maxYUsed = currentY;
-        List<String> children = new ArrayList<>();
-        for (Map.Entry<String, Map<?, ?>> entry : nodeMap.entrySet()) {
-            Map<?, ?> node = entry.getValue();
-            List<?> reqs = (List<?>) node.get("requirements");
-            if (reqs != null && reqs.contains(nodeId)) {
-                children.add(entry.getKey());
-            }
-        }
-        for (int i = 0; i < children.size(); i++) {
-            String childId = children.get(i);
-            int childStartY = (i == 0) ? currentY : maxYUsed + 1;
-            int childMaxY = placeNodeRecursive(childId, startX, childStartY, nodeMap, layout, depthMap);
-            if (childMaxY > maxYUsed) maxYUsed = childMaxY;
-        }
-        return maxYUsed;
     }
 
     private void handleSkillUnlock(Player player, String treeId, String skillId, int camX, int camY) {

@@ -68,12 +68,11 @@ public class ChargeWarriorSkill implements ISkillLogic {
                 // プレイヤーの背後 (風の跡)
                 caster.getWorld().spawnParticle(Particle.CLOUD, caster.getLocation().subtract(direction.clone().multiply(0.5)), 3, 0.1, 0.1, 0.1, 0.02);
 
-                // 周囲の敵へのダメージとノックバック (CustomDamage{a=10;m=0.5} @EIR{r=2})
-                // a=10, m=0.5 は基礎威力5。レベルに応じて強化可能
-                double baseAtk = 10.0 + (level * 2.0); 
-                double damage = baseAtk * 0.5;
-                
-                Collection<Entity> targets = caster.getNearbyEntities(2.5, 2.5, 2.5); // 少し判定を広めに
+                // 周囲の敵へのダメージとノックバック (倍率 50% に調整)
+                double baseAtk = 10.0 + (level * 2.0);
+                double damage = baseAtk * 0.5; // ダメージ倍率 50%
+
+                Collection<Entity> targets = caster.getNearbyEntities(2.5, 2.5, 2.5);
                 
                 for (Entity entity : targets) {
                     if (entity instanceof LivingEntity target && !entity.equals(caster)) {

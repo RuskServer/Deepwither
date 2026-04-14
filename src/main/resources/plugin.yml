@@ -82,3 +82,7 @@ commands:
     description: レイヤー間移動システムの管理用コマンド
     permission: deepwither.admin
     usage: /layermove <create|setloc|link>
+  japan:
+    description: 日本語変換のON/OFFを切り替えます
+    aliases: [ jp, conv ]
+    usage: /japan

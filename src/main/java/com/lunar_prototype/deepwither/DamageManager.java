@@ -130,6 +130,10 @@ public class DamageManager implements Listener, IManager {
         
         DeepwitherDamageEvent.DamageType damageType = isProjectile ? DeepwitherDamageEvent.DamageType.PROJECTILE : DeepwitherDamageEvent.DamageType.PHYSICAL;
         
+        // クールダウン（溜め）状態の取得 (1.0で最大)
+        float attackCooldown = isProjectile ? 1.0f : attacker.getAttackCooldown();
+        boolean isFullCharge = attackCooldown >= 0.9f; // 若干の猶予を持たせる
+
         // ベースダメージはバニラ（武器属性）の威力のみ。ステータス加算は Processor で一本化される。
         double baseDamage = e.getDamage();
 
@@ -137,9 +141,11 @@ public class DamageManager implements Listener, IManager {
         context.setProjectile(isProjectile);
         context.setWeapon(item);
         context.setWeaponStatType(weaponType);
+        context.put("is_full_charge", isFullCharge); // メタデータに溜め状態を保存
 
-        // 2. クリティカル判定 (フラグのみ設定。具体的な倍率は Processor が計算する)
-        if (DamageCalculator.rollChance(attackerStats.getFinal(StatType.CRIT_CHANCE))) {
+        // 2. クリティカル判定 (疑似乱数分布 PRD を使用)
+        // クールダウンが不十分な場合はクリティカル判定（およびカウント）を行わない
+        if (isFullCharge && DamageCalculator.rollPseudoChance(attacker, attackerStats.getFinal(StatType.CRIT_CHANCE))) {
             context.setCrit(true);
         }
 
@@ -199,10 +205,12 @@ public class DamageManager implements Listener, IManager {
         // 近くのプレイヤーが "oath_shield" オーラを持っており、被害者がその範囲内にいるか確認
         Collection<Player> shieldUsers = e.getVictim().getWorld().getPlayers();
         for (Player user : shieldUsers) {
-            if (user.equals(e.getVictim())) continue;
             com.lunar_prototype.deepwither.api.skill.aura.AuraManager.AuraInstance oathShield = auraManager.getAuraInstance(user, "oath_shield");
-            if (oathShield != null && user.getLocation().distanceSquared(e.getVictim().getLocation()) <= 25.0) { // 半径5ブロック
-                if (e.getType() == DeepwitherDamageEvent.DamageType.PROJECTILE || e.getType() == DeepwitherDamageEvent.DamageType.MAGIC) {
+            if (oathShield != null) {
+                // 自分自身なら常に範囲内、他人なら距離判定 (半径5ブロック = distanceSquared 25)
+                boolean inRange = user.equals(e.getVictim()) || user.getLocation().distanceSquared(e.getVictim().getLocation()) <= 25.0;
+                
+                if (inRange && (e.getType() == DeepwitherDamageEvent.DamageType.PROJECTILE || e.getType() == DeepwitherDamageEvent.DamageType.MAGIC)) {
                     e.setCancelled(true);
                     return;
                 }
@@ -214,6 +222,9 @@ public class DamageManager implements Listener, IManager {
     public void onBloodSurgeHit(DeepwitherDamageEvent e) {
         if (!(e.getAttacker() instanceof Player attacker)) return;
         
+        // クールダウンが不十分な場合は発動しない
+        if (!e.isFullCharge()) return;
+
         // 物理または遠距離攻撃（プロジェクタイル）のヒット時のみ発動
         if (e.getType() != DeepwitherDamageEvent.DamageType.PHYSICAL &&
             e.getType() != DeepwitherDamageEvent.DamageType.PROJECTILE) return;

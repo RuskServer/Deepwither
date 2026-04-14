@@ -19,8 +19,8 @@ public class CollapseSkill implements ISkillLogic {
     public boolean cast(LivingEntity caster, SkillDefinition def, int level) {
         if (!(caster instanceof Player player)) return false;
 
-        // オーラ付与 (10秒)
-        Deepwither.getInstance().getAuraManager().addAura(player, "collapse_aura", 200);
+        // オーラ付与 (10秒 -> 6秒へ短縮)
+        Deepwither.getInstance().getAuraManager().addAura(player, "collapse_aura", 120);
 
         // 発動音
         player.getWorld().playSound(player.getLocation(), Sound.BLOCK_LANTERN_BREAK, 1.2f, 0.5f);
@@ -44,7 +44,7 @@ public class CollapseSkill implements ISkillLogic {
                 }
 
                 ticks++;
-                if (ticks > 200) this.cancel();
+                if (ticks > 120) this.cancel();
             }
         }.runTaskTimer(Deepwither.getInstance(), 0L, 2L);
 

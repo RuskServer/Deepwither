@@ -167,8 +167,11 @@ public class DamageProcessor implements IManager {
         context.setFinalDamage(Math.max(0.1, damage));
 
         // 1. イベント発火 (DeepwitherDamageEvent)
+        Boolean isFullChargeMeta = context.get("is_full_charge");
+        boolean isFullCharge = (isFullChargeMeta == null) || isFullChargeMeta;
+
         DeepwitherDamageEvent dwEvent = new DeepwitherDamageEvent(
-                victim, attacker, context.getFinalDamage(), context.getDamageType());
+                victim, attacker, context.getFinalDamage(), context.getDamageType(), isFullCharge);
         Bukkit.getPluginManager().callEvent(dwEvent);
 
         if (dwEvent.isCancelled()) return;
@@ -199,7 +202,10 @@ public class DamageProcessor implements IManager {
     private double applyComboAndCooldown(Player attacker, double damage, DamageContext context) {
         long currentTime = System.currentTimeMillis();
         SkillData skillData = Deepwither.getInstance().getSkilltreeManager().load(attacker.getUniqueId());
-        
+
+        float cooldown = attacker.getAttackCooldown();
+        boolean isFullCharge = cooldown >= 0.9f;
+
         if (skillData.hasSpecialEffect("COMBO_DAMAGE")) {
             double comboValue = skillData.getSpecialEffectValue("COMBO_DAMAGE");
             long lastHit = lastComboHitTimes.getOrDefault(attacker.getUniqueId(), 0L);
@@ -217,8 +223,12 @@ public class DamageProcessor implements IManager {
                         Component.text("コンボ継続中! x" + currentCombo, NamedTextColor.YELLOW)
                                 .append(Component.text(" (+" + Math.round((comboMultiplier - 1.0) * 100) + "%)", NamedTextColor.GOLD)));
             }
-            comboCounts.put(attacker.getUniqueId(), Math.min(currentCombo + 1, 5));
-            lastComboHitTimes.put(attacker.getUniqueId(), currentTime);
+            
+            // クールダウンが不十分な場合はコンボをカウントしない (増加させない)
+            if (isFullCharge) {
+                comboCounts.put(attacker.getUniqueId(), Math.min(currentCombo + 1, 5));
+                lastComboHitTimes.put(attacker.getUniqueId(), currentTime);
+            }
         }
 
         long lastAttack = lastSpecialAttackTime.getOrDefault(attacker.getUniqueId(), 0L);
@@ -226,7 +236,6 @@ public class DamageProcessor implements IManager {
         lastSpecialAttackTime.put(attacker.getUniqueId(), currentTime);
 
         if (!ignoreCooldown) {
-            float cooldown = attacker.getAttackCooldown();
             if (cooldown < 1.0f) {
                 double reduced = damage * (1.0 - cooldown);
                 damage *= cooldown;

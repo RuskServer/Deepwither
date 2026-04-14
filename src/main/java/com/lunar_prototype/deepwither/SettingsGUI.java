@@ -58,6 +58,7 @@ public class SettingsGUI implements Listener, IManager {
         inv.setItem(22, createToggleItem(player, PlayerSettingsManager.SettingType.SHOW_MENU_ITEM, Material.COMPASS));
         inv.setItem(24, createToggleItem(player, PlayerSettingsManager.SettingType.AUTO_STEP, Material.LEATHER_BOOTS));
         inv.setItem(26, createToggleItem(player, PlayerSettingsManager.SettingType.WEAPON_EFFECT, Material.BLAZE_POWDER));
+        inv.setItem(28, createToggleItem(player, PlayerSettingsManager.SettingType.JAPANESE_CONVERSION, Material.PAPER));
 
         inv.setItem(20, createRarityFilterItem(player));
 
@@ -160,6 +161,7 @@ public class SettingsGUI implements Listener, IManager {
         else if (slot == 22) type = PlayerSettingsManager.SettingType.SHOW_MENU_ITEM;
         else if (slot == 24) type = PlayerSettingsManager.SettingType.AUTO_STEP;
         else if (slot == 26) type = PlayerSettingsManager.SettingType.WEAPON_EFFECT;
+        else if (slot == 28) type = PlayerSettingsManager.SettingType.JAPANESE_CONVERSION;
 
         if (type != null) {
             settingsManager.toggle(player, type);

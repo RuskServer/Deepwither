@@ -1,6 +1,11 @@
 package com.lunar_prototype.deepwither.core.damage;
 
+import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.core.PlayerCache;
+import com.lunar_prototype.deepwither.core.playerdata.PlayerData;
+import com.lunar_prototype.deepwither.util.PseudoRandom;
 import org.bukkit.Location;
+import org.bukkit.entity.Player;
 
 /**
  * ダメージ計算に関する純粋な計算ロジックを提供するユーティリティ
@@ -25,7 +30,7 @@ public class DamageCalculator {
         final double MAX_BOOST_DISTANCE = 40.0;
         final double MAX_MULTIPLIER = 1.2;
         final double MIN_MULTIPLIER = 0.6;
-        
+
         double distanceMultiplier;
         if (distance <= MIN_DISTANCE) {
             double range = MIN_DISTANCE;
@@ -43,9 +48,32 @@ public class DamageCalculator {
     }
 
     /**
-     * 確率ロールを行う
+     * 確率ロールを行う (単純ランダム)
      */
     public static boolean rollChance(double chance) {
         return Math.random() * 100 < chance;
+    }
+
+    /**
+     * 疑似乱数分布 (PRD) に基づいた確率ロールを行う
+     */
+    public static boolean rollPseudoChance(Player player, double chance) {
+        if (chance <= 0) return false;
+        if (chance >= 100) return true;
+
+        PlayerCache cache = Deepwither.getInstance().getCacheManager().getCache(player.getUniqueId());
+        if (cache == null) return rollChance(chance);
+
+        PlayerData data = cache.getData();
+        int n = data.getCritCounter();
+
+        boolean success = PseudoRandom.roll(chance, n);
+        if (success) {
+            data.setCritCounter(1); // リセット
+        } else {
+            data.setCritCounter(n + 1); // 次回の確率を上げる
+        }
+
+        return success;
     }
 }

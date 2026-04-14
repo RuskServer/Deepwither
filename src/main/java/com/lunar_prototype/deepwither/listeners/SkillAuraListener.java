@@ -47,13 +47,15 @@ public class SkillAuraListener implements Listener {
         executeCollapseEffect(attacker, victim);
 
         double baseAttack = Deepwither.getInstance().getStatManager().getTotalStats(attacker).getFinal(StatType.ATTACK_DAMAGE);
-        double skillBaseDamage = (baseAttack + 30.0) * 2.0;
+        // ダメージをナーフ: (base + 30) * 2.0 -> (base + 20) * 1.5
+        double skillBaseDamage = (baseAttack + 20.0) * 1.5;
 
         DamageContext context = new DamageContext(attacker, victim, DeepwitherDamageEvent.DamageType.PHYSICAL, skillBaseDamage);
         context.addTag("SKILL_COLLAPSE");
-        
+
         if (victim instanceof Player pVictim && pVictim.isBlocking()) {
-            pVictim.setCooldown(Material.SHIELD, 200);
+            // シールド無効化時間も少し短縮 (10秒 -> 7秒)
+            pVictim.setCooldown(Material.SHIELD, 140);
             pVictim.getWorld().playSound(pVictim.getLocation(), Sound.ITEM_SHIELD_BREAK, 1.2f, 0.8f);
         }
 

@@ -103,6 +103,7 @@ public class DeepwitherBootstrap {
         // 2. Functional Modules
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.combat.CombatModule(plugin));
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.economy.EconomyModule(plugin));
+        moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.chat.ChatModule(plugin));
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.quest.QuestModule(plugin));
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.aethelgard.AethelgardModule(plugin));
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.mob.MobModule(plugin));

@@ -63,9 +63,9 @@ public class LightningBurstSkill implements ISkillLogic {
 
         new SkillProjectile(caster, spawnLoc, direction) {
             {
-                this.speed = 2.0; // 高速弾
+                this.speed = 1.6; // 弾速を少し落として視認性向上 (2.0 -> 1.6)
                 this.hitboxRadius = 0.8;
-                this.maxTicks = 30; // 射程60ブロック程度
+                this.maxTicks = 30; // 最大射程 約48ブロック
             }
 
             @Override

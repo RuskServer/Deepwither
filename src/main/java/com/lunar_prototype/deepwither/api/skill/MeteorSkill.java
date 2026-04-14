@@ -126,8 +126,8 @@ public class MeteorSkill implements ISkillLogic {
                 world.playSound(currentLocation, Sound.ENTITY_GENERIC_EXPLODE, 3.0f, 0.6f);
                 world.playSound(currentLocation, Sound.ENTITY_DRAGON_FIREBALL_EXPLODE, 2.0f, 0.5f);
 
-                double baseDamage = 60.0;
-                double multiplier = 6.0;
+                double baseDamage = 40.0; // 60.0 -> 40.0 に下方修正
+                double multiplier = 4.5; 
                 double finalSkillDamage = baseDamage * multiplier;
 
                 // 範囲内のLivingEntityにダメージとデバフを適用

@@ -22,10 +22,14 @@ public class PlayerData {
     private CraftingData crafting;
     private PlayerProfessionData profession;
     private PlayerQuestData quests;
+    private int critCounter = 1; // PRD クリティカルカウンタ (デフォルト1)
 
     public PlayerData(UUID uuid) {
         this.uuid = uuid;
     }
+
+    public int getCritCounter() { return critCounter; }
+    public void setCritCounter(int critCounter) { this.critCounter = critCounter; }
 
     public UUID getUuid() { return uuid; }
 

@@ -22,12 +22,24 @@ public class BlackGravitySkill implements ISkillLogic {
 
     @Override
     public boolean cast(LivingEntity caster, SkillDefinition def, int level) {
+        // チャージ開始時の視線方向で着弾予定地点を固定
+        Location eyeLoc = caster.getEyeLocation();
+        Vector eyeDir = eyeLoc.getDirection();
+        Location initialTargetLoc = eyeLoc.clone().add(eyeDir.clone().multiply(10.0));
+        
+        org.bukkit.util.RayTraceResult ray = caster.getWorld().rayTraceBlocks(eyeLoc, eyeDir, 10.0, org.bukkit.FluidCollisionMode.NEVER, true);
+        if (ray != null && ray.getHitPosition() != null) {
+            initialTargetLoc = ray.getHitPosition().toLocation(caster.getWorld());
+        }
+        
+        final Location fixedTargetLoc = initialTargetLoc;
+
         // チャージ開始音
-        caster.getWorld().playSound(caster.getLocation(), Sound.ENTITY_EVOKER_PREPARE_ATTACK, 1.0f, 0.5f);
+        caster.getWorld().playSound(caster.getLocation(), Sound.ENTITY_EVOKER_PREPARE_ATTACK, 1.2f, 0.5f);
 
         new BukkitRunnable() {
             int chargeTicks = 0;
-            final int maxCharge = 16; // 約0.8秒
+            final int maxCharge = 60; // 3秒
 
             @Override
             public void run() {
@@ -36,16 +48,25 @@ public class BlackGravitySkill implements ISkillLogic {
                     return;
                 }
 
-                // チャージ中のエフェクト: 手元に粒子が収束する演出
-                Location chargeLoc = caster.getEyeLocation().add(caster.getEyeLocation().getDirection().multiply(1.0));
-                caster.getWorld().spawnParticle(Particle.PORTAL, chargeLoc, 3, 0.1, 0.1, 0.1, 0.05);
-                if (chargeTicks % 4 == 0) {
-                    caster.getWorld().playSound(caster.getLocation(), Sound.BLOCK_BEACON_AMBIENT, 0.5f, 1.5f + (chargeTicks * 0.03f));
+                // --- チャージ演出 ---
+                // 1. 手元の収束粒子
+                Location currentEye = caster.getEyeLocation();
+                Location chargeLoc = currentEye.add(currentEye.getDirection().multiply(1.0));
+                caster.getWorld().spawnParticle(Particle.PORTAL, chargeLoc, 5, 0.1, 0.1, 0.1, 0.05);
+                
+                // 2. 着弾予定地の予兆円 (最初に固定した地点に表示)
+                Particle.DustOptions indicatorDust = new Particle.DustOptions(org.bukkit.Color.fromRGB(255, 0, 0), 1.0f);
+                SkillParticleUtil.drawCircleFlat(fixedTargetLoc, 5.0, 40, indicatorDust, 0.1);
+
+                // 3. チャージ音 (徐々にピッチを上げる)
+                if (chargeTicks % 5 == 0) {
+                    float pitch = 0.5f + ((float) chargeTicks / maxCharge);
+                    caster.getWorld().playSound(caster.getLocation(), Sound.BLOCK_BEACON_AMBIENT, 0.6f, pitch);
                 }
 
                 if (chargeTicks >= maxCharge) {
                     this.cancel();
-                    launchProjectile(caster, level);
+                    launchProjectile(caster, fixedTargetLoc, level);
                 }
                 chargeTicks++;
             }
@@ -54,33 +75,35 @@ public class BlackGravitySkill implements ISkillLogic {
         return true;
     }
 
-    private void launchProjectile(LivingEntity caster, int level) {
-        // 発動音（以前の音をここで鳴らす）
-        caster.getWorld().playSound(caster.getLocation(), Sound.ITEM_TRIDENT_RETURN, 1.0f, 0.0f);
+    private void launchProjectile(LivingEntity caster, Location targetLoc, int level) {
+        // 発射音
+        caster.getWorld().playSound(caster.getLocation(), Sound.ENTITY_WARDEN_SONIC_BOOM, 1.0f, 0.5f);
 
         Location spawnLoc = caster.getEyeLocation().add(caster.getEyeLocation().getDirection().multiply(1.0));
+        Vector shootDir = targetLoc.toVector().subtract(spawnLoc.toVector());
+        if (shootDir.lengthSquared() < 0.01) {
+            shootDir = caster.getEyeLocation().getDirection();
+        } else {
+            shootDir.normalize();
+        }
         
-        new SkillProjectile(caster, spawnLoc, caster.getEyeLocation().getDirection()) {
+        new SkillProjectile(caster, spawnLoc, shootDir) {
             {
-                this.speed = 2.5; 
+                this.speed = 2.0; // 弾速を少し落として視認性向上
                 this.hitboxRadius = 1.0;
                 this.maxTicks = 10; 
             }
 
             @Override
             public void onTick() {
-                currentLocation.getWorld().spawnParticle(Particle.PORTAL, currentLocation, 5, 0.2, 0.2, 0.2, 0.1);
+                currentLocation.getWorld().spawnParticle(Particle.PORTAL, currentLocation, 8, 0.2, 0.2, 0.2, 0.1);
+                currentLocation.getWorld().spawnParticle(Particle.SOUL_FIRE_FLAME, currentLocation, 2, 0.1, 0.1, 0.1, 0.02);
             }
 
             @Override
-            public void onHitEntity(LivingEntity target) {
-                triggerBlackHole();
-            }
-
+            public void onHitEntity(LivingEntity target) { triggerBlackHole(); }
             @Override
-            public void onHitBlock(Block block) {
-                triggerBlackHole();
-            }
+            public void onHitBlock(Block block) { triggerBlackHole(); }
             
             @Override
             public void run() {
@@ -102,79 +125,87 @@ public class BlackGravitySkill implements ISkillLogic {
     private void startBlackHole(LivingEntity caster, Location center, int level) {
         new BukkitRunnable() {
             int ticks = 0;
-            final int maxTicks = 80; // repeat=80
+            final int maxTicks = 40; // 80 -> 40 (2秒) に短縮
+            final java.util.Set<java.util.UUID> centeredEntities = new java.util.HashSet<>();
 
             @Override
             public void run() {
                 if (ticks >= maxTicks || !caster.isValid()) {
                     this.cancel();
-                    // 終了時に少し爆発系パーティクル
                     center.getWorld().spawnParticle(Particle.SONIC_BOOM, center, 1, 0, 0, 0, 0, Color.WHITE);
                     return;
                 }
 
                 // --- 1. パーティクル演出 ---
-                // 中心点のフラッシュ（白黒の瞬き）
                 center.getWorld().spawnParticle(Particle.FLASH, center, 2, 0.2, 0.2, 0.2, 0, Color.WHITE);
 
-                // 周囲から中心へ吸い込まれる安定した演出 (drawSuckParticle)
                 for (int i = 0; i < 3; i++) {
                     double angle = Math.random() * Math.PI * 2;
-                    double r = 4.0; // 演出範囲を元に戻す
+                    double r = 3.5; 
                     double x = Math.cos(angle) * r;
                     double z = Math.sin(angle) * r;
                     Location edge = center.clone().add(x, (Math.random() - 0.5) * 2, z);
                     SkillParticleUtil.drawSuckParticle(center, edge, Particle.PORTAL, 0.3);
-                    center.getWorld().spawnParticle(Particle.LARGE_SMOKE, edge, 1, 0.05, 0.05, 0.05, 0.02);
                 }
 
-                // 回転リング（64点外側 + 32点内側の二重リング）
+                // 二重リング
                 Particle.DustOptions outerDust = new Particle.DustOptions(Color.fromRGB(40, 10, 80), 2.0f);
                 Particle.DustOptions innerDust = new Particle.DustOptions(Color.fromRGB(80, 20, 130), 1.2f);
                 SkillParticleUtil.drawCircleFlatRotating(center, 5.0, 64, outerDust, 0.0, ticks);
-                SkillParticleUtil.drawCircleFlatRotating(center, 3.0, 32, innerDust, 0.0, -ticks); // 逆方向に回転
+                SkillParticleUtil.drawCircleFlatRotating(center, 3.0, 32, innerDust, 0.0, -ticks);
 
-                // --- 2. ダメージ判定 (tick 0 と tick 40) ---
-                if (ticks == 0 || ticks == 40) {
+                // --- 2. ダメージ判定 (tick 0 のみ) ---
+                if (ticks == 0) {
                     center.getWorld().playSound(center, Sound.ENTITY_ILLUSIONER_CAST_SPELL, 1.5f, 0.5f);
+                    
+                    Collection<Entity> damageTargets = center.getWorld().getNearbyEntities(center, 5.0, 5.0, 5.0);
+                    for (Entity e : damageTargets) {
+                        if (e instanceof LivingEntity vic && !e.equals(caster)) {
+                            DamageContext ctx = new DamageContext(caster, vic, DeepwitherDamageEvent.DamageType.MAGIC, 25.0 + (level * 5.0));
+                            Deepwither.getInstance().getDamageProcessor().process(ctx);
+                        }
+                    }
                 }
 
-                // --- 3. 脱出可能なSoft-Pull (吸引処理) ---
-                // 半径8以内の対象を吸引 (8.0ブロック)
-                Collection<Entity> pullTargets = center.getWorld().getNearbyEntities(center, 8.0, 8.0, 8.0);
+                // --- 3. 吸引処理 ---
+                Collection<Entity> pullTargets = center.getWorld().getNearbyEntities(center, 5.0, 5.0, 5.0);
                 
-                // 吸引力の決定 (引き寄せる力を弱める方向に調整)
-                double pullPower = 0.0;
-                if (ticks < 10) {
-                    pullPower = 0.12; // 0.3 -> 0.12
-                } else if (ticks < 30) {
-                    pullPower = 0.06; // 0.15 -> 0.06
-                } else {
-                    pullPower = 0.02; // 0.05 -> 0.02
-                }
+                double pullPower = (ticks < 10) ? 0.15 : (ticks < 25) ? 0.08 : 0.03;
+
+                com.lunar_prototype.deepwither.api.skill.aura.AuraManager auraManager = Deepwither.getInstance().getAuraManager();
 
                 for (Entity entity : pullTargets) {
-                    if (entity instanceof LivingEntity && !entity.getUniqueId().equals(caster.getUniqueId())) {
-                        Vector currentVel = entity.getVelocity();
+                    if (entity instanceof LivingEntity living && !entity.getUniqueId().equals(caster.getUniqueId())) {
+                        
+                        // 一度中心付近に吸い込まれたエンティティは、それ以上吸引しない
+                        if (centeredEntities.contains(living.getUniqueId())) continue;
 
-                        // [脱出許可アルゴリズム]
-                        // 長さの二乗が 0.3 以上ある場合、ダッシュやジャンプ等による強い力が働いていると見なす
-                        if (currentVel.lengthSquared() > 0.3) {
-                            continue; // 強いVelocityがある場合は引っ張らない（抜け出せる）
+                        // シールドチェック
+                        boolean protectedByShield = false;
+                        for (Player shieldUser : center.getWorld().getPlayers()) {
+                            if (auraManager.hasAura(shieldUser, "oath_shield")) {
+                                if (shieldUser.equals(living) || shieldUser.getLocation().distanceSquared(living.getLocation()) <= 25.0) {
+                                    protectedByShield = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (protectedByShield) continue;
+
+                        Vector toCenter = center.toVector().subtract(entity.getLocation().toVector());
+                        double distSq = toCenter.lengthSquared();
+
+                        // 中心(半径1.5以内)に到達したら、吸引リストから除外(centeredEntitiesに追加)
+                        if (distSq < 2.25) {
+                            centeredEntities.add(living.getUniqueId());
+                            continue;
                         }
 
-                        // 対象から中心へのベクトル
-                        Vector toCenter = center.toVector().subtract(entity.getLocation().toVector());
-                        
-                        // 距離が近すぎる場合は跳ねてしまうので引っ張らない
-                        if (toCenter.lengthSquared() < 0.2) continue;
+                        Vector currentVel = entity.getVelocity();
+                        if (currentVel.lengthSquared() > 0.3) continue;
 
                         toCenter.normalize().multiply(pullPower);
-                        
-                        // 下への力は少し弱めて、地面にめり込むのを防ぐ
                         toCenter.setY(toCenter.getY() * 0.5);
-
-                        // Velocityの加算（上書きしないことで、他の微細な移動やジャンプが阻害されにくい）
                         entity.setVelocity(currentVel.add(toCenter));
                     }
                 }

@@ -9,7 +9,17 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 
+import java.util.Collections;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 public abstract class SkillProjectile extends BukkitRunnable {
+
+    private static final Set<SkillProjectile> activeProjectiles = Collections.newSetFromMap(new ConcurrentHashMap<>());
+
+    public static Set<SkillProjectile> getActiveProjectiles() {
+        return activeProjectiles;
+    }
 
     protected final LivingEntity caster;
     protected Location currentLocation;
@@ -24,6 +34,21 @@ public abstract class SkillProjectile extends BukkitRunnable {
         this.caster = caster;
         this.currentLocation = spawnLoc.clone();
         this.direction = direction.clone().normalize();
+        activeProjectiles.add(this);
+    }
+
+    @Override
+    public void cancel() {
+        super.cancel();
+        activeProjectiles.remove(this);
+    }
+
+    public Location getCurrentLocation() {
+        return currentLocation;
+    }
+
+    public LivingEntity getCaster() {
+        return caster;
     }
 
     @Override

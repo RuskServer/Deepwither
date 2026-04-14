@@ -32,18 +32,19 @@ public class OathShieldRadianceSkill implements ISkillLogic {
             @Override
             public void run() {
                 if (ticks >= 80 || !caster.isValid()) { this.cancel(); return; }
-                // 半径5ブロックの球体パーティクル
-                for (int i = 0; i < 30; i++) {
+                // 半径3.5ブロックの球体パーティクル
+                for (int i = 0; i < 15; i++) {
                     double phi = Math.random() * Math.PI;
                     double theta = Math.random() * 2 * Math.PI;
-                    double x = 5.0 * Math.sin(phi) * Math.cos(theta);
-                    double y = 5.0 * Math.sin(phi) * Math.sin(theta);
-                    double z = 5.0 * Math.cos(phi);
-                    caster.getWorld().spawnParticle(Particle.ENCHANT, caster.getLocation().add(x, y + 1.5, z), 1, 0, 0, 0, 0);
+                    double r = 3.5;
+                    double x = r * Math.sin(phi) * Math.cos(theta);
+                    double y = r * Math.cos(phi);
+                    double z = r * Math.sin(phi) * Math.sin(theta);
+                    caster.getWorld().spawnParticle(Particle.END_ROD, caster.getLocation().add(x, y + 1.2, z), 1, 0, 0, 0, 0);
                 }
-                ticks++;
+                ticks += 2;
             }
-        }.runTaskTimer(Deepwither.getInstance(), 0L, 1L);
+        }.runTaskTimer(Deepwither.getInstance(), 0L, 2L);
         return true;
     }
 }

@@ -175,15 +175,13 @@ public class SkillCastSessionManager implements Listener, IManager {
         int skillIndex = rawSlot - offset;
 
         if (skillIndex < 0 || skillIndex >= 4) {
-            player.sendMessage(Component.text("スキルスロット外を選択しました。", NamedTextColor.RED));
-            // スキルモードを終了して元のスロットに戻す
-            int prevSlot = previousSlotMap.getOrDefault(uuid, 0);
+            // スキルスロット外を選択した場合はスキルモードを終了
             exitSkillMode(player);
-            Bukkit.getScheduler().runTaskLater(Deepwither.getInstance(), () -> {
-                if (player.isOnline()) player.getInventory().setHeldItemSlot(prevSlot);
-            }, 2L);
             return;
         }
+
+        // スキルスロット内の操作なのでイベントをキャンセル (武器クールダウンのリセットを防止)
+        event.setCancelled(true);
 
         String skillId = Deepwither.getInstance().getSkillSlotManager().getSkillInSlot(uuid, skillIndex);
         if (skillId == null) {
@@ -199,14 +197,6 @@ public class SkillCastSessionManager implements Listener, IManager {
 
         // スキル発動
         Deepwither.getInstance().getSkillCastManager().cast(player, skill);
-
-        // 元のスロットに戻す（遅延を5tickに延長して確実に）
-        int prevSlot = previousSlotMap.getOrDefault(uuid, 0);
-        Bukkit.getScheduler().runTaskLater(Deepwither.getInstance(), () -> {
-            if (player.isOnline()) {
-                player.getInventory().setHeldItemSlot(prevSlot);
-            }
-        }, 5L);
 
         // キャスト後もスキルモードを維持する（Fキーを再度押すまで連続キャスト可能）
     }
