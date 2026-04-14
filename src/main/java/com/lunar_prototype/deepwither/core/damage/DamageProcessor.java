@@ -450,6 +450,11 @@ public class DamageProcessor implements IManager {
         }
     }
 
+    public void setProcessing(UUID uuid, boolean processing) {
+        if (processing) isProcessingDamage.add(uuid);
+        else isProcessingDamage.remove(uuid);
+    }
+
     public boolean isProcessing(UUID uuid) {
         return isProcessingDamage.contains(uuid);
     }

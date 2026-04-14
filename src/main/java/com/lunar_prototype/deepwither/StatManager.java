@@ -283,10 +283,7 @@ public class StatManager implements IManager, IStatManager {
                     }
                     case AGI -> {
                         double critChanceVal = total.getFlat(StatType.CRIT_CHANCE);
-                        total.setFlat(StatType.CRIT_CHANCE, critChanceVal + points * 0.2);
-                        double speedVal = total.getFlat(StatType.MOVE_SPEED);
-                        // 10ポイント毎に 0.0125 (1ポイントあたり平均0.00125相当、バニラ比1.25%) 加算
-                        total.setFlat(StatType.MOVE_SPEED, speedVal + (points / 10) * 0.0125);
+                        total.setFlat(StatType.CRIT_CHANCE, critChanceVal + points * 0.1);
                     }
                 }
             }
@@ -366,7 +363,7 @@ public class StatManager implements IManager, IStatManager {
         }
         syncAttribute(player, Attribute.ENTITY_INTERACTION_RANGE, reachBonus);
 
-        double speedBonus = stats.getFinal(StatType.MOVE_SPEED);
+        double speedBonus = 0; // stats.getFinal(StatType.MOVE_SPEED); を消去
 
         if (speedBonus < 0) {
             double resistance = stats.getFinal(StatType.REDUCES_MOVEMENT_SPEED_DECREASE);
@@ -376,9 +373,8 @@ public class StatManager implements IManager, IStatManager {
             }
         }
 
-        // 移動速度上限の設定 (Base 0.1 + Bonus 0.2 = 0.3 を最大とする)
-        // 0.3はバニラの約3倍の速度
-        double maxBonus = 0.2;
+        // 移動速度上限の設定 (Base 0.1 を最大とする)
+        double maxBonus = 0.0;
         if (speedBonus > maxBonus) {
             speedBonus = maxBonus;
         }

@@ -679,7 +679,7 @@ public class ItemFactory implements IManager, IItemFactory {
         registerArtifactSetEffect("fault_line",
                 statMapOf(new Object[][]{
                         {StatType.ATTACK_DAMAGE, new double[]{12, 0}},
-                        {StatType.CRIT_CHANCE, new double[]{2, 0}}
+                        {StatType.CRIT_CHANCE, new double[]{1, 0}}
                 }),
                 null);
         registerArtifactSetWorkflow("fault_line", 3, ArtifactSetTrigger.CRIT,

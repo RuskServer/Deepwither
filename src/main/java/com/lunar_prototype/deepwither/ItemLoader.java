@@ -172,7 +172,7 @@ public class ItemLoader {
     private static final List<ModifierDefinition> MODIFIER_DEFINITIONS = List.of(
             new ModifierDefinition(StatType.ATTACK_DAMAGE, 1.0, 3.0, 5.0),
             new ModifierDefinition(StatType.DEFENSE, 1.0, 2.0, 15.0),
-            new ModifierDefinition(StatType.CRIT_CHANCE, 0.5, 1.0, 5.0),
+            new ModifierDefinition(StatType.CRIT_CHANCE, 0.5, 0.5, 2.5),
             new ModifierDefinition(StatType.CRIT_DAMAGE, 0.3, 5.0, 30.0),
             new ModifierDefinition(StatType.MAX_HEALTH, 1.0, 10.0, 20.0),
             new ModifierDefinition(StatType.MAGIC_DAMAGE, 1.0, 3.0, 5.0),

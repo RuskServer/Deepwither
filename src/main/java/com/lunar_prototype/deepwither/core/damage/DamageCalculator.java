@@ -46,6 +46,6 @@ public class DamageCalculator {
      * 確率ロールを行う
      */
     public static boolean rollChance(double chance) {
-        return (Math.random() * 100) + 1 <= chance;
+        return Math.random() * 100 < chance;
     }
 }

@@ -137,19 +137,6 @@ public class BlackGravitySkill implements ISkillLogic {
                 // --- 2. ダメージ判定 (tick 0 と tick 40) ---
                 if (ticks == 0 || ticks == 40) {
                     center.getWorld().playSound(center, Sound.ENTITY_ILLUSIONER_CAST_SPELL, 1.5f, 0.5f);
-                    
-                    double baseDamage = 15.0;
-                    double multiplier = 1.5;
-                    double finalDamage = baseDamage * multiplier;
-
-                    Collection<Entity> dmgTargets = center.getWorld().getNearbyEntities(center, 3.0, 3.0, 3.0);
-                    for (Entity entity : dmgTargets) {
-                        if (entity instanceof LivingEntity && !entity.getUniqueId().equals(caster.getUniqueId())) {
-                            LivingEntity living = (LivingEntity) entity;
-                            DamageContext ctx = new DamageContext(caster, living, DeepwitherDamageEvent.DamageType.MAGIC, finalDamage);
-                            Deepwither.getInstance().getDamageProcessor().process(ctx);
-                        }
-                    }
                 }
 
                 // --- 3. 脱出可能なSoft-Pull (吸引処理) ---

@@ -85,18 +85,19 @@ public class SkyCleaveSkill implements ISkillLogic {
         Vector r = right.clone().multiply(Math.cos(roll)).add(actualUp.clone().multiply(Math.sin(roll)));
         Vector u = right.clone().multiply(-Math.sin(roll)).add(actualUp.clone().multiply(Math.cos(roll)));
 
-        double radius = 2.5;
-        // -60度から60度までの円弧を描画
-        for (double theta = -Math.PI / 3; theta <= Math.PI / 3; theta += 0.1) {
+        double radius = 4.0;
+        // -90度から90度までの広大な円弧を描画
+        for (double theta = -Math.PI / 2; theta <= Math.PI / 2; theta += 0.08) {
             double x = Math.cos(theta) * radius;
             double y = Math.sin(theta) * radius;
-            
+
             // 斬撃の先端に向けて細く鋭くする
             Location pLoc = loc.clone().add(r.clone().multiply(y)).add(u.clone().multiply(x - radius * 0.5));
-            
-            pLoc.getWorld().spawnParticle(Particle.ENCHANTED_HIT, pLoc, 1, 0, 0, 0, 0);
-            if (random.nextDouble() > 0.7) {
-                pLoc.getWorld().spawnParticle(Particle.FIREWORK, pLoc, 1, 0, 0, 0, 0.02);
+
+            // 空間を裂く演出
+            pLoc.getWorld().spawnParticle(Particle.PORTAL, pLoc, 1, 0, 0, 0, 0);
+            if (random.nextDouble() > 0.8) {
+                pLoc.getWorld().spawnParticle(Particle.SONIC_BOOM, pLoc, 1, 0, 0, 0, 0);
             }
         }
         
@@ -118,14 +119,14 @@ public class SkyCleaveSkill implements ISkillLogic {
 
         // 周囲への範囲ダメージ
         double damage = 20.0;
-        Collection<Entity> targets = loc.getWorld().getNearbyEntities(loc, 5, 5, 5);
+        Collection<Entity> targets = loc.getWorld().getNearbyEntities(loc, 7, 7, 7);
         for (Entity e : targets) {
             if (e instanceof LivingEntity target && !e.equals(caster)) {
                 DamageContext ctx = new DamageContext(caster, target, DeepwitherDamageEvent.DamageType.PHYSICAL, damage);
                 Deepwither.getInstance().getDamageProcessor().process(ctx);
                 
                 // 吹き飛ばし
-                Vector knockback = target.getLocation().toVector().subtract(loc.toVector()).normalize().multiply(1.2).setY(0.5);
+                Vector knockback = target.getLocation().toVector().subtract(loc.toVector()).normalize().multiply(1.8).setY(0.6);
                 target.setVelocity(knockback);
             }
         }

@@ -30,6 +30,17 @@ public class SkillRegistry implements IManager {
         register("collapse", new com.lunar_prototype.deepwither.api.skill.CollapseSkill());
         register("scorching_slash", new com.lunar_prototype.deepwither.api.skill.ScorchingSlashSkill());
         register("blizzard", new com.lunar_prototype.deepwither.api.skill.BlizzardSkill());
+        register("hemomant_strike", new com.lunar_prototype.deepwither.api.skill.HemomantStrikeSkill());
+        register("frost_armor", new com.lunar_prototype.deepwither.api.skill.FrostArmorSkill());
+        register("four_consecutive_attacks", new com.lunar_prototype.deepwither.api.skill.FourConsecutiveAttacksSkill());
+        register("holy_initiation", new com.lunar_prototype.deepwither.api.skill.HolyInitiationSkill());
+        register("dark_star", new com.lunar_prototype.deepwither.api.skill.DarkStarSkill());
+        register("oath_shield_radiance", new com.lunar_prototype.deepwither.api.skill.OathShieldRadianceSkill());
+        register("luminary_veil", new com.lunar_prototype.deepwither.api.skill.LuminaryVeilSkill());
+        register("ice_shot", new com.lunar_prototype.deepwither.api.skill.IceShotSkill());
+        register("greater_heal", new com.lunar_prototype.deepwither.api.skill.GreaterHealSkill());
+        register("abyss_slash", new com.lunar_prototype.deepwither.api.skill.AbyssSlashSkill());
+        register("graviton_accelerator_cannon", new com.lunar_prototype.deepwither.api.skill.GravitonAcceleratorCannonSkill());
     }
 
     @Override

@@ -37,10 +37,10 @@ public class ClusterExplosionArrowSkill implements ISkillLogic {
                 Location eyeLoc = caster.getEyeLocation();
                 Vector direction = eyeLoc.getDirection();
 
-                // 拡散（hn=10, vn=2 相当のランダム補正）
+                // 拡散（hn=10, vn=2 相当から強化）
                 // 角度をラジアンに変換して回転を加える
-                double spreadH = Math.toRadians(10.0); // 水平10度
-                double spreadV = Math.toRadians(2.0);  // 垂直2度
+                double spreadH = Math.toRadians(45.0); // 水平45度まで拡大
+                double spreadV = Math.toRadians(25.0); // 垂直25度まで拡大
                 
                 double rotX = (random.nextDouble() - 0.5) * spreadV;
                 double rotY = (random.nextDouble() - 0.5) * spreadH;
@@ -86,7 +86,16 @@ public class ClusterExplosionArrowSkill implements ISkillLogic {
             public void onHitBlock(org.bukkit.block.Block block) { explode(); }
 
             private void explode() {
-                com.lunar_prototype.deepwither.api.skill.utils.ExplosionUtil.triggerExplosionArrowEffect(caster, currentLocation);
+                // キャスターからの距離に応じてダメージを減衰させる (20ブロックで1.0, それ以下は減衰)
+                double distance = caster.getLocation().distance(currentLocation);
+                
+                // 15ブロックまでは線形に減衰し、それ以降は1.0 (20ブロックターゲットだが15ブロックで最大に到達するように調整)
+                double distMultiplier = Math.min(1.0, distance / 15.0);
+                
+                // 最低保証 0.3倍 (「バチクソ」ほどではないが、近距離は明確に弱く)
+                double finalMultiplier = Math.max(0.3, distMultiplier);
+
+                com.lunar_prototype.deepwither.api.skill.utils.ExplosionUtil.triggerExplosionArrowEffect(caster, currentLocation, finalMultiplier);
                 this.cancel();
             }
         }.runTaskTimer(Deepwither.getInstance(), 0L, 1L);

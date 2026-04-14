@@ -120,7 +120,7 @@ public class SkillAuraListener implements Listener {
         }
         
         // 衝撃の閃光
-        loc.getWorld().spawnParticle(Particle.FLASH, loc.add(0, 1, 0), 2, 0, 0, 0, 0);
+        loc.getWorld().spawnParticle(Particle.FLASH, loc.add(0, 1, 0), 2, 0, 0, 0, 0, Color.WHITE);
     }
 
     private void executeScorchingEffect(Player attacker, LivingEntity victim) {

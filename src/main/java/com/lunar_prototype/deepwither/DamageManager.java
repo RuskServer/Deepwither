@@ -88,6 +88,9 @@ public class DamageManager implements Listener, IManager {
 
         if (attacker == null) return;
 
+        // 内部呼び出し（DamageProcessor からの再呼び出し）の場合はスキップ
+        if (Deepwither.getInstance().getDamageProcessor().isProcessing(attacker.getUniqueId())) return;
+
         RouteLootChestManager routeLootChestManager = Deepwither.getInstance().getRouteLootChestManager();
         if (routeLootChestManager != null) {
             routeLootChestManager.recordActivity(attacker, 3.0);
@@ -95,7 +98,6 @@ public class DamageManager implements Listener, IManager {
         
         Deepwither dw = Deepwither.getInstance();
         DamageProcessor processor = dw.getDamageProcessor();
-        if (processor.isProcessing(attacker.getUniqueId())) return;
         
         if (!(e.getEntity() instanceof LivingEntity targetLiving)) return;
 
@@ -178,6 +180,36 @@ public class DamageManager implements Listener, IManager {
         }
     }
 
+    @EventHandler(priority = EventPriority.LOW)
+    public void onFrostArmorDamageReduction(DeepwitherDamageEvent e) {
+        if (e.getVictim() == null) return;
+
+        com.lunar_prototype.deepwither.api.skill.aura.AuraManager auraManager = Deepwither.getInstance().getAuraManager();
+        
+        // 1. Frost Armor (40%軽減)
+        com.lunar_prototype.deepwither.api.skill.aura.AuraManager.AuraInstance frostArmor = auraManager.getAuraInstance(e.getVictim(), "frost_armor");
+        if (frostArmor != null) {
+            Double reduction = (Double) frostArmor.getMetadata("damage_reduction");
+            if (reduction != null) {
+                e.setDamage(e.getDamage() * (1.0 - reduction));
+            }
+        }
+
+        // 2. Oath Shield / Luminary Veil (球体シールド内での遠距離・魔法攻撃無効化)
+        // 近くのプレイヤーが "oath_shield" オーラを持っており、被害者がその範囲内にいるか確認
+        Collection<Player> shieldUsers = e.getVictim().getWorld().getPlayers();
+        for (Player user : shieldUsers) {
+            if (user.equals(e.getVictim())) continue;
+            com.lunar_prototype.deepwither.api.skill.aura.AuraManager.AuraInstance oathShield = auraManager.getAuraInstance(user, "oath_shield");
+            if (oathShield != null && user.getLocation().distanceSquared(e.getVictim().getLocation()) <= 25.0) { // 半径5ブロック
+                if (e.getType() == DeepwitherDamageEvent.DamageType.PROJECTILE || e.getType() == DeepwitherDamageEvent.DamageType.MAGIC) {
+                    e.setCancelled(true);
+                    return;
+                }
+            }
+        }
+    }
+
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBloodSurgeHit(DeepwitherDamageEvent e) {
         if (!(e.getAttacker() instanceof Player attacker)) return;
@@ -207,7 +239,11 @@ public class DamageManager implements Listener, IManager {
             auraManager.removeAura(attacker, "blood_surge");
         }
 
-        // --- 1. LIFESTEAL (攻撃ダメージの30%を回復) ---
+        // [FourConsecutiveAttacksSkill]
+        com.lunar_prototype.deepwither.api.skill.aura.AuraManager.AuraInstance combo = auraManager.getAuraInstance(attacker, "four_consecutive_attacks");
+        if (combo != null) {
+            com.lunar_prototype.deepwither.api.skill.FourConsecutiveAttacksSkill.triggerHit(attacker, e.getVictim());
+        }
         double healAmount = e.getDamage() * 0.3;
         Deepwither.getInstance().getStatManager().heal(attacker, healAmount);
 
@@ -335,7 +371,7 @@ public class DamageManager implements Listener, IManager {
     }
 
     public double applyMobCritLogic(LivingEntity attacker, double damage, Player target) {
-        if (DamageCalculator.rollChance(20)) {
+        if (DamageCalculator.rollChance(10)) {
             damage *= 1.5;
             Location loc = target.getLocation().add(0, 1.2, 0);
             loc.getWorld().spawnParticle(Particle.FLASH, loc, 1, 0, 0, 0, 0, Color.WHITE);
