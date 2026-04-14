@@ -25,10 +25,12 @@ public class MobLevelService implements IManager, Listener {
     private String nameFormat;
 
     private final NamespacedKey LEVEL_KEY;
+    private final NamespacedKey BASENAME_KEY;
 
     public MobLevelService(JavaPlugin plugin) {
         this.plugin = plugin;
         this.LEVEL_KEY = new NamespacedKey(plugin, "mob_level");
+        this.BASENAME_KEY = new NamespacedKey(plugin, "mob_basename");
     }
 
     @Override
@@ -52,6 +54,7 @@ public class MobLevelService implements IManager, Listener {
         if (!enabled) return;
 
         entity.getPersistentDataContainer().set(LEVEL_KEY, PersistentDataType.INTEGER, level);
+        entity.getPersistentDataContainer().set(BASENAME_KEY, PersistentDataType.STRING, mobName);
 
         AttributeInstance maxHealthAttr = entity.getAttribute(Attribute.MAX_HEALTH);
         if (maxHealthAttr != null) {
@@ -77,8 +80,11 @@ public class MobLevelService implements IManager, Listener {
         if (levelObj == null) return;
         int level = levelObj;
 
-        ActiveMob am = MythicBukkit.inst().getMobManager().getMythicMobInstance(entity);
-        String baseName = (am != null) ? am.getType().getDisplayName().get() : entity.getName();
+        String baseName = entity.getPersistentDataContainer().get(BASENAME_KEY, PersistentDataType.STRING);
+        if (baseName == null) {
+            ActiveMob am = MythicBukkit.inst().getMobManager().getMythicMobInstance(entity);
+            baseName = (am != null && am.getType().getDisplayName().isPresent()) ? am.getType().getDisplayName().get() : entity.getName();
+        }
 
         updateMobName(entity, baseName, level);
     }

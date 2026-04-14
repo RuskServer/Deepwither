@@ -184,20 +184,51 @@ public class MailManager implements IManager {
     }
 
     private void saveMail(MailMessage mail) {
-        String sql = """
-            INSERT INTO player_mailbox (mail_id, recipient_uuid, mail_json)
-            VALUES (?, ?, ?)
-            ON CONFLICT(mail_id) DO UPDATE SET
-                recipient_uuid = excluded.recipient_uuid,
-                mail_json = excluded.mail_json
-            """;
+        String mailIdStr = mail.getId().toString();
+        String recipientIdStr = mail.getRecipientId().toString();
+        String mailJson = databaseManager.getGson().toJson(mail);
 
-        try (java.sql.Connection conn = databaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, mail.getId().toString());
-            ps.setString(2, mail.getRecipientId().toString());
-            ps.setString(3, databaseManager.getGson().toJson(mail));
-            ps.executeUpdate();
+        try (java.sql.Connection conn = databaseManager.getConnection()) {
+            // 存在チェック
+            boolean exists = false;
+            try (PreparedStatement checkPs = conn.prepareStatement("SELECT 1 FROM player_mailbox WHERE mail_id = ?")) {
+                checkPs.setString(1, mailIdStr);
+                try (ResultSet rs = checkPs.executeQuery()) {
+                    exists = rs.next();
+                }
+            }
+
+            if (exists) {
+                // UPDATE
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE player_mailbox SET recipient_uuid = ?, mail_json = ? WHERE mail_id = ?")) {
+                    ps.setString(1, recipientIdStr);
+                    ps.setString(2, mailJson);
+                    ps.setString(3, mailIdStr);
+                    ps.executeUpdate();
+                }
+            } else {
+                // INSERT
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO player_mailbox (mail_id, recipient_uuid, mail_json) VALUES (?, ?, ?)")) {
+                    ps.setString(1, mailIdStr);
+                    ps.setString(2, recipientIdStr);
+                    ps.setString(3, mailJson);
+                    ps.executeUpdate();
+                } catch (SQLException e) {
+                    if (e.getSQLState().startsWith("23")) {
+                        try (PreparedStatement ps = conn.prepareStatement(
+                                "UPDATE player_mailbox SET recipient_uuid = ?, mail_json = ? WHERE mail_id = ?")) {
+                            ps.setString(1, recipientIdStr);
+                            ps.setString(2, mailJson);
+                            ps.setString(3, mailIdStr);
+                            ps.executeUpdate();
+                        }
+                    } else {
+                        throw e;
+                    }
+                }
+            }
         } catch (SQLException e) {
             plugin.getLogger().severe("メール保存に失敗しました: " + e.getMessage());
             e.printStackTrace();

@@ -7,6 +7,7 @@ import io.lumine.mythic.bukkit.MythicBukkit;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -121,6 +122,42 @@ public class SkillCastManager implements IManager {
     }
 
     // ===== スキル実行 =====
+
+    /**
+     * Simulation用: LivingEntity対応版のスキル発動ロジック。
+     * マナ消費やクールダウンの設定はコールバックを通じてシミュレーション側で管理します。
+     * 
+     * @param caster 発動エンティティ
+     * @param def スキル定義
+     * @param level スキルレベル
+     * @param currentMana 現在のマナ量
+     * @param isOnCooldown クールダウン中かどうか
+     * @param manaConsumer マナ消費用コールバック
+     * @param onCooldownSet クールダウン設定用コールバック
+     * @return 発動に成功したかどうか
+     */
+    public boolean castForSimulation(LivingEntity caster, SkillDefinition def, int level,
+                                     double currentMana, boolean isOnCooldown,
+                                     java.util.function.Consumer<Double> manaConsumer,
+                                     java.lang.Runnable onCooldownSet) {
+        if (currentMana < def.manaCost || isOnCooldown) return false;
+
+        boolean isCastSuccessful = false;
+        com.lunar_prototype.deepwither.api.skill.ISkillLogic logic = Deepwither.getInstance().getSkillRegistry().getLogic(def.id);
+
+        if (logic != null) {
+            isCastSuccessful = logic.cast(caster, def, level);
+        } else if (def.mythicSkillId != null && !def.mythicSkillId.isEmpty() && caster instanceof Player p) {
+            isCastSuccessful = MythicBukkit.inst().getAPIHelper().castSkill(p, def.mythicSkillId);
+        }
+
+        if (isCastSuccessful) {
+            if (manaConsumer != null) manaConsumer.accept(def.manaCost);
+            if (onCooldownSet != null) onCooldownSet.run();
+            return true;
+        }
+        return false;
+    }
 
     private void executeSkill(Player player, SkillDefinition def) {
         boolean isCastSuccessful = false;

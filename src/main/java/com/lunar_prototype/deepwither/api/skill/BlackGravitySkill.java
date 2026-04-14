@@ -22,22 +22,53 @@ public class BlackGravitySkill implements ISkillLogic {
 
     @Override
     public boolean cast(LivingEntity caster, SkillDefinition def, int level) {
-        // 発動音
+        // チャージ開始音
+        caster.getWorld().playSound(caster.getLocation(), Sound.ENTITY_EVOKER_PREPARE_ATTACK, 1.0f, 0.5f);
+
+        new BukkitRunnable() {
+            int chargeTicks = 0;
+            final int maxCharge = 16; // 約0.8秒
+
+            @Override
+            public void run() {
+                if (!caster.isValid()) {
+                    this.cancel();
+                    return;
+                }
+
+                // チャージ中のエフェクト: 手元に粒子が収束する演出
+                Location chargeLoc = caster.getEyeLocation().add(caster.getEyeLocation().getDirection().multiply(1.0));
+                caster.getWorld().spawnParticle(Particle.PORTAL, chargeLoc, 3, 0.1, 0.1, 0.1, 0.05);
+                if (chargeTicks % 4 == 0) {
+                    caster.getWorld().playSound(caster.getLocation(), Sound.BLOCK_BEACON_AMBIENT, 0.5f, 1.5f + (chargeTicks * 0.03f));
+                }
+
+                if (chargeTicks >= maxCharge) {
+                    this.cancel();
+                    launchProjectile(caster, level);
+                }
+                chargeTicks++;
+            }
+        }.runTaskTimer(Deepwither.getInstance(), 0L, 1L);
+
+        return true;
+    }
+
+    private void launchProjectile(LivingEntity caster, int level) {
+        // 発動音（以前の音をここで鳴らす）
         caster.getWorld().playSound(caster.getLocation(), Sound.ITEM_TRIDENT_RETURN, 1.0f, 0.0f);
 
         Location spawnLoc = caster.getEyeLocation().add(caster.getEyeLocation().getDirection().multiply(1.0));
         
-        // MMの projectile{v=50} は超高速弾（ほぼ即着弾）
         new SkillProjectile(caster, spawnLoc, caster.getEyeLocation().getDirection()) {
             {
-                this.speed = 2.5; // v=50 に近い速度
+                this.speed = 2.5; 
                 this.hitboxRadius = 1.0;
-                this.maxTicks = 10; // 最大射程を約25ブロックに制限
+                this.maxTicks = 10; 
             }
 
             @Override
             public void onTick() {
-                // 飛翔中のエフェクト（黒い軌跡）
                 currentLocation.getWorld().spawnParticle(Particle.PORTAL, currentLocation, 5, 0.2, 0.2, 0.2, 0.1);
             }
 
@@ -55,7 +86,6 @@ public class BlackGravitySkill implements ISkillLogic {
             public void run() {
                 super.run();
                 if (this.isCancelled() && ticksLived >= maxTicks) {
-                    // 何も当たらずに射程限界に達した場合、そこでの空中起動
                     triggerBlackHole();
                 }
             }
@@ -67,8 +97,6 @@ public class BlackGravitySkill implements ISkillLogic {
             }
 
         }.runTaskTimer(Deepwither.getInstance(), 0L, 1L);
-
-        return true;
     }
 
     private void startBlackHole(LivingEntity caster, Location center, int level) {

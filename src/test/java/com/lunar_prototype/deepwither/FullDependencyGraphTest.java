@@ -64,6 +64,8 @@ public class FullDependencyGraphTest {
             com.lunar_prototype.deepwither.ManaManager.class,
             com.lunar_prototype.deepwither.SkillLoader.class,
             com.lunar_prototype.deepwither.SkillSlotManager.class,
+            com.lunar_prototype.deepwither.party.PartyManager.class,
+            com.lunar_prototype.deepwither.api.DeepwitherPartyAPI.class,
             com.lunar_prototype.deepwither.core.damage.DamageProcessor.class,
             com.lunar_prototype.deepwither.WeaponMechanicManager.class,
             com.lunar_prototype.deepwither.DamageManager.class,

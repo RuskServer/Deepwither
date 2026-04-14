@@ -29,11 +29,19 @@ public class SkillRegistry implements IManager {
         register("sky_cleave", new com.lunar_prototype.deepwither.api.skill.SkyCleaveSkill());
         register("collapse", new com.lunar_prototype.deepwither.api.skill.CollapseSkill());
         register("scorching_slash", new com.lunar_prototype.deepwither.api.skill.ScorchingSlashSkill());
+        register("blizzard", new com.lunar_prototype.deepwither.api.skill.BlizzardSkill());
     }
 
     @Override
     public void shutdown() {
         skillLogics.clear();
+    }
+
+    /**
+     * 登録されている全スキルIDのセットを返します。
+     */
+    public java.util.Set<String> getRegisteredSkillIds() {
+        return java.util.Collections.unmodifiableSet(skillLogics.keySet());
     }
 
     /**

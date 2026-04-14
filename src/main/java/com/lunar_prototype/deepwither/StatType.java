@@ -80,6 +80,14 @@ public enum StatType {
     public String getIcon() {
         return icon;
     }
+    
+    public boolean isCoreAttribute() {
+        return this == STR || this == VIT || this == AGI || this == INT || this == MND;
+    }
+
+    public static java.util.List<StatType> getCoreAttributeTypes() {
+        return java.util.Arrays.asList(STR, VIT, AGI, INT, MND);
+    }
 }
 
 /**
@@ -396,7 +404,7 @@ class LoreBuilder {
             return 3;
         if ("I[]t".indexOf(c) != -1)
             return 4;
-        if ("<>\"()*".indexOf(c) != -1)
+        if ("<>\\\"()*".indexOf(c) != -1)
             return 5;
         if (c == ' ')
             return 4;

@@ -48,20 +48,20 @@ public class CrimsonLancer extends CustomMob {
 
     @Override
     public void onTick() {
-        // 主力スキル: クリムゾン・スラスト (約26秒周期)
-        if (getTicksLived() % 520 == 0) {
+        // 主力スキル: クリムゾン・スラスト (約12秒周期に短縮)
+        if (getTicksLived() % 240 == 0) {
             performCrimsonThrust();
         }
 
-        // AI行動: 1.5秒おきに距離に応じた技を発動 (80 -> 30 に短縮)
-        if (getTicksLived() % 30 == 0) {
+        // AI行動: 1秒おきに技を判定
+        if (getTicksLived() % 20 == 0) {
             LivingEntity target = getTarget();
             if (target != null) {
                 double dist = entity.getLocation().distance(target.getLocation());
                 if (dist < 3.0) {
                     // 至近距離: 槍の短い突き
                     performShortThrust(target);
-                } else if (dist > 5.0 && dist < 15.0 && random.nextDouble() < 0.4) {
+                } else if (dist > 5.0 && dist < 15.0 && random.nextDouble() < 0.6) {
                     performLeapAttack(target);
                 }
             }
@@ -70,8 +70,8 @@ public class CrimsonLancer extends CustomMob {
 
     @Override
     public void onAttack(LivingEntity victim, DeepwitherDamageEvent event) {
-        // 槍の攻撃は10%の確率で出血を付与
-        if (random.nextDouble() < 0.1) {
+        // 槍の攻撃は15%の確率で出血を付与 (10% -> 15%)
+        if (random.nextDouble() < 0.15) {
             victim.setMetadata("bleeding", new org.bukkit.metadata.FixedMetadataValue(Deepwither.getInstance(), true));
             victim.getWorld().spawnParticle(Particle.BLOCK, victim.getLocation().add(0, 1, 0), 10, Bukkit.createBlockData(Material.REDSTONE_BLOCK));
             if (victim instanceof Player p) {
@@ -82,9 +82,9 @@ public class CrimsonLancer extends CustomMob {
 
     @Override
     public void onDamaged(LivingEntity attacker, DeepwitherDamageEvent event) {
-        // 30%の確率でバックステップ (至近距離のみ)
+        // 50%の確率でバックステップ (至近距離のみ)
         if (attacker != null && entity.getLocation().distance(attacker.getLocation()) < 3.0) {
-            if (random.nextDouble() < 0.3) {
+            if (random.nextDouble() < 0.5) {
                 performBackstep(attacker);
             }
         }

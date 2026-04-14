@@ -171,8 +171,8 @@ class StatEffectText {
                 list.add("+ " + (level * 2) + "% 最大マナ");
             }
             case AGI -> {
-                list.add("+ " + (level * 0.2) + "% 会心率");
-                list.add("+ " + (level * 0.25) + "% 移動速度");
+                list.add("+ " + String.format("%.1f", level * 0.2) + "% 会心率");
+                list.add("+ " + String.format("%.2f", level * 1.25) + "% 移動速度");
             }
         }
         return list;

@@ -181,11 +181,12 @@ public class ItemLoader {
             new ModifierDefinition(StatType.MAGIC_BURST_DAMAGE, 1.0, 3.0, 5.0),
             new ModifierDefinition(StatType.MAGIC_AOE_DAMAGE, 1.0, 3.0, 5.0),
             new ModifierDefinition(StatType.ATTACK_SPEED,0.1,0.1,0.2),
-            new ModifierDefinition(StatType.REACH,0.1,0.2,0.5),
+            new ModifierDefinition(StatType.REACH,0.1,0.1,0.3),
             new ModifierDefinition(StatType.MAX_MANA,0.5,10,40),
             new ModifierDefinition(StatType.MOVE_SPEED,0.1,0.001,0.005),
             new ModifierDefinition(StatType.COOLDOWN_REDUCTION,0.2,2,5),
-            new ModifierDefinition(StatType.HP_REGEN,0.1,1,3)
+            new ModifierDefinition(StatType.HP_REGEN,0.1,1,3),
+            new ModifierDefinition(StatType.MANA_REGEN,0.3,1,3)
     );
 
     // モディファイアー定義用ヘルパークラス

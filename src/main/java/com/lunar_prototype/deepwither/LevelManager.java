@@ -62,15 +62,47 @@ public class LevelManager implements IManager {
         int level = Math.min(data.getLevel(), MAX_LEVEL);
         double exp = (level >= MAX_LEVEL) ? 0 : data.getExp();
 
-        try (Connection conn = db.getConnection();
-             PreparedStatement ps = conn.prepareStatement("""
-            INSERT INTO player_levels (uuid, "level", exp) VALUES (?, ?, ?)
-            ON CONFLICT(uuid) DO UPDATE SET "level" = excluded."level", exp = excluded.exp
-        """)) {
-            ps.setString(1, uuid.toString());
-            ps.setInt(2, level);
-            ps.setDouble(3, exp);
-            ps.executeUpdate();
+        try (Connection conn = db.getConnection()) {
+            // 存在チェック
+            boolean exists = false;
+            try (PreparedStatement checkPs = conn.prepareStatement("SELECT 1 FROM player_levels WHERE uuid = ?")) {
+                checkPs.setString(1, uuid.toString());
+                try (ResultSet rs = checkPs.executeQuery()) {
+                    exists = rs.next();
+                }
+            }
+
+            if (exists) {
+                // UPDATE
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE player_levels SET \"level\" = ?, exp = ? WHERE uuid = ?")) {
+                    ps.setInt(1, level);
+                    ps.setDouble(2, exp);
+                    ps.setString(3, uuid.toString());
+                    ps.executeUpdate();
+                }
+            } else {
+                // INSERT
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO player_levels (uuid, \"level\", exp) VALUES (?, ?, ?)")) {
+                    ps.setString(1, uuid.toString());
+                    ps.setInt(2, level);
+                    ps.setDouble(3, exp);
+                    ps.executeUpdate();
+                } catch (SQLException e) {
+                    if (e.getSQLState().startsWith("23")) {
+                        try (PreparedStatement ps = conn.prepareStatement(
+                                "UPDATE player_levels SET \"level\" = ?, exp = ? WHERE uuid = ?")) {
+                            ps.setInt(1, level);
+                            ps.setDouble(2, exp);
+                            ps.setString(3, uuid.toString());
+                            ps.executeUpdate();
+                        }
+                    } else {
+                        throw e;
+                    }
+                }
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }

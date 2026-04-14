@@ -267,13 +267,45 @@ public class GlobalMarketManager implements IManager {
         earnings.merge(sellerId, amount, Double::sum);
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            String sql = "INSERT INTO market_earnings (uuid, amount) VALUES (?, ?) ON CONFLICT(uuid) DO UPDATE SET amount = amount + excluded.amount";
-            try (java.sql.Connection conn = databaseManager.getConnection();
-                 PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, sellerId.toString());
-                ps.setDouble(2, amount);
-                ps.executeUpdate();
-            } catch (SQLException e) { e.printStackTrace(); }
+            try (java.sql.Connection conn = databaseManager.getConnection()) {
+                // 存在チェック
+                boolean exists = false;
+                try (PreparedStatement checkPs = conn.prepareStatement("SELECT 1 FROM market_earnings WHERE uuid = ?")) {
+                    checkPs.setString(1, sellerId.toString());
+                    try (ResultSet rs = checkPs.executeQuery()) {
+                        exists = rs.next();
+                    }
+                }
+
+                if (exists) {
+                    // 累積 UPDATE
+                    try (PreparedStatement ps = conn.prepareStatement("UPDATE market_earnings SET amount = amount + ? WHERE uuid = ?")) {
+                        ps.setDouble(1, amount);
+                        ps.setString(2, sellerId.toString());
+                        ps.executeUpdate();
+                    }
+                } else {
+                    // INSERT
+                    try (PreparedStatement ps = conn.prepareStatement("INSERT INTO market_earnings (uuid, amount) VALUES (?, ?)")) {
+                        ps.setString(1, sellerId.toString());
+                        ps.setDouble(2, amount);
+                        ps.executeUpdate();
+                    } catch (SQLException e) {
+                        if (e.getSQLState().startsWith("23")) {
+                            // 同時実行時は UPDATE
+                            try (PreparedStatement ps = conn.prepareStatement("UPDATE market_earnings SET amount = amount + ? WHERE uuid = ?")) {
+                                ps.setDouble(1, amount);
+                                ps.setString(2, sellerId.toString());
+                                ps.executeUpdate();
+                            }
+                        } else {
+                            throw e;
+                        }
+                    }
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         });
     }
 

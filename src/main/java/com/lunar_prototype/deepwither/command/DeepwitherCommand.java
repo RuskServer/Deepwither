@@ -41,6 +41,7 @@ public class DeepwitherCommand implements CommandExecutor, TabCompleter {
 
         switch (subCommand) {
             case "dungeon" -> handleDungeon(sender, args);
+            case "spawnmob" -> handleSpawnMob(sender, args);
             case "reload" -> {
                 sender.sendMessage(Component.text("Deepwitherの設定をリロードしました。", NamedTextColor.GREEN));
                 Deepwither.getInstance().getSkilltreeGUI().reload();
@@ -49,6 +50,38 @@ public class DeepwitherCommand implements CommandExecutor, TabCompleter {
         }
 
         return true;
+    }
+
+    private void handleSpawnMob(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage("プレイヤーのみ実行可能です。");
+            return;
+        }
+
+        if (args.length < 2) {
+            player.sendMessage(Component.text("使用法: /dw spawnmob <mob_id> [tier]", NamedTextColor.RED));
+            return;
+        }
+
+        String mobId = args[1];
+        int tier = 1;
+        if (args.length >= 3) {
+            try {
+                tier = Integer.parseInt(args[2]);
+            } catch (NumberFormatException ignored) {}
+        }
+
+        com.lunar_prototype.deepwither.modules.mob.service.MobSpawnerService spawnerService = plugin.get(com.lunar_prototype.deepwither.modules.mob.service.MobSpawnerService.class);
+        if (spawnerService != null) {
+            java.util.UUID uuid = spawnerService.spawnMythicMob(mobId, player.getLocation(), tier);
+            if (uuid != null) {
+                player.sendMessage(Component.text("モブ " + mobId + " (Tier: " + tier + ") をスポーンさせました！", NamedTextColor.GREEN));
+            } else {
+                player.sendMessage(Component.text("モブのスポーンに失敗しました。IDを確認してください。", NamedTextColor.RED));
+            }
+        } else {
+            player.sendMessage(Component.text("MobSpawnerService が利用できません。", NamedTextColor.RED));
+        }
     }
 
     private void handleDungeon(CommandSender sender, String[] args) {
@@ -114,14 +147,18 @@ public class DeepwitherCommand implements CommandExecutor, TabCompleter {
     private void sendHelp(CommandSender sender) {
         sender.sendMessage(Component.text("[Deepwither Admin Help]", NamedTextColor.LIGHT_PURPLE, TextDecoration.BOLD));
         sender.sendMessage(Component.text("/dw dungeon ...", NamedTextColor.WHITE).append(Component.text(" - ダンジョン管理コマンド", NamedTextColor.GRAY)));
+        sender.sendMessage(Component.text("/dw spawnmob <id> [tier]", NamedTextColor.WHITE).append(Component.text(" - 指定したモブをスポーン", NamedTextColor.GRAY)));
         sender.sendMessage(Component.text("/dw reload", NamedTextColor.WHITE).append(Component.text(" - 設定リロード", NamedTextColor.GRAY)));
     }
 
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias,
             @NotNull String[] args) {
-        if (args.length == 1) return Arrays.asList("dungeon", "reload");
-        if (args.length == 2 && args[0].equalsIgnoreCase("dungeon")) return Arrays.asList("generate", "join", "leave","enter");
+        if (args.length == 1) return Arrays.asList("dungeon", "spawnmob", "sim", "reload");
+        if (args.length == 2) {
+            if (args[0].equalsIgnoreCase("dungeon")) return Arrays.asList("generate", "join", "leave", "enter");
+            if (args[0].equalsIgnoreCase("spawnmob")) return Arrays.asList("melee_skeleton", "melee_zombie2", "FireDemon", "IcePilgrim");
+        }
         if (args.length == 3 && args[1].equalsIgnoreCase("generate")) {
             return Arrays.asList("silent_terrarium_ruins", "ancient_city");
         }

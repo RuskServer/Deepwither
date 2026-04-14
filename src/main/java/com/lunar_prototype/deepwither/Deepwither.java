@@ -746,7 +746,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
             return;
         }
 
-        this.partyAPI = new DeepwitherPartyAPI(partyManager); // ★ 初期化
+        this.partyAPI = serviceManager.get(DeepwitherPartyAPI.class);
         this.getCommand("artifact").setExecutor(new ArtifactGUICommand(artifactGUI));
         getCommand("trader").setExecutor(new TraderCommand(traderManager));
         getCommand("credit").setExecutor(new CreditCommand(creditManager));

@@ -2,6 +2,7 @@ package com.lunar_prototype.deepwither.core.damage;
 
 import com.lunar_prototype.deepwither.PlayerSettingsManager;
 import com.lunar_prototype.deepwither.StatManager;
+import com.lunar_prototype.deepwither.api.DeepwitherPartyAPI;
 import com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent;
 import com.lunar_prototype.deepwither.api.event.onPlayerRecevingDamageEvent;
 import com.lunar_prototype.deepwither.api.stat.IStatManager;
@@ -38,12 +39,13 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.potion.PotionEffectType;
 
-@DependsOn({StatManager.class, PlayerSettingsManager.class, com.lunar_prototype.deepwither.core.UIManager.class})
+@DependsOn({StatManager.class, PlayerSettingsManager.class, com.lunar_prototype.deepwither.core.UIManager.class, com.lunar_prototype.deepwither.party.PartyManager.class})
 public class DamageProcessor implements IManager {
 
     private final JavaPlugin plugin;
     private final IStatManager statManager;
     private final com.lunar_prototype.deepwither.core.UIManager uiManager;
+    private final DeepwitherPartyAPI partyAPI;
     private final Set<UUID> isProcessingDamage = new HashSet<>();
 
     private final Map<UUID, Long> onHitCooldowns = new HashMap<>();
@@ -54,10 +56,11 @@ public class DamageProcessor implements IManager {
     private static final long COOLDOWN_IGNORE_MS = 300;
     private final Map<UUID, Long> lastSpecialAttackTime = new HashMap<>();
 
-    public DamageProcessor(JavaPlugin plugin, IStatManager statManager, com.lunar_prototype.deepwither.core.UIManager uiManager) {
+    public DamageProcessor(JavaPlugin plugin, IStatManager statManager, com.lunar_prototype.deepwither.core.UIManager uiManager, DeepwitherPartyAPI partyAPI) {
         this.plugin = plugin;
         this.statManager = statManager;
         this.uiManager = uiManager;
+        this.partyAPI = partyAPI;
     }
 
     @Override
@@ -72,6 +75,14 @@ public class DamageProcessor implements IManager {
     public void process(DamageContext context) {
         LivingEntity victim = context.getVictim();
         LivingEntity attacker = context.getAttacker();
+
+        // パーティー内FF（フレンドリーファイア）防止
+        if (attacker instanceof Player pAtk && victim instanceof Player pVic) {
+            // 同じパーティーに所属している場合はダメージをキャンセル
+            if (partyAPI.isInSameParty(pAtk, pVic)) {
+                return;
+            }
+        }
 
         double damage = context.getFinalDamage();
         com.lunar_prototype.deepwither.StatMap attackerStats = null;
@@ -360,10 +371,19 @@ public class DamageProcessor implements IManager {
         LivingEntity attacker = context.getAttacker();
 
         // 1. PacketEvents による被弾アニメーション (赤色フラッシュ)
-        WrapperPlayServerEntityAnimation hurtPacket = new WrapperPlayServerEntityAnimation(victim.getEntityId(), WrapperPlayServerEntityAnimation.EntityAnimationType.HURT);
-        victim.getWorld().getNearbyPlayers(victim.getLocation(), 40).forEach(p -> {
-            PacketEvents.getAPI().getPlayerManager().sendPacket(p, hurtPacket);
-        });
+        // PacketEvents APIが利用可能かチェックしてNPEを回避
+        if (Bukkit.getPluginManager().isPluginEnabled("packetevents")) {
+            try {
+                if (PacketEvents.getAPI() != null && PacketEvents.getAPI().isLoaded()) {
+                    WrapperPlayServerEntityAnimation hurtPacket = new WrapperPlayServerEntityAnimation(victim.getEntityId(), WrapperPlayServerEntityAnimation.EntityAnimationType.HURT);
+                    victim.getWorld().getNearbyPlayers(victim.getLocation(), 40).forEach(p -> {
+                        PacketEvents.getAPI().getPlayerManager().sendPacket(p, hurtPacket);
+                    });
+                }
+            } catch (Exception e) {
+                // API取得中などの予期せぬエラーをキャッチして処理の停止を防ぐ
+            }
+        }
 
         // 2. 音の再生 (被害者の種類に応じて)
         Sound hurtSound = (victim instanceof Player) ? Sound.ENTITY_PLAYER_HURT : Sound.ENTITY_GENERIC_HURT;

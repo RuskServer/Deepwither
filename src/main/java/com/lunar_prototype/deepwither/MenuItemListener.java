@@ -53,7 +53,7 @@ public class MenuItemListener implements Listener, IManager {
 
         if (item == null || item.getType() == Material.AIR) return;
         if (!item.hasItemMeta()) return;
-        if (!item.getItemMeta().displayName().equals(ITEM_NAME)) return;
+        if (!item.getItemMeta().hasDisplayName() || !item.getItemMeta().displayName().equals(ITEM_NAME)) return;
 
         if (e.getAction() == Action.RIGHT_CLICK_AIR || e.getAction() == Action.RIGHT_CLICK_BLOCK) {
             e.setCancelled(true);
@@ -83,7 +83,7 @@ public class MenuItemListener implements Listener, IManager {
 
     public void removeMenuItem(Player player) {
         ItemStack item = player.getInventory().getItem(8);
-        if (item != null && item.hasItemMeta() && ITEM_NAME.equals(item.getItemMeta().displayName())) {
+        if (item != null && item.hasItemMeta() && item.getItemMeta().hasDisplayName() && ITEM_NAME.equals(item.getItemMeta().displayName())) {
             player.getInventory().setItem(8, null);
         }
     }
@@ -91,7 +91,7 @@ public class MenuItemListener implements Listener, IManager {
     @EventHandler
     public void onDrop(org.bukkit.event.player.PlayerDropItemEvent e) {
         ItemStack item = e.getItemDrop().getItemStack();
-        if (item.hasItemMeta() && ITEM_NAME.equals(item.getItemMeta().displayName())) {
+        if (item.hasItemMeta() && item.getItemMeta().hasDisplayName() && ITEM_NAME.equals(item.getItemMeta().displayName())) {
             e.setCancelled(true);
         }
     }
@@ -99,7 +99,7 @@ public class MenuItemListener implements Listener, IManager {
     @EventHandler
     public void onInventoryClick(org.bukkit.event.inventory.InventoryClickEvent e) {
         ItemStack item = e.getCurrentItem();
-        if (item != null && item.hasItemMeta() && ITEM_NAME.equals(item.getItemMeta().displayName())) {
+        if (item != null && item.hasItemMeta() && item.getItemMeta().hasDisplayName() && ITEM_NAME.equals(item.getItemMeta().displayName())) {
             if (e.getClickedInventory() == e.getWhoClicked().getInventory()) {
                 e.setCancelled(true);
             }

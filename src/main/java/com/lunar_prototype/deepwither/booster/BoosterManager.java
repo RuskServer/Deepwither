@@ -55,13 +55,48 @@ public class BoosterManager implements IManager {
     }
 
     private void save(UUID uuid, BoosterData data) {
-        String query = "INSERT INTO player_boosters (uuid, multiplier, end_time) VALUES (?, ?, ?) ON CONFLICT(uuid) DO UPDATE SET multiplier = excluded.multiplier, end_time = excluded.end_time";
-        try (java.sql.Connection conn = db.getConnection();
-             PreparedStatement ps = conn.prepareStatement(query)) {
-            ps.setString(1, uuid.toString());
-            ps.setDouble(2, data.multiplier);
-            ps.setLong(3, data.endTime);
-            ps.executeUpdate();
+        String uuidStr = uuid.toString();
+        try (java.sql.Connection conn = db.getConnection()) {
+            // 存在チェック
+            boolean exists = false;
+            try (PreparedStatement checkPs = conn.prepareStatement("SELECT 1 FROM player_boosters WHERE uuid = ?")) {
+                checkPs.setString(1, uuidStr);
+                try (ResultSet rs = checkPs.executeQuery()) {
+                    exists = rs.next();
+                }
+            }
+
+            if (exists) {
+                // UPDATE
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE player_boosters SET multiplier = ?, end_time = ? WHERE uuid = ?")) {
+                    ps.setDouble(1, data.multiplier);
+                    ps.setLong(2, data.endTime);
+                    ps.setString(3, uuidStr);
+                    ps.executeUpdate();
+                }
+            } else {
+                // INSERT
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO player_boosters (uuid, multiplier, end_time) VALUES (?, ?, ?)")) {
+                    ps.setString(1, uuidStr);
+                    ps.setDouble(2, data.multiplier);
+                    ps.setLong(3, data.endTime);
+                    ps.executeUpdate();
+                } catch (SQLException e) {
+                    if (e.getSQLState().startsWith("23")) {
+                        try (PreparedStatement ps = conn.prepareStatement(
+                                "UPDATE player_boosters SET multiplier = ?, end_time = ? WHERE uuid = ?")) {
+                            ps.setDouble(1, data.multiplier);
+                            ps.setLong(2, data.endTime);
+                            ps.setString(3, uuidStr);
+                            ps.executeUpdate();
+                        }
+                    } else {
+                        throw e;
+                    }
+                }
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }

@@ -45,7 +45,7 @@ public class ExplosionUtil {
         world.spawnParticle(Particle.GLOW, location, 100, 2.0, 2.0, 2.0, 0.05);
 
         // 2. ダメージとデバフ (半径1〜5mのリング状)
-        double baseDamage = 10.0;
+        double baseDamage = 5.0; // 遠距離ダメージ属性が乗るようになったため、基礎ダメージを半減 (10.0 -> 5.0)
         double multiplier = 1.2;
         double finalDamage = baseDamage * multiplier;
 
@@ -55,13 +55,21 @@ public class ExplosionUtil {
             
             double dist = entity.getLocation().distance(location);
             if (dist >= 1.0 && dist <= 5.0) {
-                // ダメージ適用 (防御無視 p=true)
+                // 無敵時間チェック (多段ヒット防止)
+                if (living.getNoDamageTicks() > 10) continue;
+
+                // ダメージ適用 (防御無視 p=true, 遠距離判定)
                 DamageContext ctx = new DamageContext(caster, living, DeepwitherDamageEvent.DamageType.PHYSICAL, finalDamage);
                 ctx.setTrueDamage(true);
+                ctx.setProjectile(true);
+                ctx.setWeaponStatType(com.lunar_prototype.deepwither.StatType.PROJECTILE_DAMAGE);
                 Deepwither.getInstance().getDamageProcessor().process(ctx);
 
                 // 鈍足付与 (SLOW 2, 100 ticks)
                 living.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 100, 1));
+
+                // 無敵時間を付与
+                living.setNoDamageTicks(10);
             }
         }
     }

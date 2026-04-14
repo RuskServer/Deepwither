@@ -48,8 +48,8 @@ public class VanguardSkeleton extends CustomMob {
 
     @Override
     public void onTick() {
-        // AI行動: 2秒おきに距離に応じた技を発動 (60 -> 40 に短縮)
-        if (getTicksLived() % 40 == 0) {
+        // AI行動: 1.25秒おきに技を発動
+        if (getTicksLived() % 25 == 0) {
             LivingEntity target = getTarget();
             if (target != null) {
                 double dist = entity.getLocation().distance(target.getLocation());
@@ -85,13 +85,13 @@ public class VanguardSkeleton extends CustomMob {
 
     @Override
     public void onDamaged(LivingEntity attacker, DeepwitherDamageEvent event) {
-        // 30%の確率でガード (ダメージ50%カット)
-        if (random.nextDouble() < 0.3) {
+        // 45%の確率でガード (30% -> 45%)
+        if (random.nextDouble() < 0.45) {
             event.setDamage(event.getDamage() * 0.5);
             entity.getWorld().playSound(entity.getLocation(), Sound.ITEM_SHIELD_BLOCK, 1.0f, 1.2f);
             entity.getWorld().spawnParticle(Particle.BLOCK, entity.getLocation().add(0, 1, 0), 10, Bukkit.createBlockData(Material.IRON_BLOCK));
 
-            // 追加: リポスト (反撃)
+            // リポスト (反撃)
             if (attacker != null && entity.getLocation().distance(attacker.getLocation()) < 4.0) {
                 performRiposte(attacker);
             }

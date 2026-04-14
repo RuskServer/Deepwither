@@ -58,27 +58,59 @@ public class AttributeManager implements IManager {
         PlayerAttributeData data = get(uuid);
         if (data == null) return;
 
-        try (Connection conn = db.getConnection();
-             PreparedStatement ps = conn.prepareStatement("""
-            INSERT INTO player_attributes (
-                uuid, total_points, str, vit, mnd, "int", agi
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(uuid) DO UPDATE SET
-                total_points = excluded.total_points,
-                str = excluded.str,
-                vit = excluded.vit,
-                mnd = excluded.mnd,
-                "int" = excluded."int",
-                agi = excluded.agi
-        """)) {
-            ps.setString(1, uuid.toString());
-            ps.setInt(2, data.getRemainingPoints());
-            ps.setInt(3, data.getAllocated(StatType.STR));
-            ps.setInt(4, data.getAllocated(StatType.VIT));
-            ps.setInt(5, data.getAllocated(StatType.MND));
-            ps.setInt(6, data.getAllocated(StatType.INT));
-            ps.setInt(7, data.getAllocated(StatType.AGI));
-            ps.executeUpdate();
+        try (Connection conn = db.getConnection()) {
+            // 存在チェック
+            boolean exists = false;
+            try (PreparedStatement checkPs = conn.prepareStatement("SELECT 1 FROM player_attributes WHERE uuid = ?")) {
+                checkPs.setString(1, uuid.toString());
+                try (ResultSet rs = checkPs.executeQuery()) {
+                    exists = rs.next();
+                }
+            }
+
+            if (exists) {
+                // UPDATE
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE player_attributes SET total_points = ?, str = ?, vit = ?, mnd = ?, \"int\" = ?, agi = ? WHERE uuid = ?")) {
+                    ps.setInt(1, data.getRemainingPoints());
+                    ps.setInt(2, data.getAllocated(StatType.STR));
+                    ps.setInt(3, data.getAllocated(StatType.VIT));
+                    ps.setInt(4, data.getAllocated(StatType.MND));
+                    ps.setInt(5, data.getAllocated(StatType.INT));
+                    ps.setInt(6, data.getAllocated(StatType.AGI));
+                    ps.setString(7, uuid.toString());
+                    ps.executeUpdate();
+                }
+            } else {
+                // INSERT
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO player_attributes (uuid, total_points, str, vit, mnd, \"int\", agi) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+                    ps.setString(1, uuid.toString());
+                    ps.setInt(2, data.getRemainingPoints());
+                    ps.setInt(3, data.getAllocated(StatType.STR));
+                    ps.setInt(4, data.getAllocated(StatType.VIT));
+                    ps.setInt(5, data.getAllocated(StatType.MND));
+                    ps.setInt(6, data.getAllocated(StatType.INT));
+                    ps.setInt(7, data.getAllocated(StatType.AGI));
+                    ps.executeUpdate();
+                } catch (SQLException e) {
+                    if (e.getSQLState().startsWith("23")) {
+                        try (PreparedStatement ps = conn.prepareStatement(
+                                "UPDATE player_attributes SET total_points = ?, str = ?, vit = ?, mnd = ?, \"int\" = ?, agi = ? WHERE uuid = ?")) {
+                            ps.setInt(1, data.getRemainingPoints());
+                            ps.setInt(2, data.getAllocated(StatType.STR));
+                            ps.setInt(3, data.getAllocated(StatType.VIT));
+                            ps.setInt(4, data.getAllocated(StatType.MND));
+                            ps.setInt(5, data.getAllocated(StatType.INT));
+                            ps.setInt(6, data.getAllocated(StatType.AGI));
+                            ps.setString(7, uuid.toString());
+                            ps.executeUpdate();
+                        }
+                    } else {
+                        throw e;
+                    }
+                }
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }

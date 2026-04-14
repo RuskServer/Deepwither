@@ -59,8 +59,8 @@ dependencies {
     // Libraries to be bundled (同梱対象に戻す)
     compileOnly("com.github.NuVotifier:NuVotifier:2.7.2")
     compileOnly("com.github.retrooper:packetevents-spigot:2.11.0")
-    implementation("io.github.toxicity188:bettermodel:1.15.0")
-    implementation("com.discordsrv:discordsrv:1.28.0")
+    compileOnly("io.github.toxicity188:bettermodel:1.15.0")
+    compileOnly("com.discordsrv:discordsrv:1.28.0")
 
     testImplementation("com.github.NuVotifier:NuVotifier:2.7.2")
     testImplementation("com.github.retrooper:packetevents-spigot:2.11.0")

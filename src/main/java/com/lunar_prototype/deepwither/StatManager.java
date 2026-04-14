@@ -285,8 +285,8 @@ public class StatManager implements IManager, IStatManager {
                         double critChanceVal = total.getFlat(StatType.CRIT_CHANCE);
                         total.setFlat(StatType.CRIT_CHANCE, critChanceVal + points * 0.2);
                         double speedVal = total.getFlat(StatType.MOVE_SPEED);
-                        // 5ポイント毎に 0.0125 (1ポイントあたり0.0025相当) 加算
-                        total.setFlat(StatType.MOVE_SPEED, speedVal + (points / 5) * 0.0125);
+                        // 10ポイント毎に 0.0125 (1ポイントあたり平均0.00125相当、バニラ比1.25%) 加算
+                        total.setFlat(StatType.MOVE_SPEED, speedVal + (points / 10) * 0.0125);
                     }
                 }
             }
@@ -358,7 +358,13 @@ public class StatManager implements IManager, IStatManager {
             syncAttribute(player, Attribute.ATTACK_SPEED, modifierValue);
         }
 
-        syncAttribute(player, Attribute.ENTITY_INTERACTION_RANGE, stats.getFinal(StatType.REACH));
+        double reachBonus = stats.getFinal(StatType.REACH);
+        // リーチ上限の設定 (Base 3.0 + Bonus 2.0 = 5.0 を最大とする)
+        double maxReachBonus = 2.0;
+        if (reachBonus > maxReachBonus) {
+            reachBonus = maxReachBonus;
+        }
+        syncAttribute(player, Attribute.ENTITY_INTERACTION_RANGE, reachBonus);
 
         double speedBonus = stats.getFinal(StatType.MOVE_SPEED);
 
@@ -369,6 +375,14 @@ public class StatManager implements IManager, IStatManager {
                 speedBonus = speedBonus * (1.0 - reductionFactor);
             }
         }
+
+        // 移動速度上限の設定 (Base 0.1 + Bonus 0.2 = 0.3 を最大とする)
+        // 0.3はバニラの約3倍の速度
+        double maxBonus = 0.2;
+        if (speedBonus > maxBonus) {
+            speedBonus = maxBonus;
+        }
+
         syncAttribute(player, Attribute.MOVEMENT_SPEED, speedBonus);
     }
 

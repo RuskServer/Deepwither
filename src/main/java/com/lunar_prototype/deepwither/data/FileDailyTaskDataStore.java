@@ -49,16 +49,48 @@ public class FileDailyTaskDataStore implements DailyTaskDataStore, IManager {
 
     @Override
     public void saveTaskData(DailyTaskData data) {
+        String uuidStr = data.getPlayerId().toString();
         String json = db.getGson().toJson(data);
-        try (java.sql.Connection conn = db.getConnection();
-             PreparedStatement ps = conn.prepareStatement(
-                     "INSERT INTO player_daily_tasks (uuid, data_json) VALUES (?, ?) " +
-                             "ON CONFLICT(uuid) DO UPDATE SET data_json = excluded.data_json")) {
-            ps.setString(1, data.getPlayerId().toString());
-            ps.setString(2, json);
-            ps.executeUpdate();
+        try (java.sql.Connection conn = db.getConnection()) {
+            // 存在チェック
+            boolean exists = false;
+            try (PreparedStatement checkPs = conn.prepareStatement("SELECT 1 FROM player_daily_tasks WHERE uuid = ?")) {
+                checkPs.setString(1, uuidStr);
+                try (ResultSet rs = checkPs.executeQuery()) {
+                    exists = rs.next();
+                }
+            }
+
+            if (exists) {
+                // UPDATE
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE player_daily_tasks SET data_json = ? WHERE uuid = ?")) {
+                    ps.setString(1, json);
+                    ps.setString(2, uuidStr);
+                    ps.executeUpdate();
+                }
+            } else {
+                // INSERT
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO player_daily_tasks (uuid, data_json) VALUES (?, ?)")) {
+                    ps.setString(1, uuidStr);
+                    ps.setString(2, json);
+                    ps.executeUpdate();
+                } catch (SQLException e) {
+                    if (e.getSQLState().startsWith("23")) {
+                        try (PreparedStatement ps = conn.prepareStatement(
+                                "UPDATE player_daily_tasks SET data_json = ? WHERE uuid = ?")) {
+                            ps.setString(1, json);
+                            ps.setString(2, uuidStr);
+                            ps.executeUpdate();
+                        }
+                    } else {
+                        throw e;
+                    }
+                }
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
-}
+    }

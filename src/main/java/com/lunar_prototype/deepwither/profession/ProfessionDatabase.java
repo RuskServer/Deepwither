@@ -1,39 +1,44 @@
 package com.lunar_prototype.deepwither.profession;
 
 import com.lunar_prototype.deepwither.DatabaseManager;
+import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
-import java.sql.*;
+import org.bukkit.entity.Player;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
-import org.bukkit.plugin.java.JavaPlugin;
 
 @DependsOn({DatabaseManager.class})
 public class ProfessionDatabase implements IManager {
 
-    private final JavaPlugin plugin;
+    private final Deepwither plugin;
     private final DatabaseManager db;
 
-    public ProfessionDatabase(JavaPlugin plugin, DatabaseManager db) {
+    public ProfessionDatabase(Deepwither plugin, DatabaseManager db) {
         this.plugin = plugin;
         this.db = db;
     }
 
     @Override
-    public void init() {
-        // テーブル作成は DatabaseManager で行うため、ここでは特になし
-        // 必要ならキャッシュの構築などをここで行う
-    }
+    public void init() throws Exception {}
+
+    @Override
+    public void shutdown() {}
 
     /**
-     * プレイヤーのデータをロード
+     * プレイヤーの職業データをロード
      */
     public PlayerProfessionData loadPlayer(UUID playerId) {
         PlayerProfessionData data = new PlayerProfessionData(playerId);
         String query = "SELECT profession_type, experience FROM player_professions WHERE player_id = ?";
 
-        // connection ではなく db.getConnection() を使用
         try (Connection conn = db.getConnection();
              PreparedStatement ps = conn.prepareStatement(query)) {
             ps.setString(1, playerId.toString());
@@ -52,63 +57,58 @@ public class ProfessionDatabase implements IManager {
         return data;
     }
 
-        /**
+    /**
+     * プレイヤーのデータを保存
+     */
+    public void savePlayer(PlayerProfessionData data) {
+        try (Connection conn = db.getConnection()) {
+            conn.setAutoCommit(false); // トランザクション開始
+            try {
+                String checkQuery = "SELECT 1 FROM player_professions WHERE player_id = ? AND profession_type = ?";
+                String updateQuery = "UPDATE player_professions SET experience = ? WHERE player_id = ? AND profession_type = ?";
+                String insertQuery = "INSERT INTO player_professions (player_id, profession_type, experience) VALUES (?, ?, ?)";
 
-         * プレイヤーのデータを保存
-
-         */
-
-        public void savePlayer(PlayerProfessionData data) {
-
-            String query = "INSERT INTO player_professions (player_id, profession_type, experience) VALUES (?, ?, ?) " +
-                           "ON CONFLICT(player_id, profession_type) DO UPDATE SET experience = excluded.experience";
-
-    
-
-            try (Connection conn = db.getConnection()) {
-
-                try (PreparedStatement ps = conn.prepareStatement(query)) {
-
-                    conn.setAutoCommit(false); // トランザクション開始
-
-    
+                try (PreparedStatement checkPs = conn.prepareStatement(checkQuery);
+                     PreparedStatement updatePs = conn.prepareStatement(updateQuery);
+                     PreparedStatement insertPs = conn.prepareStatement(insertQuery)) {
 
                     for (Map.Entry<ProfessionType, Long> entry : data.getAllExperience().entrySet()) {
+                        String uuidStr = data.getPlayerId().toString();
+                        String profType = entry.getKey().name();
+                        long exp = entry.getValue();
 
-                        ps.setString(1, data.getPlayerId().toString());
+                        // 存在チェック
+                        checkPs.setString(1, uuidStr);
+                        checkPs.setString(2, profType);
+                        boolean exists = false;
+                        try (ResultSet rs = checkPs.executeQuery()) {
+                            exists = rs.next();
+                        }
 
-                        ps.setString(2, entry.getKey().name());
-
-                        ps.setLong(3, entry.getValue());
-
-                        ps.addBatch();
-
+                        if (exists) {
+                            // UPDATE
+                            updatePs.setLong(1, exp);
+                            updatePs.setString(2, uuidStr);
+                            updatePs.setString(3, profType);
+                            updatePs.executeUpdate();
+                        } else {
+                            // INSERT
+                            insertPs.setString(1, uuidStr);
+                            insertPs.setString(2, profType);
+                            insertPs.setLong(3, exp);
+                            insertPs.executeUpdate();
+                        }
                     }
-
-    
-
-                    ps.executeBatch();
-
-                    conn.commit();
-
-                    conn.setAutoCommit(true);
-
-                } catch (SQLException e) {
-
-                    conn.rollback();
-
-                    throw e;
-
                 }
-
+                conn.commit();
             } catch (SQLException e) {
-
-                plugin.getLogger().log(Level.SEVERE, "Failed to save profession data for " + data.getPlayerId(), e);
-
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
             }
-
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to save profession data for " + data.getPlayerId(), e);
         }
-
     }
-
-    
+}

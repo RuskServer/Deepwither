@@ -75,17 +75,33 @@ public class FastTravelManager implements IManager, Listener {
         playerPoints.put(regionId, point);
 
         plugin.get(DatabaseManager.class).runAsync(conn -> {
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "INSERT INTO player_fast_travel (uuid, point_id, world, x, y, z, yaw, pitch) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(uuid, point_id) DO NOTHING")) {
-                ps.setString(1, player.getUniqueId().toString());
-                ps.setString(2, regionId);
-                ps.setString(3, location.getWorld().getName());
-                ps.setDouble(4, location.getX());
-                ps.setDouble(5, location.getY());
-                ps.setDouble(6, location.getZ());
-                ps.setFloat(7, location.getYaw());
-                ps.setFloat(8, location.getPitch());
-                ps.executeUpdate();
+            try {
+                // H2等で ON CONFLICT が正しく機能しない場合があるため、存在チェックを行ってから INSERT する
+                try (PreparedStatement checkPs = conn.prepareStatement("SELECT 1 FROM player_fast_travel WHERE uuid = ? AND point_id = ?")) {
+                    checkPs.setString(1, player.getUniqueId().toString());
+                    checkPs.setString(2, regionId);
+                    try (ResultSet rs = checkPs.executeQuery()) {
+                        if (rs.next()) return; // 既に存在する場合は何もしない
+                    }
+                }
+
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO player_fast_travel (uuid, point_id, world, x, y, z, yaw, pitch) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
+                    ps.setString(1, player.getUniqueId().toString());
+                    ps.setString(2, regionId);
+                    ps.setString(3, location.getWorld().getName());
+                    ps.setDouble(4, location.getX());
+                    ps.setDouble(5, location.getY());
+                    ps.setDouble(6, location.getZ());
+                    ps.setFloat(7, location.getYaw());
+                    ps.setFloat(8, location.getPitch());
+                    ps.executeUpdate();
+                } catch (java.sql.SQLException e) {
+                    // 他のスレッドで同時に解放された場合の重複エラー (Unique constraint violation) は無視する
+                    if (!e.getSQLState().startsWith("23")) {
+                        e.printStackTrace();
+                    }
+                }
             } catch (Exception e) {
                 e.printStackTrace();
             }

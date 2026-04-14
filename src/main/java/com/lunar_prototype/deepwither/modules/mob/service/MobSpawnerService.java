@@ -15,6 +15,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.*;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
@@ -176,22 +177,38 @@ public class MobSpawnerService implements IManager {
 
         // --- CustomMob Framework Check ---
         var customMobManager = DW.get(com.lunar_prototype.deepwither.modules.mob.framework.CustomMobManager.class);
-        
-        // MythicMobとしてスポーンさせる
-        var activeMob = MythicBukkit.inst().getMobManager().spawnMob(mobId, loc);
-        if (activeMob == null || activeMob.getEntity() == null) return null;
-        org.bukkit.entity.Entity entity = activeMob.getEntity().getBukkitEntity();
-        if (!(entity instanceof org.bukkit.entity.LivingEntity livingEntity)) return entity.getUniqueId();
+        LivingEntity livingEntity = null;
+        String mobDisplayName = mobId;
 
-        // もし独自フレームワークに同じIDが登録されていれば、ロジックをバインドする
+        // 1. 独自フレームワークでのスポーンを試行
         if (customMobManager != null && customMobManager.hasRegistration(mobId)) {
-            customMobManager.bindExistingEntity(livingEntity, mobId);
+            var customMob = customMobManager.spawnMob(mobId, loc);
+            if (customMob != null && customMob.getEntity() instanceof LivingEntity le) {
+                livingEntity = le;
+                mobDisplayName = (le.customName() != null) ? net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(le.customName()) : mobId;
+            }
         }
 
-        int spawnLevel = calculateSpawnLevel(loc, tier);
-        String mobDisplayName = activeMob.getType().getDisplayName().get();
-        if (mobDisplayName == null) mobDisplayName = mobId;
+        // 2. 独自モブとしてスポーンしなかった場合、MythicMobとしてスポーンさせる
+        if (livingEntity == null) {
+            var activeMob = MythicBukkit.inst().getMobManager().spawnMob(mobId, loc);
+            if (activeMob == null || activeMob.getEntity() == null) return null;
+            
+            org.bukkit.entity.Entity entity = activeMob.getEntity().getBukkitEntity();
+            if (!(entity instanceof LivingEntity le)) return entity.getUniqueId();
+            
+            livingEntity = le;
+            mobDisplayName = activeMob.getType().getDisplayName().get();
+            if (mobDisplayName == null) mobDisplayName = mobId;
 
+            // もし独自フレームワークに同じIDが登録されていれば、ロジックをバインドする
+            if (customMobManager != null && customMobManager.hasRegistration(mobId)) {
+                customMobManager.bindExistingEntity(livingEntity, mobId);
+            }
+        }
+
+        // 3. レベルと特性の適用
+        int spawnLevel = calculateSpawnLevel(loc, tier);
         levelService.applyLevel(livingEntity, mobDisplayName, spawnLevel);
         traitService.applyRandomTraits(livingEntity, spawnLevel);
 

@@ -1,6 +1,7 @@
 package com.lunar_prototype.deepwither.modules.combat;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.api.DeepwitherPartyAPI;
 import com.lunar_prototype.deepwither.core.engine.IModule;
 import com.lunar_prototype.deepwither.core.engine.ServiceContainer;
 import com.lunar_prototype.deepwither.DamageManager;
@@ -53,9 +54,10 @@ public class CombatModule implements IModule {
             PlayerSettingsManager settingsManager = container.get(PlayerSettingsManager.class);
             ChargeManager chargeManager = container.get(ChargeManager.class);
             com.lunar_prototype.deepwither.core.UIManager uiManager = container.get(com.lunar_prototype.deepwither.core.UIManager.class);
+            DeepwitherPartyAPI partyAPI = container.get(DeepwitherPartyAPI.class);
 
             // DamageProcessor
-            DamageProcessor damageProcessor = new DamageProcessor(plugin, statManager, uiManager);
+            DamageProcessor damageProcessor = new DamageProcessor(plugin, statManager, uiManager, partyAPI);
             container.registerInstance(DamageProcessor.class, damageProcessor);
 
             // WeaponMechanicManager

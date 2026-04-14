@@ -386,13 +386,47 @@ public class DatabaseManager implements IManager, IDatabaseManager {
     // YAMLの代わりにオブジェクトを保存できる汎用メソッド
     public void saveConfig(String key, Object data) {
         String json = gson.toJson(data);
-        try (Connection connection = getConnection();
-             PreparedStatement ps = connection.prepareStatement(
-                "INSERT INTO generic_configs (config_key, config_value) VALUES (?, ?) ON CONFLICT(config_key) DO UPDATE SET config_value = excluded.config_value")) {
-            ps.setString(1, key);
-            ps.setString(2, json);
-            ps.executeUpdate();
-        } catch (SQLException e) { e.printStackTrace(); }
+        try (Connection connection = getConnection()) {
+            // 存在チェック
+            boolean exists = false;
+            try (PreparedStatement checkPs = connection.prepareStatement("SELECT 1 FROM generic_configs WHERE config_key = ?")) {
+                checkPs.setString(1, key);
+                try (ResultSet rs = checkPs.executeQuery()) {
+                    exists = rs.next();
+                }
+            }
+
+            if (exists) {
+                // UPDATE
+                try (PreparedStatement ps = connection.prepareStatement(
+                        "UPDATE generic_configs SET config_value = ? WHERE config_key = ?")) {
+                    ps.setString(1, json);
+                    ps.setString(2, key);
+                    ps.executeUpdate();
+                }
+            } else {
+                // INSERT
+                try (PreparedStatement ps = connection.prepareStatement(
+                        "INSERT INTO generic_configs (config_key, config_value) VALUES (?, ?)")) {
+                    ps.setString(1, key);
+                    ps.setString(2, json);
+                    ps.executeUpdate();
+                } catch (SQLException e) {
+                    if (e.getSQLState().startsWith("23")) {
+                        try (PreparedStatement ps = connection.prepareStatement(
+                                "UPDATE generic_configs SET config_value = ? WHERE config_key = ?")) {
+                            ps.setString(1, json);
+                            ps.setString(2, key);
+                            ps.executeUpdate();
+                        }
+                    } else {
+                        throw e;
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     public <T> T loadConfig(String key, Type typeOfT) {
