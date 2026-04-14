@@ -90,16 +90,21 @@ public class ChargeWarriorSkill implements ISkillLogic {
                             );
                             Deepwither.getInstance().getDamageProcessor().process(ctx);
 
-                            // ヒット済みに追加
+                            // ヒット済みに追加し、突進を即座に終了させる
                             hitEntities.add(target.getUniqueId());
-
-                            // ノックバック処理: 突進の進行方向に弾き飛ばす (THE 高速移動感)
+                            
+                            // ノックバック処理
                             Vector targetKnockback = direction.clone().multiply(0.8).add(new Vector(0, 0.3, 0));
                             target.setVelocity(targetKnockback);
                             
-                            // ヒット音
+                            // ヒット音と演出
                             target.getWorld().playSound(target.getLocation(), Sound.ENTITY_PLAYER_ATTACK_STRONG, 0.8f, 1.2f);
                             target.getWorld().spawnParticle(Particle.SWEEP_ATTACK, target.getLocation().add(0, 1, 0), 1);
+
+                            // 敵にヒットしたので突進をキャンセル
+                            caster.setVelocity(new Vector(0, 0, 0)); // 慣性をリセット
+                            this.cancel();
+                            return; // ループを抜ける
                         }
                     }
                 }
