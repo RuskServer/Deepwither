@@ -86,3 +86,7 @@ commands:
     description: 日本語変換のON/OFFを切り替えます
     aliases: [ jp, conv ]
     usage: /japan
+  minidungeon:
+    description: ミニダンジョンの管理コマンド
+    permission: deepwither.admin
+    usage: /minidungeon <args>
