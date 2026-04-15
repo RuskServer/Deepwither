@@ -45,7 +45,7 @@ public class LevelManager implements IManager {
                     SkillData skilldata = Deepwither.getInstance().getSkilltreeManager().load(uuid);
                     if (skilldata != null) {
                         skilldata.setSkillPoint(skilldata.getSkillPoint() + 2);
-                        Deepwither.getInstance().getSkilltreeManager().save(uuid, skilldata);
+                        Deepwither.getInstance().getSkilltreeManager().saveAsync(uuid, skilldata);
                     }
                 }
                 DW.cache().getCache(uuid).set(PlayerLevelData.class, data);
@@ -154,7 +154,7 @@ public class LevelManager implements IManager {
             SkillData skilldata = Deepwither.getInstance().getSkilltreeManager().load(uuid);
             if (skilldata != null) {
                 skilldata.setSkillPoint(skilldata.getSkillPoint() + skillPoints);
-                Deepwither.getInstance().getSkilltreeManager().save(uuid, skilldata);
+                Deepwither.getInstance().getSkilltreeManager().saveAsync(uuid, skilldata);
             }
         }
 
@@ -197,10 +197,10 @@ public class LevelManager implements IManager {
 
         updatePlayerDisplay(player);
 
-        Deepwither.getInstance().getSkilltreeManager().resetSkillTree(player.getUniqueId());
+        Deepwither.getInstance().getSkilltreeManager().resetSkillTreeAsync(player.getUniqueId());
         SkillData skilldata = Deepwither.getInstance().getSkilltreeManager().load(player.getUniqueId());
         skilldata.setSkillPoint(0);
-        Deepwither.getInstance().getSkilltreeManager().save(player.getUniqueId(), skilldata);
+        Deepwither.getInstance().getSkilltreeManager().saveAsync(player.getUniqueId(), skilldata);
         PlayerAttributeData data = Deepwither.getInstance().getAttributeManager().get(uuid);
         if (data != null) {
             for (StatType type : StatType.values()) {

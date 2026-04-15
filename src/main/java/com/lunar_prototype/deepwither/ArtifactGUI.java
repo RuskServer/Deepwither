@@ -7,6 +7,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -20,6 +21,7 @@ public class ArtifactGUI implements IManager {
     public static final int[] ARTIFACT_SLOTS = {3, 4, 5};
     public static final int[] BORDER_SLOTS = {0, 1, 2, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17};
     public static final int BACKPACK_SLOT = 13;
+    public static final int MENU_SLOT = 17;
 
     private static final Component TITLE = Component.text("Artifacts & Equipment", NamedTextColor.GOLD)
             .decoration(TextDecoration.ITALIC, false);
@@ -91,6 +93,13 @@ public class ArtifactGUI implements IManager {
         if (savedBackpack != null) {
             inv.setItem(BACKPACK_SLOT, savedBackpack);
         }
+
+        ItemStack backButton = new ItemStack(Material.BARRIER);
+        ItemMeta backMeta = backButton.getItemMeta();
+        backMeta.displayName(Component.text("メインメニューへ", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
+        backMeta.lore(List.of(Component.text("Main Menu に戻ります。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false)));
+        backButton.setItemMeta(backMeta);
+        inv.setItem(MENU_SLOT, backButton);
 
         return inv;
     }

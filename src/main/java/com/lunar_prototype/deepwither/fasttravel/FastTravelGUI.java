@@ -26,6 +26,8 @@ public class FastTravelGUI implements Listener {
     private final FastTravelManager manager;
     private static final Component TITLE = Component.text("Fast Travel", NamedTextColor.DARK_GRAY).decoration(TextDecoration.ITALIC, false);
     private static final int GRID_START = 10;
+    private static final int BACK_SLOT = 49;
+    private static final int CLOSE_SLOT = 53;
 
     public FastTravelGUI(Deepwither plugin, FastTravelManager manager) {
         this.plugin = plugin;
@@ -50,7 +52,8 @@ public class FastTravelGUI implements Listener {
             count++;
         }
 
-        inv.setItem(49, createCloseButton());
+        inv.setItem(BACK_SLOT, createBackButton());
+        inv.setItem(CLOSE_SLOT, createCloseButton());
 
         player.openInventory(inv);
         player.playSound(player.getLocation(), Sound.BLOCK_SHULKER_BOX_OPEN, 0.5f, 1f);
@@ -80,6 +83,15 @@ public class FastTravelGUI implements Listener {
         return item;
     }
 
+    private ItemStack createBackButton() {
+        ItemStack item = new ItemStack(Material.ARROW);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("メインメニューへ", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
+        meta.lore(List.of(Component.text("Main Menu に戻ります。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false)));
+        item.setItemMeta(meta);
+        return item;
+    }
+
     private void fillBackground(Inventory inv) {
         ItemStack glass = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
         ItemMeta meta = glass.getItemMeta();
@@ -99,12 +111,19 @@ public class FastTravelGUI implements Listener {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.AIR || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
 
-        if (clicked.getType() == Material.BARRIER) {
+        int slot = event.getSlot();
+        if (slot == BACK_SLOT) {
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+            player.closeInventory();
+            Deepwither.getInstance().getMenuGUI().open(player);
+            return;
+        }
+
+        if (slot == CLOSE_SLOT || clicked.getType() == Material.BARRIER) {
             player.closeInventory();
             return;
         }
 
-        int slot = event.getSlot();
         Collection<FastTravelPoint> playerPoints = manager.getPlayerPoints(player);
         int count = 0;
         for (FastTravelPoint point : playerPoints) {

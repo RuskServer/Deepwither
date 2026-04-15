@@ -9,6 +9,7 @@ import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -27,6 +28,7 @@ import java.util.*;
 public class SkillAssignmentGUI implements Listener, IManager {
 
     private static final Component GUI_TITLE = Component.text("スキル割り当て", NamedTextColor.DARK_GREEN);
+    private static final int BACK_SLOT = 49;
 
     /** 現在選択中のスキルID（2ステップ操作用） */
     private final Map<UUID, String> selectedSkillMap = new HashMap<>();
@@ -115,6 +117,7 @@ public class SkillAssignmentGUI implements Listener, IManager {
         }
 
         // ---- 操作ガイド（slot 53） ----
+        gui.setItem(BACK_SLOT, buildBackButton());
         gui.setItem(53, buildGuideItem());
 
         player.openInventory(gui);
@@ -291,6 +294,19 @@ public class SkillAssignmentGUI implements Listener, IManager {
         return item;
     }
 
+    private ItemStack buildBackButton() {
+        ItemStack item = new ItemStack(Material.BARRIER);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("メインメニューへ戻る", NamedTextColor.RED)
+                .decoration(TextDecoration.ITALIC, false));
+        meta.lore(List.of(
+                Component.text("Main Menu に戻ります", NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false)
+        ));
+        item.setItemMeta(meta);
+        return item;
+    }
+
     // ===== クリックイベント =====
 
     @EventHandler
@@ -299,6 +315,8 @@ public class SkillAssignmentGUI implements Listener, IManager {
         if (!event.getView().title().equals(GUI_TITLE)) return;
 
         event.setCancelled(true);
+
+        int slot = event.getSlot();
 
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || !clicked.hasItemMeta()) return;
@@ -329,6 +347,13 @@ public class SkillAssignmentGUI implements Listener, IManager {
                     pageAction = Integer.parseInt(plain.substring(5).trim());
                 } catch (NumberFormatException ignored) {}
             }
+        }
+
+        if (slot == BACK_SLOT) {
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+            player.closeInventory();
+            Deepwither.getInstance().getMenuGUI().open(player);
+            return;
         }
         
         // ---- ページ切り替えボタン ----

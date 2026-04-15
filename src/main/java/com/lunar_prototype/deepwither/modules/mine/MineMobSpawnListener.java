@@ -20,7 +20,7 @@ public class MineMobSpawnListener implements Listener {
         }
 
         switch (event.getSpawnReason()) {
-            case NATURAL, PATROL, CHUNK_GEN, REINFORCEMENTS -> {
+            case NATURAL, PATROL, REINFORCEMENTS -> {
                 if (mineService.shouldSuppressMobSpawns(event.getLocation())) {
                     event.setCancelled(true);
                 }

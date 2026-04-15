@@ -110,14 +110,18 @@ public class ResetGUI implements Listener, IManager {
 
     private void processSkillReset(Player player) {
         UUID uuid = player.getUniqueId();
-        // スキルツリーのリセット
-        int totalSkillPoints = Deepwither.getInstance().getSkilltreeManager().resetSkillTree(uuid);
-        // セットされているスキルの解除
-        Deepwither.getInstance().getSkillSlotManager().clear(uuid);
+        Deepwither.getInstance().getSkilltreeManager().resetSkillTreeAsync(uuid).thenAccept(totalSkillPoints ->
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    // セットされているスキルの解除
+                    Deepwither.getInstance().getSkillSlotManager().clear(uuid);
 
-        player.sendMessage(Component.text("[忘却] ", NamedTextColor.GREEN, TextDecoration.BOLD).append(Component.text("習得したスキルを全て忘れ、スキルポイント ", NamedTextColor.WHITE)).append(Component.text(totalSkillPoints, NamedTextColor.YELLOW)).append(Component.text(" を取り戻しました。", NamedTextColor.WHITE)));
-        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_WORK_CLERIC, 1f, 1f);
-        player.playSound(player.getLocation(), Sound.ITEM_TOTEM_USE, 0.5f, 2f);
+                    player.sendMessage(Component.text("[忘却] ", NamedTextColor.GREEN, TextDecoration.BOLD)
+                            .append(Component.text("習得したスキルを全て忘れ、スキルポイント ", NamedTextColor.WHITE))
+                            .append(Component.text(totalSkillPoints, NamedTextColor.YELLOW))
+                            .append(Component.text(" を取り戻しました。", NamedTextColor.WHITE)));
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_WORK_CLERIC, 1f, 1f);
+                    player.playSound(player.getLocation(), Sound.ITEM_TOTEM_USE, 0.5f, 2f);
+                }));
     }
 
     private ItemStack createItem(Material mat, Component name, Component... lore) {

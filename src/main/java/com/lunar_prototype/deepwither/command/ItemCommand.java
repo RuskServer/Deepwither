@@ -172,8 +172,9 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 1 && args[0].equalsIgnoreCase("skilltreeresets")) {
             UUID uuid = player.getUniqueId();
-            plugin.getSkilltreeManager().resetSkillTree(uuid);
-            player.sendMessage(Component.text("スキルツリーをリセットしました。", NamedTextColor.GOLD));
+            plugin.getSkilltreeManager().resetSkillTreeAsync(uuid).thenAccept(totalSkillPoints ->
+                    Bukkit.getScheduler().runTask(plugin, () ->
+                            player.sendMessage(Component.text("スキルツリーをリセットしました。", NamedTextColor.GOLD))));
             return true;
         }
 
@@ -205,14 +206,20 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
             try {
                 int amount = Integer.parseInt(args[1]);
                 UUID uuid = player.getUniqueId();
-                SkillData data = plugin.getSkilltreeManager().load(uuid);
-                if (data != null) {
+                plugin.getSkilltreeManager().loadAsync(uuid).thenAccept(data -> {
+                    if (data == null) {
+                        Bukkit.getScheduler().runTask(plugin, () ->
+                                player.sendMessage(Component.text("スキルツリーデータが読み込まれていません。", NamedTextColor.RED)));
+                        return;
+                    }
+
                     data.setSkillPoint(data.getSkillPoint() + amount);
-                    plugin.getSkilltreeManager().save(uuid, data);
-                    player.sendMessage(Component.text("スキルポイントを ", NamedTextColor.GREEN).append(Component.text(amount, NamedTextColor.YELLOW)).append(Component.text(" 付与しました。", NamedTextColor.GREEN)));
-                } else {
-                    player.sendMessage(Component.text("スキルツリーデータが読み込まれていません。", NamedTextColor.RED));
-                }
+                    plugin.getSkilltreeManager().saveAsync(uuid, data);
+                    Bukkit.getScheduler().runTask(plugin, () ->
+                            player.sendMessage(Component.text("スキルポイントを ", NamedTextColor.GREEN)
+                                    .append(Component.text(amount, NamedTextColor.YELLOW))
+                                    .append(Component.text(" 付与しました。", NamedTextColor.GREEN))));
+                });
             } catch (NumberFormatException e) {
                 player.sendMessage(Component.text("数値を入力してください。", NamedTextColor.RED));
             }

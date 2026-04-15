@@ -9,6 +9,7 @@ import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -32,7 +33,8 @@ public class MailInboxGUI implements Listener, IManager {
     private static final Component GUI_TITLE = Component.text("メールボックス", NamedTextColor.DARK_AQUA).decoration(TextDecoration.ITALIC, false);
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm");
     private static final int GUI_SIZE = 54;
-    private static final int CLOSE_SLOT = 49;
+    private static final int BACK_SLOT = 49;
+    private static final int CLOSE_SLOT = 53;
     private final NamespacedKey mailIdKey;
     private final Deepwither plugin;
     private MailManager mailManager;
@@ -65,6 +67,7 @@ public class MailInboxGUI implements Listener, IManager {
         }
 
         inv.setItem(4, createInfoItem(mails.size(), Math.max(0, mails.size() - displayCount)));
+        inv.setItem(BACK_SLOT, createBackButton());
         inv.setItem(CLOSE_SLOT, createCloseButton());
 
         player.openInventory(inv);
@@ -78,6 +81,13 @@ public class MailInboxGUI implements Listener, IManager {
         e.setCancelled(true);
 
         if (!(e.getWhoClicked() instanceof Player player)) {
+            return;
+        }
+
+        if (e.getRawSlot() == BACK_SLOT) {
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+            player.closeInventory();
+            Deepwither.getInstance().getMenuGUI().open(player);
             return;
         }
 
@@ -167,6 +177,15 @@ public class MailInboxGUI implements Listener, IManager {
         ItemMeta meta = item.getItemMeta();
         meta.displayName(Component.text("閉じる", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
         meta.lore(List.of(Component.text("メールボックスを閉じます。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false)));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createBackButton() {
+        ItemStack item = new ItemStack(Material.ARROW);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("メインメニューへ", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
+        meta.lore(List.of(Component.text("Main Menu に戻ります。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false)));
         item.setItemMeta(meta);
         return item;
     }

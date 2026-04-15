@@ -6,6 +6,7 @@ import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.core.CacheManager;
 import com.lunar_prototype.deepwither.core.PlayerCache;
 import com.lunar_prototype.deepwither.data.DailyTaskData;
+import com.lunar_prototype.deepwither.SkillData;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
@@ -62,7 +63,10 @@ public class PlayerDataManager implements IManager {
     public void saveData(UUID uuid) {
         plugin.getLevelManager().save(uuid);
         plugin.getAttributeManager().save(uuid);
-        plugin.getSkilltreeManager().save(uuid, plugin.getSkilltreeManager().load(uuid));
+        SkillData skillData = DW.cache().getCache(uuid).get(SkillData.class);
+        if (skillData != null) {
+            plugin.getSkilltreeManager().saveAsync(uuid, skillData);
+        }
         
         // 追加
         DailyTaskData taskData = DW.cache().getCache(uuid).get(DailyTaskData.class);

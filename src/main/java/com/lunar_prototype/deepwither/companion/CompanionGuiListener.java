@@ -53,6 +53,13 @@ public class CompanionGuiListener implements Listener, IManager {
             return;
         }
 
+        if (slot == CompanionGui.SLOT_BACK) {
+            p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 1, 1f);
+            p.closeInventory();
+            Deepwither.getInstance().getMenuGUI().open(p);
+            return;
+        }
+
         if (slot == CompanionGui.SLOT_ITEM) {
             if (manager.isSpawned(p)) {
                 p.sendMessage(Component.text("コンパニオン召喚中は装備を変更できません。", NamedTextColor.RED));

@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither.party;
 
+import com.lunar_prototype.deepwither.Deepwither;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -76,6 +77,7 @@ public class PartyTagGUI implements Listener {
         // 決定ボタン
         inv.setItem(48, createCancelButton());
         inv.setItem(50, createConfirmButton());
+        inv.setItem(52, createMenuButton());
 
         player.openInventory(inv);
     }
@@ -140,6 +142,15 @@ public class PartyTagGUI implements Listener {
         return item;
     }
 
+    private ItemStack createMenuButton() {
+        ItemStack item = new ItemStack(Material.ARROW);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("メインメニューへ", NamedTextColor.RED, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false));
+        meta.lore(List.of(Component.text("Main Menu に戻ります。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false)));
+        item.setItemMeta(meta);
+        return item;
+    }
+
     @EventHandler
     public void onInventoryClick(InventoryClickEvent e) {
         if (!e.getView().title().equals(TITLE)) return;
@@ -193,6 +204,13 @@ public class PartyTagGUI implements Listener {
         if (slot == 48) {
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
             partyGUI.open(player);
+            return;
+        }
+
+        if (slot == 52) {
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+            player.closeInventory();
+            Deepwither.getInstance().getMenuGUI().open(player);
             return;
         }
 

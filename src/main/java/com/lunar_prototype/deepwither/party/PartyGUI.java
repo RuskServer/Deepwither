@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither.party;
 
+import com.lunar_prototype.deepwither.Deepwither;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -87,6 +88,7 @@ public class PartyGUI implements Listener {
         }
 
         inv.setItem(49, createCloseButton());
+        inv.setItem(53, createBackButton());
 
         player.openInventory(inv);
     }
@@ -273,6 +275,15 @@ public class PartyGUI implements Listener {
         return item;
     }
 
+    private ItemStack createBackButton() {
+        ItemStack item = new ItemStack(Material.ARROW);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("メインメニューへ", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
+        meta.lore(List.of(Component.text("Main Menu に戻ります。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false)));
+        item.setItemMeta(meta);
+        return item;
+    }
+
     private void fillBackground(Inventory inv) {
         ItemStack glass = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
         ItemMeta meta = glass.getItemMeta();
@@ -339,6 +350,10 @@ public class PartyGUI implements Listener {
             case 49:
                 // 閉じる
                 player.closeInventory();
+                break;
+            case 53:
+                player.closeInventory();
+                Deepwither.getInstance().getMenuGUI().open(player);
                 break;
             default:
                 // パーティーへの参加リクエスト (19-25のスロット)

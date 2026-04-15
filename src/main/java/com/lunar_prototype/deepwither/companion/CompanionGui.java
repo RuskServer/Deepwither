@@ -18,6 +18,7 @@ public class CompanionGui {
     public static final String GUI_TITLE = "Companion Settings";
     public static final int SLOT_ITEM = 13; // 真ん中 (9x3の場合)
     public static final int SLOT_ACTION = 22; // 下段真ん中
+    public static final int SLOT_BACK = 26; // 右下
 
     public CompanionGui(CompanionManager manager) {
         this.manager = manager;
@@ -42,6 +43,14 @@ public class CompanionGui {
 
         // 3. アクションボタン (召喚/帰還)
         updateActionButton(inv, player);
+
+        // 4. メインメニューへ戻る
+        ItemStack backButton = new ItemStack(Material.BARRIER);
+        ItemMeta backMeta = backButton.getItemMeta();
+        backMeta.displayName(Component.text("メインメニューへ", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
+        backMeta.lore(List.of(Component.text("Main Menu に戻ります。", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false)));
+        backButton.setItemMeta(backMeta);
+        inv.setItem(SLOT_BACK, backButton);
 
         player.openInventory(inv);
     }

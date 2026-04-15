@@ -60,6 +60,7 @@ public class MaterialGuideGUI implements Listener {
         if (page < totalPages - 1) {
             inv.setItem(50, createNavButton("次のページ", Material.ARROW, page + 1));
         }
+        inv.setItem(51, createBackButton());
 
         player.openInventory(inv);
     }
@@ -82,6 +83,15 @@ public class MaterialGuideGUI implements Listener {
         return item;
     }
 
+    private ItemStack createBackButton() {
+        ItemStack item = new ItemStack(Material.ARROW);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("メインメニューへ", NamedTextColor.RED, TextDecoration.BOLD));
+        meta.getPersistentDataContainer().set(new org.bukkit.NamespacedKey(plugin, "gui_action"), PersistentDataType.STRING, "menu");
+        item.setItemMeta(meta);
+        return item;
+    }
+
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (event.getView().title().toString().contains("素材入手ガイド")) {
@@ -96,7 +106,13 @@ public class MaterialGuideGUI implements Listener {
                 int page = meta.getPersistentDataContainer().get(new org.bukkit.NamespacedKey(plugin, "gui_page"), PersistentDataType.INTEGER);
                 open(player, page);
             } else if (meta.getPersistentDataContainer().has(new org.bukkit.NamespacedKey(plugin, "gui_action"), PersistentDataType.STRING)) {
-                player.closeInventory();
+                String action = meta.getPersistentDataContainer().get(new org.bukkit.NamespacedKey(plugin, "gui_action"), PersistentDataType.STRING);
+                if ("menu".equals(action)) {
+                    player.closeInventory();
+                    plugin.getMenuGUI().open(player);
+                } else {
+                    player.closeInventory();
+                }
             }
         }
     }

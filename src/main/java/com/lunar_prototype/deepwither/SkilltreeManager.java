@@ -211,7 +211,7 @@ public class SkilltreeManager implements IManager {
 
         // 4. パッシブステータスの再計算とデータの保存
         data.recalculatePassiveStats(treeConfig);
-        save(uuid, data);
+        saveAsync(uuid, data);
 
         // 5. 返却されたポイントを返す
         return totalSpentPoints;

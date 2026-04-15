@@ -7,6 +7,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -61,6 +62,14 @@ public class ArtifactGUIListener implements Listener, IManager {
         ItemStack currentItem = event.getCurrentItem();
 
         if (clickedInventory.equals(event.getView().getTopInventory())) {
+            if (slot == ArtifactGUI.MENU_SLOT) {
+                event.setCancelled(true);
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+                player.closeInventory();
+                Deepwither.getInstance().getMenuGUI().open(player);
+                return;
+            }
+
             boolean isArtifact = isArtifactSlot(slot);
             boolean isBackpack = (slot == ArtifactGUI.BACKPACK_SLOT);
 

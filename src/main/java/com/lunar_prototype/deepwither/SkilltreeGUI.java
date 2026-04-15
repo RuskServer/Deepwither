@@ -398,7 +398,7 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
 
         data.unlock(skillId);
         data.setSkillPoint(data.getSkillPoint() - 1);
-        skilltreeManager.save(player.getUniqueId(), data);
+        skilltreeManager.saveAsync(player.getUniqueId(), data);
 
         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 2f);
         player.sendMessage(Component.text("スキル習得: " + skillNode.get("name"), NamedTextColor.GREEN));
