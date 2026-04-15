@@ -200,7 +200,6 @@ public class DamageManager implements Listener, IManager {
                 e.setDamage(e.getDamage() * (1.0 - reduction));
             }
         }
-
         // 2. Oath Shield / Luminary Veil (球体シールド内での遠距離・魔法攻撃無効化)
         // 近くのプレイヤーが "oath_shield" オーラを持っており、被害者がその範囲内にいるか確認
         Collection<Player> shieldUsers = e.getVictim().getWorld().getPlayers();

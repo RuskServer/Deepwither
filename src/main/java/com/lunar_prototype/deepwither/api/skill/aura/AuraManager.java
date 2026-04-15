@@ -167,6 +167,11 @@ public class AuraManager implements IManager {
                 AuraInstance aura = auraIterator.next().getValue();
                 
                 if (aura.isExpired()) {
+                    // 終了時処理呼び出し
+                    if (aura.getId().equals("abyss_curse")) {
+                        onAbyssCurseExpire(entity, aura);
+                    }
+
                     auraIterator.remove();
                     continue;
                 }
@@ -175,11 +180,41 @@ public class AuraManager implements IManager {
                 if (aura.getId().equals("lava_burn")) {
                     processLavaBurn(entity, aura);
                 }
+                
+                // 深淵の呪い: abyss_curse
+                if (aura.getId().equals("abyss_curse")) {
+                    processAbyssCurse(entity, aura);
+                }
             }
             
             if (userAuras.isEmpty()) {
                 topIterator.remove();
             }
+        }
+    }
+
+    private void processAbyssCurse(LivingEntity victim, AuraInstance aura) {
+        // 1秒ごとに視覚演出（黒煙）を表示
+        if (System.currentTimeMillis() % 1000 < 50) {
+            victim.getWorld().spawnParticle(org.bukkit.Particle.LARGE_SMOKE, victim.getLocation().add(0, 1, 0), 3, 0.2, 0.4, 0.2, 0.02);
+            victim.getWorld().spawnParticle(org.bukkit.Particle.WITCH, victim.getLocation().add(0, 1.2, 0), 2, 0.3, 0.3, 0.3, 0.01);
+        }
+    }
+
+    private void onAbyssCurseExpire(LivingEntity victim, AuraInstance aura) {
+        Double initialDamage = aura.getMetadata("initial_damage");
+        LivingEntity attacker = aura.getMetadata("attacker");
+        
+        if (initialDamage != null && initialDamage > 0) {
+            // ヒット時のダメージの 10% を追加ダメージとして付与
+            double bonusDamage = initialDamage * 0.1;
+            
+            DamageContext ctx = new DamageContext(attacker, victim, DeepwitherDamageEvent.DamageType.MAGIC, bonusDamage);
+            Deepwither.getInstance().getDamageProcessor().process(ctx);
+            
+            // 爆発演出
+            victim.getWorld().spawnParticle(org.bukkit.Particle.EXPLOSION, victim.getLocation().add(0, 1, 0), 1);
+            victim.getWorld().playSound(victim.getLocation(), org.bukkit.Sound.ENTITY_GENERIC_EXPLODE, 0.4f, 1.5f);
         }
     }
 

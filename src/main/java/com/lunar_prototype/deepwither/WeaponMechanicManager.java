@@ -112,7 +112,68 @@ public class WeaponMechanicManager implements IManager {
             
             // ヒットパーティクル
             context.getVictim().getWorld().spawnParticle(Particle.LAVA, context.getVictim().getLocation().add(0, 1, 0), 4, 0.2, 0.2, 0.2, 0.05);
+        } else if ("ocean".equals(effect)) {
+            handleOceanEffect(context);
+        } else if ("abyss".equals(effect)) {
+            handleAbyssEffect(context);
         }
+    }
+
+    private void handleOceanEffect(DamageContext context) {
+        Player attacker = context.getAttackerAsPlayer();
+        if (attacker == null) return;
+
+        CooldownManager cm = plugin.get(CooldownManager.class);
+        if (cm == null) return;
+
+        String skillId = "weapon_effect_ocean";
+        if (cm.isOnCooldown(attacker.getUniqueId(), skillId, 8.0, 1.0)) {
+            return;
+        }
+
+        LivingEntity victim = context.getVictim();
+        
+        // 鈍足 IV を 1.5秒付与
+        victim.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 30, 3));
+        
+        // ノックバック (上方向にも少し飛ばす)
+        Vector dir = attacker.getLocation().getDirection().normalize().multiply(0.8).setY(0.3);
+        victim.setVelocity(dir);
+
+        // 視覚・音響演出
+        victim.getWorld().spawnParticle(Particle.SPLASH, victim.getLocation().add(0, 1, 0), 20, 0.5, 0.5, 0.5, 0.1);
+        victim.getWorld().playSound(victim.getLocation(), Sound.ENTITY_PLAYER_SPLASH_HIGH_SPEED, 1.0f, 1.2f);
+
+        cm.setCooldown(attacker.getUniqueId(), skillId);
+    }
+
+    private void handleAbyssEffect(DamageContext context) {
+        Player attacker = context.getAttackerAsPlayer();
+        if (attacker == null) return;
+
+        CooldownManager cm = plugin.get(CooldownManager.class);
+        if (cm == null) return;
+
+        String skillId = "weapon_effect_abyss";
+        if (cm.isOnCooldown(attacker.getUniqueId(), skillId, 8.0, 1.0)) {
+            return;
+        }
+
+        LivingEntity victim = context.getVictim();
+        
+        // 深淵の呪いを付与 (5秒間)
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("attacker", attacker);
+        metadata.put("initial_damage", context.getFinalDamage()); // 終了時ダメージ計算用
+        
+        plugin.getAuraManager().addAura(victim, "abyss_curse", 100, metadata);
+
+        // 視覚・音響演出
+        victim.getWorld().spawnParticle(Particle.DRAGON_BREATH, victim.getLocation().add(0, 1, 0), 15, 0.4, 0.4, 0.4, 0.05);
+        victim.getWorld().playSound(victim.getLocation(), Sound.ENTITY_WITHER_AMBIENT, 0.6f, 0.5f);
+        
+        uiManager.of(attacker).combatAction("深淵の侵食", NamedTextColor.DARK_PURPLE);
+        cm.setCooldown(attacker.getUniqueId(), skillId);
     }
 
     private void handleHalberdAttack(Player attacker, LivingEntity target, double damage, DamageProcessor processor) {
