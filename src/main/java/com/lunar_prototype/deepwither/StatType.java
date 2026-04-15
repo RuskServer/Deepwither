@@ -78,7 +78,7 @@ public enum StatType {
     public String getIcon() {
         return icon;
     }
-    
+
     public boolean isCoreAttribute() {
         return this == STR || this == VIT || this == AGI || this == INT || this == MND;
     }
@@ -96,8 +96,6 @@ class LoreBuilder {
     private static final Component SEPARATOR = Component.text("----------------------------", NamedTextColor.GRAY)
             .decoration(TextDecoration.STRIKETHROUGH, true)
             .decoration(TextDecoration.ITALIC, false);
-
-
 
     /**
      * 2列レイアウト用のメインビルドロジック（修正版）

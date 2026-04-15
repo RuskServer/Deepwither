@@ -409,19 +409,16 @@ public class StatManager implements IManager, IStatManager {
             return false;
 
         ItemMeta meta = item.getItemMeta();
-        if (meta.hasLore()) {
-            List<Component> lore = meta.lore();
-
-            if (lore != null) {
-                for (Component line : lore) {
-                    String strippedLine = PlainTextComponentSerializer.plainText().serialize(line);
-                    if (strippedLine.contains("カテゴリ:オフハンド装備"))
-                        return true;
-                }
-            }
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        
+        // PDCからアイテムタイプを取得 (ItemFactory.ITEM_TYPE_KEYを使用)
+        String itemType = pdc.get(ItemFactory.ITEM_TYPE_KEY, PersistentDataType.STRING);
+        
+        if (itemType != null && itemType.equals("オフハンド装備")) {
+            return true;
         }
-        return false;
 
+        return false;
     }
 
     private static boolean shouldReadStats(ItemStack item) {
