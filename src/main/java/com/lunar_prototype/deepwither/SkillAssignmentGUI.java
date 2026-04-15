@@ -28,7 +28,7 @@ import java.util.*;
 public class SkillAssignmentGUI implements Listener, IManager {
 
     private static final Component GUI_TITLE = Component.text("スキル割り当て", NamedTextColor.DARK_GREEN);
-    private static final int BACK_SLOT = 49;
+    private static final int BACK_SLOT = 40;
 
     /** 現在選択中のスキルID（2ステップ操作用） */
     private final Map<UUID, String> selectedSkillMap = new HashMap<>();
@@ -110,15 +110,15 @@ public class SkillAssignmentGUI implements Listener, IManager {
             gui.setItem(44, buildNavButton("次へ", "page:" + (currentPage + 1)));
         }
 
-        // ---- スキルスロット（行5, slots 45〜48） ----
+        // ---- スキルスロット（行5, slots 45〜53） ----
         SkillSlotData slotData = slotManager.get(uuid);
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 9; i++) {
             gui.setItem(45 + i, buildSlotItem(player, i, slotData));
         }
 
-        // ---- 操作ガイド（slot 53） ----
+        // ---- 操作ガイド（slot 41） ----
         gui.setItem(BACK_SLOT, buildBackButton());
-        gui.setItem(53, buildGuideItem());
+        gui.setItem(41, buildGuideItem());
 
         player.openInventory(gui);
     }
@@ -380,7 +380,7 @@ public class SkillAssignmentGUI implements Listener, IManager {
         }
 
         // ---- スロットをクリック ----
-        if (slotIndex >= 0 && slotIndex < 4) {
+        if (slotIndex >= 0 && slotIndex < 9) {
             // 右クリック → スロットクリア
             if (event.getClick() == ClickType.RIGHT) {
                 slotManager.setSlot(uuid, slotIndex, null);

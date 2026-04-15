@@ -23,7 +23,6 @@ import java.util.*;
 public class SkillCastSessionManager implements Listener, IManager {
     private final Set<UUID> skillModePlayers = new HashSet<>();
     private final Map<UUID, Integer> previousSlotMap = new HashMap<>();
-    private final Map<UUID, Integer> skillSlotOffsetMap = new HashMap<>();
     private final JavaPlugin plugin;
     private BukkitTask actionBarTask;
 
@@ -46,10 +45,6 @@ public class SkillCastSessionManager implements Listener, IManager {
                     UUID uuid = player.getUniqueId();
                     if (!skillModePlayers.contains(uuid)) continue;
 
-                    int heldSlot = player.getInventory().getHeldItemSlot();
-                    int offset = (heldSlot >= 0 && heldSlot <= 3) ? 1 : 0;
-                    skillSlotOffsetMap.put(uuid, offset);
-
                     SkillSlotData slotData = slotManager.get(uuid);
 
                     // 詠唱中の場合は専用メッセージを表示
@@ -62,21 +57,17 @@ public class SkillCastSessionManager implements Listener, IManager {
 
                     Component actionBar = Component.empty();
 
-                    for (int i = 0; i < 4; i++) {
+                    for (int i = 0; i < 9; i++) {
                         String skillId = slotData.getSkill(i);
-                        int displayKey = i + 1 + offset;
+                        int displayKey = i + 1;
 
-                        if (displayKey > 9) continue;
+                        if (skillId == null) {
+                            continue;
+                        }
 
                         Component keyPrefix = Component.text("[", NamedTextColor.GRAY)
                                 .append(Component.text(displayKey, NamedTextColor.YELLOW))
                                 .append(Component.text("] ", NamedTextColor.GRAY));
-
-                        if (skillId == null) {
-                            actionBar = actionBar.append(keyPrefix)
-                                    .append(Component.text("----  ", NamedTextColor.DARK_GRAY));
-                            continue;
-                        }
 
                         SkillDefinition def = skillLoader.get(skillId);
                         if (def == null) {
@@ -131,7 +122,6 @@ public class SkillCastSessionManager implements Listener, IManager {
     private void exitSkillMode(Player player) {
         UUID uuid = player.getUniqueId();
         skillModePlayers.remove(uuid);
-        skillSlotOffsetMap.remove(uuid);
 
         // 詠唱中であればキャンセル
         Deepwither.getInstance().getSkillCastManager().cancelCast(player);
@@ -170,11 +160,10 @@ public class SkillCastSessionManager implements Listener, IManager {
             return;
         }
 
-        int offset = skillSlotOffsetMap.getOrDefault(uuid, 0);
         int rawSlot = event.getNewSlot();
-        int skillIndex = rawSlot - offset;
+        int skillIndex = rawSlot;
 
-        if (skillIndex < 0 || skillIndex >= 4) {
+        if (skillIndex < 0 || skillIndex >= 9) {
             // スキルスロット外を選択した場合はスキルモードを終了
             exitSkillMode(player);
             return;

@@ -77,26 +77,26 @@ public class SkillSlotManager implements IManager {
 }
 
 class SkillSlotData {
-    private final List<String> slots; // インデックス0 = スロット1, 最大4スロット想定
+    private final List<String> slots; // インデックス0 = スロット1, 最大9スロット想定
 
     public SkillSlotData() {
-        this.slots = new ArrayList<>(Arrays.asList(null, null, null, null));
+        this.slots = new ArrayList<>(Arrays.asList(new String[9]));
     }
 
     public SkillSlotData(List<String> loaded) {
-        this.slots = new ArrayList<>(Arrays.asList(null, null, null, null));
-        for (int i = 0; i < Math.min(4, loaded.size()); i++) {
+        this.slots = new ArrayList<>(Arrays.asList(new String[9]));
+        for (int i = 0; i < Math.min(9, loaded.size()); i++) {
             slots.set(i, loaded.get(i));
         }
     }
 
     public void setSlot(int slotIndex, String skillId) {
-        if (slotIndex < 0 || slotIndex >= 4) return;
+        if (slotIndex < 0 || slotIndex >= 9) return;
         slots.set(slotIndex, skillId);
     }
 
     public String getSkill(int slotIndex) {
-        if (slotIndex < 0 || slotIndex >= 4) return null;
+        if (slotIndex < 0 || slotIndex >= 9) return null;
         return slots.get(slotIndex);
     }
 
