@@ -108,6 +108,7 @@ public class BlizzardSkill implements ISkillLogic {
                 // entitiesInRingNearOrigin{min=1;max=5}
                 if (distSq >= 1.0 * 1.0 && distSq <= 5.0 * 5.0) {
                     DamageContext ctx = new DamageContext(caster, target, DeepwitherDamageEvent.DamageType.MAGIC, damage);
+                    ctx.addTag("AOE");
                     Deepwither.getInstance().getDamageProcessor().process(ctx);
                 }
             }

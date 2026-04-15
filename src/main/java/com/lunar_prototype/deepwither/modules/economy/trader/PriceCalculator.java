@@ -33,6 +33,9 @@ public class PriceCalculator {
 
         PERCENT_PRICE_MULTIPLIERS.put(StatType.MAX_HEALTH, 100.0);
         PERCENT_PRICE_MULTIPLIERS.put(StatType.CRIT_DAMAGE, 75.0);
+        // AoE/Burstは%ボーナス系なのでpercent価格乗数に登録
+        PERCENT_PRICE_MULTIPLIERS.put(StatType.MAGIC_AOE_BONUS, 60.0);
+        PERCENT_PRICE_MULTIPLIERS.put(StatType.MAGIC_BURST_BONUS, 60.0);
     }
 
     /**

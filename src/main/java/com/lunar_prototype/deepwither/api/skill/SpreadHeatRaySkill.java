@@ -54,6 +54,7 @@ public class SpreadHeatRaySkill implements ISkillLogic {
                     // ダメージ適用 (12.5) - 威力調整: 25.0 -> 12.5
                     double damage = 12.5;
                     DamageContext ctx = new DamageContext(caster, target, DeepwitherDamageEvent.DamageType.MAGIC, damage);
+                    ctx.addTag("AOE");
                     Deepwither.getInstance().getDamageProcessor().process(ctx);
                     
                     // 無敵時間を付与

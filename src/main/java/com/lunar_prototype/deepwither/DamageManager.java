@@ -265,6 +265,49 @@ public class DamageManager implements Listener, IManager {
         victim.getWorld().spawnParticle(Particle.BLOCK, victim.getLocation().add(0, 1.2, 0), 5, 0.2, 0.2, 0.2, 0.1, Bukkit.createBlockData(Material.REDSTONE_BLOCK));
     }
 
+    /**
+     * Blood Reversal Field (反転血界) デバフ処理。
+     * 攻撃者に blood_reversal_field オーラがある場合、
+     * 対象との距離が半径以内なら攻撃者自身の最大HPの20%を自傷する。
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBloodReversalField(DeepwitherDamageEvent e) {
+        if (!(e.getAttacker() instanceof Player attacker)) return;
+        LivingEntity victim = e.getVictim();
+        if (victim == null || victim.isDead()) return;
+        // 自傷ダメージは対象外
+        if (victim.equals(attacker)) return;
+
+        com.lunar_prototype.deepwither.api.skill.aura.AuraManager auraManager = Deepwither.getInstance().getAuraManager();
+        com.lunar_prototype.deepwither.api.skill.aura.AuraManager.AuraInstance aura =
+                auraManager.getAuraInstance(attacker, "blood_reversal_field");
+        if (aura == null) return;
+
+        // 距離チェック
+        Double radius = aura.getMetadata("target_radius");
+        if (radius == null) radius = com.lunar_prototype.deepwither.api.skill.BloodReversalFieldSkill.TARGET_RADIUS;
+        if (attacker.getLocation().distanceSquared(victim.getLocation()) > radius * radius) return;
+
+        // 最大HPの20%自傷 (True Damage)
+        Double selfDmgPct = aura.getMetadata("self_damage_percent");
+        if (selfDmgPct == null) selfDmgPct = com.lunar_prototype.deepwither.api.skill.BloodReversalFieldSkill.SELF_DAMAGE_PERCENT;
+
+        double maxHp = Deepwither.getInstance().getStatManager().getActualMaxHealth(attacker);
+        double selfDamage = maxHp * selfDmgPct;
+
+        com.lunar_prototype.deepwither.core.damage.DamageContext selfCtx =
+                new com.lunar_prototype.deepwither.core.damage.DamageContext(
+                        null, attacker, com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent.DamageType.MAGIC, selfDamage);
+        selfCtx.setTrueDamage(true);
+        Deepwither.getInstance().getDamageProcessor().process(selfCtx);
+
+        // 演出
+        attacker.getWorld().spawnParticle(Particle.DUST, attacker.getLocation().add(0, 1, 0),
+                12, 0.3, 0.5, 0.3, 0,
+                new Particle.DustOptions(org.bukkit.Color.RED, 1.8f));
+        attacker.getWorld().playSound(attacker.getLocation(), Sound.ENTITY_PLAYER_HURT, 0.6f, 0.5f);
+    }
+
 
 
 

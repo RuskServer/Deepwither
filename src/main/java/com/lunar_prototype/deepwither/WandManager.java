@@ -131,8 +131,8 @@ public class WandManager implements Listener, IManager {
                     if (target instanceof LivingEntity livingTarget && target != shooter) {
 
                         // ダメージ適用 (DamageProcessorへ直接委譲)
+                        // MAGICタイプで渡す。isProjectileは物理弓専用なので設定しない
                         com.lunar_prototype.deepwither.core.damage.DamageContext context = new com.lunar_prototype.deepwither.core.damage.DamageContext(shooter, livingTarget, com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent.DamageType.MAGIC, finalDamage);
-                        context.setProjectile(true);
                         Deepwither.getInstance().getDamageProcessor().process(context);
 
                         // ヒット演出

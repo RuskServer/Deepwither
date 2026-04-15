@@ -162,6 +162,7 @@ public class BlackGravitySkill implements ISkillLogic {
                     for (Entity e : damageTargets) {
                         if (e instanceof LivingEntity vic && !e.equals(caster)) {
                             DamageContext ctx = new DamageContext(caster, vic, DeepwitherDamageEvent.DamageType.MAGIC, 25.0 + (level * 5.0));
+                            ctx.addTag("AOE");
                             Deepwither.getInstance().getDamageProcessor().process(ctx);
                         }
                     }

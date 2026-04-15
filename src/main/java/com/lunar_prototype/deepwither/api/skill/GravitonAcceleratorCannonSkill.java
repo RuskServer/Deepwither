@@ -115,6 +115,7 @@ public class GravitonAcceleratorCannonSkill implements ISkillLogic {
                 double damage = 10.0 * 4.0; // ベース10と仮定して4倍
                 DamageContext ctx = new DamageContext(caster, target, DeepwitherDamageEvent.DamageType.MAGIC, damage);
                 ctx.setWeaponStatType(com.lunar_prototype.deepwither.StatType.MAGIC_DAMAGE);
+                ctx.addTag("BURST");
                 Deepwither.getInstance().getDamageProcessor().process(ctx);
 
                 // ヒット時演出

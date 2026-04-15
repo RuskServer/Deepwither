@@ -211,6 +211,7 @@ public class FrostSalvoSkill implements ISkillLogic {
                 for (Entity entity : targets) {
                     if (entity instanceof LivingEntity living && !entity.equals(caster)) {
                         DamageContext ctx = new DamageContext(caster, living, DeepwitherDamageEvent.DamageType.MAGIC, finalDamage);
+                        ctx.addTag("AOE");
                         Deepwither.getInstance().getDamageProcessor().process(ctx);
                         
                         // デバフ付与

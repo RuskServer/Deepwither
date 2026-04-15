@@ -92,7 +92,22 @@ public class DamageProcessor implements IManager {
             
             // 基礎攻撃力加算 (物理/魔法)
             if (context.isMagic()) {
-                damage += attackerStats.getFlat(com.lunar_prototype.deepwither.StatType.MAGIC_DAMAGE);
+                double magicDmg = attackerStats.getFlat(com.lunar_prototype.deepwither.StatType.MAGIC_DAMAGE);
+
+                if (context.hasTag("AOE")) {
+                    damage += magicDmg * 0.6;
+                    // AoEの%ボーナス乗算
+                    double aoePct = attackerStats.getFinal(com.lunar_prototype.deepwither.StatType.MAGIC_AOE_BONUS);
+                    if (aoePct > 0) damage *= (1.0 + aoePct / 100.0);
+                } else if (context.hasTag("BURST")) {
+                    damage += magicDmg * 0.4;
+                    // バーストの%ボーナス乗算
+                    double burstPct = attackerStats.getFinal(com.lunar_prototype.deepwither.StatType.MAGIC_BURST_BONUS);
+                    if (burstPct > 0) damage *= (1.0 + burstPct / 100.0);
+                } else {
+                    // 通常の魔法攻撃は100%加算
+                    damage += magicDmg;
+                }
             } else {
                 damage += attackerStats.getFlat(com.lunar_prototype.deepwither.StatType.ATTACK_DAMAGE);
             }

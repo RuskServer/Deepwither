@@ -104,7 +104,7 @@ public class LightningBurstSkill implements ISkillLogic {
                     double finalDamage = baseDamage * multiplier;
 
                     DamageContext ctx = new DamageContext(caster, victim, DeepwitherDamageEvent.DamageType.MAGIC, finalDamage);
-                    // BURSTタグなどの特殊処理は DamageProcessor 側で判別可能なら追加
+                    ctx.addTag("BURST");
                     Deepwither.getInstance().getDamageProcessor().process(ctx);
                 }
                 

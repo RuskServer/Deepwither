@@ -2,6 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/com.lunar_prototype.deepwither.test.iml" filepath="$PROJECT_DIR$/.idea/modules/com.lunar_prototype.deepwither.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/deepwither.iml" filepath="$PROJECT_DIR$/deepwither.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/deepwither.main.iml" filepath="$PROJECT_DIR$/.idea/modules/deepwither.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/deepwither.test.iml" filepath="$PROJECT_DIR$/.idea/modules/deepwither.test.iml" />
     </modules>

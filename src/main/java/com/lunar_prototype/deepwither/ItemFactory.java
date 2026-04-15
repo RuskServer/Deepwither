@@ -601,7 +601,7 @@ public class ItemFactory implements IManager, IItemFactory {
                     Component.text("         障壁発動時、周囲3ブロックをノックバックし盲目を付与", NamedTextColor.GRAY)
             );
             case "celestial_resonance" -> List.of(
-                    Component.text("2セット: 最大マナ +60, 魔法AoEダメージ +15", NamedTextColor.AQUA),
+                    Component.text("2セット: 最大マナ +60, 魔法AoE強化 +15%", NamedTextColor.AQUA),
                     Component.text("3セット: 魔法攻撃時、マナ75%以上なら魔法ダメージの5%を確定ダメージ化", NamedTextColor.LIGHT_PURPLE),
                     Component.text("         魔法バースト発動時、25%で1回だけ再発動", NamedTextColor.GRAY)
             );
@@ -648,7 +648,7 @@ public class ItemFactory implements IManager, IItemFactory {
         registerArtifactSetEffect("celestial_resonance",
                 statMapOf(new Object[][]{
                         {StatType.MAX_MANA, new double[]{60, 0}},
-                        {StatType.MAGIC_AOE_DAMAGE, new double[]{15, 0}}
+                        {StatType.MAGIC_AOE_BONUS, new double[]{0, 15}}
                 }),
                 null);
         registerArtifactSetWorkflow("celestial_resonance", 3, ArtifactSetTrigger.ATTACK_HIT,

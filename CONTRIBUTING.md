@@ -196,3 +196,104 @@ List<String> clanNames = DW.db().queryList(
 
 このガイドラインに従うことで、Deepwitherのコードベースは堅牢かつ拡張しやすい状態に保たれます。
 Happy Coding!
+
+---
+
+## ⚔️ 戦闘・ダメージシステム (Combat & Damage System)
+
+### 魔法ダメージの設計方針
+
+魔法ダメージは **1本の `MAGIC_DAMAGE` ステータス（実数加算）** に統一されています。
+かつて存在した `MAGIC_AOE_DAMAGE` / `MAGIC_BURST_DAMAGE` の実数系ステータスは廃止済みです。
+
+#### 魔法攻撃力の基礎スケーリング
+
+| 攻撃種別 | MAGIC_DAMAGEの適用率 |
+|---|---|
+| 通常魔法攻撃 | **100%** |
+| AoE魔法攻撃 | **60%** |
+| バースト魔法攻撃 | **40%** |
+
+範囲攻撃は低スケーリングになることで、単体特化と範囲特化のバランスを取っています。
+
+#### %強化ボーナス StatType
+
+| StatType | 説明 | 適用条件 |
+|---|---|---|
+| `MAGIC_AOE_BONUS` | AoE魔法ダメージを%増加 (例: 15 → +15%) | `"AOE"` タグ付きのDamageContext |
+| `MAGIC_BURST_BONUS` | バースト魔法ダメージを%増加 (例: 10 → +10%) | `"BURST"` タグ付きのDamageContext |
+
+#### 計算式（DamageProcessor内）
+
+```
+magicDmg = MAGIC_DAMAGE (flat)
+if (AOEタグ)    damage += magicDmg * 0.60; damage *= (1 + MAGIC_AOE_BONUS / 100)
+if (BURSTタグ)  damage += magicDmg * 0.40; damage *= (1 + MAGIC_BURST_BONUS / 100)
+else            damage += magicDmg         // 通常100%
+```
+
+---
+
+### スキル実装ガイド
+
+#### 新スキル作成の手順
+
+1. `api/skill/` に `XxxSkill.java` を作成し `ISkillLogic` を実装する
+2. `SkillRegistry.java` の `registerAll()` に `register("skill_id", new XxxSkill())` を追加する
+3. スキルのYAML定義（マナ消費・クールダウン・表示名）を `skills.yml` に追加する
+
+#### ダメージ適用のコードパターン
+
+```java
+// ① 通常の魔法攻撃（単体・タグなし）
+DamageContext ctx = new DamageContext(caster, target, DeepwitherDamageEvent.DamageType.MAGIC, damage);
+Deepwither.getInstance().getDamageProcessor().process(ctx);
+
+// ② AoE魔法攻撃（範囲・複数ターゲット） ← AOEタグ必須
+DamageContext ctx = new DamageContext(caster, target, DeepwitherDamageEvent.DamageType.MAGIC, damage);
+ctx.addTag("AOE");
+Deepwither.getInstance().getDamageProcessor().process(ctx);
+
+// ③ バースト魔法攻撃（単体大ダメージ・チャージ系） ← BURSTタグ必須
+DamageContext ctx = new DamageContext(caster, target, DeepwitherDamageEvent.DamageType.MAGIC, damage);
+ctx.addTag("BURST");
+Deepwither.getInstance().getDamageProcessor().process(ctx);
+
+// ④ 自傷ダメージ（ブラッドマジック系・防御貫通）
+DamageContext selfCtx = new DamageContext(null, player, DeepwitherDamageEvent.DamageType.MAGIC, selfDamage);
+selfCtx.setTrueDamage(true);
+Deepwither.getInstance().getDamageProcessor().process(selfCtx);
+```
+
+> **重要**: AoEまたはバースト攻撃を実装する際は **必ず** 対応するタグを付与してください。
+> タグがないと通常(100%)スケーリングとして扱われ、バランスが崩れます。
+
+#### オーラ（バフ/デバフ）の付与
+
+```java
+Map<String, Object> meta = new HashMap<>();
+meta.put("key", value);
+Deepwither.getInstance().getAuraManager().addAura(entity, "aura_id", durationTicks, meta);
+```
+
+オーラの発動効果（攻撃時トリガー等）は `DamageManager.java` に `@EventHandler(DeepwitherDamageEvent)` で追加します。
+
+---
+
+### 既存スキルのタグ対応表
+
+| スキルクラス | スキルID | タグ | 分類理由 |
+|---|---|---|---|
+| `MeteorSkill` | `meteor` | `AOE` | 着弾爆発・半径5ブロック範囲ダメージ |
+| `BlizzardSkill` | `blizzard` | `AOE` | 半径5ブロック継続範囲ダメージ |
+| `DarkStarSkill` | `dark_star` | `AOE` | 着弾爆発・半径3ブロック範囲ダメージ |
+| `BlackGravitySkill` | `black_gravity` | `AOE` | ブラックホール・半径5ブロック範囲ダメージ |
+| `FrostSalvoSkill` | `frost_salvo` | `AOE` | 着弾点から4ブロック範囲ダメージ |
+| `SpreadHeatRaySkill` | `spread_heat_ray` | `AOE` | 5方向拡散弾（マルチターゲット） |
+| `CrimsonCycleSkill` | `crimson_cycle` | `AOE` | 半径5ブロックの全敵に同時ダメージ |
+| `LightningBurstSkill` | `lightning_burst` | `BURST` | 15連射・単体高速集中攻撃 |
+| `GravitonAcceleratorCannonSkill` | `graviton_accelerator_cannon` | `BURST` | 1秒チャージ後の単体大ダメージ砲撃 |
+| `FireballSkill` | `fireball` | なし | 単体着弾（範囲爆発なし） |
+| `HeatRaySkill` | `heat_ray` | なし | 単体ビーム攻撃 |
+| `IceShotSkill` | `ice_shot` | なし | 単体フリーズ弾 |
+

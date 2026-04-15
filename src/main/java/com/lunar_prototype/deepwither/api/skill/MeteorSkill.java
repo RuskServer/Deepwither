@@ -136,8 +136,9 @@ public class MeteorSkill implements ISkillLogic {
                     if (entity instanceof LivingEntity && !entity.getUniqueId().equals(caster.getUniqueId())) {
                         LivingEntity livingTarget = (LivingEntity) entity;
 
-                        // CustomDamage{a=60;m=6.0;t=MAGIC}
+                        // CustomDamage{a=60;m=6.0;t=MAGIC} [AOE]
                         DamageContext ctx = new DamageContext(caster, livingTarget, DeepwitherDamageEvent.DamageType.MAGIC, finalSkillDamage);
+                        ctx.addTag("AOE");
                         Deepwither.getInstance().getDamageProcessor().process(ctx);
 
                         // ignite{ticks=120}

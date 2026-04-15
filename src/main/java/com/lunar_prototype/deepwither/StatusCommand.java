@@ -92,8 +92,8 @@ public class StatusCommand implements CommandExecutor {
                 buildEffectiveHPHover(maxHp, finalStats.getFinal(StatType.MAGIC_RESIST)));
         player.sendMessage(Component.text("  ").append(matk).append(Component.text("   ")).append(mres));
 
-        Component maoeatk = getStatComponent("魔AoE", StatType.MAGIC_AOE_DAMAGE, finalStats, NamedTextColor.LIGHT_PURPLE, false);
-        Component mburstres = getStatComponent("魔バースト", StatType.MAGIC_BURST_DAMAGE, finalStats, NamedTextColor.DARK_AQUA, false);
+        Component maoeatk = getStatComponent("AoE強化", StatType.MAGIC_AOE_BONUS, finalStats, NamedTextColor.LIGHT_PURPLE, true);
+        Component mburstres = getStatComponent("バースト強化", StatType.MAGIC_BURST_BONUS, finalStats, NamedTextColor.DARK_AQUA, true);
         player.sendMessage(Component.text("  ").append(maoeatk).append(Component.text("   ")).append(mburstres));
 
         Component critD = getStatComponent("クリ倍率", StatType.CRIT_DAMAGE, finalStats, NamedTextColor.GOLD, true);

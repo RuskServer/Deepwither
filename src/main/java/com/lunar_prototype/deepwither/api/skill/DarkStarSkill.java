@@ -52,7 +52,7 @@ public class DarkStarSkill implements ISkillLogic {
 
         public DarkStarProjectile(LivingEntity caster, Location spawnLoc, Vector direction) {
             super(caster, spawnLoc, direction);
-            this.speed = 0.5;
+            this.speed = 0.3;
             this.hitboxRadius = 1.2;
             this.maxTicks = 120;
         }
@@ -97,9 +97,9 @@ public class DarkStarSkill implements ISkillLogic {
             }
             
             if (accelerationTicks < 30) {
-                this.speed = Math.min(this.speed + 0.04, 1.8);
+                this.speed = Math.min(this.speed + 0.02, 1.2);
             } else {
-                this.speed = Math.min(this.speed + 0.02, 2.2);
+                this.speed = Math.min(this.speed + 0.01, 1.6);
             }
             
             currentLocation.getWorld().spawnParticle(Particle.FLASH, currentLocation, 1, 0.1, 0.1, 0.1, 0, Color.WHITE);
@@ -128,6 +128,7 @@ public class DarkStarSkill implements ISkillLogic {
                 .map(e -> (LivingEntity) e)
                 .forEach(vic -> {
                     DamageContext ctx = new DamageContext(caster, vic, DeepwitherDamageEvent.DamageType.MAGIC, 25.0);
+                    ctx.addTag("AOE");
                     Deepwither.getInstance().getDamageProcessor().process(ctx);
                     vic.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 100, 1));
                 });
