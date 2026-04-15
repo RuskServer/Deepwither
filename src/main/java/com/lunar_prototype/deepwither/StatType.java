@@ -31,11 +31,9 @@ public enum StatType {
     MOVE_SPEED("移動速度", NamedTextColor.LIGHT_PURPLE, "■"),
     KNOCKBACK_RESISTANCE("ノックバック耐性", NamedTextColor.GRAY, "■"),
     SKILL_POWER("スキル威力", NamedTextColor.AQUA, "■"),
-    WEAR("損耗率", NamedTextColor.AQUA, "■"),
     REACH("リーチ増加", NamedTextColor.AQUA, "■"),
     REDUCES_MOVEMENT_SPEED_DECREASE("移動速度低下軽減", NamedTextColor.AQUA, "■"),
     DROP_RESISTANCE("落下耐性", NamedTextColor.AQUA, "■"),
-    MASTERY("マスタリー", NamedTextColor.GOLD, "■"),
     MAX_MANA("最大マナ", NamedTextColor.AQUA, "☆"),
     COOLDOWN_REDUCTION("クールダウン短縮", NamedTextColor.DARK_GRAY, "⌛"),
     SHIELD_BLOCK_RATE("盾の減衰率", NamedTextColor.LIGHT_PURPLE, "■"),
@@ -95,111 +93,11 @@ public enum StatType {
  */
 class LoreBuilder {
 
-    private static final Component WEAR_LORE_PREFIX = Component.text("損耗率: ", NamedTextColor.GRAY)
-            .decoration(TextDecoration.ITALIC, false);
-    private static final Component MASTERY_LORE_PREFIX = Component.text("マスタリー: ", NamedTextColor.GRAY)
-            .decoration(TextDecoration.ITALIC, false);
     private static final Component SEPARATOR = Component.text("----------------------------", NamedTextColor.GRAY)
             .decoration(TextDecoration.STRIKETHROUGH, true)
             .decoration(TextDecoration.ITALIC, false);
 
-    /**
-     * 既存のアイテムのLoreを読み込み、提供されたStatMapと修理ステータス（損耗率、マスタリー）
-     * に基づいて部分的に更新または行を追加する。
-     *
-     * @param item         アイテムスタック
-     * @param newStats     新しいカスタムステータス (StatMap)
-     * @param wearRate     損耗率
-     * @param masteryLevel マスタリーレベル
-     * @return 更新されたLoreのリスト
-     */
-    public static List<Component> updateExistingLore(ItemStack item, StatMap newStats, double wearRate,
-            int masteryLevel) {
-        ItemMeta meta = item.getItemMeta();
-        // Metaがない、またはLoreがない場合は新規作成（build）へ
-        if (meta == null || !meta.hasLore()) {
-            return build(newStats, false, null, null, null, null, null, null, null, null);
-        }
 
-        List<Component> existingLore = meta.lore();
-        if (existingLore == null) {
-            return build(newStats, false, null, null, null, null, null, null, null, null);
-        }
-
-        List<Component> newLore = new ArrayList<>();
-        LegacyComponentSerializer serializer = LegacyComponentSerializer.legacySection();
-        String separatorLegacy = "§7§m----------------------------";
-
-        // --- 1. 区切り線の位置をすべて特定する ---
-        List<Integer> separatorIndices = new ArrayList<>();
-        for (int i = 0; i < existingLore.size(); i++) {
-            Component line = existingLore.get(i);
-            String legacy = serializer.serialize(line);
-            if (legacy.equals(separatorLegacy) || line.equals(SEPARATOR)) {
-                separatorIndices.add(i);
-            }
-        }
-
-        // 区切り線が2つ未満の場合は構造が特殊なため、安全策として既存buildを呼ぶか、
-        // あるいは構造を維持できないため新規作成する
-        if (separatorIndices.size() < 2) {
-            return build(newStats, false, null, null, null, null, null, null, null, null);
-        }
-
-        // --- 2. セクションの特定 ---
-        // 統計(Stats)セクションは「最後から2番目の区切り線」から「最後の区切り線」の間にあると定義
-        int lastSepIndex = separatorIndices.get(separatorIndices.size() - 1);
-        int secondLastSepIndex = separatorIndices.get(separatorIndices.size() - 2);
-
-        // --- 3. 前半部分（ヘッダー、フレーバー、モディファイア等）をそのままコピー ---
-        // secondLastSepIndex (Statsの前の区切り線) までをコピー
-        for (int i = 0; i <= secondLastSepIndex; i++) {
-            newLore.add(existingLore.get(i));
-        }
-
-        // --- 4. 新しい Stats セクションを挿入 ---
-        for (StatType type : newStats.getAllTypes()) {
-            double flat = newStats.getFlat(type);
-            double percent = newStats.getPercent(type);
-            if (flat != 0 || percent != 0) {
-                newLore.add(formatStat(type, flat, percent, false));
-            }
-        }
-
-        // 最後の区切り線を追加
-        newLore.add(SEPARATOR);
-
-        // --- 5. 修理ステータス（損耗率とマスタリー）の追加 ---
-        if (wearRate > 0) {
-            Component wearLine = WEAR_LORE_PREFIX.append(
-                    Component.text(String.format("%.0f", wearRate) + "%", NamedTextColor.WHITE))
-                    .decoration(TextDecoration.STRIKETHROUGH, false).decoration(TextDecoration.ITALIC, false);
-            newLore.add(wearLine);
-        }
-        if (masteryLevel > 0) {
-            Component masteryLine = MASTERY_LORE_PREFIX.append(
-                    Component.text(String.valueOf(masteryLevel), NamedTextColor.AQUA))
-                    .decoration(TextDecoration.ITALIC, false);
-            newLore.add(masteryLine);
-        }
-
-        // --- 6. 既存ロアの「最後の方」にあるかもしれない独自行を保持 ---
-        // ただし、損耗率、マスタリー、および既に処理したStats行は除外する
-        for (int i = lastSepIndex + 1; i < existingLore.size(); i++) {
-            Component line = existingLore.get(i);
-            String legacy = serializer.serialize(line);
-
-            // 修理ステータス行は新しく追加済みなのでスキップ
-            if (legacy.startsWith("§7損耗率: ") || legacy.startsWith("§7マスタリー: ")) {
-                continue;
-            }
-
-            // その他、もし何か別のプラグインや機能が末尾に文字列を足していた場合はそれを保持
-            newLore.add(line);
-        }
-
-        return newLore;
-    }
 
     /**
      * 2列レイアウト用のメインビルドロジック（修正版）

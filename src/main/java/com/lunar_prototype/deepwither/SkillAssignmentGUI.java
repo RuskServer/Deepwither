@@ -288,6 +288,8 @@ public class SkillAssignmentGUI implements Listener, IManager {
                 Component.text("② 下段のスロットをクリックで割り当て", NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false),
                 Component.text("  右クリックでスロットをクリア", NamedTextColor.RED)
+                        .decoration(TextDecoration.ITALIC, false),
+                Component.text("※装備できるスキルは最大4つまでです", NamedTextColor.YELLOW)
                         .decoration(TextDecoration.ITALIC, false)
         ));
         item.setItemMeta(meta);
@@ -396,6 +398,24 @@ public class SkillAssignmentGUI implements Listener, IManager {
             if (selected == null) {
                 player.sendMessage(Component.text("先にスキルを選択してください。", NamedTextColor.RED));
                 return;
+            }
+
+            SkillSlotData slotData = slotManager.get(uuid);
+
+            // すでに別のスロットに同じスキルがセットされているかチェックして解除 (移動の挙動にする)
+            for (int i = 0; i < 9; i++) {
+                if (i != slotIndex && selected.equals(slotData.getSkill(i))) {
+                    slotManager.setSlot(uuid, i, null);
+                }
+            }
+
+            // 新規にセットする場合、装備数の上限(4)をチェック
+            if (slotData.getSkill(slotIndex) == null) {
+                long equippedCount = slotData.getSlots().stream().filter(Objects::nonNull).count();
+                if (equippedCount >= 4) {
+                    player.sendMessage(Component.text("スキルは最大4つまでしか装備できません。", NamedTextColor.RED));
+                    return;
+                }
             }
 
             SkillDefinition def = skillLoader.get(selected);

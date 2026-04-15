@@ -105,6 +105,11 @@ public class ItemLoader {
 
             appliedTypes.add(selectedDef.type);
             weightedModifiers.removeIf(def -> def.type == selectedDef.type);
+            
+            // 魔法ダメージ、AoE、バーストは重複しないようにする
+            if (selectedDef.type == StatType.MAGIC_DAMAGE || selectedDef.type == StatType.MAGIC_BURST_BONUS || selectedDef.type == StatType.MAGIC_AOE_BONUS) {
+                weightedModifiers.removeIf(def -> def.type == StatType.MAGIC_DAMAGE || def.type == StatType.MAGIC_BURST_BONUS || def.type == StatType.MAGIC_AOE_BONUS);
+            }
         }
 
         return modifiers;
@@ -376,6 +381,11 @@ public class ItemLoader {
                             modifiers.put(selectedDef.type, selectedDef.minFlat + random.nextDouble() * (selectedDef.maxFlat - selectedDef.minFlat));
                             appliedTypes.add(selectedDef.type);
                             weightedModifiers.removeIf(def -> def.type == selectedDef.type);
+                            
+                            // 魔法ダメージ、AoE、バーストは重複しないようにする
+                            if (selectedDef.type == StatType.MAGIC_DAMAGE || selectedDef.type == StatType.MAGIC_BURST_BONUS || selectedDef.type == StatType.MAGIC_AOE_BONUS) {
+                                weightedModifiers.removeIf(def -> def.type == StatType.MAGIC_DAMAGE || def.type == StatType.MAGIC_BURST_BONUS || def.type == StatType.MAGIC_AOE_BONUS);
+                            }
                         }
                         // 3. 通常のランダムソケット生成
                         if (socketsMax == 0) {
