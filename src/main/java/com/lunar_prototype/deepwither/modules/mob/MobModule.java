@@ -6,6 +6,8 @@ import com.lunar_prototype.deepwither.core.engine.IModule;
 import com.lunar_prototype.deepwither.core.engine.ServiceContainer;
 import com.lunar_prototype.deepwither.modules.mob.service.*;
 import com.lunar_prototype.deepwither.modules.mob.framework.CustomMobManager;
+import com.lunar_prototype.deepwither.modules.mob.implementation.ArkGhoul;
+import com.lunar_prototype.deepwither.modules.mob.implementation.EldGhoul;
 import com.lunar_prototype.deepwither.modules.mob.implementation.FireDemon;
 import com.lunar_prototype.deepwither.modules.mob.implementation.IcePilgrim;
 import com.lunar_prototype.deepwither.modules.mob.implementation.VanguardSkeleton;
@@ -81,6 +83,10 @@ public class MobModule implements IModule {
             customMobManager.registerMob("EngravedExecutor", com.lunar_prototype.deepwither.modules.mob.implementation.EngravedExecutor.class, EntityType.WITHER_SKELETON);
             customMobManager.registerMob("melee_skeleton", VanguardSkeleton.class, EntityType.SKELETON);
             customMobManager.registerMob("melee_zombie2", CrimsonLancer.class, EntityType.ZOMBIE);
+            customMobManager.registerMob("ark_ghoul", ArkGhoul.class, EntityType.ZOMBIE);
+            customMobManager.registerMob("アークグール", ArkGhoul.class, EntityType.ZOMBIE);
+            customMobManager.registerMob("eld_ghoul", EldGhoul.class, EntityType.ZOMBIE);
+            customMobManager.registerMob("エルドグール", EldGhoul.class, EntityType.ZOMBIE);
 
         } catch (Exception e) {
             plugin.getLogger().severe("Failed to start MobModule components.");

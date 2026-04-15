@@ -1,6 +1,7 @@
 package com.lunar_prototype.deepwither.util;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.modules.mob.framework.CustomMobManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
@@ -26,6 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MythicMobSafeZoneManager implements IManager {
 
     private final Deepwither plugin;
+    private final CustomMobManager customMobManager;
     private BukkitTask checkTask;
 
     // Key: Mob UUID, Value: セーフゾーンに滞在し始めたTick (System.currentTimeMillis()に近い値)
@@ -38,6 +40,7 @@ public class MythicMobSafeZoneManager implements IManager {
 
     public MythicMobSafeZoneManager(Deepwither plugin) {
         this.plugin = plugin;
+        this.customMobManager = plugin.get(CustomMobManager.class);
     }
 
     @Override
@@ -77,7 +80,13 @@ public class MythicMobSafeZoneManager implements IManager {
 
                 // 1. MythicMobの判定
                 ActiveMob mob = MythicBukkit.inst().getMobManager().getMythicMobInstance(entity);
-                if (mob == null) {
+                boolean isCustomMob = isCustomMob(entity);
+                if (mob == null && !isCustomMob) {
+                    safeZoneEntryTime.remove(entity.getUniqueId());
+                    continue;
+                }
+
+                if (mob != null && isDutyMob(mob)) {
                     safeZoneEntryTime.remove(entity.getUniqueId());
                     continue;
                 }
@@ -92,9 +101,13 @@ public class MythicMobSafeZoneManager implements IManager {
                     // ★追加機能: 無敵モブの即時削除チェック★
                     // MythicMobsの "Invincible: true" やバニラの無敵タグがついている場合 true になります
                     if (entity.isInvulnerable()) {
-                        mob.remove();
+                        if (mob != null) {
+                            mob.remove();
+                        } else {
+                            entity.remove();
+                        }
                         safeZoneEntryTime.remove(mobId);
-                        plugin.getLogger().info("Removed Invulnerable MythicMob '" + mob.getName() + "' in safezone immediately.");
+                        plugin.getLogger().info("Removed Invulnerable " + getMobLabel(entity, mob, isCustomMob) + " in safezone immediately.");
                         continue; // 削除したので次のエンティティへ
                     }
 
@@ -106,9 +119,13 @@ public class MythicMobSafeZoneManager implements IManager {
                     // 3. 5秒(100ティック)以上の滞在チェック
                     if (currentTick - entryTick >= REMOVAL_TIME_TICKS) {
                         // 削除実行
-                        mob.remove();
+                        if (mob != null) {
+                            mob.remove();
+                        } else {
+                            entity.remove();
+                        }
                         safeZoneEntryTime.remove(mobId);
-                        plugin.getLogger().info("Removed MythicMob '" + mob.getName() + "' due to extended stay in safezone.");
+                        plugin.getLogger().info("Removed " + getMobLabel(entity, mob, isCustomMob) + " due to extended stay in safezone.");
                     }
                 } else {
                     // セーフゾーンから出た場合、タイマーをリセット
@@ -122,6 +139,33 @@ public class MythicMobSafeZoneManager implements IManager {
      * 指定されたLocationが、名前に「safezone」を含むリージョン内にあるかを判定します。
      * (SafeZoneListenerからコピーして再利用)
      */
+    private boolean isCustomMob(Entity entity) {
+        return customMobManager != null && customMobManager.getCustomMob(entity) != null;
+    }
+
+    private boolean isDutyMob(ActiveMob mob) {
+        if (mob == null || mob.getType() == null) return false;
+        String internalName = mob.getType().getInternalName();
+        return internalName != null && internalName.toLowerCase().contains("duty");
+    }
+
+    private String getMobLabel(Entity entity, ActiveMob mob, boolean isCustomMob) {
+        if (mob != null) {
+            String name = mob.getName();
+            if (name != null && !name.isBlank()) {
+                return "MythicMob '" + name + "'";
+            }
+            return "MythicMob '" + mob.getType().getInternalName() + "'";
+        }
+
+        if (isCustomMob) {
+            String customId = customMobManager != null ? customMobManager.getCustomMobId(entity) : null;
+            return "CustomMob '" + (customId != null ? customId : entity.getType().name()) + "'";
+        }
+
+        return "Mob '" + entity.getType().name() + "'";
+    }
+
     private boolean isSafeZone(Location loc) {
         // WorldGuardのAPI経由でリージョンコンテナを取得
         RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();

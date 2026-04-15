@@ -153,6 +153,10 @@ public class WeaponMechanicManager implements IManager {
     }
 
     private void handleAxeAttack(Player attacker, DamageContext context, DamageProcessor processor) {
+        if (!isFullCharge(context)) {
+            return;
+        }
+
         UUID uuid = attacker.getUniqueId();
         String weaponId = context.getWeapon().getType().name(); // もしCustomIDがあればそれが望ましいが、一旦Typeで
         
@@ -186,6 +190,10 @@ public class WeaponMechanicManager implements IManager {
     }
 
     private void handleGreatswordAttack(Player attacker, DamageContext context, DamageProcessor processor) {
+        if (!isFullCharge(context)) {
+            return;
+        }
+
         UUID uuid = attacker.getUniqueId();
         String weaponId = context.getWeapon().getType().name();
         
@@ -359,5 +367,9 @@ public class WeaponMechanicManager implements IManager {
 
     private boolean isGreatswordWeapon(ItemStack item) {
         return hasCategory(item, "大剣");
+    }
+
+    private boolean isFullCharge(DamageContext context) {
+        return Boolean.TRUE.equals(context.get("is_full_charge"));
     }
 }
