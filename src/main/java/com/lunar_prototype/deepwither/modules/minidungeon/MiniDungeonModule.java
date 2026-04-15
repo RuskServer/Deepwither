@@ -6,11 +6,13 @@ import com.lunar_prototype.deepwither.core.engine.IModule;
 import com.lunar_prototype.deepwither.core.engine.ServiceContainer;
 import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
+import com.lunar_prototype.deepwither.core.engine.ModuleRegistrar;
 
 public class MiniDungeonModule implements IModule {
 
     private final Deepwither plugin;
     private MiniDungeonManager manager;
+    private ModuleRegistrar registrar;
 
     public MiniDungeonModule(Deepwither plugin) {
         this.plugin = plugin;
@@ -21,6 +23,7 @@ public class MiniDungeonModule implements IModule {
         plugin.getLogger().info("Configuring MiniDungeonModule...");
 
         this.manager = new MiniDungeonManager(plugin);
+        this.registrar = container.get(ModuleRegistrar.class);
         
         // Register container
         container.registerInstance(MiniDungeonManager.class, manager);
@@ -31,17 +34,12 @@ public class MiniDungeonModule implements IModule {
         if (manager != null) {
             manager.init();
 
-            // Register Listener
-            Bukkit.getPluginManager().registerEvents(new MiniDungeonListener(plugin, manager), plugin);
-
-            // Register Command
-            PluginCommand command = plugin.getCommand("minidungeon");
-            if (command != null) {
+            if (registrar != null) {
+                registrar.registerListener(this, new MiniDungeonListener(plugin, manager));
                 MiniDungeonCommand cmdExecutor = new MiniDungeonCommand(plugin, manager);
-                command.setExecutor(cmdExecutor);
-                command.setTabCompleter(cmdExecutor);
+                registrar.registerCommand(this, "minidungeon", cmdExecutor, cmdExecutor);
             } else {
-                plugin.getLogger().warning("Failed to register '/minidungeon' command. Please check plugin.yml.");
+                plugin.getLogger().warning("ModuleRegistrar not found, skipping listener/command registration.");
             }
         }
     }

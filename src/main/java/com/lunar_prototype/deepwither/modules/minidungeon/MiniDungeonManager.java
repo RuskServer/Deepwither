@@ -43,7 +43,6 @@ public class MiniDungeonManager implements IManager {
     public void init() {
         this.dataFile = new File(plugin.getDataFolder(), "minidungeons.yml");
         if (!dataFile.exists()) {
-            plugin.saveResource("minidungeons.yml", false); // If not exists in jar, will throw warning, so just create parent and save empty
             try {
                 dataFile.getParentFile().mkdirs();
                 dataFile.createNewFile();
