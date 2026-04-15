@@ -43,6 +43,8 @@ public class SkillRegistry implements IManager {
         register("graviton_accelerator_cannon", new com.lunar_prototype.deepwither.api.skill.GravitonAcceleratorCannonSkill());
         register("crimson_cycle", new com.lunar_prototype.deepwither.api.skill.CrimsonCycleSkill());
         register("blood_reversal_field", new com.lunar_prototype.deepwither.api.skill.BloodReversalFieldSkill());
+        register("crimson_spear", new com.lunar_prototype.deepwither.api.skill.CrimsonSpearSkill());
+        register("hemorrhage_pact", new com.lunar_prototype.deepwither.api.skill.HemorrhagePactSkill());
     }
 
     @Override

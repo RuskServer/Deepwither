@@ -3,6 +3,7 @@ package com.lunar_prototype.deepwither.listeners;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.StatType;
 import com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent;
+import com.lunar_prototype.deepwither.api.skill.HemorrhagePactSkill;
 import com.lunar_prototype.deepwither.core.damage.DamageContext;
 import org.bukkit.Color;
 import org.bukkit.Location;
@@ -39,6 +40,9 @@ public class SkillAuraListener implements Listener {
         // --- Scorching Slash (焦熱) ---
         else if (Deepwither.getInstance().getAuraManager().hasAura(attacker, "scorching_slash_aura")) {
             handleScorching(attacker, victim, e);
+        }
+        if (HemorrhagePactSkill.isActive(attacker)) {
+            HemorrhagePactSkill.recordHit(attacker, victim);
         }
     }
 

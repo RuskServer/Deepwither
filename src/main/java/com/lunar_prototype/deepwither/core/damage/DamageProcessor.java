@@ -382,7 +382,11 @@ public class DamageProcessor implements IManager {
             if (attacker instanceof Player playerAttacker) {
                 executeCustomMobDamage(victim, damage, playerAttacker);
             } else {
-                victim.damage(damage, attacker);
+                if (attacker != null) {
+                    victim.damage(damage, attacker);
+                } else {
+                    victim.damage(damage);
+                }
             }
         }
 
