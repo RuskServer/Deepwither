@@ -119,7 +119,7 @@ public class MiniDungeonManager implements IManager {
     }
 
     private TextDisplay getOrCreateHologram(MiniDungeon dungeon) {
-        Location loc = dungeon.getHologramLocation();
+        Location loc = dungeon.getHologramLocation().clone().add(0, 0.5, 0);
         if (dungeon.getTextDisplayUuid() != null) {
             Entity ent = Bukkit.getEntity(dungeon.getTextDisplayUuid());
             if (ent instanceof TextDisplay) {
