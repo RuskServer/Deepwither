@@ -95,8 +95,26 @@ public class CreditManager implements IManager {
         playerCredits.computeIfAbsent(playerUUID, k -> new HashMap<>());
         Map<String, Integer> traderMap = playerCredits.get(playerUUID);
 
-        int newCredit = Math.max(0, traderMap.getOrDefault(traderId, 0) + amount);
+        int oldCredit = traderMap.getOrDefault(traderId, 0);
+        int newCredit = Math.max(0, oldCredit + amount);
         traderMap.put(traderId, newCredit);
+
+        // 実績解除判定
+        if (newCredit > oldCredit) {
+            org.bukkit.entity.Player player = org.bukkit.Bukkit.getPlayer(playerUUID);
+            if (player != null) {
+                com.lunar_prototype.deepwither.advancement.AdvancementManager am = 
+                        com.lunar_prototype.deepwither.api.DW.get(com.lunar_prototype.deepwither.advancement.AdvancementManager.class);
+                if (am != null) {
+                    for (int c = 500; c <= 2500; c += 500) {
+                        if (oldCredit < c && newCredit >= c) {
+                            String advId = "trader_" + traderId + "_" + c;
+                            am.grantAdvancement(player, advId);
+                        }
+                    }
+                }
+            }
+        }
 
         // 変更をすぐに保存（頻繁に呼ばれる場合は非同期で遅延保存を検討）
         saveCredits();

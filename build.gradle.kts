@@ -14,6 +14,8 @@ java {
 
 repositories {
     mavenCentral()
+    // UltimateAdvancementAPIはJitPackより前に宣言する必要がある
+    maven("https://nexus.frengor.com/repository/public/")
     maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://oss.sonatype.org/content/groups/public/")
     maven("https://mvn.lumine.io/repository/maven-public/")
@@ -32,6 +34,9 @@ dependencies {
     val paperVersion = "1.21.10-R0.1-SNAPSHOT"
     compileOnly("io.papermc.paper:paper-api:$paperVersion")
     testImplementation("io.papermc.paper:paper-api:$paperVersion")
+
+    // UltimateAdvancementAPI (サーバーに別途プラグインとして導入)
+    compileOnly("com.frengor:ultimateadvancementapi:2.7.2")
 
     // Database & Utils (同梱対象)
     implementation("org.xerial:sqlite-jdbc:3.50.1.0")

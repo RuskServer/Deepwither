@@ -8,6 +8,7 @@ import com.lunar_prototype.deepwither.modules.economy.trader.TraderManager;
 import com.lunar_prototype.deepwither.market.GlobalMarketManager;
 import com.lunar_prototype.deepwither.DatabaseManager;
 import com.lunar_prototype.deepwither.ItemFactory;
+import com.lunar_prototype.deepwither.advancement.AdvancementManager;
 
 public class EconomyModule implements IModule {
 
@@ -52,6 +53,10 @@ public class EconomyModule implements IModule {
             // TraderManager
             TraderManager traderManager = new TraderManager(plugin, itemFactory);
             container.registerInstance(TraderManager.class, traderManager);
+
+            // AdvancementManager
+            AdvancementManager advancementManager = new AdvancementManager(plugin);
+            container.registerInstance(AdvancementManager.class, advancementManager);
 
         } catch (Exception e) {
             plugin.getLogger().severe("Failed to configure EconomyModule components.");

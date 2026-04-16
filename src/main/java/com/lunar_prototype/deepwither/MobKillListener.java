@@ -67,6 +67,8 @@ public class MobKillListener implements Listener, IManager {
         if (routeLootChestManager != null) {
             routeLootChestManager.recordMobKill(killer);
         }
+        
+        handleMobKillAdvancement(killer, mobType);
 
         OutpostEvent activeEvent = outpostManager.getActiveEvent();
         if (activeEvent != null) {
@@ -95,6 +97,28 @@ public class MobKillListener implements Listener, IManager {
         double baseExp = mobExpConfig.getDouble("mob-exp." + mobId, 0);
         if (baseExp > 0) {
             handleExpDistribution(killer, baseExp);
+        }
+        
+        handleMobKillAdvancement(killer, mobId);
+    }
+    
+    private void handleMobKillAdvancement(Player killer, String mobId) {
+        com.lunar_prototype.deepwither.core.PlayerCache pc = DW.cache().getCache(killer.getUniqueId());
+        if (pc == null || pc.getData() == null || pc.getData().getAdvancements() == null) return;
+        
+        com.lunar_prototype.deepwither.advancement.PlayerAdvancementData data = pc.getData().getAdvancements();
+        int oldCount = data.getTotalMobKills();
+        data.addMobKill(mobId);
+        int newCount = data.getTotalMobKills();
+        
+        int[] milestones = {10, 50, 100, 500, 1000};
+        com.lunar_prototype.deepwither.advancement.AdvancementManager am = DW.get(com.lunar_prototype.deepwither.advancement.AdvancementManager.class);
+        if (am != null) {
+            for (int m : milestones) {
+                if (oldCount < m && newCount >= m) {
+                    am.grantAdvancement(killer, "mob_kill_" + m);
+                }
+            }
         }
     }
 

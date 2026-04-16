@@ -253,6 +253,12 @@ public class TutorialController implements Listener, IManager {
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (EQFPlugin.getInstance() != null) EQFPlugin.getInstance().getQuestManager().startQuest(p, "tutorial");
             stageMap.put(p.getUniqueId(), TutorialStage.COMPLETE);
+            
+            com.lunar_prototype.deepwither.advancement.AdvancementManager am = DW.get(com.lunar_prototype.deepwither.advancement.AdvancementManager.class);
+            if (am != null) {
+                am.grantAdvancement(p, "tutorial_clear");
+            }
+            
             p.showTitle(Title.title(Component.empty(), Component.empty()));
             p.sendMessage(Component.text("[Tutorial] ", NamedTextColor.GREEN).append(Component.text("移動制限が解除されました！", NamedTextColor.WHITE)));
         }, 60L);

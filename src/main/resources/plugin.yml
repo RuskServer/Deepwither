@@ -4,6 +4,7 @@ main: com.lunar_prototype.deepwither.Deepwither
 author: ["Lunar_prototype","RS Team"]
 api-version: '1.21'
 depend : ["Votifier","BetterModel","DiscordSRV"]
+softdepend: ["UltimateAdvancementAPI"]
 
 commands:
   giveitem:

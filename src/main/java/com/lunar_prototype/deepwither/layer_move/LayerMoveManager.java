@@ -154,6 +154,18 @@ public class LayerMoveManager implements IManager {
             );
             player.showTitle(title);
         }
+
+        // 階層踏破実績の判定
+        com.lunar_prototype.deepwither.advancement.AdvancementManager am = com.lunar_prototype.deepwither.api.DW.get(com.lunar_prototype.deepwither.advancement.AdvancementManager.class);
+        if (am != null && targetWarp.floorName != null) {
+            String fName = targetWarp.floorName;
+            if (fName.contains("第1") || fName.contains("第１")) am.grantAdvancement(player, "floor_1");
+            else if (fName.contains("第2") || fName.contains("第２")) am.grantAdvancement(player, "floor_2");
+            else if (fName.contains("第3") || fName.contains("第３")) am.grantAdvancement(player, "floor_3");
+            else if (fName.contains("第4") || fName.contains("第４")) am.grantAdvancement(player, "floor_4");
+            else if (fName.contains("第5") || fName.contains("第５")) am.grantAdvancement(player, "floor_5");
+            else if (fName.contains("第6") || fName.contains("第６")) am.grantAdvancement(player, "floor_6");
+        }
     }
 
     public void setWarpOrigin(String warpId, Location loc) {

@@ -48,6 +48,8 @@ public class PlayerDataManager implements IManager {
             plugin.getAttributeManager().load(uuid);
             plugin.getSkilltreeManager().load(uuid);
             plugin.getManaManager().get(uuid); // Manaはデフォルト値が入る
+            com.lunar_prototype.deepwither.advancement.AdvancementManager am = DW.get(com.lunar_prototype.deepwither.advancement.AdvancementManager.class);
+            if (am != null) { am.load(uuid); }
             
             // DailyTasks, Crafting, Profession は PlayerConnectionListener で loadPlayer を呼んでいるため
             // 現時点ではここでは省略するが、最終的にはここに集約するのが望ましい
@@ -66,6 +68,11 @@ public class PlayerDataManager implements IManager {
         SkillData skillData = DW.cache().getCache(uuid).get(SkillData.class);
         if (skillData != null) {
             plugin.getSkilltreeManager().saveAsync(uuid, skillData);
+        }
+        
+        com.lunar_prototype.deepwither.advancement.AdvancementManager am = DW.get(com.lunar_prototype.deepwither.advancement.AdvancementManager.class);
+        if (am != null) {
+            am.save(uuid);
         }
         
         // 追加

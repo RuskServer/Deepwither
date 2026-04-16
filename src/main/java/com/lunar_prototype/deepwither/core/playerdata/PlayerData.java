@@ -5,6 +5,7 @@ import com.lunar_prototype.deepwither.modules.aethelgard.PlayerQuestData;
 import com.lunar_prototype.deepwither.crafting.CraftingData;
 import com.lunar_prototype.deepwither.data.DailyTaskData;
 import com.lunar_prototype.deepwither.profession.PlayerProfessionData;
+import com.lunar_prototype.deepwither.advancement.PlayerAdvancementData;
 
 import java.util.UUID;
 
@@ -22,6 +23,7 @@ public class PlayerData {
     private CraftingData crafting;
     private PlayerProfessionData profession;
     private PlayerQuestData quests;
+    private PlayerAdvancementData advancements = new PlayerAdvancementData();
     private int critCounter = 1; // PRD クリティカルカウンタ (デフォルト1)
 
     public PlayerData(UUID uuid) {
@@ -56,4 +58,7 @@ public class PlayerData {
 
     public PlayerQuestData getQuests() { return quests; }
     public void setQuests(PlayerQuestData quests) { this.quests = quests; }
+
+    public PlayerAdvancementData getAdvancements() { return advancements; }
+    public void setAdvancements(PlayerAdvancementData advancements) { this.advancements = advancements; }
 }

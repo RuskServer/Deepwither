@@ -49,6 +49,13 @@ public class PlayerConnectionListener implements Listener, IManager {
             boolean autoStep = Deepwither.getInstance().getSettingsManager().isEnabled(e.getPlayer(), com.lunar_prototype.deepwither.PlayerSettingsManager.SettingType.AUTO_STEP);
             stepHeight.setBaseValue(autoStep ? 1.0 : 0.6);
         }
+        
+        // 実績タブをプレイヤーに表示
+        com.lunar_prototype.deepwither.advancement.AdvancementManager am = 
+                com.lunar_prototype.deepwither.api.DW.get(com.lunar_prototype.deepwither.advancement.AdvancementManager.class);
+        if (am != null) {
+            am.onPlayerJoin(e.getPlayer());
+        }
     }
 
     @EventHandler

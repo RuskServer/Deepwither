@@ -234,6 +234,12 @@ public class DatabaseManager implements IManager, IDatabaseManager {
                 )""");
 
             stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS player_advancements (
+                    uuid TEXT PRIMARY KEY,
+                    data_json TEXT
+                )""");
+
+            stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS player_mailbox (
                     mail_id TEXT PRIMARY KEY,
                     recipient_uuid TEXT NOT NULL,
