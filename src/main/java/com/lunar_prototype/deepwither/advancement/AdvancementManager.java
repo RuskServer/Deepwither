@@ -1,11 +1,12 @@
 package com.lunar_prototype.deepwither.advancement;
 
 import com.fren_gor.ultimateAdvancementAPI.UltimateAdvancementAPI;
+import com.fren_gor.ultimateAdvancementAPI.AdvancementTab;
 import com.fren_gor.ultimateAdvancementAPI.advancement.BaseAdvancement;
 import com.fren_gor.ultimateAdvancementAPI.advancement.RootAdvancement;
 import com.fren_gor.ultimateAdvancementAPI.advancement.display.AdvancementDisplay;
 import com.fren_gor.ultimateAdvancementAPI.advancement.display.AdvancementFrameType;
-import com.fren_gor.ultimateAdvancementAPI.AdvancementTab;
+import com.fren_gor.ultimateAdvancementAPI.events.PlayerLoadingCompletedEvent;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.lunar_prototype.deepwither.DatabaseManager;
@@ -16,6 +17,8 @@ import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.sql.SQLException;
@@ -31,7 +34,7 @@ import java.util.logging.Level;
  * バニラの実績は非表示にし、Deepwither独自の実績ツリーを動的に生成・管理する。
  */
 @DependsOn({ TraderManager.class })
-public class AdvancementManager implements IManager {
+public class AdvancementManager implements IManager, Listener {
 
     private final JavaPlugin plugin;
     private final Gson gson;
@@ -58,6 +61,8 @@ public class AdvancementManager implements IManager {
         try {
             this.api = UltimateAdvancementAPI.getInstance(plugin);
             setupAdvancements();
+            // PlayerLoadingCompletedEvent を受け取るためイベントリスナーとして登録
+            Bukkit.getPluginManager().registerEvents(this, plugin);
             plugin.getLogger().info("[AdvancementManager] 独自実績システムを初期化しました。");
         } catch (Exception e) {
             plugin.getLogger().log(Level.SEVERE, "[AdvancementManager] 初期化に失敗しました。", e);
@@ -172,29 +177,35 @@ public class AdvancementManager implements IManager {
     // ================================================
 
     /**
-     * プレイヤーがログインした際にタブを表示させる。
+     * UltimateAdvancementAPIがプレイヤーのデータを完全にロードした後に呼ばれるイベント。
+     * showTab と遡及付与はここで行うことで、タイミングを確実に保証する。
      */
-    public void onPlayerJoin(Player player) {
+    @EventHandler
+    public void onPlayerLoadingCompleted(PlayerLoadingCompletedEvent event) {
         if (deepwitherTab == null)
             return;
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (!player.isOnline())
-                return;
-            deepwitherTab.showTab(player);
+        Player player = event.getPlayer();
+        deepwitherTab.showTab(player);
 
-            // レベル1以上のプレイヤーには「Deepwitherへようこそ」と「チュートリアルクリア」を自動付与
-            // (新規参加以前からプレイしているプレイヤーへの遡及付与)
-            try {
-                com.lunar_prototype.deepwither.PlayerLevelData levelData = com.lunar_prototype.deepwither.Deepwither
-                        .getInstance().getLevelManager().get(player);
-                if (levelData != null && levelData.getLevel() >= 1) {
-                    grantAdvancement(player, "root");
-                    grantAdvancement(player, "tutorial_clear");
-                }
-            } catch (Exception e) {
-                plugin.getLogger().warning("[AdvancementManager] 自動付与チェック中にエラー: " + e.getMessage());
+        // レベル1以上のプレイヤーには「ようこそ」と「チュートリアルクリア」を自動付与(遡及)
+        try {
+            com.lunar_prototype.deepwither.PlayerLevelData levelData = com.lunar_prototype.deepwither.Deepwither
+                    .getInstance().getLevelManager().get(player);
+            if (levelData != null && levelData.getLevel() >= 1) {
+                grantAdvancement(player, "root");
+                grantAdvancement(player, "tutorial_clear");
             }
-        }, 20L);
+        } catch (Exception e) {
+            plugin.getLogger().warning("[AdvancementManager] 自動付与チェック中にエラー: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 後方互換: PlayerConnectionListenerから呼ばれていても動作するように残す。
+     * 実際の処理は PlayerLoadingCompletedEvent 側で行われる。
+     */
+    public void onPlayerJoin(Player player) {
+        // PlayerLoadingCompletedEventで処理するため、ここでは何もしない
     }
 
     /**
