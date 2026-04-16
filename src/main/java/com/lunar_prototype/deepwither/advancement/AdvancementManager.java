@@ -30,7 +30,7 @@ import java.util.logging.Level;
  * UltimateAdvancementAPI を利用した独自実績管理クラス。
  * バニラの実績は非表示にし、Deepwither独自の実績ツリーを動的に生成・管理する。
  */
-@DependsOn({TraderManager.class})
+@DependsOn({ TraderManager.class })
 public class AdvancementManager implements IManager {
 
     private final JavaPlugin plugin;
@@ -69,7 +69,7 @@ public class AdvancementManager implements IManager {
     }
 
     // ================================================
-    //  実績ツリーのセットアップ
+    // 実績ツリーのセットアップ
     // ================================================
 
     private void setupAdvancements() {
@@ -77,46 +77,43 @@ public class AdvancementManager implements IManager {
 
         // ルート実績（タブのバックグラウンドになる）
         AdvancementDisplay rootDisplay = new AdvancementDisplay(
-                Material.BEDROCK, "Deepwither", AdvancementFrameType.TASK,
+                Material.BEDROCK, "Echoes of Aether", AdvancementFrameType.TASK,
                 false, false, 0f, 0f,
-                "Deepwither の世界へようこそ"
-        );
-        RootAdvancement root = new RootAdvancement(deepwitherTab, "root", rootDisplay, "minecraft:textures/block/stone.png");
+                "Echoes of Aether の世界へようこそ");
+        RootAdvancement root = new RootAdvancement(deepwitherTab, "root", rootDisplay,
+                "minecraft:textures/block/stone.png");
         register("root", root);
 
         // チュートリアル
         AdvancementDisplay tutorialDisplay = new AdvancementDisplay(
                 Material.BOOK, "チュートリアルクリア", AdvancementFrameType.TASK,
-                true, true, 1f, 0f,
-                "基本操作を学んだ証"
-        );
+                true, true, 2f, 0f,
+                "基本操作を学んだ証");
         BaseAdvancement tutorialAdv = new BaseAdvancement("tutorial_clear", tutorialDisplay, root);
         register("tutorial_clear", tutorialAdv);
 
-        // 1〜6階層踏破
+        // 1〜6階層踏破 (x: 3〜8, y: 0)
         com.fren_gor.ultimateAdvancementAPI.advancement.Advancement lastFloor = tutorialAdv;
         for (int i = 1; i <= 6; i++) {
             AdvancementDisplay floorDisplay = new AdvancementDisplay(
                     Material.IRON_BOOTS, "第" + i + "層 踏破", AdvancementFrameType.TASK,
-                    true, true, (float)(1 + i), 0f,
-                    "第" + i + "層に到達した"
-            );
+                    true, true, (float) (2 + i), 0f,
+                    "第" + i + "層に到達した");
             String floorId = "floor_" + i;
             BaseAdvancement floorAdv = new BaseAdvancement(floorId, floorDisplay, lastFloor);
             register(floorId, floorAdv);
             lastFloor = floorAdv;
         }
 
-        // モブ討伐実績（累計討伐数マイルストーン）
-        int[] mobMilestones = {10, 50, 100, 500, 1000};
-        String[] mobTitles = {"モブ退治入門", "モブハンター見習い", "モブハンター", "熟練モブハンター", "伝説のモブハンター"};
+        // モブ討伐実績（累計討伐数マイルストーン）(x: 1, y: 1〜5)
+        int[] mobMilestones = { 10, 50, 100, 500, 1000 };
+        String[] mobTitles = { "モブ退治入門", "モブハンター見習い", "モブハンター", "熟練モブハンター", "伝説のモブハンター" };
         com.fren_gor.ultimateAdvancementAPI.advancement.Advancement lastMob = root;
         for (int i = 0; i < mobMilestones.length; i++) {
             AdvancementDisplay display = new AdvancementDisplay(
                     Material.ZOMBIE_HEAD, mobTitles[i], AdvancementFrameType.TASK,
-                    true, true, 0f, (float)(i + 1),
-                    "モブを合計" + mobMilestones[i] + "体討伐した"
-            );
+                    true, true, 1f, (float) (i + 1),
+                    "モブを合計" + mobMilestones[i] + "体討伐した");
             String mobId = "mob_kill_" + mobMilestones[i];
             BaseAdvancement mobAdv = new BaseAdvancement(mobId, display, lastMob);
             register(mobId, mobAdv);
@@ -124,6 +121,7 @@ public class AdvancementManager implements IManager {
         }
 
         // トレーダー信用度実績 (全トレーダー走査)
+        // レイアウト: x = column+2（0以上）、y = credit段階（1〜5）+ 6開始でmob討伐と分離
         TraderManager traderManager = DW.get(TraderManager.class);
         if (traderManager != null) {
             int column = 0;
@@ -131,12 +129,12 @@ public class AdvancementManager implements IManager {
                 String traderName = traderManager.getTraderName(traderId);
                 com.fren_gor.ultimateAdvancementAPI.advancement.Advancement lastTrader = root;
                 for (int credit = 500; credit <= 2500; credit += 500) {
-                    String advId = "trader_" + traderId + "_" + credit;
+                    // Minecraft ResourceLocation は [a-z0-9/._-] のみ許可
+                    String advId = sanitizeKey("trader_" + traderId + "_" + credit);
                     AdvancementDisplay display = new AdvancementDisplay(
                             Material.EMERALD, traderName + " Lv." + (credit / 500), AdvancementFrameType.TASK,
-                            true, true, (float)(-(column + 1)), (float)(credit / 500),
-                            traderName + "との信用度が" + credit + "に達した"
-                    );
+                            true, true, (float) (column + 2), (float) (credit / 500 + 6),
+                            traderName + "との信用度が" + credit + "に達した");
                     BaseAdvancement traderAdv = new BaseAdvancement(advId, display, lastTrader);
                     register(advId, traderAdv);
                     lastTrader = traderAdv;
@@ -161,32 +159,58 @@ public class AdvancementManager implements IManager {
         advancementMap.put(id, advancement);
     }
 
+    /**
+     * Minecraft ResourceLocation のキーとして有効な文字列に変換する。
+     * 小文字化し、[a-z0-9_.-] 以外の文字はアンダースコアに置換する。
+     */
+    private String sanitizeKey(String raw) {
+        return raw.toLowerCase().replaceAll("[^a-z0-9_\\-.]", "_");
+    }
+
     // ================================================
-    //  プレイヤー管理
+    // プレイヤー管理
     // ================================================
 
     /**
      * プレイヤーがログインした際にタブを表示させる。
      */
     public void onPlayerJoin(Player player) {
-        if (deepwitherTab == null) return;
+        if (deepwitherTab == null)
+            return;
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (player.isOnline()) {
-                deepwitherTab.showTab(player);
+            if (!player.isOnline())
+                return;
+            deepwitherTab.showTab(player);
+
+            // レベル1以上のプレイヤーには「Deepwitherへようこそ」と「チュートリアルクリア」を自動付与
+            // (新規参加以前からプレイしているプレイヤーへの遡及付与)
+            try {
+                com.lunar_prototype.deepwither.PlayerLevelData levelData = com.lunar_prototype.deepwither.Deepwither
+                        .getInstance().getLevelManager().get(player);
+                if (levelData != null && levelData.getLevel() >= 1) {
+                    grantAdvancement(player, "root");
+                    grantAdvancement(player, "tutorial_clear");
+                }
+            } catch (Exception e) {
+                plugin.getLogger().warning("[AdvancementManager] 自動付与チェック中にエラー: " + e.getMessage());
             }
         }, 20L);
     }
 
     /**
      * 実績を付与する。
+     * 
      * @param player        対象プレイヤー
      * @param advancementId 実績ID（例: "tutorial_clear", "floor_1"）
      */
     public void grantAdvancement(Player player, String advancementId) {
-        if (deepwitherTab == null) return;
-        com.fren_gor.ultimateAdvancementAPI.advancement.Advancement advancement = advancementMap.get(advancementId);
+        if (deepwitherTab == null)
+            return;
+        // 呼び出し元が正規化前のIDを渡しても対応できるようにサニタイズ
+        String key = sanitizeKey(advancementId);
+        com.fren_gor.ultimateAdvancementAPI.advancement.Advancement advancement = advancementMap.get(key);
         if (advancement == null) {
-            plugin.getLogger().warning("[AdvancementManager] 存在しない実績ID: " + advancementId);
+            plugin.getLogger().warning("[AdvancementManager] 存在しない実績ID: " + advancementId + " (key=" + key + ")");
             return;
         }
         if (!advancement.isGranted(player)) {
@@ -195,12 +219,13 @@ public class AdvancementManager implements IManager {
     }
 
     // ================================================
-    //  DB永続化
+    // DB永続化
     // ================================================
 
     public void load(UUID uuid) {
         DatabaseManager db = DW.get(DatabaseManager.class);
-        if (db == null) return;
+        if (db == null)
+            return;
 
         PlayerAdvancementData data = db.querySingle(
                 "SELECT data_json FROM player_advancements WHERE uuid = ?",
@@ -213,8 +238,7 @@ public class AdvancementManager implements IManager {
                         return null;
                     }
                 },
-                uuid.toString()
-        ).orElse(new PlayerAdvancementData());
+                uuid.toString()).orElse(new PlayerAdvancementData());
 
         com.lunar_prototype.deepwither.core.PlayerCache pc = DW.cache().getCache(uuid);
         if (pc != null && pc.getData() != null) {
@@ -224,7 +248,8 @@ public class AdvancementManager implements IManager {
 
     public void save(UUID uuid) {
         com.lunar_prototype.deepwither.core.PlayerCache pc = DW.cache().getCache(uuid);
-        if (pc == null || pc.getData() == null || pc.getData().getAdvancements() == null) return;
+        if (pc == null || pc.getData() == null || pc.getData().getAdvancements() == null)
+            return;
 
         PlayerAdvancementData data = pc.getData().getAdvancements();
         String json = gson.toJson(data);
@@ -233,8 +258,7 @@ public class AdvancementManager implements IManager {
         if (db != null) {
             db.execute(
                     "INSERT INTO player_advancements (uuid, data_json) VALUES (?, ?) ON CONFLICT(uuid) DO UPDATE SET data_json=excluded.data_json",
-                    uuid.toString(), json
-            );
+                    uuid.toString(), json);
         }
     }
 
