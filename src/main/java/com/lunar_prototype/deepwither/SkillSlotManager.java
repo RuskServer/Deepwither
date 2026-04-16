@@ -86,7 +86,8 @@ class SkillSlotData {
     public SkillSlotData(List<String> loaded) {
         this.slots = new ArrayList<>(Arrays.asList(new String[9]));
         for (int i = 0; i < Math.min(9, loaded.size()); i++) {
-            slots.set(i, loaded.get(i));
+            String val = loaded.get(i);
+            slots.set(i, val == null || val.isEmpty() ? null : val);
         }
     }
 
@@ -101,6 +102,10 @@ class SkillSlotData {
     }
 
     public List<String> getSlots() {
-        return new ArrayList<>(slots); // 保存用
+        List<String> saveList = new ArrayList<>();
+        for (String s : slots) {
+            saveList.add(s == null ? "" : s);
+        }
+        return saveList;
     }
 }

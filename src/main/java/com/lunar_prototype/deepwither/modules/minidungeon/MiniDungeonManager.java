@@ -52,7 +52,7 @@ public class MiniDungeonManager implements IManager {
         }
         this.config = YamlConfiguration.loadConfiguration(dataFile);
         load();
-        
+
         startTickTask();
     }
 
@@ -92,7 +92,8 @@ public class MiniDungeonManager implements IManager {
             public void run() {
                 for (MiniDungeon dungeon : dungeons.values()) {
                     if (dungeon.isActive()) {
-                        // 攻略中はクールダウンを進めない
+                        // 攻略中のタイムアウト・放棄チェック
+                        checkAbandonment(dungeon);
                         updateHologram(dungeon);
                         continue;
                     }
@@ -103,13 +104,17 @@ public class MiniDungeonManager implements IManager {
                     updateHologram(dungeon);
 
                     // 接近検知 (半径5ブロック)
-                    Location loc = dungeon.getHologramLocation();
-                    if (loc != null && loc.getWorld() != null && loc.getWorld().isChunkLoaded(loc.getBlockX() >> 4, loc.getBlockZ() >> 4)) {
-                        for (org.bukkit.entity.Player player : loc.getNearbyPlayers(5.0)) {
-                            // クリエイティブモード等でのテストも考慮し、スペクテイター以外なら発動
-                            if (player.getGameMode() != org.bukkit.GameMode.SPECTATOR) {
-                                startDungeon(player, dungeon);
-                                break; // 1人見つかれば開始
+                    // 帰り道などで連続して湧くのを防ぐため、最低でも30秒(10%ほど)はクールダウンが貯まらないと開始しない
+                    if (dungeon.getCooldownTimer() >= 30) {
+                        Location loc = dungeon.getHologramLocation();
+                        if (loc != null && loc.getWorld() != null
+                                && loc.getWorld().isChunkLoaded(loc.getBlockX() >> 4, loc.getBlockZ() >> 4)) {
+                            for (org.bukkit.entity.Player player : loc.getNearbyPlayers(5.0)) {
+                                // クリエイティブモード等でのテストも考慮し、スペクテイター以外なら発動
+                                if (player.getGameMode() != org.bukkit.GameMode.SPECTATOR) {
+                                    startDungeon(player, dungeon);
+                                    break; // 1人見つかれば開始
+                                }
                             }
                         }
                     }
@@ -125,14 +130,15 @@ public class MiniDungeonManager implements IManager {
         }
 
         TextDisplay display = getOrCreateHologram(dungeon);
-        if (display == null) return;
+        if (display == null)
+            return;
 
         display.text(buildHologramText(dungeon));
     }
 
     private TextDisplay getOrCreateHologram(MiniDungeon dungeon) {
         Location loc = dungeon.getHologramLocation().clone().add(0, 0.5, 0);
-        
+
         // チャンクがアンロードされている場合は処理をスキップ（無限増殖・チャンクロードの防止）
         if (!loc.isWorldLoaded() || !loc.getWorld().isChunkLoaded(loc.getBlockX() >> 4, loc.getBlockZ() >> 4)) {
             return null;
@@ -165,8 +171,7 @@ public class MiniDungeonManager implements IManager {
             ent.addScoreboardTag("minidungeon_" + dungeon.getId());
             // Scale
             ent.setTransformation(new Transformation(
-                    new Vector3f(), new AxisAngle4f(), new Vector3f(1.2f, 1.2f, 1.2f), new AxisAngle4f()
-            ));
+                    new Vector3f(), new AxisAngle4f(), new Vector3f(1.2f, 1.2f, 1.2f), new AxisAngle4f()));
         });
 
         dungeon.setTextDisplayUuid(display.getUniqueId());
@@ -176,7 +181,8 @@ public class MiniDungeonManager implements IManager {
     private void removeHologram(MiniDungeon dungeon) {
         if (dungeon.getTextDisplayUuid() != null) {
             Entity ent = Bukkit.getEntity(dungeon.getTextDisplayUuid());
-            if (ent != null) ent.remove();
+            if (ent != null)
+                ent.remove();
             dungeon.setTextDisplayUuid(null);
         }
     }
@@ -194,17 +200,17 @@ public class MiniDungeonManager implements IManager {
 
         if (dungeon.isActive()) {
             status = Component.text(" [!] 攻略中 [!] ", NamedTextColor.RED);
-            progBar = Component.text("進入不可", NamedTextColor.GRAY);
+            progBar = Component.text("- 戦闘中 -", NamedTextColor.GRAY);
         } else {
             status = Component.text(" [入室可能] ", NamedTextColor.AQUA);
-            
+
             double ratio = (double) dungeon.getCooldownTimer() / MAX_COOLDOWN;
             int percentage = (int) (ratio * 100);
-            
+
             StringBuilder bars = new StringBuilder("[");
             int totalBars = 20;
             int activeBars = (int) (ratio * totalBars);
-            for(int i=0; i<totalBars; i++) {
+            for (int i = 0; i < totalBars; i++) {
                 if (i < activeBars) {
                     bars.append("|");
                 } else {
@@ -230,23 +236,72 @@ public class MiniDungeonManager implements IManager {
 
     // --- Core Dungeon Logic ---
 
-    public void startDungeon(org.bukkit.entity.Player player, MiniDungeon dungeon) {
-        if (!dungeon.isValid()) {
-            player.sendMessage(Component.text("[Minidungeon] 未設定の項目があります！ (ホログラム: " + (dungeon.getHologramLocation() != null) + ", モブ: " + !dungeon.getMobsToSpawn().isEmpty() + ", チェスト: " + (dungeon.getChestLocation() != null) + ", ルート設定: " + (dungeon.getLootTemplate() != null) + ")", NamedTextColor.RED));
+    private void checkAbandonment(MiniDungeon dungeon) {
+        Location loc = dungeon.getHologramLocation();
+        if (loc == null || loc.getWorld() == null)
+            return;
+
+        // チャンクがアンロードされている場合＝誰も周辺にいないので放棄扱い
+        if (!loc.getWorld().isChunkLoaded(loc.getBlockX() >> 4, loc.getBlockZ() >> 4)) {
+            forceResetDungeon(dungeon, "チャンクアンロード（誰もいない）");
             return;
         }
 
-        if (dungeon.isActive()) return;
+        // 半径50ブロック以内に、生存している有効なプレイヤーがいるか確認
+        boolean hasPlayer = false;
+        for (org.bukkit.entity.Player p : loc.getNearbyPlayers(50.0)) {
+            if (p.getGameMode() != org.bukkit.GameMode.SPECTATOR && !p.isDead()) {
+                hasPlayer = true;
+                break;
+            }
+        }
 
-        com.lunar_prototype.deepwither.modules.mob.framework.CustomMobManager customMobManager = 
-                com.lunar_prototype.deepwither.api.DW.get(com.lunar_prototype.deepwither.modules.mob.framework.CustomMobManager.class);
+        if (!hasPlayer) {
+            forceResetDungeon(dungeon, "プレイヤーが離脱/死亡したため");
+        }
+    }
+
+    private void forceResetDungeon(MiniDungeon dungeon, String reason) {
+        dungeon.setActive(false);
+        dungeon.setCooldownTimer(0);
+
+        // 残っているモブを掃除
+        for (java.util.UUID uuid : dungeon.getActiveMobs()) {
+            org.bukkit.entity.Entity ent = org.bukkit.Bukkit.getEntity(uuid);
+            if (ent != null) {
+                ent.remove();
+            }
+        }
+        dungeon.clearActiveMobs();
+
+        Location loc = dungeon.getHologramLocation();
+        if (loc != null && loc.getWorld() != null) {
+            plugin.getLogger().info("[Minidungeon] ダンジョン " + dungeon.getId() + " がリセットされました。理由: " + reason);
+        }
+    }
+
+    public void startDungeon(org.bukkit.entity.Player player, MiniDungeon dungeon) {
+        if (!dungeon.isValid()) {
+            player.sendMessage(Component
+                    .text("[Minidungeon] 未設定の項目があります！ (ホログラム: " + (dungeon.getHologramLocation() != null) + ", モブ: "
+                            + !dungeon.getMobsToSpawn().isEmpty() + ", チェスト: " + (dungeon.getChestLocation() != null)
+                            + ", ルート設定: " + (dungeon.getLootTemplate() != null) + ")", NamedTextColor.RED));
+            return;
+        }
+
+        if (dungeon.isActive())
+            return;
+
+        com.lunar_prototype.deepwither.modules.mob.framework.CustomMobManager customMobManager = com.lunar_prototype.deepwither.api.DW
+                .get(com.lunar_prototype.deepwither.modules.mob.framework.CustomMobManager.class);
         if (customMobManager == null) {
             player.sendMessage(Component.text("[Minidungeon] 内部エラー: CustomMobManagerが取得できません。", NamedTextColor.RED));
             return;
         }
 
         double progress = (double) dungeon.getCooldownTimer() / MAX_COOLDOWN;
-        if (progress < 0.01) progress = 0.01;
+        if (progress < 0.01)
+            progress = 0.01;
 
         dungeon.setStartedProgress(progress);
         dungeon.setActive(true);
@@ -255,7 +310,7 @@ public class MiniDungeonManager implements IManager {
         List<Location> spawns = dungeon.getSpawnLocations();
         Location baseSpawnLoc = dungeon.getHologramLocation();
         int spawnIndex = 0;
-        
+
         for (String mobId : dungeon.getMobsToSpawn()) {
             Location loc;
             if (spawns.isEmpty()) {
@@ -265,7 +320,8 @@ public class MiniDungeonManager implements IManager {
                 loc = spawns.get(spawnIndex % spawns.size());
             }
 
-            com.lunar_prototype.deepwither.modules.mob.framework.CustomMob spawnedMob = customMobManager.spawnMob(mobId, loc);
+            com.lunar_prototype.deepwither.modules.mob.framework.CustomMob spawnedMob = customMobManager.spawnMob(mobId,
+                    loc);
             if (spawnedMob != null && spawnedMob.getEntity() != null) {
                 dungeon.addActiveMob(spawnedMob.getEntity().getUniqueId());
             }
@@ -279,7 +335,7 @@ public class MiniDungeonManager implements IManager {
 
         int percent = (int) (progress * 100);
         player.sendMessage(Component.text("ミニダンジョンを開始しました！ (進行度: " + percent + "%)", NamedTextColor.YELLOW));
-        
+
         if (percent < 100) {
             player.sendMessage(Component.text("完全回復していません。報酬の質と量が抑えられます。", NamedTextColor.GRAY));
         }
@@ -289,7 +345,7 @@ public class MiniDungeonManager implements IManager {
         for (MiniDungeon dungeon : getAllDungeons()) {
             if (dungeon.isActive() && dungeon.getActiveMobs().contains(entity.getUniqueId())) {
                 dungeon.removeActiveMob(entity.getUniqueId());
-                
+
                 if (dungeon.getActiveMobs().isEmpty()) {
                     handleDungeonClear(dungeon);
                 }
@@ -301,40 +357,59 @@ public class MiniDungeonManager implements IManager {
     private void handleDungeonClear(MiniDungeon dungeon) {
         dungeon.setActive(false);
         dungeon.setCooldownTimer(0);
-        
-        com.lunar_prototype.deepwither.loot.LootChestManager lootManager = 
-                com.lunar_prototype.deepwither.api.DW.get(com.lunar_prototype.deepwither.loot.LootChestManager.class);
-        if (lootManager == null) return;
-        
-        com.lunar_prototype.deepwither.loot.LootChestTemplate template = lootManager.getTemplates().get(dungeon.getLootTemplate());
-        if (template == null) return;
+
+        com.lunar_prototype.deepwither.loot.LootChestManager lootManager = com.lunar_prototype.deepwither.api.DW
+                .get(com.lunar_prototype.deepwither.loot.LootChestManager.class);
+        if (lootManager == null)
+            return;
+
+        com.lunar_prototype.deepwither.loot.LootChestTemplate template = lootManager.getTemplates()
+                .get(dungeon.getLootTemplate());
+        if (template == null)
+            return;
 
         double progress = dungeon.getStartedProgress();
         int numChests = Math.max(1, (int) Math.round(3 * progress));
-        
+
         Location baseLoc = dungeon.getChestLocation().clone();
         java.util.concurrent.ThreadLocalRandom rand = java.util.concurrent.ThreadLocalRandom.current();
 
         for (int i = 0; i < numChests; i++) {
             Location cLoc = baseLoc.clone();
             if (i > 0) {
-                cLoc.add(rand.nextInt(3) - 1, 0, rand.nextInt(3) - 1);
+                boolean placed = false;
+                for (int attempt = 0; attempt < 8; attempt++) {
+                    int dx = rand.nextInt(3) - 1;
+                    int dz = rand.nextInt(3) - 1;
+                    if (dx == 0 && dz == 0) continue;
+
+                    org.bukkit.block.Block testBlock = baseLoc.clone().add(dx, 0, dz).getBlock();
+                    if (testBlock.getType().isAir() || testBlock.getType() == org.bukkit.Material.WATER) {
+                        cLoc.add(dx, 0, dz);
+                        placed = true;
+                        break;
+                    }
+                }
+                // もし周囲に安全に置ける場所が無ければ、元のチェストの上に積む
+                if (!placed) {
+                    cLoc.add(0, i, 0);
+                }
             }
-            
+
             org.bukkit.block.Block block = cLoc.getBlock();
             block.setType(org.bukkit.Material.CHEST);
-            
+
             if (block.getState() instanceof org.bukkit.block.Chest) {
                 org.bukkit.block.Chest chest = (org.bukkit.block.Chest) block.getState();
-                com.lunar_prototype.deepwither.modules.minidungeon.util.MiniDungeonLootUtil.fillScaledChest(chest, template, progress);
+                com.lunar_prototype.deepwither.modules.minidungeon.util.MiniDungeonLootUtil.fillScaledChest(chest,
+                        template, progress);
             }
         }
 
         if (baseLoc.getWorld() != null) {
             baseLoc.getWorld().playSound(baseLoc, org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
-            baseLoc.getWorld().getNearbyPlayers(baseLoc, 20).forEach(p -> 
-                p.sendMessage(Component.text("ミニダンジョンがクリアされました！報酬チェストが出現しました。", NamedTextColor.AQUA))
-            );
+            baseLoc.getWorld().getNearbyPlayers(baseLoc, 20).forEach(
+                    p -> p.sendMessage(Component.text("ミニダンジョンがクリアされました！報酬チェストが出現しました。", NamedTextColor.AQUA)));
         }
     }
 
@@ -363,16 +438,18 @@ public class MiniDungeonManager implements IManager {
     public void load() {
         dungeons.clear();
         ConfigurationSection root = config.getConfigurationSection("dungeons");
-        if (root == null) return;
+        if (root == null)
+            return;
 
         for (String id : root.getKeys(false)) {
             ConfigurationSection sec = root.getConfigurationSection(id);
-            if (sec == null) continue;
+            if (sec == null)
+                continue;
 
             MiniDungeon dungeon = new MiniDungeon(id);
             dungeon.setHologramLocation(sec.getLocation("hologramLocation"));
             dungeon.setChestLocation(sec.getLocation("chestLocation"));
-            
+
             List<Location> locs = (List<Location>) sec.getList("spawnLocations");
             if (locs != null) {
                 locs.forEach(dungeon::addSpawnLocation);
@@ -387,7 +464,7 @@ public class MiniDungeonManager implements IManager {
             dungeons.put(id, dungeon);
         }
     }
-    
+
     public int getMaxCooldown() {
         return MAX_COOLDOWN;
     }
