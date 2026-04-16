@@ -129,6 +129,6 @@ public class MiniDungeon {
     
     // Config Serialization Helpers
     public boolean isValid() {
-        return hologramLocation != null && chestLocation != null && !spawnLocations.isEmpty() && !mobsToSpawn.isEmpty() && lootTemplate != null;
+        return hologramLocation != null && chestLocation != null && !mobsToSpawn.isEmpty() && lootTemplate != null;
     }
 }

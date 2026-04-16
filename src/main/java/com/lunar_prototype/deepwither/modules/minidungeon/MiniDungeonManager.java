@@ -101,6 +101,18 @@ public class MiniDungeonManager implements IManager {
                         dungeon.setCooldownTimer(dungeon.getCooldownTimer() + 1);
                     }
                     updateHologram(dungeon);
+
+                    // 接近検知 (半径5ブロック)
+                    Location loc = dungeon.getHologramLocation();
+                    if (loc != null && loc.getWorld() != null && loc.getWorld().isChunkLoaded(loc.getBlockX() >> 4, loc.getBlockZ() >> 4)) {
+                        for (org.bukkit.entity.Player player : loc.getNearbyPlayers(5.0)) {
+                            // クリエイティブモード等でのテストも考慮し、スペクテイター以外なら発動
+                            if (player.getGameMode() != org.bukkit.GameMode.SPECTATOR) {
+                                startDungeon(player, dungeon);
+                                break; // 1人見つかれば開始
+                            }
+                        }
+                    }
                 }
             }
         };
@@ -120,17 +132,27 @@ public class MiniDungeonManager implements IManager {
 
     private TextDisplay getOrCreateHologram(MiniDungeon dungeon) {
         Location loc = dungeon.getHologramLocation().clone().add(0, 0.5, 0);
+        
+        // チャンクがアンロードされている場合は処理をスキップ（無限増殖・チャンクロードの防止）
+        if (!loc.isWorldLoaded() || !loc.getWorld().isChunkLoaded(loc.getBlockX() >> 4, loc.getBlockZ() >> 4)) {
+            return null;
+        }
+
         if (dungeon.getTextDisplayUuid() != null) {
             Entity ent = Bukkit.getEntity(dungeon.getTextDisplayUuid());
             if (ent instanceof TextDisplay) {
-                return (TextDisplay) ent;
+                if (ent.isValid()) {
+                    return (TextDisplay) ent;
+                } else {
+                    ent.remove();
+                }
             } else if (ent != null) {
                 ent.remove();
             }
         }
 
-        // 近くの迷子TextDisplayをクリーンアップ（再起動時の重複対策）
-        for (Entity e : loc.getWorld().getNearbyEntities(loc, 0.5, 0.5, 0.5)) {
+        // 近くの迷子TextDisplayをクリーンアップ（再起動時の重複対策など）
+        for (Entity e : loc.getWorld().getNearbyEntities(loc, 1.0, 1.0, 1.0)) {
             if (e instanceof TextDisplay && e.getScoreboardTags().contains("minidungeon_" + dungeon.getId())) {
                 e.remove();
             }
@@ -204,6 +226,116 @@ public class MiniDungeonManager implements IManager {
         return Component.text().append(title).appendNewline()
                 .append(status).appendNewline()
                 .append(progBar).build();
+    }
+
+    // --- Core Dungeon Logic ---
+
+    public void startDungeon(org.bukkit.entity.Player player, MiniDungeon dungeon) {
+        if (!dungeon.isValid()) {
+            player.sendMessage(Component.text("[Minidungeon] 未設定の項目があります！ (ホログラム: " + (dungeon.getHologramLocation() != null) + ", モブ: " + !dungeon.getMobsToSpawn().isEmpty() + ", チェスト: " + (dungeon.getChestLocation() != null) + ", ルート設定: " + (dungeon.getLootTemplate() != null) + ")", NamedTextColor.RED));
+            return;
+        }
+
+        if (dungeon.isActive()) return;
+
+        com.lunar_prototype.deepwither.modules.mob.framework.CustomMobManager customMobManager = 
+                com.lunar_prototype.deepwither.api.DW.get(com.lunar_prototype.deepwither.modules.mob.framework.CustomMobManager.class);
+        if (customMobManager == null) {
+            player.sendMessage(Component.text("[Minidungeon] 内部エラー: CustomMobManagerが取得できません。", NamedTextColor.RED));
+            return;
+        }
+
+        double progress = (double) dungeon.getCooldownTimer() / MAX_COOLDOWN;
+        if (progress < 0.01) progress = 0.01;
+
+        dungeon.setStartedProgress(progress);
+        dungeon.setActive(true);
+        dungeon.clearActiveMobs();
+
+        List<Location> spawns = dungeon.getSpawnLocations();
+        Location baseSpawnLoc = dungeon.getHologramLocation();
+        int spawnIndex = 0;
+        
+        for (String mobId : dungeon.getMobsToSpawn()) {
+            Location loc;
+            if (spawns.isEmpty()) {
+                // スポーン位置未指定の場合はホログラム位置の周辺(±2ブロック)にランダム配置
+                loc = baseSpawnLoc.clone().add(Math.random() * 4 - 2, 0, Math.random() * 4 - 2);
+            } else {
+                loc = spawns.get(spawnIndex % spawns.size());
+            }
+
+            com.lunar_prototype.deepwither.modules.mob.framework.CustomMob spawnedMob = customMobManager.spawnMob(mobId, loc);
+            if (spawnedMob != null && spawnedMob.getEntity() != null) {
+                dungeon.addActiveMob(spawnedMob.getEntity().getUniqueId());
+            }
+            spawnIndex++;
+        }
+
+        if (dungeon.getActiveMobs().isEmpty()) {
+            dungeon.setActive(false);
+            return;
+        }
+
+        int percent = (int) (progress * 100);
+        player.sendMessage(Component.text("ミニダンジョンを開始しました！ (進行度: " + percent + "%)", NamedTextColor.YELLOW));
+        
+        if (percent < 100) {
+            player.sendMessage(Component.text("完全回復していません。報酬の質と量が抑えられます。", NamedTextColor.GRAY));
+        }
+    }
+
+    public void handleMobDeath(Entity entity) {
+        for (MiniDungeon dungeon : getAllDungeons()) {
+            if (dungeon.isActive() && dungeon.getActiveMobs().contains(entity.getUniqueId())) {
+                dungeon.removeActiveMob(entity.getUniqueId());
+                
+                if (dungeon.getActiveMobs().isEmpty()) {
+                    handleDungeonClear(dungeon);
+                }
+                break;
+            }
+        }
+    }
+
+    private void handleDungeonClear(MiniDungeon dungeon) {
+        dungeon.setActive(false);
+        dungeon.setCooldownTimer(0);
+        
+        com.lunar_prototype.deepwither.loot.LootChestManager lootManager = 
+                com.lunar_prototype.deepwither.api.DW.get(com.lunar_prototype.deepwither.loot.LootChestManager.class);
+        if (lootManager == null) return;
+        
+        com.lunar_prototype.deepwither.loot.LootChestTemplate template = lootManager.getTemplates().get(dungeon.getLootTemplate());
+        if (template == null) return;
+
+        double progress = dungeon.getStartedProgress();
+        int numChests = Math.max(1, (int) Math.round(3 * progress));
+        
+        Location baseLoc = dungeon.getChestLocation().clone();
+        java.util.concurrent.ThreadLocalRandom rand = java.util.concurrent.ThreadLocalRandom.current();
+
+        for (int i = 0; i < numChests; i++) {
+            Location cLoc = baseLoc.clone();
+            if (i > 0) {
+                cLoc.add(rand.nextInt(3) - 1, 0, rand.nextInt(3) - 1);
+            }
+            
+            org.bukkit.block.Block block = cLoc.getBlock();
+            block.setType(org.bukkit.Material.CHEST);
+            
+            if (block.getState() instanceof org.bukkit.block.Chest) {
+                org.bukkit.block.Chest chest = (org.bukkit.block.Chest) block.getState();
+                com.lunar_prototype.deepwither.modules.minidungeon.util.MiniDungeonLootUtil.fillScaledChest(chest, template, progress);
+            }
+        }
+
+        if (baseLoc.getWorld() != null) {
+            baseLoc.getWorld().playSound(baseLoc, org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+            baseLoc.getWorld().getNearbyPlayers(baseLoc, 20).forEach(p -> 
+                p.sendMessage(Component.text("ミニダンジョンがクリアされました！報酬チェストが出現しました。", NamedTextColor.AQUA))
+            );
+        }
     }
 
     // --- Save & Load ---
