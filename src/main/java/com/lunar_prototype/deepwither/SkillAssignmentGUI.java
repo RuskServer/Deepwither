@@ -411,7 +411,9 @@ public class SkillAssignmentGUI implements Listener, IManager {
 
             // 新規にセットする場合、装備数の上限(4)をチェック
             if (slotData.getSkill(slotIndex) == null) {
-                long equippedCount = slotData.getSlots().stream().filter(Objects::nonNull).count();
+                long equippedCount = slotData.getSlots().stream()
+                        .filter(s -> s != null && !s.isEmpty())
+                        .count();
                 if (equippedCount >= 4) {
                     player.sendMessage(Component.text("スキルは最大4つまでしか装備できません。", NamedTextColor.RED));
                     return;

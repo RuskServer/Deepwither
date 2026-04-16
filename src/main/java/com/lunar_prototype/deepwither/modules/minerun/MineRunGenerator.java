@@ -1,0 +1,90 @@
+package com.lunar_prototype.deepwither.modules.minerun;
+
+import org.bukkit.Material;
+import org.bukkit.World;
+import org.bukkit.generator.ChunkGenerator;
+import org.bukkit.generator.WorldInfo;
+import org.bukkit.util.noise.SimplexOctaveGenerator;
+
+import java.util.Random;
+
+public class MineRunGenerator extends ChunkGenerator {
+
+    @Override
+    public boolean shouldGenerateNoise() {
+        return false;
+    }
+
+    @Override
+    public boolean shouldGenerateSurface() {
+        return false;
+    }
+
+    @Override
+    public boolean shouldGenerateBedrock() {
+        return false;
+    }
+
+    @Override
+    public boolean shouldGenerateCaves() {
+        return false;
+    }
+
+    @Override
+    public boolean shouldGenerateDecorations() {
+        return false;
+    }
+
+    @Override
+    public boolean shouldGenerateMobs() {
+        return false;
+    }
+
+    @Override
+    public boolean shouldGenerateStructures() {
+        return false;
+    }
+
+    @Override
+    public void generateNoise(WorldInfo worldInfo, Random random, int chunkX, int chunkZ, ChunkData chunkData) {
+        // Simplex Noise を使用して自然な洞窟（空洞）を生成する
+        // 全体を石で埋め、特定のスレッショルド（閾値）を超える部分を空気にすることで洞窟空間を作る
+        SimplexOctaveGenerator noise = new SimplexOctaveGenerator(worldInfo.getSeed(), 8);
+        noise.setScale(0.04); // XZ方向に少し細かくする
+
+        for (int x = 0; x < 16; x++) {
+            for (int z = 0; z < 16; z++) {
+                // 上下の境界を岩盤で塞ぐ (Y=20 を下限、Y=55 を上限とする)
+                for (int y = 0; y <= 20; y++) chunkData.setBlock(x, y, z, Material.BEDROCK);
+                for (int y = 55; y <= 100; y++) chunkData.setBlock(x, y, z, Material.BEDROCK);
+
+                for (int y = 21; y < 55; y++) {
+                    int realX = chunkX * 16 + x;
+                    int realZ = chunkZ * 16 + z;
+                    
+                    // 3Dノイズ値 (-1 to 1)。Y軸の変化を激しくして縦長の空洞を防ぐ
+                    double noiseValue = noise.noise(realX, y * 3.5, realZ, 0.5, 0.5);
+
+                    if (noiseValue > 0.25) {
+                        chunkData.setBlock(x, y, z, Material.AIR);
+                    } else {
+                        // 確率で廃坑要素(木材等)や鉱石を混ぜる、基本は石
+                        Material mat = Material.STONE;
+                        double randVal = random.nextDouble();
+                        if (noiseValue > 0.1 && y < 35 && randVal < 0.01) {
+                            mat = Material.OAK_PLANKS;
+                        } else if (randVal < 0.05) {
+                            mat = Material.ANDESITE;
+                        } else if (randVal < 0.02) {
+                            mat = Material.COBWEB;
+                        } else if (randVal < 0.01) {
+                            mat = Material.GOLD_ORE; // Layerに応じたドロップ設定用
+                        }
+                        
+                        chunkData.setBlock(x, y, z, mat);
+                    }
+                }
+            }
+        }
+    }
+}
