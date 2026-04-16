@@ -63,6 +63,7 @@ public class LayerMoveManager implements IManager {
             data.id = key;
             data.floorName = section.getString(key + ".floor_name");
             data.subTitle = section.getString(key + ".sub_title");
+            // floor番号はfloor_nameから動的に算出するため別フィールド不要
 
             String originStr = section.getString(key + ".origin");
             if (originStr != null) {
@@ -155,17 +156,34 @@ public class LayerMoveManager implements IManager {
             player.showTitle(title);
         }
 
-        // 階層踏破実績の判定
+        // 階層踏破実績の判定 (floor_nameから番号を算出)
         com.lunar_prototype.deepwither.advancement.AdvancementManager am = com.lunar_prototype.deepwither.api.DW.get(com.lunar_prototype.deepwither.advancement.AdvancementManager.class);
         if (am != null && targetWarp.floorName != null) {
-            String fName = targetWarp.floorName;
-            if (fName.contains("第1") || fName.contains("第１")) am.grantAdvancement(player, "floor_1");
-            else if (fName.contains("第2") || fName.contains("第２")) am.grantAdvancement(player, "floor_2");
-            else if (fName.contains("第3") || fName.contains("第３")) am.grantAdvancement(player, "floor_3");
-            else if (fName.contains("第4") || fName.contains("第４")) am.grantAdvancement(player, "floor_4");
-            else if (fName.contains("第5") || fName.contains("第５")) am.grantAdvancement(player, "floor_5");
-            else if (fName.contains("第6") || fName.contains("第６")) am.grantAdvancement(player, "floor_6");
+            int floor = extractFloorNumber(targetWarp.floorName);
+            if (floor >= 1 && floor <= 6) {
+                am.grantAdvancement(player, "floor_" + floor);
+            }
         }
+    }
+
+    /**
+     * floor_name（例: "第3層", "第３層"）から階層番号を抽出する。
+     * 半角・全角数字に対応。マッチしない場合は0を返す。
+     */
+    private int extractFloorNumber(String floorName) {
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("[1-6１-６]")
+                .matcher(floorName);
+        if (m.find()) {
+            String digit = m.group();
+            // 全角数字を半角に変換
+            char c = digit.charAt(0);
+            if (c >= '１' && c <= '６') {
+                return c - '１' + 1;
+            }
+            return Integer.parseInt(digit);
+        }
+        return 0;
     }
 
     public void setWarpOrigin(String warpId, Location loc) {
