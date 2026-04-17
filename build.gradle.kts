@@ -1,6 +1,7 @@
 plugins {
     java
     id("com.gradleup.shadow") version "8.3.5"
+    id("io.papermc.paperweight.userdev") version "2.0.0-beta.21"
 }
 
 group = "com.lunar_prototype"
@@ -30,10 +31,8 @@ repositories {
 }
 
 dependencies {
-    // Paper API (これはサーバーが提供するため同梱しない)
-    val paperVersion = "1.21.10-R0.1-SNAPSHOT"
-    compileOnly("io.papermc.paper:paper-api:$paperVersion")
-    testImplementation("io.papermc.paper:paper-api:$paperVersion")
+    // Paper API (paperweight を使用して NMS アクセスを有効化)
+    paperweight.paperDevBundle("1.21.10-R0.1-SNAPSHOT")
 
     // UltimateAdvancementAPI (サーバーに別途プラグインとして導入)
     compileOnly("com.frengor:ultimateadvancementapi:2.7.2")
@@ -95,8 +94,11 @@ tasks {
 
     // Maven Shade equivalent
     shadowJar {
-        archiveClassifier.set("")
-        // Necessary relocation can be added here
+        // REOBF_PRODUCTION が自動的に Classifier を dev-all に設定します
+    }
+
+    paperweight {
+        reobfArtifactConfiguration.set(io.papermc.paperweight.userdev.ReobfArtifactConfiguration.REOBF_PRODUCTION)
     }
 
     // Resource filtering (plugin.yml etc)
@@ -109,11 +111,10 @@ tasks {
     }
 
     build {
-        dependsOn(shadowJar)
+        dependsOn(reobfJar)
     }
 
-    // assembleタスク（buildの一部）が呼ばれた際にshadowJarをメインの成果物にする
     assemble {
-        dependsOn(shadowJar)
+        dependsOn(reobfJar)
     }
 }

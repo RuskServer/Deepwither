@@ -51,6 +51,14 @@ public class MineRunManager implements IManager {
         if (mineRunWorld != null) {
             mineRunWorld.setGameRule(org.bukkit.GameRule.DO_DAYLIGHT_CYCLE, false);
             mineRunWorld.setGameRule(org.bukkit.GameRule.DO_MOB_SPAWNING, false);
+            mineRunWorld.setGameRule(org.bukkit.GameRule.DO_WEATHER_CYCLE, false);
+            
+            // 常に嵐（雷雨）にすることで空を暗くし、不気味な霧の演出の土台とする
+            mineRunWorld.setStorm(true);
+            mineRunWorld.setThundering(true);
+            mineRunWorld.setThunderDuration(Integer.MAX_VALUE);
+            mineRunWorld.setWeatherDuration(Integer.MAX_VALUE);
+            mineRunWorld.setTime(18000); // 深夜に固定
         }
 
         startTickTask();
@@ -120,8 +128,15 @@ public class MineRunManager implements IManager {
                 if (sharedInst.remainingSeconds <= 0) {
                     player.sendMessage(Component.text("[MineRun] 時間切れ！", NamedTextColor.RED));
                     endRun(player, false); // ロールバック
-                } else if (spawnTick) {
-                    handleMobSpawning(player, sharedInst);
+                } else {
+                    // 約100秒に1回の確率で歪んだ環境音を流す (1秒ごとのループなので1/100)
+                    if (plugin.getRandom().nextInt(100) == 0) {
+                        MineRunEffects.playDistortedAmbient(player);
+                    }
+
+                    if (spawnTick) {
+                        handleMobSpawning(player, sharedInst);
+                    }
                 }
             }
             
@@ -240,7 +255,9 @@ public class MineRunManager implements IManager {
         bossBars.put(player.getUniqueId(), bar);
 
         player.teleport(instance.safeSpawn);
-        player.sendMessage(Component.text("[MineRun] ネガティブレイヤーに侵入しました。仲間とともに制限時間内に脱出ポータルへ向かってください！", NamedTextColor.DARK_PURPLE));
+        // クライアント側で時間を深夜に再送（ワールド設定だけでは同期が遅れる場合があるため）
+        player.setPlayerTime(18000, false);
+        player.sendMessage(Component.text("[MineRun] ネガティブレイヤーに侵入しました。空間の歪みに注意し、脱出を目指してください。", NamedTextColor.DARK_PURPLE));
     }
 
     /**
