@@ -29,13 +29,40 @@ public class MineRunGenerator extends ChunkGenerator {
         };
     }
 
-    @Override public boolean shouldGenerateNoise() { return false; }
-    @Override public boolean shouldGenerateSurface() { return false; }
-    @Override public boolean shouldGenerateBedrock() { return false; }
-    @Override public boolean shouldGenerateCaves() { return false; }
-    @Override public boolean shouldGenerateDecorations() { return false; }
-    @Override public boolean shouldGenerateMobs() { return false; }
-    @Override public boolean shouldGenerateStructures() { return false; }
+    @Override
+    public boolean shouldGenerateNoise() {
+        return false;
+    }
+
+    @Override
+    public boolean shouldGenerateSurface() {
+        return false;
+    }
+
+    @Override
+    public boolean shouldGenerateBedrock() {
+        return false;
+    }
+
+    @Override
+    public boolean shouldGenerateCaves() {
+        return false;
+    }
+
+    @Override
+    public boolean shouldGenerateDecorations() {
+        return false;
+    }
+
+    @Override
+    public boolean shouldGenerateMobs() {
+        return false;
+    }
+
+    @Override
+    public boolean shouldGenerateStructures() {
+        return false;
+    }
 
     @Override
     public void generateNoise(WorldInfo worldInfo, Random random, int chunkX, int chunkZ, ChunkData chunkData) {
@@ -43,30 +70,37 @@ public class MineRunGenerator extends ChunkGenerator {
         // 全体を石で埋め、特定のスレッショルド（閾値）を超える部分を空気にすることで洞窟空間を作る
         SimplexOctaveGenerator noise1 = new SimplexOctaveGenerator(worldInfo.getSeed(), 8);
         SimplexOctaveGenerator noise2 = new SimplexOctaveGenerator(worldInfo.getSeed() + 777, 8); // 異なる波にするためシードをずらす
-        noise1.setScale(0.035); 
+        noise1.setScale(0.035);
         noise2.setScale(0.035);
 
         for (int x = 0; x < 16; x++) {
             for (int z = 0; z < 16; z++) {
                 // 上下の境界を岩盤で塞ぐ (Y=20 を下限、Y=55 を上限とする)
-                for (int y = 0; y <= 20; y++) chunkData.setBlock(x, y, z, Material.BEDROCK);
-                for (int y = 55; y <= 100; y++) chunkData.setBlock(x, y, z, Material.BEDROCK);
+                for (int y = 0; y <= 20; y++)
+                    chunkData.setBlock(x, y, z, Material.BEDROCK);
+                for (int y = 55; y <= 100; y++)
+                    chunkData.setBlock(x, y, z, Material.BEDROCK);
 
                 for (int y = 21; y < 55; y++) {
                     int realX = chunkX * 16 + x;
                     int realZ = chunkZ * 16 + z;
-                    
+
                     // 2つの3Dノイズ値 (-1 to 1) を取得
                     double val1 = noise1.noise(realX, y * 1.5, realZ, 0.5, 0.5);
                     double val2 = noise2.noise(realX, y * 1.5, realZ, 0.5, 0.5);
 
                     // 両方のノイズの絶対値が非常に小さい領域（2つの波の交差＝チューブ）のみを空気とする
                     if (Math.abs(val1) < 0.08 && Math.abs(val2) < 0.08) {
-                        // 3% の確率で明るさ12のライトブロックを配置し、視認性を大幅に改善
-                        if (random.nextDouble() < 0.03) {
-                            org.bukkit.block.data.type.Light light = (org.bukkit.block.data.type.Light) Material.LIGHT.createBlockData();
-                            light.setLevel(12);
+                        // 8% の確率で明るさ15（最大）のライトブロックを配置して主照明を確保
+                        double lightRand = random.nextDouble();
+                        if (lightRand < 0.08) {
+                            org.bukkit.block.data.type.Light light = (org.bukkit.block.data.type.Light) Material.LIGHT
+                                    .createBlockData();
+                            light.setLevel(15);
                             chunkData.setBlock(x, y, z, light);
+                        } else if (lightRand < 0.13) {
+                            // 発光コーラルブロック（海底洞窟風の薄青い光）
+                            chunkData.setBlock(x, y, z, Material.SEA_LANTERN);
                         } else {
                             chunkData.setBlock(x, y, z, Material.AIR);
                         }
@@ -85,7 +119,7 @@ public class MineRunGenerator extends ChunkGenerator {
                             // 不安定な空間の演出：泣く黒曜石
                             mat = Material.CRYING_OBSIDIAN;
                         }
-                        
+
                         chunkData.setBlock(x, y, z, mat);
 
                         // 空間の歪み・明かりの演出
@@ -95,10 +129,15 @@ public class MineRunGenerator extends ChunkGenerator {
                             if (decorRand < 0.02) {
                                 // 空間の亀裂：黒いステンドグラス
                                 chunkData.setBlock(x, y, z, Material.BLACK_STAINED_GLASS);
-                            } else if (decorRand < 0.05) {
-                                // 壁面の微光：ヒカリゴケ (Glow Lichen)
-                                // 空洞のすぐ隣の壁に配置されるような判定
+                            } else if (decorRand < 0.18) {
+                                // 壁面の微光：ヒカリゴケ (Glow Lichen) — 出現率を大幅増加
                                 chunkData.setBlock(x, y, z, Material.GLOW_LICHEN);
+                            } else if (decorRand < 0.22 && y >= 21 && y <= 25) {
+                                // 床付近（低層）にシュルームライトを散らして足元を照らす
+                                chunkData.setBlock(x, y, z, Material.SHROOMLIGHT);
+                            } else if (decorRand < 0.22 && y >= 50 && y <= 54) {
+                                // 天井付近（上層）にシュルームライトを散らす
+                                chunkData.setBlock(x, y, z, Material.SHROOMLIGHT);
                             }
                         }
                     }
