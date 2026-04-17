@@ -2,6 +2,9 @@ package com.lunar_prototype.deepwither.modules.minerun;
 
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.util.IManager;
+import com.lunar_prototype.deepwither.api.DW;
+import com.lunar_prototype.deepwither.modules.mob.service.MobConfigService;
+import com.lunar_prototype.deepwither.modules.mob.service.MobSpawnerService;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -170,19 +173,18 @@ public class MineRunManager implements IManager {
             }
 
             if (spawnLoc != null) {
-                com.lunar_prototype.deepwither.modules.mob.service.MobSpawnerService spawnerService = 
-                        com.lunar_prototype.deepwither.api.DW.get(com.lunar_prototype.deepwither.modules.mob.service.MobSpawnerService.class);
-                if (spawnerService != null) {
-                    String[] t1Mobs = {"melee_zombie2", "melee_skeleton"};
-                    String[] t2Mobs = {"FireDemon", "melee_zombie2"};
-                    String[] t3Mobs = {"IcePilgrim", "FireDemon"};
-                    
-                    String[] pool = t1Mobs;
-                    if (instance.tier >= 3) pool = t3Mobs;
-                    else if (instance.tier >= 2) pool = t2Mobs;
-                    
-                    String selectedMob = pool[rand.nextInt(pool.length)];
-                    spawnerService.spawnMythicMob(selectedMob, spawnLoc, instance.tier);
+                MobSpawnerService spawnerService = DW.get(MobSpawnerService.class);
+                MobConfigService configService = DW.get(MobConfigService.class);
+
+                if (spawnerService != null && configService != null) {
+                    MobConfigService.MobTierConfig tierConfig = configService.getTierConfig(instance.tier);
+                    if (tierConfig != null) {
+                        java.util.List<String> pool = tierConfig.getRegularMobs();
+                        if (!pool.isEmpty()) {
+                            String selectedMob = pool.get(rand.nextInt(pool.size()));
+                            spawnerService.spawnMythicMob(selectedMob, spawnLoc, instance.tier);
+                        }
+                    }
                 }
             }
         }
