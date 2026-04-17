@@ -71,10 +71,15 @@ public class MineRunManager implements IManager {
     }
 
     private void startTickTask() {
-        tickTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
-            boolean spawnTick = (plugin.getServer().getCurrentTick() % 100 == 0); // 約5秒に1回
+        tickTask = Bukkit.getScheduler().runTaskTimer(plugin, new Runnable() {
+            int spawnTickCounter = 0;
+            
+            @Override
+            public void run() {
+                spawnTickCounter++;
+                boolean spawnTick = (spawnTickCounter % 5 == 0); // 1秒ループなので5秒に1度
 
-            // 1. 各共有インスタンスのタイマーを進行
+                // 1. 各共有インスタンスのタイマーを進行
             for (MineRunInstance instance : activeInstances.values()) {
                 if (instance.remainingSeconds > 0) {
                     instance.remainingSeconds--;
@@ -121,6 +126,7 @@ public class MineRunManager implements IManager {
             }
             
             // 時間切れになったインスタンスの掃除は必要に応じて（全員退出で空になる等）
+            }
         }, 20L, 20L); // 1秒毎
     }
 
