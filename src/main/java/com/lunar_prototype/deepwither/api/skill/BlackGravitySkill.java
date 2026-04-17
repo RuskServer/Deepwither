@@ -123,6 +123,8 @@ public class BlackGravitySkill implements ISkillLogic {
     }
 
     private void startBlackHole(LivingEntity caster, Location center, int level) {
+        final java.util.UUID blackHoleId = java.util.UUID.randomUUID();
+
         new BukkitRunnable() {
             int ticks = 0;
             final int maxTicks = 40; // 80 -> 40 (2秒) に短縮
@@ -178,9 +180,6 @@ public class BlackGravitySkill implements ISkillLogic {
                 for (Entity entity : pullTargets) {
                     if (entity instanceof LivingEntity living && !entity.getUniqueId().equals(caster.getUniqueId())) {
                         
-                        // 一度中心付近に吸い込まれたエンティティは、それ以上吸引しない
-                        if (centeredEntities.contains(living.getUniqueId())) continue;
-
                         // シールドチェック
                         boolean protectedByShield = false;
                         for (Player shieldUser : center.getWorld().getPlayers()) {
@@ -192,6 +191,24 @@ public class BlackGravitySkill implements ISkillLogic {
                             }
                         }
                         if (protectedByShield) continue;
+
+                        // --- 永久拘束ハメ対策（重力耐性） ---
+                        if (living.hasMetadata("gravity_hole_id") && living.hasMetadata("gravity_immunity_end")) {
+                            String lastHoleId = living.getMetadata("gravity_hole_id").get(0).asString();
+                            long immuneEnd = living.getMetadata("gravity_immunity_end").get(0).asLong();
+                            
+                            // 別のブラックホールによる吸引、かつ免疫時間(3秒)が残っている場合は無視
+                            if (!lastHoleId.equals(blackHoleId.toString()) && System.currentTimeMillis() < immuneEnd) {
+                                continue;
+                            }
+                        }
+                        
+                        // 今回のブラックホールの所有権と効果時間(現在時刻+3秒)を更新
+                        living.setMetadata("gravity_hole_id", new org.bukkit.metadata.FixedMetadataValue(Deepwither.getInstance(), blackHoleId.toString()));
+                        living.setMetadata("gravity_immunity_end", new org.bukkit.metadata.FixedMetadataValue(Deepwither.getInstance(), System.currentTimeMillis() + 3000));
+
+                        // 一度中心付近に吸い込まれたエンティティは、それ以上吸引しない（耐性時間は上記で更新する）
+                        if (centeredEntities.contains(living.getUniqueId())) continue;
 
                         Vector toCenter = center.toVector().subtract(entity.getLocation().toVector());
                         double distSq = toCenter.lengthSquared();
@@ -205,7 +222,13 @@ public class BlackGravitySkill implements ISkillLogic {
                         Vector currentVel = entity.getVelocity();
                         if (currentVel.lengthSquared() > 0.3) continue;
 
-                        toCenter.normalize().multiply(pullPower);
+                        // --- 距離による吸引力減衰 ---
+                        // 距離(0.0 ~ 5.0) に応じて、遠いほど吸引力を弱める (中心付近は1.0倍、外縁は0.3倍)
+                        double distance = Math.sqrt(distSq);
+                        double distanceRatio = Math.min(1.0, distance / 5.0);
+                        double scaledPullPower = pullPower * (1.0 - (distanceRatio * 0.7));
+
+                        toCenter.normalize().multiply(scaledPullPower);
                         toCenter.setY(toCenter.getY() * 0.5);
                         entity.setVelocity(currentVel.add(toCenter));
                     }
