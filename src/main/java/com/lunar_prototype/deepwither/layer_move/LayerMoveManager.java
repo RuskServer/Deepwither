@@ -1,6 +1,7 @@
 package com.lunar_prototype.deepwither.layer_move;
 
 import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.modules.economy.advancement.AdvancementManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
@@ -157,7 +158,7 @@ public class LayerMoveManager implements IManager {
         }
 
         // 階層踏破実績の判定 (floor_nameから番号を算出)
-        com.lunar_prototype.deepwither.advancement.AdvancementManager am = com.lunar_prototype.deepwither.api.DW.get(com.lunar_prototype.deepwither.advancement.AdvancementManager.class);
+        AdvancementManager am = com.lunar_prototype.deepwither.api.DW.get(AdvancementManager.class);
         if (am != null && targetWarp.floorName != null) {
             int floor = extractFloorNumber(targetWarp.floorName);
             if (floor >= 1 && floor <= 6) {

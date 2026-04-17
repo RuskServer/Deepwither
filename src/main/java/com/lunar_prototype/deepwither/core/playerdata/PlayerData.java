@@ -5,7 +5,7 @@ import com.lunar_prototype.deepwither.modules.aethelgard.PlayerQuestData;
 import com.lunar_prototype.deepwither.crafting.CraftingData;
 import com.lunar_prototype.deepwither.data.DailyTaskData;
 import com.lunar_prototype.deepwither.profession.PlayerProfessionData;
-import com.lunar_prototype.deepwither.advancement.PlayerAdvancementData;
+import com.lunar_prototype.deepwither.modules.economy.advancement.PlayerAdvancementData;
 
 import java.util.UUID;
 

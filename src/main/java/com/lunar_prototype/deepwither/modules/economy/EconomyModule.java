@@ -8,7 +8,7 @@ import com.lunar_prototype.deepwither.modules.economy.trader.TraderManager;
 import com.lunar_prototype.deepwither.market.GlobalMarketManager;
 import com.lunar_prototype.deepwither.DatabaseManager;
 import com.lunar_prototype.deepwither.ItemFactory;
-import com.lunar_prototype.deepwither.advancement.AdvancementManager;
+import com.lunar_prototype.deepwither.modules.economy.advancement.AdvancementManager;
 
 public class EconomyModule implements IModule {
 

@@ -1,4 +1,4 @@
-package com.lunar_prototype.deepwither.advancement;
+package com.lunar_prototype.deepwither.modules.economy.advancement;
 
 import java.util.HashMap;
 import java.util.Map;

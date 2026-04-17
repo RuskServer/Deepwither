@@ -4,6 +4,7 @@ import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.api.event.*;
 import com.lunar_prototype.deepwither.StatManager;
 import com.lunar_prototype.deepwither.ItemFactory;
+import com.lunar_prototype.deepwither.modules.economy.advancement.AdvancementManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.util.IManager;
@@ -254,7 +255,7 @@ public class TutorialController implements Listener, IManager {
             if (EQFPlugin.getInstance() != null) EQFPlugin.getInstance().getQuestManager().startQuest(p, "tutorial");
             stageMap.put(p.getUniqueId(), TutorialStage.COMPLETE);
             
-            com.lunar_prototype.deepwither.advancement.AdvancementManager am = DW.get(com.lunar_prototype.deepwither.advancement.AdvancementManager.class);
+            AdvancementManager am = DW.get(AdvancementManager.class);
             if (am != null) {
                 am.grantAdvancement(p, "tutorial_clear");
             }

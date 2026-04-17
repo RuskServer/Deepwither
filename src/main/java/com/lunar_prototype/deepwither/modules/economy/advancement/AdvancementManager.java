@@ -1,4 +1,4 @@
-package com.lunar_prototype.deepwither.advancement;
+package com.lunar_prototype.deepwither.modules.economy.advancement;
 
 import com.fren_gor.ultimateAdvancementAPI.UltimateAdvancementAPI;
 import com.fren_gor.ultimateAdvancementAPI.AdvancementTab;

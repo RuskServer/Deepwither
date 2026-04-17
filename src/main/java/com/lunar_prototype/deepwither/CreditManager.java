@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.modules.economy.advancement.AdvancementManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -103,8 +104,8 @@ public class CreditManager implements IManager {
         if (newCredit > oldCredit) {
             org.bukkit.entity.Player player = org.bukkit.Bukkit.getPlayer(playerUUID);
             if (player != null) {
-                com.lunar_prototype.deepwither.advancement.AdvancementManager am = 
-                        com.lunar_prototype.deepwither.api.DW.get(com.lunar_prototype.deepwither.advancement.AdvancementManager.class);
+                AdvancementManager am =
+                        com.lunar_prototype.deepwither.api.DW.get(AdvancementManager.class);
                 if (am != null) {
                     for (int c = 500; c <= 2500; c += 500) {
                         if (oldCredit < c && newCredit >= c) {

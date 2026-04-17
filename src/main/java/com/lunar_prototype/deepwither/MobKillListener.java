@@ -2,6 +2,8 @@ package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.booster.BoosterManager;
+import com.lunar_prototype.deepwither.modules.economy.advancement.AdvancementManager;
+import com.lunar_prototype.deepwither.modules.economy.advancement.PlayerAdvancementData;
 import com.lunar_prototype.deepwither.modules.mob.framework.CustomMobManager;
 import com.lunar_prototype.deepwither.modules.outpost.OutpostEvent;
 import com.lunar_prototype.deepwither.modules.outpost.OutpostManager;
@@ -106,13 +108,13 @@ public class MobKillListener implements Listener, IManager {
         com.lunar_prototype.deepwither.core.PlayerCache pc = DW.cache().getCache(killer.getUniqueId());
         if (pc == null || pc.getData() == null || pc.getData().getAdvancements() == null) return;
         
-        com.lunar_prototype.deepwither.advancement.PlayerAdvancementData data = pc.getData().getAdvancements();
+        PlayerAdvancementData data = pc.getData().getAdvancements();
         int oldCount = data.getTotalMobKills();
         data.addMobKill(mobId);
         int newCount = data.getTotalMobKills();
         
         int[] milestones = {10, 50, 100, 500, 1000};
-        com.lunar_prototype.deepwither.advancement.AdvancementManager am = DW.get(com.lunar_prototype.deepwither.advancement.AdvancementManager.class);
+        AdvancementManager am = DW.get(AdvancementManager.class);
         if (am != null) {
             for (int m : milestones) {
                 if (oldCount < m && newCount >= m) {

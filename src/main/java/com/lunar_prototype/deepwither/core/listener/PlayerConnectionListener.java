@@ -2,6 +2,7 @@ package com.lunar_prototype.deepwither.core.listener;
 
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.core.playerdata.PlayerDataManager;
+import com.lunar_prototype.deepwither.modules.economy.advancement.AdvancementManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.Bukkit;
@@ -51,8 +52,8 @@ public class PlayerConnectionListener implements Listener, IManager {
         }
         
         // 実績タブをプレイヤーに表示
-        com.lunar_prototype.deepwither.advancement.AdvancementManager am = 
-                com.lunar_prototype.deepwither.api.DW.get(com.lunar_prototype.deepwither.advancement.AdvancementManager.class);
+        AdvancementManager am =
+                com.lunar_prototype.deepwither.api.DW.get(AdvancementManager.class);
         if (am != null) {
             am.onPlayerJoin(e.getPlayer());
         }
