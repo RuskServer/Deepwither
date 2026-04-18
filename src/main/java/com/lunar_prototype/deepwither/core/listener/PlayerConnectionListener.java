@@ -38,11 +38,7 @@ public class PlayerConnectionListener implements Listener, IManager {
     public void onJoin(PlayerJoinEvent e) {
         playerDataManager.loadData(e.getPlayer().getUniqueId());
         
-        // 追加: まだPlayerDataManagerに完全に統合されていないロード処理
-        Deepwither dw = Deepwither.getInstance();
-        dw.getDailyTaskManager().loadPlayer(e.getPlayer());
-        dw.getCraftingManager().loadPlayer(e.getPlayer());
-        dw.getProfessionManager().loadPlayer(e.getPlayer());
+
 
         // 1ブロック分の段差をオートジャンプなしで登れるようにする設定
         org.bukkit.attribute.AttributeInstance stepHeight = e.getPlayer().getAttribute(org.bukkit.attribute.Attribute.STEP_HEIGHT);

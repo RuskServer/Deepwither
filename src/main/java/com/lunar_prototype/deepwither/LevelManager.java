@@ -1,5 +1,9 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.api.playerdata.IPlayerDataHandler;
+import com.lunar_prototype.deepwither.core.PlayerCache;
+import java.util.concurrent.CompletableFuture;
+
 import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.core.CacheManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
@@ -17,7 +21,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @DependsOn({DatabaseManager.class, CacheManager.class})
-public class LevelManager implements IManager {
+public class LevelManager implements IManager, IPlayerDataHandler {
     private static final int MAX_LEVEL = 50;
 
     private final DatabaseManager db;
@@ -27,9 +31,15 @@ public class LevelManager implements IManager {
     }
 
     @Override
-    public void init() {}
+    public void init() {
+        com.lunar_prototype.deepwither.Deepwither.getInstance().getPlayerDataManager().registerHandler(this);
+}
 
     public void load(UUID uuid) {
+        load(uuid, DW.cache().getCache(uuid));
+    }
+
+    public void load(UUID uuid, PlayerCache cache) {
         try (Connection conn = db.getConnection();
              PreparedStatement ps = conn.prepareStatement("SELECT \"level\", exp FROM player_levels WHERE uuid = ?")) {
             ps.setString(1, uuid.toString());
@@ -41,21 +51,20 @@ public class LevelManager implements IManager {
                     data = new PlayerLevelData(level, exp);
                 } else {
                     data = new PlayerLevelData(1, 0);
-                    Deepwither.getInstance().getAttributeManager().givePoints(uuid, 2);
-                    SkillData skilldata = Deepwither.getInstance().getSkilltreeManager().load(uuid);
-                    if (skilldata != null) {
-                        skilldata.setSkillPoint(skilldata.getSkillPoint() + 2);
-                        Deepwither.getInstance().getSkilltreeManager().saveAsync(uuid, skilldata);
-                    }
                 }
-                DW.cache().getCache(uuid).set(PlayerLevelData.class, data);
+                cache.set(PlayerLevelData.class, data);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            com.lunar_prototype.deepwither.Deepwither.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "Database error in " + this.getClass().getSimpleName(), e);
+            throw new RuntimeException("Database error in " + this.getClass().getSimpleName(), e);
         }
     }
 
     public void save(UUID uuid) {
+        save(uuid, DW.cache().getCache(uuid));
+    }
+
+    public void save(UUID uuid, PlayerCache cache) {
         PlayerLevelData data = get(uuid);
         if (data == null) return;
 
@@ -104,7 +113,8 @@ public class LevelManager implements IManager {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            com.lunar_prototype.deepwither.Deepwither.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "Database error in " + this.getClass().getSimpleName(), e);
+            throw new RuntimeException("Database error in " + this.getClass().getSimpleName(), e);
         }
     }
 
@@ -222,4 +232,15 @@ public class LevelManager implements IManager {
         save(uuid);
         DW.cache().getCache(uuid).remove(PlayerLevelData.class);
     }
+
+    @Override
+    public CompletableFuture<Void> loadData(UUID uuid, PlayerCache cache) {
+        return CompletableFuture.runAsync(() -> load(uuid, cache), com.lunar_prototype.deepwither.Deepwither.getInstance().getAsyncExecutor());
+    }
+
+    @Override
+    public CompletableFuture<Void> saveData(UUID uuid, PlayerCache cache) {
+        return CompletableFuture.runAsync(() -> save(uuid, cache), com.lunar_prototype.deepwither.Deepwither.getInstance().getAsyncExecutor());
+    }
+
 }

@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither;
 
-public class PlayerLevelData {
+import com.lunar_prototype.deepwither.api.playerdata.IPlayerComponent;
+
+public class PlayerLevelData implements IPlayerComponent {
     private int level;
     private double exp;
 

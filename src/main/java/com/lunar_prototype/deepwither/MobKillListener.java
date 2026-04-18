@@ -106,9 +106,8 @@ public class MobKillListener implements Listener, IManager {
     
     private void handleMobKillAdvancement(Player killer, String mobId) {
         com.lunar_prototype.deepwither.core.PlayerCache pc = DW.cache().getCache(killer.getUniqueId());
-        if (pc == null || pc.getData() == null || pc.getData().getAdvancements() == null) return;
-        
-        PlayerAdvancementData data = pc.getData().getAdvancements();
+        if (pc == null) return;
+        PlayerAdvancementData data = pc.getOrPut(PlayerAdvancementData.class, PlayerAdvancementData::new);
         int oldCount = data.getTotalMobKills();
         data.addMobKill(mobId);
         int newCount = data.getTotalMobKills();

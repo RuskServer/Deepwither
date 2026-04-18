@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @DependsOn({ItemFactory.class, CacheManager.class})
-public class CraftingManager implements IManager {
+public class CraftingManager implements IManager, com.lunar_prototype.deepwither.api.playerdata.IPlayerDataHandler {
 
     private final Deepwither plugin;
     private CraftingDataStore dataStore;
@@ -131,22 +131,25 @@ public class CraftingManager implements IManager {
         }
     }
 
-    public void loadPlayer(Player player) {
-        dataStore.loadData(player.getUniqueId()).thenAccept(data -> {
-            recipeStore.loadUnlockedRecipes(player.getUniqueId()).thenAccept(unlocked -> {
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> loadData(UUID uuid, com.lunar_prototype.deepwither.core.PlayerCache cache) {
+        return dataStore.loadData(uuid).thenCompose(data -> 
+            recipeStore.loadUnlockedRecipes(uuid).thenAccept(unlocked -> {
                 data.setUnlockedRecipes(unlocked);
-                DW.cache().getCache(player.getUniqueId()).set(CraftingData.class, data);
-            });
-        });
+                cache.set(com.lunar_prototype.deepwither.crafting.CraftingData.class, data);
+            })
+        );
     }
 
-    public void saveAndUnloadPlayer(UUID playerId) {
-        CraftingData data = DW.cache().getCache(playerId).get(CraftingData.class);
-        if (data != null) {
-            dataStore.saveData(data);
-            recipeStore.saveUnlockedRecipes(playerId, data.getUnlockedRecipes());
-            DW.cache().getCache(playerId).remove(CraftingData.class);
-        }
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> saveData(UUID uuid, com.lunar_prototype.deepwither.core.PlayerCache cache) {
+        return java.util.concurrent.CompletableFuture.runAsync(() -> {
+            com.lunar_prototype.deepwither.crafting.CraftingData data = cache.get(com.lunar_prototype.deepwither.crafting.CraftingData.class);
+            if (data != null) {
+                dataStore.saveData(data);
+                recipeStore.saveUnlockedRecipes(uuid, data.getUnlockedRecipes());
+            }
+        }, plugin.getAsyncExecutor());
     }
 
     public CraftingData getData(Player player) {

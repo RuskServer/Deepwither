@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither.data;
 
+import com.lunar_prototype.deepwither.api.playerdata.IPlayerComponent;
+
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.configuration.serialization.SerializableAs;
 
@@ -10,7 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @SerializableAs("DailyTaskData")
-public class DailyTaskData implements ConfigurationSerializable {
+public class DailyTaskData implements ConfigurationSerializable, IPlayerComponent {
 
     private final UUID playerId;
     private LocalDate lastResetDate;

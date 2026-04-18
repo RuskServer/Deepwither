@@ -1,8 +1,10 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.api.playerdata.IPlayerComponent;
+
 import java.util.EnumMap;
 
-public class PlayerAttributeData {
+public class PlayerAttributeData implements IPlayerComponent {
     private int totalPoints;
     private final EnumMap<StatType, Integer> allocated;
 

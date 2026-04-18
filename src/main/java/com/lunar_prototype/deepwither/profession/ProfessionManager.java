@@ -19,7 +19,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @DependsOn({ProfessionDatabase.class, CacheManager.class})
-public class ProfessionManager implements IManager {
+public class ProfessionManager implements IManager, com.lunar_prototype.deepwither.api.playerdata.IPlayerDataHandler {
 
     private final Deepwither plugin;
     private final ProfessionDatabase database;
@@ -49,21 +49,22 @@ public class ProfessionManager implements IManager {
         bossBarMap.clear();
     }
 
-    public void loadPlayer(Player player) {
-        UUID uuid = player.getUniqueId();
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> loadData(UUID uuid, com.lunar_prototype.deepwither.core.PlayerCache cache) {
+        return java.util.concurrent.CompletableFuture.runAsync(() -> {
             PlayerProfessionData data = database.loadPlayer(uuid);
-            DW.cache().getCache(uuid).set(PlayerProfessionData.class, data);
-        });
+            cache.set(PlayerProfessionData.class, data);
+        }, plugin.getAsyncExecutor());
     }
 
-    public void saveAndUnloadPlayer(Player player) {
-        UUID uuid = player.getUniqueId();
-        PlayerProfessionData data = DW.cache().getCache(uuid).get(PlayerProfessionData.class);
-        if (data != null) {
-            database.savePlayer(data);
-            DW.cache().getCache(uuid).remove(PlayerProfessionData.class);
-        }
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> saveData(UUID uuid, com.lunar_prototype.deepwither.core.PlayerCache cache) {
+        return java.util.concurrent.CompletableFuture.runAsync(() -> {
+            PlayerProfessionData data = cache.get(PlayerProfessionData.class);
+            if (data != null) {
+                database.savePlayer(data);
+            }
+        }, plugin.getAsyncExecutor());
     }
 
     private void savePlayerSync(UUID uuid) {

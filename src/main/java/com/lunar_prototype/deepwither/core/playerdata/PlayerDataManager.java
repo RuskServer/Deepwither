@@ -2,28 +2,28 @@ package com.lunar_prototype.deepwither.core.playerdata;
 
 import com.lunar_prototype.deepwither.DatabaseManager;
 import com.lunar_prototype.deepwither.Deepwither;
-import com.lunar_prototype.deepwither.api.DW;
+import com.lunar_prototype.deepwither.api.playerdata.IPlayerDataHandler;
 import com.lunar_prototype.deepwither.core.CacheManager;
 import com.lunar_prototype.deepwither.core.PlayerCache;
-import com.lunar_prototype.deepwither.data.DailyTaskData;
-import com.lunar_prototype.deepwither.SkillData;
-import com.lunar_prototype.deepwither.modules.economy.advancement.AdvancementManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * プレイヤーデータの読み込み・保存・移行を一括管理するマネージャー。
+ * Observerパターンを用いて、各機能マネージャーから登録されたハンドラーを並列実行します。
  */
 @DependsOn({DatabaseManager.class, CacheManager.class})
 public class PlayerDataManager implements IManager {
 
     private final Deepwither plugin;
     private final CacheManager cache;
+    private final List<IPlayerDataHandler> handlers = new CopyOnWriteArrayList<>();
 
     public PlayerDataManager(Deepwither plugin, CacheManager cache) {
         this.plugin = plugin;
@@ -31,80 +31,76 @@ public class PlayerDataManager implements IManager {
     }
 
     @Override
-    public void init() throws Exception {
-        // 必要なら新テーブルの作成などをここで行う
+    public void init() {
+    }
+
+    @Override
+    public void shutdown() {
     }
 
     /**
-     * プレイヤーデータを読み込みます。既存の各マネージャーのloadロジックを呼び出し、
-     * 一つのPlayerDataオブジェクトに統合します。
+     * データハンドラーを登録します。
+     * @param handler ロード/セーブを担当するハンドラー
      */
-    public CompletableFuture<PlayerData> loadData(UUID uuid) {
-        return CompletableFuture.supplyAsync(() -> {
-            // 各マネージャーの既存ロードロジックを順番に実行し、結果をPlayerDataに集約する
-            // 注意: 現状の各マネージャーのload(UUID)は同期的にDBアクセスしているため、
-            // ここで一括で呼び出すことで、PlayerDataが完成した状態を作ります。
-            
-            plugin.getLevelManager().load(uuid);
-            plugin.getAttributeManager().load(uuid);
-            plugin.getSkilltreeManager().load(uuid);
-            plugin.getManaManager().get(uuid); // Manaはデフォルト値が入る
-            AdvancementManager am = DW.get(AdvancementManager.class);
-            if (am != null) { am.load(uuid); }
-            
-            // DailyTasks, Crafting, Profession は PlayerConnectionListener で loadPlayer を呼んでいるため
-            // 現時点ではここでは省略するが、最終的にはここに集約するのが望ましい
-            
-            PlayerCache pc = cache.getCache(uuid);
-            return pc.getData();
-        }, plugin.getAsyncExecutor());
+    public void registerHandler(IPlayerDataHandler handler) {
+        handlers.add(handler);
+        plugin.getLogger().info("[PlayerData] Registered handler: " + handler.getHandlerName());
     }
 
     /**
-     * プレイヤーデータを保存します。
+     * 登録された全ハンドラーを並列実行し、プレイヤーデータを読み込みます。
      */
-    public void saveData(UUID uuid) {
-        plugin.getLevelManager().save(uuid);
-        plugin.getAttributeManager().save(uuid);
-        SkillData skillData = DW.cache().getCache(uuid).get(SkillData.class);
-        if (skillData != null) {
-            plugin.getSkilltreeManager().saveAsync(uuid, skillData);
+    public CompletableFuture<Void> loadData(UUID uuid) {
+        PlayerCache pc = cache.getCache(uuid);
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        for (IPlayerDataHandler handler : handlers) {
+            try {
+                futures.add(handler.loadData(uuid, pc).exceptionally(ex -> {
+                    plugin.getLogger().log(java.util.logging.Level.SEVERE, "Handler " + handler.getHandlerName() + " failed to load data for " + uuid, ex);
+                    throw new java.util.concurrent.CompletionException(ex);
+                }));
+            } catch (Exception ex) {
+                plugin.getLogger().log(java.util.logging.Level.SEVERE, "Handler " + handler.getHandlerName() + " threw a synchronous exception during loadData for " + uuid, ex);
+                futures.add(CompletableFuture.failedFuture(ex));
+            }
         }
-        
-        AdvancementManager am = DW.get(AdvancementManager.class);
-        if (am != null) {
-            am.save(uuid);
-        }
-        
-        // 追加
-        DailyTaskData taskData = DW.cache().getCache(uuid).get(DailyTaskData.class);
-        if (taskData != null) {
-            plugin.getDailyTaskManager().saveAndUnloadPlayer(uuid);
-        }
-        
-        plugin.getCraftingManager().saveAndUnloadPlayer(uuid);
-        
-        Player p = Bukkit.getPlayer(uuid);
-        if (p != null) {
-            plugin.getProfessionManager().saveAndUnloadPlayer(p);
-        }
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 
     /**
-     * プレイヤーデータをアンロードします。
-     * 注意: メインスレッドから呼び出すと、内部のsave処理により警告またはラグが発生する可能性があります。
+     * 登録された全ハンドラーを並列実行し、プレイヤーデータを保存します。
+     */
+    public CompletableFuture<Void> saveData(UUID uuid) {
+        PlayerCache pc = cache.getCache(uuid);
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        for (IPlayerDataHandler handler : handlers) {
+            try {
+                futures.add(handler.saveData(uuid, pc).exceptionally(ex -> {
+                    plugin.getLogger().log(java.util.logging.Level.SEVERE, "Handler " + handler.getHandlerName() + " failed to save data for " + uuid, ex);
+                    throw new java.util.concurrent.CompletionException(ex);
+                }));
+            } catch (Exception ex) {
+                plugin.getLogger().log(java.util.logging.Level.SEVERE, "Handler " + handler.getHandlerName() + " threw a synchronous exception during saveData for " + uuid, ex);
+                futures.add(CompletableFuture.failedFuture(ex));
+            }
+        }
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+    }
+
+    /**
+     * プレイヤーデータを保存し、キャッシュを破棄します（同期）。
      */
     public void unloadData(UUID uuid) {
-        saveData(uuid);
+        saveData(uuid).join();
         cache.removeCache(uuid);
     }
 
     /**
-     * プレイヤーデータを非同期でアンロードします。
+     * プレイヤーデータを非同期で保存し、完了後にキャッシュを破棄します。
      * @param uuid 対象プレイヤーの UUID
      * @return 処理の完了を表す CompletableFuture
      */
     public CompletableFuture<Void> unloadDataAsync(UUID uuid) {
-        return CompletableFuture.runAsync(() -> unloadData(uuid), plugin.getAsyncExecutor());
+        return saveData(uuid).thenRun(() -> cache.removeCache(uuid));
     }
 }

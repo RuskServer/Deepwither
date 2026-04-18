@@ -1,11 +1,13 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.api.playerdata.IPlayerComponent;
+
 import org.bukkit.configuration.file.YamlConfiguration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class SkillData {
+public class SkillData implements IPlayerComponent {
     private int skillPoint;
     private Map<String, Integer> skills;
     private StatMap passiveStats = new StatMap();

@@ -121,7 +121,7 @@ public class PlayerListener implements Listener, IManager {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        questManager.loadPlayer(player);
+
         startLocationCheckTask(player);
         
         if (!Deepwither.getInstance().getSettingsManager().hasAgreedToAlpha(player.getUniqueId())) {
@@ -135,7 +135,7 @@ public class PlayerListener implements Listener, IManager {
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
         stopLocationCheckTask(player);
-        questManager.unloadPlayer(player);
+
     }
 
     private void showAlphaDisclaimer(Player player) {

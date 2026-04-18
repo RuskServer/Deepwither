@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither;
 
-public class ManaData {
+import com.lunar_prototype.deepwither.api.playerdata.IPlayerComponent;
+
+public class ManaData implements IPlayerComponent {
     private double currentMana;
     private double maxMana;
 

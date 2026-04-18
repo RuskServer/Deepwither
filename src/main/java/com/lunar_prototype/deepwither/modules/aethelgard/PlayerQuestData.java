@@ -1,5 +1,7 @@
 package com.lunar_prototype.deepwither.modules.aethelgard;
 
+import com.lunar_prototype.deepwither.api.playerdata.IPlayerComponent;
+
 import java.util.UUID;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -8,7 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * プレイヤーが現在進行中のクエストデータと進捗状況を保持するクラス。
  * 永続化の単位となります。
  */
-public class PlayerQuestData {
+public class PlayerQuestData implements IPlayerComponent {
 
     private final UUID playerId;
     // 進行中のクエストID（UUID）とその進捗データ

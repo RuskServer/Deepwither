@@ -1,12 +1,14 @@
 package com.lunar_prototype.deepwither.crafting;
 
+import com.lunar_prototype.deepwither.api.playerdata.IPlayerComponent;
+
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.configuration.serialization.SerializableAs;
 
 import java.util.*;
 
 @SerializableAs("CraftingData")
-public class CraftingData implements ConfigurationSerializable {
+public class CraftingData implements ConfigurationSerializable, IPlayerComponent {
 
     private final UUID playerId;
     private final List<CraftingJob> jobs;
