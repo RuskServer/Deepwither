@@ -1,5 +1,9 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.api.playerdata.IPlayerDataHandler;
+import com.lunar_prototype.deepwither.core.PlayerCache;
+import java.util.concurrent.CompletableFuture;
+
 import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.core.CacheManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
@@ -17,7 +21,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @DependsOn({DatabaseManager.class, CacheManager.class})
-public class LevelManager implements IManager {
+public class LevelManager implements IManager, IPlayerDataHandler {
     private static final int MAX_LEVEL = 50;
 
     private final DatabaseManager db;
@@ -27,7 +31,9 @@ public class LevelManager implements IManager {
     }
 
     @Override
-    public void init() {}
+    public void init() {
+        com.lunar_prototype.deepwither.Deepwither.getInstance().getPlayerDataManager().registerHandler(this);
+}
 
     public void load(UUID uuid) {
         try (Connection conn = db.getConnection();
@@ -222,4 +228,15 @@ public class LevelManager implements IManager {
         save(uuid);
         DW.cache().getCache(uuid).remove(PlayerLevelData.class);
     }
+
+    @Override
+    public CompletableFuture<Void> loadData(UUID uuid, PlayerCache cache) {
+        return CompletableFuture.runAsync(() -> load(uuid), com.lunar_prototype.deepwither.Deepwither.getInstance().getAsyncExecutor());
+    }
+
+    @Override
+    public CompletableFuture<Void> saveData(UUID uuid, PlayerCache cache) {
+        return CompletableFuture.runAsync(() -> save(uuid), com.lunar_prototype.deepwither.Deepwither.getInstance().getAsyncExecutor());
+    }
+
 }

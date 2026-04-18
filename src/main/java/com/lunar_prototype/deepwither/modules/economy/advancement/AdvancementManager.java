@@ -1,5 +1,9 @@
 package com.lunar_prototype.deepwither.modules.economy.advancement;
 
+import com.lunar_prototype.deepwither.api.playerdata.IPlayerDataHandler;
+import com.lunar_prototype.deepwither.core.PlayerCache;
+import java.util.concurrent.CompletableFuture;
+
 import com.fren_gor.ultimateAdvancementAPI.UltimateAdvancementAPI;
 import com.fren_gor.ultimateAdvancementAPI.AdvancementTab;
 import com.fren_gor.ultimateAdvancementAPI.advancement.BaseAdvancement;
@@ -34,7 +38,7 @@ import java.util.logging.Level;
  * バニラの実績は非表示にし、Deepwither独自の実績ツリーを動的に生成・管理する。
  */
 @DependsOn({ TraderManager.class })
-public class AdvancementManager implements IManager, Listener {
+public class AdvancementManager implements IManager, Listener, IPlayerDataHandler {
 
     private final JavaPlugin plugin;
     private final Gson gson;
@@ -53,6 +57,8 @@ public class AdvancementManager implements IManager, Listener {
 
     @Override
     public void init() {
+        com.lunar_prototype.deepwither.Deepwither.getInstance().getPlayerDataManager().registerHandler(this);
+
         if (Bukkit.getPluginManager().getPlugin("UltimateAdvancementAPI") == null) {
             plugin.getLogger().warning("[AdvancementManager] UltimateAdvancementAPI が見つかりません。実績システムは無効化されます。");
             return;
@@ -252,17 +258,16 @@ public class AdvancementManager implements IManager, Listener {
                 uuid.toString()).orElse(new PlayerAdvancementData());
 
         com.lunar_prototype.deepwither.core.PlayerCache pc = DW.cache().getCache(uuid);
-        if (pc != null && pc.getData() != null) {
-            pc.getData().setAdvancements(data);
+        if (pc != null) {
+            pc.set(PlayerAdvancementData.class, data);
         }
     }
 
     public void save(UUID uuid) {
         com.lunar_prototype.deepwither.core.PlayerCache pc = DW.cache().getCache(uuid);
-        if (pc == null || pc.getData() == null || pc.getData().getAdvancements() == null)
-            return;
-
-        PlayerAdvancementData data = pc.getData().getAdvancements();
+        if (pc == null) return;
+        PlayerAdvancementData data = pc.get(PlayerAdvancementData.class);
+        if (data == null) return;
         String json = gson.toJson(data);
 
         DatabaseManager db = DW.get(DatabaseManager.class);
@@ -276,4 +281,15 @@ public class AdvancementManager implements IManager, Listener {
     public boolean isAvailable() {
         return api != null && deepwitherTab != null;
     }
+
+    @Override
+    public CompletableFuture<Void> loadData(UUID uuid, PlayerCache cache) {
+        return CompletableFuture.runAsync(() -> load(uuid), com.lunar_prototype.deepwither.Deepwither.getInstance().getAsyncExecutor());
+    }
+
+    @Override
+    public CompletableFuture<Void> saveData(UUID uuid, PlayerCache cache) {
+        return CompletableFuture.runAsync(() -> save(uuid), com.lunar_prototype.deepwither.Deepwither.getInstance().getAsyncExecutor());
+    }
+
 }

@@ -1,5 +1,9 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.api.playerdata.IPlayerDataHandler;
+import com.lunar_prototype.deepwither.core.PlayerCache;
+import java.util.concurrent.CompletableFuture;
+
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.lunar_prototype.deepwither.api.DW;
@@ -16,7 +20,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 @DependsOn({DatabaseManager.class, CacheManager.class})
-public class SkilltreeManager implements IManager {
+public class SkilltreeManager implements IManager, IPlayerDataHandler {
     
     private final Gson gson = new Gson();
     private File treeFile;
@@ -31,6 +35,8 @@ public class SkilltreeManager implements IManager {
 
     @Override
     public void init() {
+        com.lunar_prototype.deepwither.Deepwither.getInstance().getPlayerDataManager().registerHandler(this);
+
         treeFile = new File(plugin.getDataFolder(), "tree.yaml");
         if (!treeFile.exists()) {
             treeFile.getParentFile().mkdirs();
@@ -263,6 +269,20 @@ public class SkilltreeManager implements IManager {
 
         System.out.println("[DEBUG] Tree not found.");
         return null;
+    }
+
+
+    @Override
+    public CompletableFuture<Void> loadData(UUID uuid, PlayerCache cache) {
+        return CompletableFuture.runAsync(() -> load(uuid), com.lunar_prototype.deepwither.Deepwither.getInstance().getAsyncExecutor());
+    }
+
+    @Override
+    public CompletableFuture<Void> saveData(UUID uuid, PlayerCache cache) {
+        return CompletableFuture.runAsync(() -> {
+            SkillData data = cache.get(SkillData.class);
+            if (data != null) save(uuid, data);
+        }, com.lunar_prototype.deepwither.Deepwither.getInstance().getAsyncExecutor());
     }
 
 }

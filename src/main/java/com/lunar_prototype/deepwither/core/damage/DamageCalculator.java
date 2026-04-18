@@ -2,7 +2,7 @@ package com.lunar_prototype.deepwither.core.damage;
 
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.core.PlayerCache;
-import com.lunar_prototype.deepwither.core.playerdata.PlayerData;
+import com.lunar_prototype.deepwither.core.playerdata.PlayerCombatData;
 import com.lunar_prototype.deepwither.util.PseudoRandom;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -64,7 +64,7 @@ public class DamageCalculator {
         PlayerCache cache = Deepwither.getInstance().getCacheManager().getCache(player.getUniqueId());
         if (cache == null) return rollChance(chance);
 
-        PlayerData data = cache.getData();
+        PlayerCombatData data = cache.getOrPut(PlayerCombatData.class, PlayerCombatData::new);
         int n = data.getCritCounter();
 
         boolean success = PseudoRandom.roll(chance, n);

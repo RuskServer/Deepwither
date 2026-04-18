@@ -1,9 +1,11 @@
 package com.lunar_prototype.deepwither.modules.economy.advancement;
 
+import com.lunar_prototype.deepwither.api.playerdata.IPlayerComponent;
+
 import java.util.HashMap;
 import java.util.Map;
 
-public class PlayerAdvancementData {
+public class PlayerAdvancementData implements IPlayerComponent {
 
     // どのモブを何体倒したか (key: mobId, value: kill count)
     private Map<String, Integer> mobKillCounts = new HashMap<>();

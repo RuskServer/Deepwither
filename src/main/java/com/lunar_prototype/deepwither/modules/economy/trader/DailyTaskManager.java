@@ -27,7 +27,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @DependsOn({FileDailyTaskDataStore.class, CacheManager.class})
-public class DailyTaskManager implements IManager {
+public class DailyTaskManager implements IManager, com.lunar_prototype.deepwither.api.playerdata.IPlayerDataHandler {
 
     private final Deepwither plugin;
     private final DailyTaskDataStore dataStore;
@@ -73,12 +73,12 @@ public class DailyTaskManager implements IManager {
         return taskConfig;
     }
 
-    public void loadPlayer(Player player) {
-        UUID playerId = player.getUniqueId();
-        if (DW.cache().getCache(playerId).get(DailyTaskData.class) != null) return;
-        dataStore.loadTaskData(playerId).thenAccept(loadedData -> {
-            DailyTaskData data = (loadedData != null) ? loadedData : new DailyTaskData(playerId);
-            DW.cache().getCache(playerId).set(DailyTaskData.class, data);
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> loadData(UUID uuid, com.lunar_prototype.deepwither.core.PlayerCache cache) {
+        if (cache.get(DailyTaskData.class) != null) return java.util.concurrent.CompletableFuture.completedFuture(null);
+        return dataStore.loadTaskData(uuid).thenAccept(loadedData -> {
+            DailyTaskData data = (loadedData != null) ? loadedData : new DailyTaskData(uuid);
+            cache.set(DailyTaskData.class, data);
             data.checkAndReset();
         }).exceptionally(ex -> {
             plugin.getLogger().severe("Error loading daily task data: " + ex.getMessage());
@@ -86,13 +86,15 @@ public class DailyTaskManager implements IManager {
         });
     }
 
-    public void saveAndUnloadPlayer(UUID playerId) {
-        DailyTaskData data = DW.cache().getCache(playerId).get(DailyTaskData.class);
-        if (data != null) {
-            data.checkAndReset();
-            dataStore.saveTaskData(data);
-            DW.cache().getCache(playerId).remove(DailyTaskData.class);
-        }
+    @Override
+    public java.util.concurrent.CompletableFuture<Void> saveData(UUID uuid, com.lunar_prototype.deepwither.core.PlayerCache cache) {
+        return java.util.concurrent.CompletableFuture.runAsync(() -> {
+            DailyTaskData data = cache.get(DailyTaskData.class);
+            if (data != null) {
+                data.checkAndReset();
+                dataStore.saveTaskData(data);
+            }
+        }, plugin.getAsyncExecutor());
     }
 
     public void saveAllData() {

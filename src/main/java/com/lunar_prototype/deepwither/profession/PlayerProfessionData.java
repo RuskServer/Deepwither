@@ -1,11 +1,13 @@
 package com.lunar_prototype.deepwither.profession;
 
+import com.lunar_prototype.deepwither.api.playerdata.IPlayerComponent;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-public class PlayerProfessionData {
+public class PlayerProfessionData implements IPlayerComponent {
 
     private final UUID playerId;
     private final Map<ProfessionType, Long> experienceMap;
