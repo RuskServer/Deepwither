@@ -35,6 +35,10 @@ public class PlayerAttributeData implements IPlayerComponent {
         totalPoints += amount;
     }
 
+    public void setTotalPoints(int points) {
+        this.totalPoints = points;
+    }
+
     public int getRemainingPoints() {
         return totalPoints;
     }

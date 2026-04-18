@@ -179,6 +179,82 @@ public class LevelManager implements IManager, IPlayerDataHandler {
         }
     }
 
+
+    public void setLevel(Player player, int targetLevel) {
+        UUID uuid = player.getUniqueId();
+        PlayerLevelData data = get(uuid);
+        if (data == null) return;
+
+        if (targetLevel < 1) targetLevel = 1;
+        if (targetLevel > MAX_LEVEL) targetLevel = MAX_LEVEL;
+
+        int currentLevel = data.getLevel();
+        if (currentLevel == targetLevel) return;
+
+        if (targetLevel < currentLevel) {
+            // 下げる場合は一度全てをリセット
+            data.setLevel(1);
+            data.setExp(0);
+
+            // 属性ポイントのリセット
+            PlayerAttributeData attrData = Deepwither.getInstance().getAttributeManager().get(uuid);
+            if (attrData != null) {
+                for (StatType type : StatType.values()) {
+                    attrData.setAllocated(type, 0);
+                }
+                attrData.setTotalPoints(2); // 初期2ポイント
+                Deepwither.getInstance().getAttributeManager().save(uuid);
+            }
+
+            // スキルポイントのリセット (同期的に実行)
+            Deepwither.getInstance().getSkilltreeManager().resetSkillTree(uuid);
+            SkillData skilldata = Deepwither.getInstance().getSkilltreeManager().load(uuid);
+            if (skilldata != null) {
+                skilldata.setSkillPoint(3); // 初期3ポイント
+                Deepwither.getInstance().getSkilltreeManager().save(uuid, skilldata);
+            }
+            
+            currentLevel = 1;
+        }
+
+        int levelsGained = targetLevel - currentLevel;
+        if (levelsGained > 0) {
+            data.setLevel(targetLevel);
+            data.setExp(0);
+
+            int attrPoints = levelsGained * 2;
+            int skillPoints = levelsGained * 2;
+
+            Deepwither.getInstance().getAttributeManager().givePoints(uuid, attrPoints);
+
+            SkillData skilldata = Deepwither.getInstance().getSkilltreeManager().load(uuid);
+            if (skilldata != null) {
+                skilldata.setSkillPoint(skilldata.getSkillPoint() + skillPoints);
+                Deepwither.getInstance().getSkilltreeManager().save(uuid, skilldata);
+            }
+
+            Component separator = Component.text("--------------------------------------", NamedTextColor.AQUA).decoration(TextDecoration.STRIKETHROUGH, true);
+            player.sendMessage(separator);
+            player.sendMessage(Component.text("    »» ", NamedTextColor.WHITE, TextDecoration.BOLD)
+                    .append(Component.text("管理コマンドによりレベルが変更されました", NamedTextColor.GOLD, TextDecoration.BOLD))
+                    .append(Component.text(" ««", NamedTextColor.WHITE, TextDecoration.BOLD)));
+            player.sendMessage(Component.text("   レベル: ", NamedTextColor.YELLOW)
+                    .append(Component.text(currentLevel, NamedTextColor.WHITE))
+                    .append(Component.text(" → ", NamedTextColor.WHITE))
+                    .append(Component.text(targetLevel, NamedTextColor.GREEN, TextDecoration.BOLD)));
+            player.sendMessage(Component.empty());
+            player.sendMessage(Component.text("- 獲得したボーナス -", NamedTextColor.GRAY));
+            player.sendMessage(Component.text("  » ", NamedTextColor.RED).append(Component.text("属性ポイント: ", NamedTextColor.RED)).append(Component.text(attrPoints, NamedTextColor.WHITE, TextDecoration.BOLD)));
+            player.sendMessage(Component.text("  » ", NamedTextColor.LIGHT_PURPLE).append(Component.text("スキルポイント: ", NamedTextColor.LIGHT_PURPLE)).append(Component.text(skillPoints, NamedTextColor.WHITE, TextDecoration.BOLD)));
+            player.sendMessage(separator);
+
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 0.5f);
+        }
+
+        save(uuid);
+        updatePlayerDisplay(player);
+    }
+
     public void updatePlayerDisplay(Player player) {
         PlayerLevelData data = get(player.getUniqueId());
         int currentLevel = data.getLevel();
@@ -207,17 +283,19 @@ public class LevelManager implements IManager, IPlayerDataHandler {
 
         updatePlayerDisplay(player);
 
-        Deepwither.getInstance().getSkilltreeManager().resetSkillTreeAsync(player.getUniqueId());
+
+        Deepwither.getInstance().getSkilltreeManager().resetSkillTree(player.getUniqueId());
         SkillData skilldata = Deepwither.getInstance().getSkilltreeManager().load(player.getUniqueId());
-        skilldata.setSkillPoint(0);
-        Deepwither.getInstance().getSkilltreeManager().saveAsync(player.getUniqueId(), skilldata);
+        skilldata.setSkillPoint(3);
+        Deepwither.getInstance().getSkilltreeManager().save(player.getUniqueId(), skilldata);
         PlayerAttributeData data = Deepwither.getInstance().getAttributeManager().get(uuid);
         if (data != null) {
             for (StatType type : StatType.values()) {
                 data.setAllocated(type, 0);
             }
-            data.addPoints(0);
+            data.setTotalPoints(2);
         }
+
     }
 
     public PlayerLevelData get(Player player) {

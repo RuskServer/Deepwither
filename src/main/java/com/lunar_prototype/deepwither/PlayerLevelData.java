@@ -38,6 +38,14 @@ public class PlayerLevelData implements IPlayerComponent {
         this.exp = exp;
     }
 
+    public void setLevel(int level) {
+        this.level = level;
+    }
+
+    public void setExp(double exp) {
+        this.exp = exp;
+    }
+
     public int getLevel() {
         return level;
     }

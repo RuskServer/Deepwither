@@ -48,6 +48,11 @@ public class DebugCommand implements DeepwitherCommand {
                     .then(literal("reset")
                         .executes(DebugCommand::resetLv)
                     )
+                    .then(literal("set")
+                        .then(argument("level", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, 100))
+                            .executes(DebugCommand::setLv)
+                        )
+                    )
                     .then(literal("xp")
                         .then(argument("xp", DoubleArgumentType.doubleArg(0))
                             .executes(DebugCommand::addXp)
@@ -99,6 +104,13 @@ public class DebugCommand implements DeepwitherCommand {
 
     private static int resetLv(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         Deepwither.getInstance().getLevelManager().resetLevel(resolve(context).getFirst());
+        return 1;
+    }
+
+    private static int setLv(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        Player player = resolve(context).getFirst();
+        int level = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "level");
+        Deepwither.getInstance().getLevelManager().setLevel(player, level);
         return 1;
     }
 
