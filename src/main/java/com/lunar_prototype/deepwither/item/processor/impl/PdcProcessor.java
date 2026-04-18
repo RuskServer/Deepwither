@@ -83,28 +83,6 @@ public class PdcProcessor implements ItemProcessor {
         if (recipeBookGrade >= -1) {
             if (config.contains(key + ".recipe_book_grade")) {
                 container.set(ItemFactory.RECIPE_BOOK_KEY, PersistentDataType.INTEGER, recipeBookGrade);
-                String gradeName = (recipeBookGrade == 0) ? "全等級" : "等級 " + recipeBookGrade;
-                
-                // Add lore for recipe book right here as it doesn't need applyStatsToItem
-                // Wait, it gets overwritten by applyStatsToItem? applyStatsToItem might replace lore, 
-                // but actually applyStatsToItem appends or replaces specific lines.
-                // We'll add this to the item lore now, but applyStatsToItem actually recreates lore.
-                // Let's check if applyStatsToItem removes existing lore.
-                // It's safer to just set it, as the original code set it.
-                // Wait, the original code called `item = factory.applyStatsToItem(...)`
-                // and then later did `metaBook = item.getItemMeta(); metaBook.lore().add(...)`
-                // Oh! The original code did `item = factory.applyStatsToItem(...)` and THEN applied these PDCs.
-                // Wait! Original code order:
-                // 1. applyStatsToItem -> returns new ItemStack.
-                // 2. then recoveryAmount, recipeBookGrade, on_hit, durability, customArmorAssetId, equipable, armortrim, can_destroy.
-                // BUT in original code `item = factory.applyStatsToItem(...)` was called AFTER `item.setItemMeta(meta)`.
-                // applyStatsToItem returns a new ItemStack or modifies the existing one.
-                // Let's just do it here on the current meta. It is safe to add PDCs. Lore might need to be added later if `applyStatsToItem` clears it.
-                // Actually `applyStatsToItem` reconstructs Lore. So adding Lore here might be lost if `applyStatsToItem` sets it entirely.
-                // BUT original code did this AFTER applyStatsToItem.
-                // Let's defer Lore additions to FinalizeProcessor or let PdcProcessor do it if we are sure it's kept.
-                // Wait, I'll store recipeBookGrade to context so FinalizeProcessor can add the lore, or I just do it here. 
-                // Actually I can just do PDC here, and let FinalizeProcessor do the book lore. 
             }
         }
 

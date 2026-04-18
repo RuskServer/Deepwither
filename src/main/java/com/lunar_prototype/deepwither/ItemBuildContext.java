@@ -3,6 +3,7 @@ package com.lunar_prototype.deepwither;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -49,7 +50,7 @@ public class ItemBuildContext {
     public static class Builder {
         private ItemStack item;
         private StatMap baseStats = new StatMap();
-        private Map<StatType, Double> modifiers;
+        private Map<StatType, Double> modifiers = new HashMap<>();
         private String itemType;
         private List<String> flavorText;
         private ItemLoader.RandomStatTracker tracker = new ItemLoader.RandomStatTracker();
@@ -62,7 +63,9 @@ public class ItemBuildContext {
         }
 
         public Builder baseStats(StatMap baseStats) { this.baseStats = baseStats; return this; }
-        public Builder modifiers(Map<StatType, Double> modifiers) { this.modifiers = modifiers; return this; }
+        public Builder modifiers(Map<StatType, Double> modifiers) {
+            this.modifiers = modifiers != null ? modifiers : new HashMap<>();
+            return this; }
         public Builder itemType(String itemType) { this.itemType = itemType; return this; }
         public Builder flavorText(List<String> flavorText) { this.flavorText = flavorText; return this; }
         public Builder tracker(ItemLoader.RandomStatTracker tracker) { this.tracker = tracker; return this; }
