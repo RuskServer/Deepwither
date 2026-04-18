@@ -171,16 +171,55 @@ public class ItemFactory implements IManager, IItemFactory {
                                       ItemLoader.RandomStatTracker tracker, @Nullable String rarity,
                                       @Nullable String artifactFullsetType,
                                       @Nullable FabricationGrade grade) {
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) return item;
+        ItemBuildContext ctx = ItemBuildContext.builder(item)
+                .baseStats(baseStats)
+                .modifiers(modifiers)
+                .itemType(itemType)
+                .flavorText(flavorText)
+                .tracker(tracker)
+                .rarity(rarity)
+                .artifactFullsetType(artifactFullsetType)
+                .grade(grade)
+                .build();
+        return applyStatsToItem(ctx);
+    }
 
+    public ItemStack applyStatsToItem(ItemBuildContext ctx) {
+        ItemMeta meta = ctx.getItem().getItemMeta();
+        if (meta == null) return ctx.getItem();
+
+        FabricationGrade resolvedGrade = resolveGrade(meta, ctx.getGrade());
+        ctx.setGrade(resolvedGrade);
+
+        StatMap finalStats = calculateFinalStats(meta, ctx.getBaseStats(), resolvedGrade);
+        applyModifiersToMeta(meta, finalStats, ctx.getModifiers());
+        
+        applyMetadataToPdc(meta, ctx.getItemType(), ctx.getArtifactFullsetType(), ctx.getRarity(), ctx.getFlavorText());
+
+        List<Component> runeLore = processRunesAndAddStats(meta, finalStats);
+
+        meta.lore(LoreBuilder.build(finalStats, false, ctx.getItemType(), ctx.getArtifactFullsetType(), ctx.getFlavorText(), ctx.getTracker(), ctx.getRarity(), ctx.getModifiers(), ctx.getGrade(), runeLore));
+
+        applyItemFlags(meta);
+        saveFinalStatsToPdc(meta, finalStats);
+
+        ctx.getItem().setItemMeta(meta);
+        ctx.getItem().setData(DataComponentTypes.TOOLTIP_DISPLAY, TooltipDisplay.tooltipDisplay().addHiddenComponents(DataComponentTypes.ATTRIBUTE_MODIFIERS).build());
+
+        return ctx.getItem();
+    }
+
+    private FabricationGrade resolveGrade(ItemMeta meta, @Nullable FabricationGrade grade) {
         if (grade == null) {
             int gid = meta.getPersistentDataContainer().getOrDefault(GRADE_KEY, PersistentDataType.INTEGER, 1);
-            grade = FabricationGrade.fromId(gid);
+            return FabricationGrade.fromId(gid);
         } else {
             meta.getPersistentDataContainer().set(GRADE_KEY, PersistentDataType.INTEGER, grade.getId());
+            return grade;
         }
+    }
 
+    private StatMap calculateFinalStats(ItemMeta meta, StatMap baseStats, FabricationGrade grade) {
         StatMap finalStats = new StatMap();
         double multiplier = grade.getMultiplier();
         Set<StatType> ignoredMultipliers = EnumSet.of(StatType.CRIT_CHANCE, StatType.ATTACK_SPEED, StatType.MOVE_SPEED);
@@ -189,6 +228,7 @@ public class ItemFactory implements IManager, IItemFactory {
             double baseFlat = baseStats.getFlat(type);
             double basePercent = baseStats.getPercent(type);
             saveStatValue(meta, "base", type, baseFlat, basePercent);
+            
             double finalFlat = baseFlat;
             if (!ignoredMultipliers.contains(type) && baseFlat != 0) {
                 finalFlat *= multiplier;
@@ -196,20 +236,24 @@ public class ItemFactory implements IManager, IItemFactory {
             finalStats.setFlat(type, finalFlat);
             finalStats.setPercent(type, basePercent);
         }
+        return finalStats;
+    }
 
-        if (modifiers != null) {
-            for (Map.Entry<StatType, Double> entry : modifiers.entrySet()) {
-                StatType type = entry.getKey();
-                double modValue = entry.getValue();
-                meta.getPersistentDataContainer().set(
-                        new NamespacedKey(KEY_PREFIX, "mod." + type.name().toLowerCase()),
-                        PersistentDataType.DOUBLE,
-                        modValue
-                );
-                finalStats.setFlat(type, finalStats.getFlat(type) + modValue);
-            }
+    private void applyModifiersToMeta(ItemMeta meta, StatMap finalStats, @Nullable Map<StatType, Double> modifiers) {
+        if (modifiers == null) return;
+        for (Map.Entry<StatType, Double> entry : modifiers.entrySet()) {
+            StatType type = entry.getKey();
+            double modValue = entry.getValue();
+            meta.getPersistentDataContainer().set(
+                    new NamespacedKey(KEY_PREFIX, "mod." + type.name().toLowerCase()),
+                    PersistentDataType.DOUBLE,
+                    modValue
+            );
+            finalStats.setFlat(type, finalStats.getFlat(type) + modValue);
         }
+    }
 
+    private void applyMetadataToPdc(ItemMeta meta, @Nullable String itemType, @Nullable String artifactFullsetType, @Nullable String rarity, @Nullable List<String> flavorText) {
         if (itemType != null) {
             meta.getPersistentDataContainer().set(ITEM_TYPE_KEY, PersistentDataType.STRING, itemType);
         }
@@ -221,11 +265,13 @@ public class ItemFactory implements IManager, IItemFactory {
             String joinedFlavor = String.join("|~|", flavorText);
             meta.getPersistentDataContainer().set(FLAVOR_TEXT_KEY, PersistentDataType.STRING, joinedFlavor);
         }
+    }
 
-        // --- Rune Integration ---
+    private List<Component> processRunesAndAddStats(ItemMeta meta, StatMap finalStats) {
         List<Component> runeLore = new ArrayList<>();
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
         NamespacedKey socketsMaxKey = new NamespacedKey("deepwither", "sockets_max");
+        
         if (pdc.has(socketsMaxKey, PersistentDataType.INTEGER)) {
             int max = pdc.getOrDefault(socketsMaxKey, PersistentDataType.INTEGER, 0);
             for (int i = 0; i < max; i++) {
@@ -249,25 +295,22 @@ public class ItemFactory implements IManager, IItemFactory {
                 }
             }
         }
+        return runeLore;
+    }
 
-        meta.lore(LoreBuilder.build(finalStats, false, itemType, artifactFullsetType, flavorText, tracker, rarity, modifiers, grade, runeLore));
-
+    private void applyItemFlags(ItemMeta meta) {
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE);
         meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
+    }
 
+    private void saveFinalStatsToPdc(ItemMeta meta, StatMap finalStats) {
         PersistentDataContainer container = meta.getPersistentDataContainer();
         for (StatType type : finalStats.getAllTypes()) {
             container.set(new NamespacedKey(KEY_PREFIX, type.name().toLowerCase() + "_flat"), PersistentDataType.DOUBLE, finalStats.getFlat(type));
             container.set(new NamespacedKey(KEY_PREFIX, type.name().toLowerCase() + "_percent"), PersistentDataType.DOUBLE, finalStats.getPercent(type));
         }
-
-        item.setItemMeta(meta);
-        item.setData(DataComponentTypes.TOOLTIP_DISPLAY, TooltipDisplay.tooltipDisplay().addHiddenComponents(DataComponentTypes.ATTRIBUTE_MODIFIERS).build());
-
-        return item;
     }
-
     @Nullable
     public ItemStack setArtifactFullsetType(ItemStack item, @Nullable String artifactFullsetType) {
         if (item == null || !item.hasItemMeta()) {
@@ -360,7 +403,17 @@ public class ItemFactory implements IManager, IItemFactory {
 
         ItemLoader.RandomStatTracker tracker = new ItemLoader.RandomStatTracker();
         String artifactFullsetType = pdcString(pdc, ARTIFACT_FULLSET_TYPE);
-        return applyStatsToItem(item, baseStats, modifiers, itemType, flavorText, tracker, rarity, artifactFullsetType, gradeToUse);
+        ItemBuildContext ctx = ItemBuildContext.builder(item)
+                .baseStats(baseStats)
+                .modifiers(modifiers)
+                .itemType(itemType)
+                .flavorText(flavorText)
+                .tracker(tracker)
+                .rarity(rarity)
+                .artifactFullsetType(artifactFullsetType)
+                .grade(gradeToUse)
+                .build();
+        return applyStatsToItem(ctx);
     }
 
     @Deprecated
@@ -395,7 +448,17 @@ public class ItemFactory implements IManager, IItemFactory {
         Map<StatType, Double> newModifiers = ItemLoader.generateRandomModifiers(rarity);
         ItemLoader.RandomStatTracker tracker = new ItemLoader.RandomStatTracker();
         String artifactFullsetType = pdcString(pdc, ARTIFACT_FULLSET_TYPE);
-        return applyStatsToItem(item, baseStats, newModifiers, itemType, flavorText, tracker, rarity, artifactFullsetType, grade);
+        ItemBuildContext ctx = ItemBuildContext.builder(item)
+                .baseStats(baseStats)
+                .modifiers(newModifiers)
+                .itemType(itemType)
+                .flavorText(flavorText)
+                .tracker(tracker)
+                .rarity(rarity)
+                .artifactFullsetType(artifactFullsetType)
+                .grade(grade)
+                .build();
+        return applyStatsToItem(ctx);
     }
 
     @Deprecated
