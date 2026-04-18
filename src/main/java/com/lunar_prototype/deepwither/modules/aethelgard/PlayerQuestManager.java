@@ -58,8 +58,7 @@ public class PlayerQuestManager implements IManager, IPlayerDataHandler {
                 })
                 .exceptionally(e -> {
                     plugin.getLogger().severe("Failed to load quest data for " + uuid + ": " + e.getMessage());
-                    cache.set(PlayerQuestData.class, new PlayerQuestData(uuid));
-                    return null;
+                    throw new java.util.concurrent.CompletionException(e);
                 });
     }
 

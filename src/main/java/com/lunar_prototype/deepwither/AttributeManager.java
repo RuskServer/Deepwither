@@ -35,6 +35,10 @@ public class AttributeManager implements IManager, IPlayerDataHandler {
     }
 
     public void load(UUID uuid) {
+        load(uuid, DW.cache().getCache(uuid));
+    }
+
+    public void load(UUID uuid, PlayerCache cache) {
         try (Connection conn = db.getConnection();
              PreparedStatement ps = conn.prepareStatement("SELECT * FROM player_attributes WHERE uuid = ?")) {
             ps.setString(1, uuid.toString());
@@ -51,16 +55,21 @@ public class AttributeManager implements IManager, IPlayerDataHandler {
 
                     data = new PlayerAttributeData(total, map);
                 } else {
-                    data = new PlayerAttributeData(0); // 初期値
+                    data = new PlayerAttributeData(2); // 初回ボーナス 2pt
                 }
-                DW.cache().getCache(uuid).set(PlayerAttributeData.class, data);
+                cache.set(PlayerAttributeData.class, data);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            com.lunar_prototype.deepwither.Deepwither.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "Database error in " + this.getClass().getSimpleName(), e);
+            throw new RuntimeException("Database error in " + this.getClass().getSimpleName(), e);
         }
     }
 
     public void save(UUID uuid) {
+        save(uuid, DW.cache().getCache(uuid));
+    }
+
+    public void save(UUID uuid, PlayerCache cache) {
         PlayerAttributeData data = get(uuid);
         if (data == null) return;
 
@@ -118,7 +127,8 @@ public class AttributeManager implements IManager, IPlayerDataHandler {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            com.lunar_prototype.deepwither.Deepwither.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "Database error in " + this.getClass().getSimpleName(), e);
+            throw new RuntimeException("Database error in " + this.getClass().getSimpleName(), e);
         }
     }
 
@@ -228,12 +238,12 @@ public class AttributeManager implements IManager, IPlayerDataHandler {
 
     @Override
     public CompletableFuture<Void> loadData(UUID uuid, PlayerCache cache) {
-        return CompletableFuture.runAsync(() -> load(uuid), com.lunar_prototype.deepwither.Deepwither.getInstance().getAsyncExecutor());
+        return CompletableFuture.runAsync(() -> load(uuid, cache), com.lunar_prototype.deepwither.Deepwither.getInstance().getAsyncExecutor());
     }
 
     @Override
     public CompletableFuture<Void> saveData(UUID uuid, PlayerCache cache) {
-        return CompletableFuture.runAsync(() -> save(uuid), com.lunar_prototype.deepwither.Deepwither.getInstance().getAsyncExecutor());
+        return CompletableFuture.runAsync(() -> save(uuid, cache), com.lunar_prototype.deepwither.Deepwither.getInstance().getAsyncExecutor());
     }
 
 }

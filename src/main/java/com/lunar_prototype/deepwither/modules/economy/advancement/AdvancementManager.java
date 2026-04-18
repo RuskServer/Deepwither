@@ -240,6 +240,10 @@ public class AdvancementManager implements IManager, Listener, IPlayerDataHandle
     // ================================================
 
     public void load(UUID uuid) {
+        load(uuid, DW.cache().getCache(uuid));
+    }
+
+    public void load(UUID uuid, PlayerCache cache) {
         DatabaseManager db = DW.get(DatabaseManager.class);
         if (db == null)
             return;
@@ -251,20 +255,24 @@ public class AdvancementManager implements IManager, Listener, IPlayerDataHandle
                         String json = rs.getString("data_json");
                         return gson.fromJson(json, PlayerAdvancementData.class);
                     } catch (SQLException e) {
-                        e.printStackTrace();
-                        return null;
-                    }
+            com.lunar_prototype.deepwither.Deepwither.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "Database error in " + this.getClass().getSimpleName(), e);
+            throw new RuntimeException("Database error in " + this.getClass().getSimpleName(), e);
+        }
                 },
                 uuid.toString()).orElse(new PlayerAdvancementData());
 
-        com.lunar_prototype.deepwither.core.PlayerCache pc = DW.cache().getCache(uuid);
+        com.lunar_prototype.deepwither.core.PlayerCache pc = cache;
         if (pc != null) {
             pc.set(PlayerAdvancementData.class, data);
         }
     }
 
     public void save(UUID uuid) {
-        com.lunar_prototype.deepwither.core.PlayerCache pc = DW.cache().getCache(uuid);
+        save(uuid, DW.cache().getCache(uuid));
+    }
+
+    public void save(UUID uuid, PlayerCache cache) {
+        com.lunar_prototype.deepwither.core.PlayerCache pc = cache;
         if (pc == null) return;
         PlayerAdvancementData data = pc.get(PlayerAdvancementData.class);
         if (data == null) return;
@@ -284,12 +292,12 @@ public class AdvancementManager implements IManager, Listener, IPlayerDataHandle
 
     @Override
     public CompletableFuture<Void> loadData(UUID uuid, PlayerCache cache) {
-        return CompletableFuture.runAsync(() -> load(uuid), com.lunar_prototype.deepwither.Deepwither.getInstance().getAsyncExecutor());
+        return CompletableFuture.runAsync(() -> load(uuid, cache), com.lunar_prototype.deepwither.Deepwither.getInstance().getAsyncExecutor());
     }
 
     @Override
     public CompletableFuture<Void> saveData(UUID uuid, PlayerCache cache) {
-        return CompletableFuture.runAsync(() -> save(uuid), com.lunar_prototype.deepwither.Deepwither.getInstance().getAsyncExecutor());
+        return CompletableFuture.runAsync(() -> save(uuid, cache), com.lunar_prototype.deepwither.Deepwither.getInstance().getAsyncExecutor());
     }
 
 }

@@ -82,7 +82,7 @@ public class DailyTaskManager implements IManager, com.lunar_prototype.deepwithe
             data.checkAndReset();
         }).exceptionally(ex -> {
             plugin.getLogger().severe("Error loading daily task data: " + ex.getMessage());
-            return null;
+            throw new java.util.concurrent.CompletionException(ex);
         });
     }
 

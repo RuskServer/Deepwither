@@ -76,7 +76,11 @@ public class SkilltreeManager implements IManager, IPlayerDataHandler {
      * @return 取得したまたは生成してキャッシュした SkillData
      */
     public SkillData load(UUID uuid) {
-        SkillData cached = DW.cache().getCache(uuid).get(SkillData.class);
+        return load(uuid, DW.cache().getCache(uuid));
+    }
+
+    public SkillData load(UUID uuid, PlayerCache cache) {
+        SkillData cached = cache.get(SkillData.class);
         if (cached != null) {
             return cached;
         }
@@ -85,7 +89,7 @@ public class SkilltreeManager implements IManager, IPlayerDataHandler {
 
         // 二重ロード防止のための同期化。
         synchronized (this) {
-            cached = DW.cache().getCache(uuid).get(SkillData.class);
+            cached = cache.get(SkillData.class);
             if (cached != null) return cached;
 
             try (Connection conn = db.getConnection();
@@ -105,11 +109,11 @@ public class SkilltreeManager implements IManager, IPlayerDataHandler {
 
                         data = new SkillData(skillPoint, skillsMap);
                     } else {
-                        // ユーザーが見つからない場合はデフォルトデータを生成してキャッシュする
-                        data = new SkillData(1, new HashMap<>());
+                        // ユーザーが見つからない場合はデフォルトデータを生成してキャッシュする。初期ボーナス +2 = 3
+                        data = new SkillData(3, new HashMap<>());
                     }
                     data.recalculatePassiveStats(treeConfig);
-                    DW.cache().getCache(uuid).set(SkillData.class, data);
+                    cache.set(SkillData.class, data);
                     return data;
                 }
             } catch (SQLException e) {
@@ -127,6 +131,10 @@ public class SkilltreeManager implements IManager, IPlayerDataHandler {
     }
 
     public void save(UUID uuid, SkillData data) {
+        save(uuid, data, DW.cache().getCache(uuid));
+    }
+
+    public void save(UUID uuid, SkillData data, PlayerCache cache) {
         db.checkMainThread();
         data.recalculatePassiveStats(treeConfig);
         String skillsJson = gson.toJson(data.getSkills());
@@ -173,7 +181,8 @@ public class SkilltreeManager implements IManager, IPlayerDataHandler {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            com.lunar_prototype.deepwither.Deepwither.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "Database error in " + this.getClass().getSimpleName(), e);
+            throw new RuntimeException("Database error in " + this.getClass().getSimpleName(), e);
         }
     }
 
@@ -274,14 +283,14 @@ public class SkilltreeManager implements IManager, IPlayerDataHandler {
 
     @Override
     public CompletableFuture<Void> loadData(UUID uuid, PlayerCache cache) {
-        return CompletableFuture.runAsync(() -> load(uuid), com.lunar_prototype.deepwither.Deepwither.getInstance().getAsyncExecutor());
+        return CompletableFuture.runAsync(() -> load(uuid, cache), com.lunar_prototype.deepwither.Deepwither.getInstance().getAsyncExecutor());
     }
 
     @Override
     public CompletableFuture<Void> saveData(UUID uuid, PlayerCache cache) {
         return CompletableFuture.runAsync(() -> {
             SkillData data = cache.get(SkillData.class);
-            if (data != null) save(uuid, data);
+            if (data != null) save(uuid, data, cache);
         }, com.lunar_prototype.deepwither.Deepwither.getInstance().getAsyncExecutor());
     }
 

@@ -54,7 +54,15 @@ public class PlayerDataManager implements IManager {
         PlayerCache pc = cache.getCache(uuid);
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         for (IPlayerDataHandler handler : handlers) {
-            futures.add(handler.loadData(uuid, pc));
+            try {
+                futures.add(handler.loadData(uuid, pc).exceptionally(ex -> {
+                    plugin.getLogger().log(java.util.logging.Level.SEVERE, "Handler " + handler.getHandlerName() + " failed to load data for " + uuid, ex);
+                    throw new java.util.concurrent.CompletionException(ex);
+                }));
+            } catch (Exception ex) {
+                plugin.getLogger().log(java.util.logging.Level.SEVERE, "Handler " + handler.getHandlerName() + " threw a synchronous exception during loadData for " + uuid, ex);
+                futures.add(CompletableFuture.failedFuture(ex));
+            }
         }
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
@@ -66,7 +74,15 @@ public class PlayerDataManager implements IManager {
         PlayerCache pc = cache.getCache(uuid);
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         for (IPlayerDataHandler handler : handlers) {
-            futures.add(handler.saveData(uuid, pc));
+            try {
+                futures.add(handler.saveData(uuid, pc).exceptionally(ex -> {
+                    plugin.getLogger().log(java.util.logging.Level.SEVERE, "Handler " + handler.getHandlerName() + " failed to save data for " + uuid, ex);
+                    throw new java.util.concurrent.CompletionException(ex);
+                }));
+            } catch (Exception ex) {
+                plugin.getLogger().log(java.util.logging.Level.SEVERE, "Handler " + handler.getHandlerName() + " threw a synchronous exception during saveData for " + uuid, ex);
+                futures.add(CompletableFuture.failedFuture(ex));
+            }
         }
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
