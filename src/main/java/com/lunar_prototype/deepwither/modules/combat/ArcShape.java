@@ -60,4 +60,26 @@ public class ArcShape implements HitShape {
             }
         }
     }
+
+    @Override
+    public void spawnSlashEffect(Location origin, Vector direction, double reach) {
+        double halfAngle = angleDegrees / 2.0;
+        Vector dirH = direction.clone().setY(0).normalize();
+
+        // 判定の先端付近になぎ払いエフェクトを表示
+        // 密度を高めて、より「なぎ払い」らしく見せる
+        for (double a = -halfAngle; a <= halfAngle; a += 15.0) {
+            double rad = Math.toRadians(a);
+            double x = dirH.getX() * Math.cos(rad) - dirH.getZ() * Math.sin(rad);
+            double z = dirH.getX() * Math.sin(rad) + dirH.getZ() * Math.cos(rad);
+
+            Location p = origin.clone().add(new Vector(x, 0, z).multiply(reach * 0.7));
+            origin.getWorld().spawnParticle(org.bukkit.Particle.SWEEP_ATTACK, p, 1, 0.1, 0.1, 0.1, 0);
+            
+            // 軌跡を強調するためのサブパーティクル
+            if (angleDegrees > 100) { // 鎌などの広範囲武器
+                origin.getWorld().spawnParticle(org.bukkit.Particle.SQUID_INK, p, 1, 0.05, 0.05, 0.05, 0.01);
+            }
+        }
+    }
 }

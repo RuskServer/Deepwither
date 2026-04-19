@@ -59,20 +59,18 @@ public class MobLevelService implements IManager, Listener {
         entity.getPersistentDataContainer().set(LEVEL_KEY, PersistentDataType.INTEGER, level);
         entity.getPersistentDataContainer().set(BASENAME_KEY, PersistentDataType.STRING, mobName);
 
-        AttributeInstance maxHealthAttr = entity.getAttribute(Attribute.MAX_HEALTH);
-        if (maxHealthAttr != null) {
-            double baseHealth = maxHealthAttr.getBaseValue();
-            double newMaxHealth = baseHealth * (1.0 + (level * healthMult));
-            
-            // 仮想体力のセット
-            entity.getPersistentDataContainer().set(StatManager.VIRTUAL_MAX_HP_KEY, PersistentDataType.DOUBLE, newMaxHealth);
-            entity.getPersistentDataContainer().set(StatManager.VIRTUAL_HP_KEY, PersistentDataType.DOUBLE, newMaxHealth);
+        StatManager sm = (StatManager) com.lunar_prototype.deepwither.Deepwither.getInstance().getStatManager();
+        
+        // すでに仮想体力が設定されている場合（CustomMob.onSpawn等）はそれをベースにし、
+        // そうでなければバニラの属性値をベースにする
+        double baseHealth = sm.getMobMaxHealth(entity);
+        double newMaxHealth = baseHealth * (1.0 + (level * healthMult));
+        
+        // 仮想体力のセット
+        sm.setMobMaxHealth(entity, newMaxHealth);
+        sm.setMobHealth(entity, newMaxHealth);
 
-            // バニラの体力も一応同期させるが、基本は仮想体力を使う
-            maxHealthAttr.setBaseValue(newMaxHealth);
-            entity.setHealth(newMaxHealth); 
-        }
-
+        // 攻撃力のスケーリング（バニラ属性値をベースにするが、適用は属性値に対して行う）
         AttributeInstance attackAttr = entity.getAttribute(Attribute.ATTACK_DAMAGE);
         if (attackAttr != null) {
             double baseDamage = attackAttr.getBaseValue();

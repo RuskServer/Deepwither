@@ -18,6 +18,9 @@ public class MiniDungeon {
     // Runtime state
     private int cooldownTimer; // 0 to 300 (seconds)
     private final List<UUID> activeMobs = new ArrayList<>();
+    private int totalKillsRequired = 0;
+    private int currentKills = 0;
+    private int mobsSpawnedSoFar = 0;
     private boolean isActive = false;
     private double startedProgress = 0.0;
     private UUID textDisplayUuid = null;
@@ -101,6 +104,30 @@ public class MiniDungeon {
     
     public void clearActiveMobs() {
         activeMobs.clear();
+    }
+
+    public int getTotalKillsRequired() {
+        return totalKillsRequired;
+    }
+
+    public void setTotalKillsRequired(int totalKillsRequired) {
+        this.totalKillsRequired = totalKillsRequired;
+    }
+
+    public int getCurrentKills() {
+        return currentKills;
+    }
+
+    public void setCurrentKills(int currentKills) {
+        this.currentKills = currentKills;
+    }
+
+    public int getMobsSpawnedSoFar() {
+        return mobsSpawnedSoFar;
+    }
+
+    public void setMobsSpawnedSoFar(int mobsSpawnedSoFar) {
+        this.mobsSpawnedSoFar = mobsSpawnedSoFar;
     }
 
     public boolean isActive() {

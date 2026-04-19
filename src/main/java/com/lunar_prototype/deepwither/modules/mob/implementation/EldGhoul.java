@@ -5,6 +5,7 @@ import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent;
 import com.lunar_prototype.deepwither.core.damage.DamageContext;
 import com.lunar_prototype.deepwither.modules.mob.framework.CustomMob;
+import com.lunar_prototype.deepwither.modules.mob.util.MobSkillUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -209,9 +210,12 @@ public class EldGhoul extends CustomMob {
                     DamageContext ctx = new DamageContext(entity, living, DeepwitherDamageEvent.DamageType.MAGIC, 18.0);
                     Deepwither.getInstance().getDamageProcessor().process(ctx);
 
-                    Vector away = living.getLocation().toVector().subtract(burst.toVector()).normalize().multiply(1.25);
-                    away.setY(0.75);
-                    living.setVelocity(away);
+                    if (MobSkillUtil.canApplyCC(living, "knockback", 1500)) {
+                        MobSkillUtil.applyCCCooldown(living, "knockback");
+                        Vector away = living.getLocation().toVector().subtract(burst.toVector()).normalize().multiply(1.25);
+                        away.setY(0.75);
+                        living.setVelocity(away);
+                    }
 
                     if (living instanceof Player player) {
                         player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 50, 1, true, true, true));

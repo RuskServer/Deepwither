@@ -35,7 +35,7 @@ public class MiniDungeonCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 0) {
-            sender.sendMessage(Component.text("使用方法: /minidungeon <create|setholo|addspawn|setchest|addmob|setloot|reload>", NamedTextColor.RED));
+            sender.sendMessage(Component.text("使用方法: /minidungeon <create|setholo|addspawn|setchest|addmob|setkillcount|setloot|reload>", NamedTextColor.RED));
             return true;
         }
 
@@ -102,6 +102,19 @@ public class MiniDungeonCommand implements CommandExecutor, TabCompleter {
                 dungeon.addMobToSpawn(mobId);
                 sender.sendMessage(Component.text("モブ " + mobId + " を追加しました。 (現在: " + dungeon.getMobsToSpawn().size() + "体)", NamedTextColor.GREEN));
                 break;
+            case "setkillcount":
+                if (args.length < 3) {
+                    sender.sendMessage(Component.text("キル数を指定してください。", NamedTextColor.RED));
+                    return true;
+                }
+                try {
+                    int count = Integer.parseInt(args[2]);
+                    dungeon.setTotalKillsRequired(count);
+                    sender.sendMessage(Component.text("必要キル数を " + count + " に設定しました。", NamedTextColor.GREEN));
+                } catch (NumberFormatException e) {
+                    sender.sendMessage(Component.text("有効な数字を指定してください。", NamedTextColor.RED));
+                }
+                break;
             case "setloot":
                 if (args.length < 3) {
                     sender.sendMessage(Component.text("LootTemplate名を指定してください。", NamedTextColor.RED));
@@ -122,7 +135,7 @@ public class MiniDungeonCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return Arrays.asList("create", "setholo", "addspawn", "setchest", "addmob", "setloot", "reload")
+            return Arrays.asList("create", "setholo", "addspawn", "setchest", "addmob", "setkillcount", "setloot", "reload")
                     .stream()
                     .filter(s -> s.startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());

@@ -26,4 +26,9 @@ public interface HitShape {
      * デバッグ用のパーティクルを描画
      */
     void drawDebug(Location origin, Vector direction, double reach);
+
+    /**
+     * 実際の攻撃演出（斬撃エフェクトなど）を描画
+     */
+    void spawnSlashEffect(Location origin, Vector direction, double reach);
 }

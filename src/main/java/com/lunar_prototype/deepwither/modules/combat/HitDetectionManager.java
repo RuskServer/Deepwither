@@ -43,11 +43,11 @@ public class HitDetectionManager implements IManager {
         // 斧: 重厚ななぎ払い
         PROFILES.put("斧", new WeaponHitProfile(new ArcShape(50, 3.0), 3.0));
         // ハルバード: 広範囲
-        PROFILES.put("ハルバード", new WeaponHitProfile(new ArcShape(60, 2.5), 4.5));
+        PROFILES.put("ハルバード", new WeaponHitProfile(new ArcShape(60, 2.5), 1.5));
         // 鎌: 横に広い
-        PROFILES.put("鎌", new WeaponHitProfile(new ArcShape(160, 2.0), 3.8));
+        PROFILES.put("鎌", new WeaponHitProfile(new ArcShape(160, 2.0), 2.5));
         // メイス・ハンマー: 判定は短めだが厚い
-        PROFILES.put("メイス", new WeaponHitProfile(new ArcShape(30, 3.5), 3.2));
+        PROFILES.put("メイス", new WeaponHitProfile(new ArcShape(30, 3.5), 1.5));
         PROFILES.put("ハンマー", new WeaponHitProfile(new ArcShape(30, 4.0), 2.5));
         PROFILES.put("マチェット", new WeaponHitProfile(new ArcShape(40, 2.0), 2.8));
     }
@@ -92,6 +92,9 @@ public class HitDetectionManager implements IManager {
 
         Location origin = player.getEyeLocation();
         Vector direction = origin.getDirection();
+
+        // 実際の攻撃演出（斬撃エフェクトなど）
+        profile.shape.spawnSlashEffect(origin, direction, finalReach);
 
         // デバッグ表示
         if (debugPlayers.contains(player.getUniqueId())) {
@@ -180,15 +183,5 @@ public class HitDetectionManager implements IManager {
         if (item == null || item.getType() == Material.AIR || !item.hasItemMeta()) return null;
         ItemMeta meta = item.getItemMeta();
         return meta.getPersistentDataContainer().get(ItemFactory.ITEM_TYPE_KEY, PersistentDataType.STRING);
-    }
-
-    private static class WeaponHitProfile {
-        final HitShape shape;
-        final double baseReach;
-
-        WeaponHitProfile(HitShape shape, double baseReach) {
-            this.shape = shape;
-            this.baseReach = baseReach;
-        }
     }
 }

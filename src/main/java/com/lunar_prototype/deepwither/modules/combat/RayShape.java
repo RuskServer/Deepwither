@@ -1,6 +1,7 @@
 package com.lunar_prototype.deepwither.modules.combat;
 
 import org.bukkit.Location;
+import org.bukkit.Particle;
 import org.bukkit.entity.Entity;
 import org.bukkit.util.Vector;
 
@@ -43,6 +44,20 @@ public class RayShape implements HitShape {
             Location p = origin.clone().add(d.clone().multiply(i));
             // 半径に合わせて少し散らす
             origin.getWorld().spawnParticle(org.bukkit.Particle.ELECTRIC_SPARK, p, 1, radius, radius, radius, 0);
+        }
+    }
+
+    @Override
+    public void spawnSlashEffect(Location origin, Vector direction, double reach) {
+        Vector d = direction.clone().normalize();
+        // 密度を高めて鋭い突きを表現
+        for (double i = 0.5; i <= reach; i += 0.2) {
+            Location p = origin.clone().add(d.clone().multiply(i));
+            origin.getWorld().spawnParticle(org.bukkit.Particle.CRIT, p, 1, 0.01, 0.01, 0.01, 0);
+            
+            if (i > reach * 0.8) { // 先端に少し輝き
+                origin.getWorld().spawnParticle(Particle.FIREWORK, p, 1, 0, 0, 0, 0);
+            }
         }
     }
 }

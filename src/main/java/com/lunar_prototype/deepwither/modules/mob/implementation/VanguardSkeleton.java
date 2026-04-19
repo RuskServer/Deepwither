@@ -3,6 +3,7 @@ package com.lunar_prototype.deepwither.modules.mob.implementation;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent;
 import com.lunar_prototype.deepwither.modules.mob.framework.CustomMob;
+import com.lunar_prototype.deepwither.modules.mob.util.MobSkillUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -124,9 +125,12 @@ public class VanguardSkeleton extends CustomMob {
     }
 
     private void performShieldBash(LivingEntity target) {
+        if (!MobSkillUtil.canApplyCC(target, "knockback", 1500)) return;
+        MobSkillUtil.applyCCCooldown(target, "knockback");
+
         entity.getWorld().playSound(entity.getLocation(), Sound.ITEM_SHIELD_BLOCK, 1.0f, 0.5f);
         Vector dir = target.getLocation().toVector().subtract(entity.getLocation().toVector()).normalize();
-        target.setVelocity(dir.multiply(1.2).setY(0.3));
+        target.setVelocity(dir.multiply(0.6).setY(0.2));
         
         target.getWorld().spawnParticle(Particle.EXPLOSION, target.getLocation().add(0, 1, 0), 1);
     }
@@ -143,7 +147,11 @@ public class VanguardSkeleton extends CustomMob {
                     com.lunar_prototype.deepwither.core.damage.DamageContext ctx = 
                         new com.lunar_prototype.deepwither.core.damage.DamageContext(entity, victim, DeepwitherDamageEvent.DamageType.PHYSICAL, dmg);
                     Deepwither.getInstance().getDamageProcessor().process(ctx);
-                    victim.setVelocity(victim.getLocation().toVector().subtract(entity.getLocation().toVector()).normalize().multiply(0.5).setY(0.1));
+                    
+                    if (MobSkillUtil.canApplyCC(victim, "knockback", 1000)) {
+                        MobSkillUtil.applyCCCooldown(victim, "knockback");
+                        victim.setVelocity(victim.getLocation().toVector().subtract(entity.getLocation().toVector()).normalize().multiply(0.3).setY(0.1));
+                    }
                 });
     }
 

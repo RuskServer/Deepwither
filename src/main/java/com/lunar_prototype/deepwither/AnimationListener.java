@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither;
 
+import com.lunar_prototype.deepwither.modules.combat.WeaponHitProfile;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
@@ -43,11 +44,19 @@ public class AnimationListener implements Listener, IManager {
     public void onPlayerArmSwing(PlayerAnimationEvent event) {
         if (event.getAnimationType() != PlayerAnimationType.ARM_SWING) return;
 
-        // 独自ヒット判定の実行
-        hitDetectionManager.performHitDetection(event.getPlayer());
+        Player player = event.getPlayer();
+        ItemStack item = player.getInventory().getItemInMainHand();
 
-        // プレイヤーのエフェクト処理を実行
-        handleWeaponEffect(event.getPlayer());
+        // 独自ヒット判定の実行 (内部でエフェクトも発動)
+        hitDetectionManager.performHitDetection(player);
+
+        // 独自ヒット判定プロファイルがある場合は、サウンドだけ鳴らす
+        // プロファイルがない場合のみ、従来のエフェクト処理を実行
+        if (hitDetectionManager.getProfile(item) != null) {
+            playCategorySound(player, item);
+        } else {
+            handleWeaponEffect(player);
+        }
     }
 
     // ---------------------------------------------------------
@@ -80,31 +89,45 @@ public class AnimationListener implements Listener, IManager {
 
         if (weapon == null || weapon.getType() == Material.AIR) return;
 
-        // --- 重い武器 ---
+        // --- 独自ヒット判定プロファイルに基づく演出を優先 ---
+        WeaponHitProfile profile = hitDetectionManager.getProfile(weapon);
+        if (profile != null) {
+            double reach = profile.baseReach;
+            // プレイヤーの場合はステータスによるリーチ補正も加味
+            if (entity instanceof Player p) {
+                reach += Deepwither.getInstance().getStatManager().getTotalStats(p).getFinal(StatType.REACH);
+            }
+            
+            profile.shape.spawnSlashEffect(entity.getEyeLocation(), entity.getLocation().getDirection(), reach);
+            
+            // カテゴリ別の追加演出（サウンドなど）
+            playCategorySound(entity, weapon);
+            return;
+        }
+
+        // --- 以下、プロファイルがない場合のフォールバック ---
         if (isHeavyWeapon(weapon)) {
             spawnHeavySwingEffect(entity);
-            return;
-        }
-
-        // --- 槍 ---
-        if (isSpearWeapon(weapon)) {
+        } else if (isSpearWeapon(weapon)) {
             spawnSpearThrustEffect(entity);
-            return;
-        }
-
-        if (isScytheWeapon(weapon)) {
+        } else if (isScytheWeapon(weapon)) {
             spawnScytheSlashEffect(entity);
-            return;
-        }
-
-        // --- 通常剣 ---
-        if (isSwordWeapon(weapon)) {
-            // MythicMobsのスキルキャスト
+        } else if (isSwordWeapon(weapon)) {
             castMythicSkill(entity, "turquoise_slash");
+            entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1f, 1f);
+        }
+    }
 
-            entity.getWorld().playSound(entity.getLocation(),
-                    Sound.ENTITY_PLAYER_ATTACK_SWEEP,
-                    1f, 1f);
+    private void playCategorySound(LivingEntity entity, ItemStack weapon) {
+        if (isHeavyWeapon(weapon)) {
+            entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, 0.8f, 0.5f);
+            entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 0.5f, 1.2f);
+        } else if (isSpearWeapon(weapon)) {
+            entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_PLAYER_ATTACK_STRONG, 0.6f, 0.9f);
+        } else if (isScytheWeapon(weapon)) {
+            entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1.0f, 0.7f);
+        } else {
+            entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1f, 1f);
         }
     }
 
