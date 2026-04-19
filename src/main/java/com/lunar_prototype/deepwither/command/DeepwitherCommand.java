@@ -47,10 +47,28 @@ public class DeepwitherCommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage(Component.text("Deepwitherの設定をリロードしました。", NamedTextColor.GREEN));
                 Deepwither.getInstance().getSkilltreeGUI().reload();
             }
+            case "debug" -> handleDebug(sender, args);
             default -> sendHelp(sender);
         }
 
         return true;
+    }
+
+    private void handleDebug(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) return;
+        if (args.length < 2) {
+            player.sendMessage(Component.text("使用法: /dw debug <hit>", NamedTextColor.RED));
+            return;
+        }
+
+        String type = args[1].toLowerCase();
+        if (type.equals("hit")) {
+            com.lunar_prototype.deepwither.modules.combat.HitDetectionManager hitManager = 
+                    Deepwither.getInstance().get(com.lunar_prototype.deepwither.modules.combat.HitDetectionManager.class);
+            if (hitManager != null) {
+                hitManager.toggleDebug(player);
+            }
+        }
     }
 
     private void handleSpawnMob(CommandSender sender, String[] args) {

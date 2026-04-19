@@ -61,13 +61,17 @@ public class CombatModule implements IModule {
             DamageProcessor damageProcessor = new DamageProcessor(plugin, statManager, uiManager, partyAPI);
             container.registerInstance(DamageProcessor.class, damageProcessor);
 
+            // HitDetectionManager
+            HitDetectionManager hitDetectionManager = new HitDetectionManager(plugin, statManager, damageProcessor);
+            container.registerInstance(HitDetectionManager.class, hitDetectionManager);
+
             // WeaponMechanicManager
             WeaponMechanicManager weaponMechanicManager = new WeaponMechanicManager(plugin, statManager, chargeManager,
                     settingsManager, uiManager);
             container.registerInstance(WeaponMechanicManager.class, weaponMechanicManager);
 
             // DamageManager
-            DamageManager damageManager = new DamageManager(plugin, statManager, settingsManager, uiManager);
+            DamageManager damageManager = new DamageManager(plugin, statManager, settingsManager, uiManager, hitDetectionManager);
             container.registerInstance(DamageManager.class, damageManager);
 
             // SpecialItemEffectManager

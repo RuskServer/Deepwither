@@ -40,12 +40,13 @@ import org.bukkit.util.Vector;
 
 import java.util.*;
 
-@DependsOn({StatManager.class, PlayerSettingsManager.class, ChargeManager.class, ManaManager.class, DamageProcessor.class, WeaponMechanicManager.class, com.lunar_prototype.deepwither.core.UIManager.class})
+@DependsOn({StatManager.class, PlayerSettingsManager.class, ChargeManager.class, ManaManager.class, DamageProcessor.class, WeaponMechanicManager.class, com.lunar_prototype.deepwither.core.UIManager.class, com.lunar_prototype.deepwither.modules.combat.HitDetectionManager.class})
 public class DamageManager implements Listener, IManager {
 
     private final IStatManager statManager;
     private final com.lunar_prototype.deepwither.core.UIManager uiManager;
     private final JavaPlugin plugin;
+    private final com.lunar_prototype.deepwither.modules.combat.HitDetectionManager hitDetectionManager;
 
     private static final double DEFENSE_DIVISOR = 250.0;
     private static final double PLAYER_DEFENSE_DIVISOR = 250.0;
@@ -55,11 +56,12 @@ public class DamageManager implements Listener, IManager {
 
     private final PlayerSettingsManager settingsManager;
 
-    public DamageManager(JavaPlugin plugin, IStatManager statManager, PlayerSettingsManager settingsManager, com.lunar_prototype.deepwither.core.UIManager uiManager) {
+    public DamageManager(JavaPlugin plugin, IStatManager statManager, PlayerSettingsManager settingsManager, com.lunar_prototype.deepwither.core.UIManager uiManager, com.lunar_prototype.deepwither.modules.combat.HitDetectionManager hitDetectionManager) {
         this.plugin = plugin;
         this.statManager = statManager;
         this.settingsManager = settingsManager;
         this.uiManager = uiManager;
+        this.hitDetectionManager = hitDetectionManager;
     }
 
     @Override
@@ -87,6 +89,13 @@ public class DamageManager implements Listener, IManager {
         }
 
         if (attacker == null) return;
+
+        // 独自ヒット判定ですでに処理されている、あるいは独自ヒット判定対象の武器を持っている場合はキャンセル
+        // プロジェクタイル（弓など）は独自判定の対象外なので通す
+        if (!isProjectile && hitDetectionManager.getProfile(attacker.getInventory().getItemInMainHand()) != null) {
+            e.setCancelled(true);
+            return;
+        }
 
         // 内部呼び出し（DamageProcessor からの再呼び出し）の場合はスキップ
         if (Deepwither.getInstance().getDamageProcessor().isProcessing(attacker.getUniqueId())) return;
@@ -401,11 +410,18 @@ public class DamageManager implements Listener, IManager {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
     public void onGhostEntityCheck(EntityDamageEvent e) {
         if (!(e.getEntity() instanceof LivingEntity target) || target instanceof Player) return;
-        if (target.getHealth() <= 0 || target.isDead() || !target.isValid()) {
+
+        // HPが0以下なのに死んでいない、あるいは無効な状態が「無敵/ゴースト」の兆候
+        if (target.getHealth() <= 0 || !target.isValid()) {
             iFrameEndTimes.remove(target.getUniqueId());
-            Bukkit.getScheduler().runTask(Deepwither.getInstance(), () -> {
-                if (target.isValid()) target.remove();
-            });
+            
+            // 20tick (1秒) 待ってから除去。1秒あれば経験値ドロップ等のバニラ処理は完了する。
+            Bukkit.getScheduler().runTaskLater(Deepwither.getInstance(), () -> {
+                // 1秒後、まだ「生きている（isDeadがfalse）」かつ「世界に存在している（isValid）」なら除去
+                if (target.isValid() && !target.isDead()) {
+                    target.remove();
+                }
+            }, 20L);
         }
     }
 

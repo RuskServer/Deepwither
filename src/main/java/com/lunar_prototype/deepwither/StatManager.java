@@ -356,12 +356,8 @@ public class StatManager implements IManager, IStatManager {
         }
 
         double reachBonus = stats.getFinal(StatType.REACH);
-        // リーチ上限の設定 (Base 3.0 + Bonus 2.0 = 5.0 を最大とする)
-        double maxReachBonus = 2.0;
-        if (reachBonus > maxReachBonus) {
-            reachBonus = maxReachBonus;
-        }
-        syncAttribute(player, Attribute.ENTITY_INTERACTION_RANGE, reachBonus);
+        // REACH attribute synchronization removed in favor of custom hit detection in CombatModule
+
 
         double speedBonus = 0; // stats.getFinal(StatType.MOVE_SPEED); を消去
 

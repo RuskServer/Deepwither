@@ -413,20 +413,8 @@ public class DamageProcessor implements IManager {
         LivingEntity victim = context.getVictim();
         LivingEntity attacker = context.getAttacker();
 
-        // 1. PacketEvents による被弾アニメーション (赤色フラッシュ)
-        // PacketEvents APIが利用可能かチェックしてNPEを回避
-        if (Bukkit.getPluginManager().isPluginEnabled("packetevents")) {
-            try {
-                if (PacketEvents.getAPI() != null && PacketEvents.getAPI().isLoaded()) {
-                    WrapperPlayServerEntityAnimation hurtPacket = new WrapperPlayServerEntityAnimation(victim.getEntityId(), WrapperPlayServerEntityAnimation.EntityAnimationType.HURT);
-                    victim.getWorld().getNearbyPlayers(victim.getLocation(), 40).forEach(p -> {
-                        PacketEvents.getAPI().getPlayerManager().sendPacket(p, hurtPacket);
-                    });
-                }
-            } catch (Exception e) {
-                // API取得中などの予期せぬエラーをキャッチして処理の停止を防ぐ
-            }
-        }
+        // 1. 被弾アニメーション (赤色フラッシュ)
+        victim.playHurtAnimation(0);
 
         // 2. 音の再生 (被害者の種類に応じて)
         Sound hurtSound = (victim instanceof Player) ? Sound.ENTITY_PLAYER_HURT : Sound.ENTITY_GENERIC_HURT;
@@ -448,11 +436,16 @@ public class DamageProcessor implements IManager {
             double currentHealth = target.getHealth();
             if (currentHealth <= damage) {
                 // 即死/トドメの処理
-                target.setHealth(0.5);
+                // 一旦HPを0.5にしてからダメージを与えることで、死亡イベントを確実に発生させる
+                target.setHealth(Math.min(target.getHealth(), 0.5));
                 target.damage(100.0, damager);
+
+                // 万が一死ねなかった場合のセーフティネット（1秒後に除去）
                 Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                    if (target.isValid() && !target.isDead()) target.remove();
-                }, 3L);
+                    if (target.isValid() && !target.isDead()) {
+                        target.remove();
+                    }
+                }, 20L);
             } else {
                 target.damage(damage, damager);
             }

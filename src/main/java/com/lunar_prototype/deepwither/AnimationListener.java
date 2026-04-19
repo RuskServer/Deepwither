@@ -17,13 +17,15 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
-@DependsOn({ItemFactory.class})
+@DependsOn({ItemFactory.class, com.lunar_prototype.deepwither.modules.combat.HitDetectionManager.class})
 public class AnimationListener implements Listener, IManager {
 
     private final JavaPlugin plugin;
+    private final com.lunar_prototype.deepwither.modules.combat.HitDetectionManager hitDetectionManager;
 
-    public AnimationListener(JavaPlugin plugin) {
+    public AnimationListener(JavaPlugin plugin, com.lunar_prototype.deepwither.modules.combat.HitDetectionManager hitDetectionManager) {
         this.plugin = plugin;
+        this.hitDetectionManager = hitDetectionManager;
     }
 
     @Override
@@ -40,6 +42,9 @@ public class AnimationListener implements Listener, IManager {
     @EventHandler
     public void onPlayerArmSwing(PlayerAnimationEvent event) {
         if (event.getAnimationType() != PlayerAnimationType.ARM_SWING) return;
+
+        // 独自ヒット判定の実行
+        hitDetectionManager.performHitDetection(event.getPlayer());
 
         // プレイヤーのエフェクト処理を実行
         handleWeaponEffect(event.getPlayer());
