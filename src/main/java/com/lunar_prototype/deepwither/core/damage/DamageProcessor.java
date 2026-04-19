@@ -2,6 +2,8 @@ package com.lunar_prototype.deepwither.core.damage;
 
 import com.lunar_prototype.deepwither.PlayerSettingsManager;
 import com.lunar_prototype.deepwither.StatManager;
+import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.SpecialItemEffectManager;
 import com.lunar_prototype.deepwither.api.DeepwitherPartyAPI;
 import com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent;
 import com.lunar_prototype.deepwither.api.event.onPlayerRecevingDamageEvent;
@@ -85,6 +87,19 @@ public class DamageProcessor implements IManager {
         }
 
         double damage = context.getFinalDamage();
+
+        // --- 特殊効果のフック (攻撃) ---
+        SpecialItemEffectManager effectManager = Deepwither.getInstance().getSpecialItemEffectManager();
+        if (effectManager != null) {
+            if (attacker instanceof Player) {
+                com.lunar_prototype.deepwither.api.item.ISpecialItemEffect effect = effectManager.getEffect(context.getWeapon());
+                if (effect != null) {
+                    effect.onAttack(context, context.getWeapon());
+                    damage = context.getFinalDamage(); // 効果によって変更された可能性を考慮
+                }
+            }
+        }
+
         com.lunar_prototype.deepwither.StatMap attackerStats = null;
         
         if (attacker instanceof Player player) {

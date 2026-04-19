@@ -268,6 +268,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
     private DamageManager damageManager;
     private DamageProcessor damageProcessor;
     private WeaponMechanicManager weaponMechanicManager;
+    private SpecialItemEffectManager specialItemEffectManager;
     private PlayerSettingsManager settingsManager;
     private ProfessionDatabase professionDatabase;
     private SettingsGUI settingsGUI;
@@ -596,6 +597,10 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
         return weaponMechanicManager;
     }
 
+    public SpecialItemEffectManager getSpecialItemEffectManager() {
+        return specialItemEffectManager;
+    }
+
     /**
      * Access the plugin's PlayerSettingsManager.
      *
@@ -904,6 +909,7 @@ public final class Deepwither extends JavaPlugin implements DeepwitherAPI {
 
         this.damageProcessor = serviceManager.get(DamageProcessor.class);
         this.weaponMechanicManager = serviceManager.get(WeaponMechanicManager.class);
+        this.specialItemEffectManager = register(serviceManager.get(SpecialItemEffectManager.class));
         this.damageManager = serviceManager.get(DamageManager.class);
 
         // --- Group C & D ---

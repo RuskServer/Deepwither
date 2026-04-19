@@ -7,6 +7,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.inventory.ItemStack;
+import com.lunar_prototype.deepwither.api.item.ISpecialItemEffect;
 
 @DependsOn({StatManager.class})
 public class RegenTask extends BukkitRunnable implements IManager {
@@ -53,6 +55,37 @@ public class RegenTask extends BukkitRunnable implements IManager {
 
                 Deepwither.getInstance().getManaManager().get(player.getUniqueId()).regen(actualManaRegen);
             }
+
+            // 特殊効果の onTick
+            SpecialItemEffectManager effectManager = Deepwither.getInstance().getSpecialItemEffectManager();
+            if (effectManager != null) {
+                // メインハンド・オフハンド
+                handleEffectTick(player, player.getInventory().getItemInMainHand(), effectManager);
+                handleEffectTick(player, player.getInventory().getItemInOffHand(), effectManager);
+
+                // 防具
+                for (ItemStack armor : player.getInventory().getArmorContents()) {
+                    handleEffectTick(player, armor, effectManager);
+                }
+
+                // アーティファクト
+                ArtifactManager artifactManager = Deepwither.getInstance().getArtifactManager();
+                if (artifactManager != null) {
+                    for (ItemStack artifact : artifactManager.getPlayerArtifacts(player)) {
+                        handleEffectTick(player, artifact, effectManager);
+                    }
+                    // 背中装備
+                    handleEffectTick(player, artifactManager.getPlayerBackpack(player), effectManager);
+                }
+            }
+        }
+    }
+
+    private void handleEffectTick(Player player, ItemStack item, SpecialItemEffectManager manager) {
+        if (item == null || item.getType().isAir()) return;
+        ISpecialItemEffect effect = manager.getEffect(item);
+        if (effect != null) {
+            effect.onTick(player, item);
         }
     }
 }

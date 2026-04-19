@@ -198,7 +198,18 @@ public class ItemFactory implements IManager, IItemFactory {
 
         List<Component> runeLore = processRunesAndAddStats(meta, finalStats);
 
-        meta.lore(LoreBuilder.build(finalStats, false, ctx.getItemType(), ctx.getArtifactFullsetType(), ctx.getFlavorText(), ctx.getTracker(), ctx.getRarity(), ctx.getModifiers(), ctx.getGrade(), runeLore));
+        List<Component> lore = LoreBuilder.build(finalStats, false, ctx.getItemType(), ctx.getArtifactFullsetType(), ctx.getFlavorText(), ctx.getTracker(), ctx.getRarity(), ctx.getModifiers(), ctx.getGrade(), runeLore);
+        
+        // 特殊効果によるLore介入
+        SpecialItemEffectManager effectManager = Deepwither.getInstance().getSpecialItemEffectManager();
+        if (effectManager != null) {
+            com.lunar_prototype.deepwither.api.item.ISpecialItemEffect effect = effectManager.getEffect(ctx.getItem());
+            if (effect != null) {
+                effect.modifyLore(lore, ctx.getItem());
+            }
+        }
+
+        meta.lore(lore);
 
         applyItemFlags(meta);
         saveFinalStatsToPdc(meta, finalStats);

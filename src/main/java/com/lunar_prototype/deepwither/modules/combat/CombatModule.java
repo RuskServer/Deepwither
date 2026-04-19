@@ -10,6 +10,7 @@ import com.lunar_prototype.deepwither.WeaponMechanicManager;
 import com.lunar_prototype.deepwither.StatManager;
 import com.lunar_prototype.deepwither.PlayerSettingsManager;
 import com.lunar_prototype.deepwither.ChargeManager;
+import com.lunar_prototype.deepwither.SpecialItemEffectManager;
 
 public class CombatModule implements IModule {
 
@@ -68,6 +69,10 @@ public class CombatModule implements IModule {
             // DamageManager
             DamageManager damageManager = new DamageManager(plugin, statManager, settingsManager, uiManager);
             container.registerInstance(DamageManager.class, damageManager);
+
+            // SpecialItemEffectManager
+            SpecialItemEffectManager specialItemEffectManager = new SpecialItemEffectManager(plugin);
+            container.registerInstance(SpecialItemEffectManager.class, specialItemEffectManager);
 
         } catch (Exception e) {
             plugin.getLogger().severe("Failed to configure CombatModule components. Dependencies might be missing.");
