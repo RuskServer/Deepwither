@@ -58,6 +58,7 @@ public class SkillLoader implements IManager {
             def.cooldown_min = cooldown_min;
             def.mythicSkillId = mythicSkill;
             def.castTime = castTime; // 追加
+            def.conflicts.addAll(config.getStringList("conflicts"));
 
             if (config.contains("tags")) {
                 if (config.contains("tags.role")) {

@@ -74,6 +74,12 @@ public class SkillAssignmentGUI implements Listener, IManager {
         if (currentPage < 0) currentPage = 0;
         playerPages.put(uuid, currentPage);
 
+        // スキルスロット（行5, slots 45〜53） ----
+        SkillSlotData slotData = slotManager.get(uuid);
+        List<String> equippedSkills = slotData.getSlots().stream()
+                .filter(s -> s != null && !s.isEmpty())
+                .toList();
+
         // ---- スキル一覧（行0〜4, slots 0〜35） ----
         int startIndex = currentPage * 36;
         int endIndex = Math.min(startIndex + 36, totalSkills);
@@ -84,7 +90,7 @@ public class SkillAssignmentGUI implements Listener, IManager {
             if (skill == null) continue;
 
             int slot = i - startIndex;
-            ItemStack item = buildSkillItem(player, skill, skillId.equals(selectedId));
+            ItemStack item = buildSkillItem(player, skill, skillId.equals(selectedId), equippedSkills);
             gui.setItem(slot, item);
         }
 
@@ -110,8 +116,6 @@ public class SkillAssignmentGUI implements Listener, IManager {
             gui.setItem(44, buildNavButton("次へ", "page:" + (currentPage + 1)));
         }
 
-        // ---- スキルスロット（行5, slots 45〜53） ----
-        SkillSlotData slotData = slotManager.get(uuid);
         for (int i = 0; i < 9; i++) {
             gui.setItem(45 + i, buildSlotItem(player, i, slotData));
         }
@@ -126,9 +130,23 @@ public class SkillAssignmentGUI implements Listener, IManager {
     // ===== アイテム生成ヘルパー =====
 
     /** スキルリスト用アイテム。選択中の場合はグロウ付与 */
-    private ItemStack buildSkillItem(Player player, SkillDefinition skill, boolean isSelected) {
+    private ItemStack buildSkillItem(Player player, SkillDefinition skill, boolean isSelected, List<String> equippedSkills) {
         ItemStack item = new ItemStack(skill.material);
         ItemMeta meta = item.getItemMeta();
+
+        // 競合チェック
+        boolean isConflicting = false;
+        String conflictingSkillName = null;
+        for (String eqId : equippedSkills) {
+            SkillDefinition eqDef = skillLoader.get(eqId);
+            if (eqDef != null) {
+                if (skill.conflicts.contains(eqId) || eqDef.conflicts.contains(skill.id)) {
+                    isConflicting = true;
+                    conflictingSkillName = eqDef.name;
+                    break;
+                }
+            }
+        }
 
         // 名前
         Component nameComponent = Component.text(skill.name, NamedTextColor.GOLD)
@@ -161,7 +179,10 @@ public class SkillAssignmentGUI implements Listener, IManager {
         }
         lore.add(Component.empty());
 
-        if (isSelected) {
+        if (isConflicting) {
+            lore.add(Component.text("⚠ 競合中: " + conflictingSkillName, NamedTextColor.RED)
+                    .decoration(TextDecoration.ITALIC, false));
+        } else if (isSelected) {
             lore.add(Component.text("✔ 選択中 — スロットをクリックして割り当て", NamedTextColor.GREEN)
                     .decoration(TextDecoration.ITALIC, false));
         } else {
@@ -372,8 +393,31 @@ public class SkillAssignmentGUI implements Listener, IManager {
                 selectedSkillMap.remove(uuid);
                 player.sendMessage(Component.text("選択を解除しました。", NamedTextColor.GRAY));
             } else {
-                selectedSkillMap.put(uuid, skillId);
                 SkillDefinition def = skillLoader.get(skillId);
+
+                // 装備中のスキルとの競合チェック
+                SkillSlotData slotData = slotManager.get(uuid);
+                boolean isConflicting = false;
+                String conflictingName = "";
+                for (String eqId : slotData.getSlots()) {
+                    if (eqId == null || eqId.isEmpty()) continue;
+                    SkillDefinition eqDef = skillLoader.get(eqId);
+                    if (eqDef != null && def != null) {
+                        if (def.conflicts.contains(eqId) || eqDef.conflicts.contains(skillId)) {
+                            isConflicting = true;
+                            conflictingName = eqDef.name;
+                            break;
+                        }
+                    }
+                }
+
+                if (isConflicting) {
+                    player.sendMessage(Component.text("装備中のスキル「" + conflictingName + "」と競合しているため選択できません。", NamedTextColor.RED));
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+                    return;
+                }
+
+                selectedSkillMap.put(uuid, skillId);
                 String name = (def != null) ? def.name : skillId;
                 player.sendMessage(Component.text("「" + name + "」を選択しました。スロットをクリックして割り当ててください。", NamedTextColor.YELLOW));
             }
@@ -401,6 +445,21 @@ public class SkillAssignmentGUI implements Listener, IManager {
             }
 
             SkillSlotData slotData = slotManager.get(uuid);
+
+            // 競合チェック
+            SkillDefinition selectedDef = skillLoader.get(selected);
+            for (int i = 0; i < 9; i++) {
+                if (i == slotIndex) continue;
+                String eqId = slotData.getSkill(i);
+                if (eqId != null && !eqId.isEmpty() && selectedDef != null) {
+                    SkillDefinition eqDef = skillLoader.get(eqId);
+                    if (eqDef != null && (selectedDef.conflicts.contains(eqId) || eqDef.conflicts.contains(selected))) {
+                        player.sendMessage(Component.text("スロット" + (i + 1) + "のスキル「" + eqDef.name + "」と競合しているため割り当てられません。", NamedTextColor.RED));
+                        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+                        return;
+                    }
+                }
+            }
 
             // すでに別のスロットに同じスキルがセットされているかチェックして解除 (移動の挙動にする)
             for (int i = 0; i < 9; i++) {

@@ -21,5 +21,6 @@ public class SkillDefinition {
     public final List<SkillTags.Tactics> tactics = new ArrayList<>();
     public final List<SkillTags.Scaling> scalings = new ArrayList<>();
     public final List<SkillTags.Constraint> constraints = new ArrayList<>();
+    public final List<String> conflicts = new ArrayList<>();
 }
 
