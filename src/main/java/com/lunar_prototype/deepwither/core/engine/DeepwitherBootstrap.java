@@ -110,7 +110,6 @@ public class DeepwitherBootstrap {
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.integration.IntegrationModule(plugin));
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.outpost.OutpostModule(plugin));
         moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.minidungeon.MiniDungeonModule(plugin));
-        moduleManager.registerModule(new com.lunar_prototype.deepwither.modules.minerun.MineRunModule(plugin));
 
         // 3. Legacy Module (既存機能のインスタンス生成と登録)
         // 他の全てのモジュールがコンテナにManagerを登録した「後」に実行し、

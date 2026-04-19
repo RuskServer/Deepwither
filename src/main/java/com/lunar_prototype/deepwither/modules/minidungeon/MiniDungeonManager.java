@@ -463,42 +463,6 @@ public class MiniDungeonManager implements IManager {
                     p -> p.sendMessage(Component.text("ミニダンジョンがクリアされました！報酬チェストが出現しました。", NamedTextColor.AQUA)));
         }
 
-        // --- ネガティブレイヤー(MineRun)ポータル出現の判定 ---
-        if (rand.nextDouble() < 0.20 && progress >= 0.5) {
-            Location portalTarget = baseLoc.clone().add(0, 1, 2);
-            boolean isSafe = portalTarget.getBlock().getType().isAir();
-            if (isSafe && baseLoc.getWorld() != null) {
-                portalTarget.getBlock().setType(org.bukkit.Material.END_GATEWAY);
-                baseLoc.getWorld().playSound(portalTarget, org.bukkit.Sound.BLOCK_END_PORTAL_SPAWN, 1.0f, 1.0f);
-                baseLoc.getWorld().getNearbyPlayers(baseLoc, 20).forEach(
-                        p -> p.sendMessage(Component.text("空間の歪みが発生した！「ネガティブレイヤー」へのポータルが開いています...", NamedTextColor.DARK_PURPLE)));
-                
-                // MineRunManager にポータルを登録し、共有インスタンスを確保する
-                com.lunar_prototype.deepwither.modules.minerun.MineRunManager runManager = 
-                        com.lunar_prototype.deepwither.api.DW.get(com.lunar_prototype.deepwither.modules.minerun.MineRunManager.class);
-                if (runManager != null) {
-                    // 周辺レイヤーを取得
-                    com.lunar_prototype.deepwither.modules.mob.util.MobRegionService regionService = 
-                            com.lunar_prototype.deepwither.api.DW.get(com.lunar_prototype.deepwither.modules.mob.util.MobRegionService.class);
-                    int runTier = 1;
-                    if (regionService != null) runTier = regionService.getTierFromLocation(portalTarget);
-                    runManager.registerPortal(portalTarget, runTier);
-                }
-                
-                // 120秒後に消滅させるタスクをスケジュール
-                org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                    if (portalTarget.getBlock().getType() == org.bukkit.Material.END_GATEWAY) {
-                        portalTarget.getBlock().setType(org.bukkit.Material.AIR);
-                        if (baseLoc.getWorld() != null) {
-                            baseLoc.getWorld().playSound(portalTarget, org.bukkit.Sound.BLOCK_BEACON_DEACTIVATE, 1.0f, 1.0f);
-                        }
-                    }
-                    if (runManager != null) {
-                        runManager.unregisterPortal(portalTarget);
-                    }
-                }, 2400L);
-            }
-        }
     }
 
     // --- Save & Load ---
