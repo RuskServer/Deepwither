@@ -82,6 +82,8 @@ public class MobModule implements IModule {
             customMobManager.registerMob("SilentWatcher", com.lunar_prototype.deepwither.modules.mob.implementation.SilentWatcher.class, EntityType.HUSK);
             customMobManager.registerMob("EngravedExecutor", com.lunar_prototype.deepwither.modules.mob.implementation.EngravedExecutor.class, EntityType.WITHER_SKELETON);
             customMobManager.registerMob("melee_skeleton", VanguardSkeleton.class, EntityType.SKELETON);
+            customMobManager.registerMob("ranged_skeleton", com.lunar_prototype.deepwither.modules.mob.implementation.MarksmanSkeleton.class, EntityType.SKELETON);
+            customMobManager.registerMob("ranged_zombie", com.lunar_prototype.deepwither.modules.mob.implementation.MarksmanZombie.class, EntityType.SKELETON);
             customMobManager.registerMob("melee_zombie2", CrimsonLancer.class, EntityType.ZOMBIE);
             customMobManager.registerMob("ark_ghoul", ArkGhoul.class, EntityType.ZOMBIE);
             customMobManager.registerMob("アークグール", ArkGhoul.class, EntityType.ZOMBIE);
