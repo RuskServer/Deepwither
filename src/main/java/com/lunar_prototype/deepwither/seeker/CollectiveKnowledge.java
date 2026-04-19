@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither.seeker;
 
+import com.lunar_prototype.deepwither.api.DW;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
@@ -82,8 +83,8 @@ public class CollectiveKnowledge {
                 .collect(java.util.stream.Collectors.toList());
 
         // 自分が一番HPが高い、または一番ターゲットに近いならTANKER
-        double myHp = self.getHealth();
-        boolean isToughest = allies.stream().allMatch(a -> ((Mob)a).getHealth() <= myHp);
+        double myHp = DW.stats().getMobHealth(self);
+        boolean isToughest = allies.stream().allMatch(a -> DW.stats().getMobHealth((Mob)a) <= myHp);
 
         if (isToughest) return BanditDecision.TacticalRole.TANKER;
 

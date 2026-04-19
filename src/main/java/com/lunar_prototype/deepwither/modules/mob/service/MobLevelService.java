@@ -1,5 +1,8 @@
 package com.lunar_prototype.deepwither.modules.mob.service;
 
+import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.StatManager;
+import com.lunar_prototype.deepwither.api.stat.IStatManager;
 import com.lunar_prototype.deepwither.util.IManager;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import io.lumine.mythic.core.mobs.ActiveMob;
@@ -60,6 +63,12 @@ public class MobLevelService implements IManager, Listener {
         if (maxHealthAttr != null) {
             double baseHealth = maxHealthAttr.getBaseValue();
             double newMaxHealth = baseHealth * (1.0 + (level * healthMult));
+            
+            // 仮想体力のセット
+            entity.getPersistentDataContainer().set(StatManager.VIRTUAL_MAX_HP_KEY, PersistentDataType.DOUBLE, newMaxHealth);
+            entity.getPersistentDataContainer().set(StatManager.VIRTUAL_HP_KEY, PersistentDataType.DOUBLE, newMaxHealth);
+
+            // バニラの体力も一応同期させるが、基本は仮想体力を使う
             maxHealthAttr.setBaseValue(newMaxHealth);
             entity.setHealth(newMaxHealth); 
         }
@@ -90,9 +99,9 @@ public class MobLevelService implements IManager, Listener {
     }
 
     private void updateMobName(LivingEntity entity, String baseName, int level) {
-        int currentHp = (int) entity.getHealth();
-        AttributeInstance maxHealthAttr = entity.getAttribute(Attribute.MAX_HEALTH);
-        int maxHp = (maxHealthAttr != null) ? (int) maxHealthAttr.getValue() : 1;
+        IStatManager statManager = Deepwither.getInstance().getStatManager();
+        int currentHp = (int) statManager.getMobHealth(entity);
+        int maxHp = (int) statManager.getMobMaxHealth(entity);
 
         String displayName = nameFormat
                 .replace("{level}", String.valueOf(level))

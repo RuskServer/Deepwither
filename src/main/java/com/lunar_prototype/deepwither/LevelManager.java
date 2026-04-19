@@ -257,6 +257,7 @@ public class LevelManager implements IManager, IPlayerDataHandler {
 
     public void updatePlayerDisplay(Player player) {
         PlayerLevelData data = get(player.getUniqueId());
+        if (data == null) return;
         int currentLevel = data.getLevel();
         double currentExp = data.getExp();
         double expToNextLevel = data.getRequiredExp();

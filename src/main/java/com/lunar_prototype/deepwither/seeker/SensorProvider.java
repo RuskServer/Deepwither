@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither.seeker;
 
+import com.lunar_prototype.deepwither.api.DW;
 import io.lumine.mythic.core.mobs.ActiveMob;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
@@ -30,8 +31,12 @@ public class SensorProvider {
         // 1. 自身のステータス
         context.entity = new BanditContext.EntityState();
         context.entity.id = activeMob.getUniqueId().toString();
-        context.entity.hp_pct = (int) ((entity.getHealth() / entity.getAttribute(Attribute.MAX_HEALTH).getValue()) * 100);
-        context.entity.max_hp = (int) entity.getAttribute(Attribute.MAX_HEALTH).getValue();
+        
+        double currentHp = DW.stats().getMobHealth(entity);
+        double maxHp = DW.stats().getMobMaxHealth(entity);
+        
+        context.entity.hp_pct = (int) ((currentHp / maxHp) * 100);
+        context.entity.max_hp = (int) maxHp;
         context.entity.stance = activeMob.getStance();
 
         // 2. 環境情報の収集
@@ -71,9 +76,11 @@ public class SensorProvider {
                     info.dist = self.getLocation().distance(ally.getLocation());
 
                     // ステータス判定
-                    double healthRatio = ally.getHealth() / ally.getAttribute(Attribute.MAX_HEALTH).getValue();
+                    double currentAllyHp = DW.stats().getMobHealth(ally);
+                    double maxAllyHp = DW.stats().getMobMaxHealth(ally);
+                    double healthRatio = currentAllyHp / maxAllyHp;
 
-                    if (ally.isDead() || ally.getHealth() <= 0) {
+                    if (ally.isDead() || currentAllyHp <= 0) {
                         info.status = "DEAD";
                     } else if (healthRatio < 0.4) { // 残りHP40%未満を負傷とみなす
                         info.status = "WOUNDED";
@@ -109,8 +116,9 @@ public class SensorProvider {
                     info.holding = p.getInventory().getItemInMainHand().getType().name();
 
                     // HPの割合計算 (属性値を考慮するとより正確)
-                    double maxHealth = p.getAttribute(Attribute.MAX_HEALTH).getValue();
-                    double healthPercent = p.getHealth() / maxHealth;
+                    double currentEnemyHp = DW.stats().getMobHealth(p);
+                    double maxEnemyHp = DW.stats().getMobMaxHealth(p);
+                    double healthPercent = currentEnemyHp / maxEnemyHp;
                     info.health = healthPercent > 0.7 ? "high" : (healthPercent > 0.3 ? "mid" : "low");
 
                     return info;

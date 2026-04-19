@@ -80,16 +80,16 @@ public abstract class CustomMob {
     }
 
     public double getHealth() {
-        return entity.getHealth();
+        return com.lunar_prototype.deepwither.Deepwither.getInstance().getStatManager().getMobHealth(entity);
     }
 
     public double getMaxHealth() {
-        return entity.getAttribute(Attribute.MAX_HEALTH).getValue();
+        return com.lunar_prototype.deepwither.Deepwither.getInstance().getStatManager().getMobMaxHealth(entity);
     }
 
     public void setMaxHealth(double health) {
-        entity.getAttribute(Attribute.MAX_HEALTH).setBaseValue(health);
-        entity.setHealth(health);
+        com.lunar_prototype.deepwither.Deepwither.getInstance().getStatManager().setMobMaxHealth(entity, health);
+        com.lunar_prototype.deepwither.Deepwither.getInstance().getStatManager().setMobHealth(entity, health);
     }
 
     /**

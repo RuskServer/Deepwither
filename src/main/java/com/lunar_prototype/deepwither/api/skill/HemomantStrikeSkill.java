@@ -1,6 +1,6 @@
 package com.lunar_prototype.deepwither.api.skill;
 
-import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.SkillDefinition;
 import com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent;
 import com.lunar_prototype.deepwither.core.damage.DamageContext;
@@ -28,12 +28,12 @@ public class HemomantStrikeSkill implements ISkillLogic {
         caster.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, 400, 1)); // INCREASE_DAMAGE = Strength
 
         // 最大体力の30%を自傷 (True Damage)
-        double maxHealth = caster.getAttribute(Attribute.MAX_HEALTH).getValue();
+        double maxHealth = DW.stats().getMobMaxHealth(caster);
         double healthToLose = maxHealth * 0.3;
 
         DamageContext selfCtx = new DamageContext(null, caster, DeepwitherDamageEvent.DamageType.MAGIC, healthToLose);
         selfCtx.setTrueDamage(true);
-        Deepwither.getInstance().getDamageProcessor().process(selfCtx);
+        DW.get(com.lunar_prototype.deepwither.core.damage.DamageProcessor.class).process(selfCtx);
 
         return true;
     }

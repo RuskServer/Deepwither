@@ -90,15 +90,15 @@ public class DamageManager implements Listener, IManager {
 
         if (attacker == null) return;
 
+        // 内部呼び出し（DamageProcessor からの再呼び出し）の場合はスキップ
+        if (Deepwither.getInstance().getDamageProcessor().isProcessing(attacker.getUniqueId())) return;
+
         // 独自ヒット判定ですでに処理されている、あるいは独自ヒット判定対象の武器を持っている場合はキャンセル
         // プロジェクタイル（弓など）は独自判定の対象外なので通す
         if (!isProjectile && hitDetectionManager.getProfile(attacker.getInventory().getItemInMainHand()) != null) {
             e.setCancelled(true);
             return;
         }
-
-        // 内部呼び出し（DamageProcessor からの再呼び出し）の場合はスキップ
-        if (Deepwither.getInstance().getDamageProcessor().isProcessing(attacker.getUniqueId())) return;
 
         RouteLootChestManager routeLootChestManager = Deepwither.getInstance().getRouteLootChestManager();
         if (routeLootChestManager != null) {
@@ -110,7 +110,7 @@ public class DamageManager implements Listener, IManager {
         
         if (!(e.getEntity() instanceof LivingEntity targetLiving)) return;
 
-        if (targetLiving instanceof Player pTarget && statManager.getActualCurrentHealth(pTarget) <= 0) {
+        if (statManager.getMobHealth(targetLiving) <= 0) {
             e.setCancelled(true);
             return;
         }
@@ -348,7 +348,7 @@ public class DamageManager implements Listener, IManager {
             if (ev.getDamager() instanceof LivingEntity le) attacker = le;
             else if (ev.getDamager() instanceof Projectile p && p.getShooter() instanceof LivingEntity le) attacker = le;
             if (attacker instanceof Player) return;
-            if (attacker != null && (attacker.getHealth() <= 0 || !attacker.isValid() || attacker.isDead())) {
+            if (attacker != null && (statManager.getMobHealth(attacker) <= 0 || !attacker.isValid() || attacker.isDead())) {
                 attacker.remove();
                 iFrameEndTimes.remove(attacker.getUniqueId());
                 e.setCancelled(true);
@@ -358,8 +358,8 @@ public class DamageManager implements Listener, IManager {
 
         List<String> traits = getMobTraits(attacker);
         if (attacker != null && traits.contains("BERSERK")) {
-            double maxHp = attacker.getAttribute(Attribute.MAX_HEALTH).getValue();
-            if (attacker.getHealth() / maxHp <= 0.5) rawDamage *= 1.5;
+            double maxHp = statManager.getMobMaxHealth(attacker);
+            if (statManager.getMobHealth(attacker) / maxHp <= 0.5) rawDamage *= 1.5;
         }
 
         double finalDamage = rawDamage;
@@ -405,24 +405,6 @@ public class DamageManager implements Listener, IManager {
         String data = entity.getPersistentDataContainer().get(new NamespacedKey(Deepwither.getInstance(), "mob_traits"), PersistentDataType.STRING);
         if (data == null || data.isEmpty()) return Collections.emptyList();
         return Arrays.asList(data.split(","));
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
-    public void onGhostEntityCheck(EntityDamageEvent e) {
-        if (!(e.getEntity() instanceof LivingEntity target) || target instanceof Player) return;
-
-        // HPが0以下なのに死んでいない、あるいは無効な状態が「無敵/ゴースト」の兆候
-        if (target.getHealth() <= 0 || !target.isValid()) {
-            iFrameEndTimes.remove(target.getUniqueId());
-            
-            // 20tick (1秒) 待ってから除去。1秒あれば経験値ドロップ等のバニラ処理は完了する。
-            Bukkit.getScheduler().runTaskLater(Deepwither.getInstance(), () -> {
-                // 1秒後、まだ「生きている（isDeadがfalse）」かつ「世界に存在している（isValid）」なら除去
-                if (target.isValid() && !target.isDead()) {
-                    target.remove();
-                }
-            }, 20L);
-        }
     }
 
     @EventHandler

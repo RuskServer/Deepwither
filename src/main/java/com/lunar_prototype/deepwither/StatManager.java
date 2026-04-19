@@ -9,6 +9,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.attribute.AttributeModifier;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.NamespacedKey;
@@ -27,6 +28,9 @@ public class StatManager implements IManager, IStatManager {
 
     private static final UUID ATTACK_DAMAGE_MODIFIER_ID = UUID.fromString("a3bb7af7-3c5b-4df1-a17e-cdeae1db1d32");
     private static final UUID MAX_HEALTH_MODIFIER_ID = UUID.fromString("ff5dd7e3-d781-4fee-b3d4-bfe3a5fda85d");
+
+    public static final NamespacedKey VIRTUAL_HP_KEY = new NamespacedKey(Deepwither.getInstance(), "virtual_hp");
+    public static final NamespacedKey VIRTUAL_MAX_HP_KEY = new NamespacedKey(Deepwither.getInstance(), "virtual_max_hp");
 
     @Override
     public void init() {
@@ -219,10 +223,11 @@ public class StatManager implements IManager, IStatManager {
     public static StatMap getTotalStatsFromEquipment(Player player) {
         StatMap total = new StatMap();
         PlayerLevelData data = Deepwither.getInstance().getLevelManager().get(player);
+        int level = data != null ? data.getLevel() : 1;
 
         // 体力の基礎値とレベルボーナスを最初に追加 (これでパーセント補正が基礎値にも乗るようになる)
         double baseHp = 20.0;
-        double levelhp = 2 * data.getLevel();
+        double levelhp = 2 * level;
         total.addFlat(StatType.MAX_HEALTH, baseHp + levelhp);
 
         // マナの基礎値を追加
@@ -443,5 +448,84 @@ public class StatManager implements IManager, IStatManager {
                 }
             }
         return true;
+    }
+
+    @Override
+    public double getMobHealth(LivingEntity entity) {
+        if (entity instanceof Player player) return getActualCurrentHealth(player);
+        PersistentDataContainer pdc = entity.getPersistentDataContainer();
+        if (pdc.has(VIRTUAL_HP_KEY, PersistentDataType.DOUBLE)) {
+            return pdc.get(VIRTUAL_HP_KEY, PersistentDataType.DOUBLE);
+        }
+        return entity.getHealth();
+    }
+
+    @Override
+    public double getMobMaxHealth(LivingEntity entity) {
+        if (entity instanceof Player player) return getActualMaxHealth(player);
+        PersistentDataContainer pdc = entity.getPersistentDataContainer();
+        if (pdc.has(VIRTUAL_MAX_HP_KEY, PersistentDataType.DOUBLE)) {
+            return pdc.get(VIRTUAL_MAX_HP_KEY, PersistentDataType.DOUBLE);
+        }
+        AttributeInstance attr = entity.getAttribute(Attribute.MAX_HEALTH);
+        return attr != null ? attr.getValue() : 20.0;
+    }
+
+    @Override
+    public void setMobHealth(LivingEntity entity, double health) {
+        if (entity instanceof Player player) {
+            setActualCurrentHealth(player, health);
+            return;
+        }
+        double max = getMobMaxHealth(entity);
+        double finalHealth = Math.max(0, Math.min(health, max));
+        entity.getPersistentDataContainer().set(VIRTUAL_HP_KEY, PersistentDataType.DOUBLE, finalHealth);
+
+        // バニラの体力も同期させる（他プラグインのHP表示などへの配慮）
+        double vanillaMax = entity.getAttribute(Attribute.MAX_HEALTH).getValue();
+        double ratio = finalHealth / max;
+        double vanillaHealth = Math.max(0.1, ratio * vanillaMax);
+        if (finalHealth <= 0) vanillaHealth = 0;
+        
+        if (vanillaHealth > 0) {
+            entity.setHealth(Math.min(vanillaHealth, vanillaMax));
+        }
+    }
+
+    @Override
+    public void setMobMaxHealth(LivingEntity entity, double maxHealth) {
+        if (entity instanceof Player player) {
+            // Player's max health is derived from stats, so we don't set it directly here
+            return;
+        }
+        entity.getPersistentDataContainer().set(VIRTUAL_MAX_HP_KEY, PersistentDataType.DOUBLE, maxHealth);
+    }
+
+    /**
+     * エンティティに対して仮想ダメージを与えます。
+     * プレイヤーとモブの両方に対応し、死亡処理も適切に行います。
+     */
+    @Override
+    public void applyDamage(LivingEntity target, double damage, LivingEntity attacker) {
+        if (target instanceof Player player) {
+            double current = getActualCurrentHealth(player);
+            setActualCurrentHealth(player, current - damage);
+            // プレイヤーの死亡イベントはバニラのHP同期によって自然に発生
+            return;
+        }
+
+        double current = getMobHealth(target);
+        double next = current - damage;
+        setMobHealth(target, next);
+
+        if (next <= 0 && !target.isDead()) {
+            // モブの死亡処理
+            target.setHealth(0.1);
+            if (attacker != null) {
+                target.damage(Double.MAX_VALUE, attacker);
+            } else {
+                target.damage(Double.MAX_VALUE);
+            }
+        }
     }
 }

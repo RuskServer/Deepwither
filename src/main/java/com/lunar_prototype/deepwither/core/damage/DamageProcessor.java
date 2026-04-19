@@ -383,6 +383,8 @@ public class DamageProcessor implements IManager {
         double damage = context.getFinalDamage();
         LivingEntity attacker = context.getAttacker();
 
+        com.lunar_prototype.deepwither.StatManager sm = (com.lunar_prototype.deepwither.StatManager) statManager;
+        
         if (victim instanceof Player player) {
             processPlayerDamageWithAbsorption(player, damage, attacker != null ? attacker.getName() : "魔法/環境");
             
@@ -397,11 +399,7 @@ public class DamageProcessor implements IManager {
             if (attacker instanceof Player playerAttacker) {
                 executeCustomMobDamage(victim, damage, playerAttacker);
             } else {
-                if (attacker != null) {
-                    victim.damage(damage, attacker);
-                } else {
-                    victim.damage(damage);
-                }
+                sm.applyDamage(victim, damage, attacker);
             }
         }
 
@@ -433,22 +431,8 @@ public class DamageProcessor implements IManager {
     private void executeCustomMobDamage(LivingEntity target, double damage, Player damager) {
         isProcessingDamage.add(damager.getUniqueId());
         try {
-            double currentHealth = target.getHealth();
-            if (currentHealth <= damage) {
-                // 即死/トドメの処理
-                // 一旦HPを0.5にしてからダメージを与えることで、死亡イベントを確実に発生させる
-                target.setHealth(Math.min(target.getHealth(), 0.5));
-                target.damage(100.0, damager);
-
-                // 万が一死ねなかった場合のセーフティネット（1秒後に除去）
-                Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                    if (target.isValid() && !target.isDead()) {
-                        target.remove();
-                    }
-                }, 20L);
-            } else {
-                target.damage(damage, damager);
-            }
+            com.lunar_prototype.deepwither.StatManager sm = (com.lunar_prototype.deepwither.StatManager) statManager;
+            sm.applyDamage(target, damage, damager);
         } finally {
             isProcessingDamage.remove(damager.getUniqueId());
         }

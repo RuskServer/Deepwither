@@ -1,6 +1,7 @@
 package com.lunar_prototype.deepwither.api.stat;
 
 import com.lunar_prototype.deepwither.StatMap;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 
 import java.util.UUID;
@@ -105,4 +106,29 @@ public interface IStatManager {
      * @param seconds 経過秒数
      */
     void naturalRegeneration(Player player, double seconds);
+
+    /**
+     * エンティティ（プレイヤーまたはモブ）の現在の仮想HPを取得します。
+     */
+    double getMobHealth(LivingEntity entity);
+
+    /**
+     * エンティティ（プレイヤーまたはモブ）の最大仮想HPを取得します。
+     */
+    double getMobMaxHealth(LivingEntity entity);
+
+    /**
+     * エンティティ（プレイヤーまたはモブ）の現在の仮想HPを設定します。
+     */
+    void setMobHealth(LivingEntity entity, double health);
+
+    /**
+     * モブの最大仮想HPを設定します。
+     */
+    void setMobMaxHealth(LivingEntity entity, double maxHealth);
+
+    /**
+     * エンティティに対して仮想ダメージを与え、死亡判定を行います。
+     */
+    void applyDamage(LivingEntity target, double damage, LivingEntity attacker);
 }

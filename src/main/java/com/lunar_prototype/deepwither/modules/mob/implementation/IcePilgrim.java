@@ -258,7 +258,9 @@ public class IcePilgrim extends CustomMob {
         Player target = null;
         double lowestHpRatio = 1.0;
         for (Player p : entity.getWorld().getNearbyPlayers(entity.getLocation(), 30)) {
-            double ratio = p.getHealth() / p.getAttribute(Attribute.MAX_HEALTH).getValue();
+            double currentHp = DW.stats().getMobHealth(p);
+            double maxHp = DW.stats().getMobMaxHealth(p);
+            double ratio = currentHp / maxHp;
             if (ratio < 0.5 && ratio < lowestHpRatio) {
                 target = p;
                 lowestHpRatio = ratio;

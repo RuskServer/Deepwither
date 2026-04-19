@@ -108,14 +108,10 @@ public class CustomDamageMechanics implements ITargetedEntitySkill {
         }
 
         if (caster instanceof Player playerCaster) {
+            StatManager sm = (StatManager) plugin.getStatManager();
             Double celestialTrueDamage = context.get("celestial_true_damage");
             if (celestialTrueDamage != null && celestialTrueDamage > 0) {
-                if (bukkitTarget instanceof Player playerTarget) {
-                    double currentHp = Deepwither.getInstance().getStatManager().getActualCurrentHealth(playerTarget);
-                    Deepwither.getInstance().getStatManager().setActualCurrentHealth(playerTarget, currentHp - celestialTrueDamage);
-                } else {
-                    bukkitTarget.damage(celestialTrueDamage, caster);
-                }
+                sm.applyDamage(bukkitTarget, celestialTrueDamage, caster);
             }
 
             Boolean celestialReplay = context.get("celestial_burst_repeat");
@@ -142,7 +138,8 @@ public class CustomDamageMechanics implements ITargetedEntitySkill {
         if (activeMobOptional.isPresent()) {
             String mobId = activeMobOptional.get().getType().getInternalName();
             if (mobId != null && UNDEAD_MOB_IDS.contains(mobId)) {
-                double damage = target.getHealth() * 0.5;
+                StatManager sm = (StatManager) Deepwither.getInstance().getStatManager();
+                double damage = sm.getMobHealth(target) * 0.5;
                 Deepwither.getInstance().getUIManager().of(player).combatAction("HOLY SMITE!!", NamedTextColor.LIGHT_PURPLE);
                 Deepwither.getInstance().getUIManager().of(player).message(PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, Component.text("聖特攻！ ", NamedTextColor.LIGHT_PURPLE, TextDecoration.BOLD).append(Component.text("アンデッドに50%ダメージ！", NamedTextColor.WHITE)));
                 target.getWorld().playSound(target.getLocation(), Sound.BLOCK_ANVIL_LAND, 1.0f, 0.5f);
@@ -155,8 +152,10 @@ public class CustomDamageMechanics implements ITargetedEntitySkill {
     }
 
     private void handleLifesteal(Player player, LivingEntity target, double finalDamage) {
-        double heal = target.getMaxHealth() * (finalDamage / 100.0 / 100.0);
-        heal = Math.min(heal, player.getMaxHealth() * 0.20);
+        StatManager sm = (StatManager) Deepwither.getInstance().getStatManager();
+        double heal = sm.getMobMaxHealth(target) * (finalDamage / 100.0 / 100.0);
+        double maxPlayerHp = sm.getActualMaxHealth(player);
+        heal = Math.min(heal, maxPlayerHp * 0.20);
         Deepwither.getInstance().getStatManager().heal(player, heal);
         Deepwither.getInstance().getUIManager().of(player).message(PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, Component.text("LS！ ", NamedTextColor.GREEN, TextDecoration.BOLD).append(Component.text(String.format("%.1f", heal) + " 回復", NamedTextColor.DARK_GREEN)));
         player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 2f);

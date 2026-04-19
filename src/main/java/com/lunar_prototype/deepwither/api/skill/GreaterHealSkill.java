@@ -1,10 +1,9 @@
 package com.lunar_prototype.deepwither.api.skill;
 
-import com.lunar_prototype.deepwither.Deepwither;
+import com.lunar_prototype.deepwither.api.DW;
 import com.lunar_prototype.deepwither.SkillDefinition;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
-import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.potion.PotionEffectType;
 
@@ -23,16 +22,14 @@ public class GreaterHealSkill implements ISkillLogic {
         caster.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, caster.getLocation().add(0, 1, 0), 30, 0.5, 0.5, 0.5, 0.1);
 
         // 1. HP回復 (最大体力の20%)
+        double maxHealth = DW.stats().getMobMaxHealth(caster);
+        double healAmount = maxHealth * 0.2;
+        
         if (caster instanceof org.bukkit.entity.Player player) {
-            com.lunar_prototype.deepwither.api.stat.IStatManager statManager = Deepwither.getInstance().getStatManager();
-            double maxHealth = statManager.getActualMaxHealth(player);
-            double healAmount = maxHealth * 0.2;
-            statManager.heal(player, healAmount);
+            DW.stats().heal(player, healAmount);
         } else {
-            double maxHealth = caster.getAttribute(Attribute.MAX_HEALTH).getValue();
-            double healAmount = maxHealth * 0.2;
-            double newHealth = Math.min(maxHealth, caster.getHealth() + healAmount);
-            caster.setHealth(newHealth);
+            double currentHealth = DW.stats().getMobHealth(caster);
+            DW.stats().setMobHealth(caster, currentHealth + healAmount);
         }
 
         // 2. デバフ除去 (有害なポーション効果を削除)

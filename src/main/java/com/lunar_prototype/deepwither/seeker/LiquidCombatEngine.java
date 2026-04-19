@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither.seeker;
 
+import com.lunar_prototype.deepwither.api.DW;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
@@ -192,7 +193,7 @@ public class LiquidCombatEngine {
         float gliaStress = brain.getGliaActivity(); 
         double spatialFreedom = 1.0 - gliaStress;
 
-        double myHpPct = self.getHealth() / self.getMaxHealth();
+        double myHpPct = DW.stats().getMobHealth(self) / DW.stats().getMobMaxHealth(self);
         boolean beingComboed = (System.currentTimeMillis() - brain.tacticalMemory.lastHitTime < 500);
 
         double wHp = (myHpPct < 0.4) ? 0.5 : 0.2;
