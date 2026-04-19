@@ -62,24 +62,57 @@ public class ArcShape implements HitShape {
     }
 
     @Override
-    public void spawnSlashEffect(Location origin, Vector direction, double reach) {
+    public void spawnSlashEffect(Location origin, Vector direction, double reach, HitDetectionManager.VisualType style) {
+        if (style == HitDetectionManager.VisualType.HEAVY) {
+            spawnHeavyEffect(origin, direction, reach);
+            return;
+        }
+
         double halfAngle = angleDegrees / 2.0;
-        Vector dirH = direction.clone().setY(0).normalize();
+        Vector dir = direction.clone().normalize();
+        
+        // 回転軸の計算（プレイヤーの視線に対する「上」方向を軸にする）
+        Vector right = new Vector(0, 1, 0).crossProduct(dir);
+        if (right.lengthSquared() < 0.001) right = new Vector(1, 0, 0);
+        right.normalize();
+        Vector up = dir.clone().crossProduct(right).normalize();
 
-        // 判定の先端付近になぎ払いエフェクトを表示
         // 密度を高めて、より「なぎ払い」らしく見せる
-        for (double a = -halfAngle; a <= halfAngle; a += 15.0) {
+        for (double a = -halfAngle; a <= halfAngle; a += 10.0) {
             double rad = Math.toRadians(a);
-            double x = dirH.getX() * Math.cos(rad) - dirH.getZ() * Math.sin(rad);
-            double z = dirH.getX() * Math.sin(rad) + dirH.getZ() * Math.cos(rad);
+            
+            // 視線方向を「上」軸で回転させることで、水平ななぎ払いを作る（ピッチに合わせて傾く）
+            Vector v = dir.clone();
+            v.rotateAroundAxis(up, rad);
 
-            Location p = origin.clone().add(new Vector(x, 0, z).multiply(reach * 0.7));
-            origin.getWorld().spawnParticle(org.bukkit.Particle.SWEEP_ATTACK, p, 1, 0.1, 0.1, 0.1, 0);
+            Location p = origin.clone().add(v.multiply(reach * 0.8));
+            origin.getWorld().spawnParticle(org.bukkit.Particle.SWEEP_ATTACK, p, 1, 0.05, 0.05, 0.05, 0);
             
             // 軌跡を強調するためのサブパーティクル
-            if (angleDegrees > 100) { // 鎌などの広範囲武器
-                origin.getWorld().spawnParticle(org.bukkit.Particle.SQUID_INK, p, 1, 0.05, 0.05, 0.05, 0.01);
+            if (style == HitDetectionManager.VisualType.SCYTHE) {
+                origin.getWorld().spawnParticle(org.bukkit.Particle.SQUID_INK, p, 1, 0.02, 0.02, 0.02, 0.01);
             }
         }
+    }
+
+    private void spawnHeavyEffect(Location origin, Vector direction, double reach) {
+        Vector dir = direction.clone().normalize();
+        
+        // 1. 縦の振り下ろし軌跡 (CRIT粒子)
+        for (double i = 0.0; i <= reach * 0.5; i += 0.2) {
+            Location point = origin.clone()
+                    .add(dir.clone().multiply(reach * 0.5)) // 前方
+                    .subtract(0, i, 0);                    // 上から下へ
+
+            origin.getWorld().spawnParticle(org.bukkit.Particle.CRIT, point, 3, 0.01, 0.01, 0.01, 0.1);
+        }
+
+        // 2. 着弾地点の判定 (足元の前方)
+        Location impactLoc = origin.clone().add(dir.clone().multiply(reach * 0.5));
+        impactLoc.setY(origin.getY() - 1.5); // 足元付近へ調整
+
+        // 3. 地面への衝撃波
+        origin.getWorld().spawnParticle(org.bukkit.Particle.FLASH, impactLoc.clone().add(0, 0.1, 0), 1, 0, 0, 0, 0, org.bukkit.Color.WHITE);
+        origin.getWorld().spawnParticle(org.bukkit.Particle.BLOCK, impactLoc, 15, 0.2, 0.1, 0.2, 0.1, org.bukkit.Material.STONE.createBlockData());
     }
 }

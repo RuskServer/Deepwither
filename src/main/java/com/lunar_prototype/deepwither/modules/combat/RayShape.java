@@ -48,16 +48,12 @@ public class RayShape implements HitShape {
     }
 
     @Override
-    public void spawnSlashEffect(Location origin, Vector direction, double reach) {
+    public void spawnSlashEffect(Location origin, Vector direction, double reach, HitDetectionManager.VisualType style) {
         Vector d = direction.clone().normalize();
         // 密度を高めて鋭い突きを表現
         for (double i = 0.5; i <= reach; i += 0.2) {
             Location p = origin.clone().add(d.clone().multiply(i));
             origin.getWorld().spawnParticle(org.bukkit.Particle.CRIT, p, 1, 0.01, 0.01, 0.01, 0);
-            
-            if (i > reach * 0.8) { // 先端に少し輝き
-                origin.getWorld().spawnParticle(Particle.FIREWORK, p, 1, 0, 0, 0, 0);
-            }
         }
     }
 }

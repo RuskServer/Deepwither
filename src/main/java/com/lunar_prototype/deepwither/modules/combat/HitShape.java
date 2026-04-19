@@ -30,5 +30,5 @@ public interface HitShape {
     /**
      * 実際の攻撃演出（斬撃エフェクトなど）を描画
      */
-    void spawnSlashEffect(Location origin, Vector direction, double reach);
+    void spawnSlashEffect(Location origin, Vector direction, double reach, HitDetectionManager.VisualType style);
 }

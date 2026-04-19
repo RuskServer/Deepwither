@@ -2,6 +2,7 @@ package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.modules.combat.WeaponHitProfile;
 import io.lumine.mythic.bukkit.MythicBukkit;
+import com.lunar_prototype.deepwither.modules.combat.HitDetectionManager;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
 import org.bukkit.*;
@@ -17,6 +18,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
+import com.lunar_prototype.deepwither.StatType;
 
 @DependsOn({ItemFactory.class, com.lunar_prototype.deepwither.modules.combat.HitDetectionManager.class})
 public class AnimationListener implements Listener, IManager {
@@ -50,11 +52,17 @@ public class AnimationListener implements Listener, IManager {
         // 独自ヒット判定の実行 (内部でエフェクトも発動)
         hitDetectionManager.performHitDetection(player);
 
-        // 独自ヒット判定プロファイルがある場合は、サウンドだけ鳴らす
-        // プロファイルがない場合のみ、従来のエフェクト処理を実行
-        if (hitDetectionManager.getProfile(item) != null) {
-            playCategorySound(player, item);
+        // 独自ヒット判定プロファイルがある場合の追加演出
+        com.lunar_prototype.deepwither.modules.combat.WeaponHitProfile profile = hitDetectionManager.getProfile(item);
+        if (profile != null) {
+            playCategorySound(player, item, profile.visualType);
+            
+            // 剣の場合は MythicSkill も復元
+            if (profile.visualType == com.lunar_prototype.deepwither.modules.combat.HitDetectionManager.VisualType.SWORD) {
+                castMythicSkill(player, "turquoise_slash");
+            }
         } else {
+            // プロファイルがない場合のみ、従来のエフェクト処理を実行
             handleWeaponEffect(player);
         }
     }
@@ -98,10 +106,10 @@ public class AnimationListener implements Listener, IManager {
                 reach += Deepwither.getInstance().getStatManager().getTotalStats(p).getFinal(StatType.REACH);
             }
             
-            profile.shape.spawnSlashEffect(entity.getEyeLocation(), entity.getLocation().getDirection(), reach);
+            profile.shape.spawnSlashEffect(entity.getEyeLocation(), entity.getLocation().getDirection(), reach, profile.visualType);
             
             // カテゴリ別の追加演出（サウンドなど）
-            playCategorySound(entity, weapon);
+            playCategorySound(entity, weapon, profile.visualType);
             return;
         }
 
@@ -118,13 +126,13 @@ public class AnimationListener implements Listener, IManager {
         }
     }
 
-    private void playCategorySound(LivingEntity entity, ItemStack weapon) {
-        if (isHeavyWeapon(weapon)) {
+    private void playCategorySound(LivingEntity entity, ItemStack weapon, com.lunar_prototype.deepwither.modules.combat.HitDetectionManager.VisualType style) {
+        if (style == com.lunar_prototype.deepwither.modules.combat.HitDetectionManager.VisualType.HEAVY) {
             entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, 0.8f, 0.5f);
             entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 0.5f, 1.2f);
-        } else if (isSpearWeapon(weapon)) {
+        } else if (style == com.lunar_prototype.deepwither.modules.combat.HitDetectionManager.VisualType.SPEAR) {
             entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_PLAYER_ATTACK_STRONG, 0.6f, 0.9f);
-        } else if (isScytheWeapon(weapon)) {
+        } else if (style == com.lunar_prototype.deepwither.modules.combat.HitDetectionManager.VisualType.SCYTHE) {
             entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1.0f, 0.7f);
         } else {
             entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1f, 1f);

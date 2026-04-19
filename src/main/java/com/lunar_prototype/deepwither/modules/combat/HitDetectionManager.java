@@ -33,24 +33,33 @@ public class HitDetectionManager implements IManager {
 
     private static final Map<String, WeaponHitProfile> PROFILES = new HashMap<>();
 
+    public enum VisualType {
+        SWORD,   // 剣: 横払い + turquoise_slash
+        HEAVY,   // 重器: 縦振り + 衝撃波
+        SPEAR,   // 槍: 鋭い突き
+        SCYTHE,  // 鎌: 広範囲横払い + インク粒子
+        DEFAULT  // その他
+    }
+
     static {
         // 剣: 標準的ななぎ払い
-        PROFILES.put("剣", new WeaponHitProfile(new ArcShape(120, 2.0), 3.0));
+        PROFILES.put("剣", new WeaponHitProfile(new ArcShape(120, 2.0), 3.0, VisualType.SWORD));
         // 大剣: リーチが長く、角度は少し狭い
-        PROFILES.put("大剣", new WeaponHitProfile(new ArcShape(80, 2.5), 4.0));
+        PROFILES.put("大剣", new WeaponHitProfile(new ArcShape(80, 2.5), 4.0, VisualType.SWORD));
         // 槍: 非常に長く、細い
-        PROFILES.put("槍", new WeaponHitProfile(new RayShape(0.3), 2.0));
-        // 斧: 重厚ななぎ払い
-        PROFILES.put("斧", new WeaponHitProfile(new ArcShape(50, 3.0), 3.0));
-        // ハルバード: 広範囲
-        PROFILES.put("ハルバード", new WeaponHitProfile(new ArcShape(60, 2.5), 1.5));
-        // 鎌: 横に広い
-        PROFILES.put("鎌", new WeaponHitProfile(new ArcShape(160, 2.0), 2.5));
+        PROFILES.put("槍", new WeaponHitProfile(new RayShape(0.3), 2.0, VisualType.SPEAR));
+        // 斧: 重厚ななぎ払い (判定は扇形だが、見た目は縦振り)
+        PROFILES.put("斧", new WeaponHitProfile(new ArcShape(50, 3.0), 3.0, VisualType.HEAVY));
+        // ハルバード: 広範囲だがリーチは調整
+        PROFILES.put("ハルバード", new WeaponHitProfile(new ArcShape(60, 2.5), 2.5, VisualType.HEAVY));
+        // 鎌: 横に非常に広いがリーチは短め
+        PROFILES.put("鎌", new WeaponHitProfile(new ArcShape(160, 2.0), 2.2, VisualType.SCYTHE));
         // メイス・ハンマー: 判定は短めだが厚い
-        PROFILES.put("メイス", new WeaponHitProfile(new ArcShape(30, 3.5), 1.5));
-        PROFILES.put("ハンマー", new WeaponHitProfile(new ArcShape(30, 4.0), 2.5));
-        PROFILES.put("マチェット", new WeaponHitProfile(new ArcShape(40, 2.0), 2.8));
+        PROFILES.put("メイス", new WeaponHitProfile(new ArcShape(30, 3.5), 2.0, VisualType.HEAVY));
+        PROFILES.put("ハンマー", new WeaponHitProfile(new ArcShape(30, 4.0), 1.8, VisualType.HEAVY));
+        PROFILES.put("マチェット", new WeaponHitProfile(new ArcShape(40, 2.0), 2.8, VisualType.HEAVY));
     }
+
 
     public HitDetectionManager(Deepwither plugin, StatManager statManager, DamageProcessor damageProcessor) {
         this.plugin = plugin;
@@ -94,7 +103,7 @@ public class HitDetectionManager implements IManager {
         Vector direction = origin.getDirection();
 
         // 実際の攻撃演出（斬撃エフェクトなど）
-        profile.shape.spawnSlashEffect(origin, direction, finalReach);
+        profile.shape.spawnSlashEffect(origin, direction, finalReach, profile.visualType);
 
         // デバッグ表示
         if (debugPlayers.contains(player.getUniqueId())) {
