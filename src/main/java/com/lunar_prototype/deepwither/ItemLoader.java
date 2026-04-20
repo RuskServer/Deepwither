@@ -168,30 +168,6 @@ public class ItemLoader {
         return generateRandomModifiers(rarity, new StatMap());
     }
 
-    public static int generateRandomSocketCount(String rarity) {
-        double chance = 0.2; 
-        int max = 1;
-
-        if (rarity.contains("アンコモン")) {
-            chance = 0.3;
-            max = 1;
-        } else if (rarity.contains("レア")) {
-            chance = 0.4;
-            max = 2;
-        } else if (rarity.contains("エピック")) {
-            chance = 0.5;
-            max = 2;
-        } else if (rarity.contains("レジェンダリー")) {
-            chance = 0.6;
-            max = 3;
-        }
-
-        if (random.nextDouble() < chance) {
-            return 1 + random.nextInt(max);
-        }
-        return 0;
-    }
-
     public static class RandomStatTracker {
         private double maxTotal = 0;
         private double actualTotal = 0;

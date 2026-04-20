@@ -26,24 +26,13 @@ public class ModifierProcessor implements ItemProcessor {
         boolean disableModifiers = config.getBoolean(key + ".disable_modifiers", false);
         Map<StatType, Double> modifiers = context.getModifiers();
         String rarity = config.getString(key + ".rarity", "コモン");
-        int socketsMax = config.getInt(key + ".sockets_max", 0);
 
         if (!disableModifiers && context.isGear()) {
-            if (random.nextDouble() < 0.03) {
-                rarity = "&7&l刻印";
-                socketsMax = 3 + random.nextInt(3); // 3-5個
-            } else {
-                Map<StatType, Double> generated = ItemLoader.generateRandomModifiers(rarity, context.getBaseStats());
-                modifiers.putAll(generated);
-                
-                if (socketsMax == 0) {
-                    socketsMax = ItemLoader.generateRandomSocketCount(rarity);
-                }
-            }
+            Map<StatType, Double> generated = ItemLoader.generateRandomModifiers(rarity, context.getBaseStats());
+            modifiers.putAll(generated);
         }
 
         context.setRarity(rarity);
-        context.setSocketsMax(socketsMax);
 
         boolean droppable = config.getBoolean(key + ".droppable", false);
         if (droppable) {

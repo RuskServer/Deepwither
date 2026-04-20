@@ -196,9 +196,7 @@ public class ItemFactory implements IManager, IItemFactory {
         
         applyMetadataToPdc(meta, ctx.getItemType(), ctx.getArtifactFullsetType(), ctx.getRarity(), ctx.getFlavorText());
 
-        List<Component> runeLore = processRunesAndAddStats(meta, finalStats);
-
-        List<Component> lore = LoreBuilder.build(finalStats, false, ctx.getItemType(), ctx.getArtifactFullsetType(), ctx.getFlavorText(), ctx.getTracker(), ctx.getRarity(), ctx.getModifiers(), ctx.getGrade(), runeLore);
+        List<Component> lore = LoreBuilder.build(finalStats, false, ctx.getItemType(), ctx.getArtifactFullsetType(), ctx.getFlavorText(), ctx.getTracker(), ctx.getRarity(), ctx.getModifiers(), ctx.getGrade());
         
         // 特殊効果によるLore介入
         SpecialItemEffectManager effectManager = Deepwither.getInstance().getSpecialItemEffectManager();
@@ -276,37 +274,6 @@ public class ItemFactory implements IManager, IItemFactory {
             String joinedFlavor = String.join("|~|", flavorText);
             meta.getPersistentDataContainer().set(FLAVOR_TEXT_KEY, PersistentDataType.STRING, joinedFlavor);
         }
-    }
-
-    private List<Component> processRunesAndAddStats(ItemMeta meta, StatMap finalStats) {
-        List<Component> runeLore = new ArrayList<>();
-        PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        NamespacedKey socketsMaxKey = new NamespacedKey("deepwither", "sockets_max");
-        
-        if (pdc.has(socketsMaxKey, PersistentDataType.INTEGER)) {
-            int max = pdc.getOrDefault(socketsMaxKey, PersistentDataType.INTEGER, 0);
-            for (int i = 0; i < max; i++) {
-                NamespacedKey runeKey = new NamespacedKey("deepwither", "rune_" + i);
-                if (pdc.has(runeKey, PersistentDataType.STRING)) {
-                    String runeId = pdc.get(runeKey, PersistentDataType.STRING);
-                    ItemStack runeSample = getItem(runeId);
-                    if (runeSample != null) {
-                        StatMap runeStats = getStats(runeSample);
-                        finalStats.add(runeStats);
-                        
-                        Component runeDisplayName = runeSample.getItemMeta().hasDisplayName() 
-                            ? runeSample.getItemMeta().displayName()
-                            : Component.text(runeId);
-                        runeLore.add(Component.text("◆ ", NamedTextColor.AQUA).append(runeDisplayName));
-                    } else {
-                        runeLore.add(Component.text("◇ 空きソケット", NamedTextColor.GRAY));
-                    }
-                } else {
-                    runeLore.add(Component.text("◇ 空きソケット", NamedTextColor.GRAY));
-                }
-            }
-        }
-        return runeLore;
     }
 
     private void applyItemFlags(ItemMeta meta) {

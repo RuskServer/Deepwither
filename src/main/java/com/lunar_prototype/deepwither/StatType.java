@@ -113,7 +113,7 @@ class LoreBuilder {
     public static List<Component> build(StatMap stats, boolean compact, String itemType, String artifactFullsetType,
             List<String> flavorText,
             ItemLoader.RandomStatTracker tracker, String rarity, Map<StatType, Double> appliedModifiers,
-            FabricationGrade grade, List<Component> runeLore) {
+            FabricationGrade grade) {
         List<Component> lore = new ArrayList<>();
         LegacyComponentSerializer serializer = LegacyComponentSerializer.legacySection();
 
@@ -171,16 +171,6 @@ class LoreBuilder {
 
         lore.add(Component.text("-----------------------------", NamedTextColor.DARK_GRAY)
                 .decoration(TextDecoration.STRIKETHROUGH, true).decoration(TextDecoration.ITALIC, false));
-
-        // --- [ルーン] セクション ---
-        if (runeLore != null && !runeLore.isEmpty()) {
-            lore.add(Component.text(" [ソケット]", NamedTextColor.AQUA, TextDecoration.BOLD)
-                    .decoration(TextDecoration.ITALIC, false));
-            for (Component rune : runeLore) {
-                lore.add(Component.text(" ").append(rune).decoration(TextDecoration.ITALIC, false));
-            }
-            lore.add(Component.empty());
-        }
 
         // --- [付加能力] セクション ---
         if (appliedModifiers != null && !appliedModifiers.isEmpty()) {

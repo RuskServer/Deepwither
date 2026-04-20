@@ -16,8 +16,6 @@ import org.bukkit.persistence.PersistentDataType;
 
 public class PdcProcessor implements ItemProcessor {
     private static final NamespacedKey CUSTOM_ID_KEY = new NamespacedKey(Deepwither.getInstance(), "custom_id");
-    private static final NamespacedKey SOCKETS_MAX_KEY = new NamespacedKey("deepwither", "sockets_max");
-    private static final NamespacedKey IS_RUNE_KEY = new NamespacedKey("deepwither", "is_rune");
     private static final NamespacedKey RAID_BOSS_ID_KEY = new NamespacedKey(Deepwither.getInstance(), "raid_boss_id");
 
     @Override
@@ -31,13 +29,6 @@ public class PdcProcessor implements ItemProcessor {
 
         // custom_id
         container.set(CUSTOM_ID_KEY, PersistentDataType.STRING, key);
-
-        if (context.getSocketsMax() > 0) {
-            container.set(SOCKETS_MAX_KEY, PersistentDataType.INTEGER, context.getSocketsMax());
-        }
-        if (config.getBoolean(key + ".is_rune", false)) {
-            container.set(IS_RUNE_KEY, PersistentDataType.BYTE, (byte) 1);
-        }
 
         String chargeType = config.getString(key + ".charge_type", null);
         if (chargeType != null) {

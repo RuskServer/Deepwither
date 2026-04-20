@@ -29,7 +29,6 @@ public class ItemLoadContext {
     private Map<StatType, Double> modifiers;
     
     private String rarity;
-    private int socketsMax;
     private String itemType;
     private boolean isGear;
     private boolean valid = true;
@@ -64,9 +63,6 @@ public class ItemLoadContext {
 
     public String getRarity() { return rarity; }
     public void setRarity(String rarity) { this.rarity = rarity; }
-
-    public int getSocketsMax() { return socketsMax; }
-    public void setSocketsMax(int socketsMax) { this.socketsMax = socketsMax; }
 
     public String getItemType() { return itemType; }
     public void setItemType(String itemType) { this.itemType = itemType; }
