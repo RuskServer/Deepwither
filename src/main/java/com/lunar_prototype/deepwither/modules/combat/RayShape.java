@@ -13,7 +13,7 @@ public class RayShape implements HitShape {
     }
 
     @Override
-    public boolean isHit(Location origin, Vector direction, Entity target, double reach) {
+    public boolean isHit(Location origin, Vector direction, Entity target, double reach, double rotation) {
         Vector a = origin.toVector();
         Vector d = direction.clone().normalize();
         Vector p = target.getLocation().add(0, target.getHeight() / 2, 0).toVector();
@@ -38,7 +38,7 @@ public class RayShape implements HitShape {
     }
 
     @Override
-    public void drawDebug(Location origin, Vector direction, double reach) {
+    public void drawDebug(Location origin, Vector direction, double reach, double rotation) {
         Vector d = direction.clone().normalize();
         for (double i = 0.5; i <= reach; i += 0.3) {
             Location p = origin.clone().add(d.clone().multiply(i));
@@ -48,7 +48,7 @@ public class RayShape implements HitShape {
     }
 
     @Override
-    public void spawnSlashEffect(Location origin, Vector direction, double reach, HitDetectionManager.VisualType style) {
+    public void spawnSlashEffect(Location origin, Vector direction, double reach, HitDetectionManager.VisualType style, double rotation) {
         Vector d = direction.clone().normalize();
         // 密度を高めて鋭い突きを表現
         for (double i = 0.5; i <= reach; i += 0.2) {

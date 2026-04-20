@@ -14,28 +14,45 @@ public class ArcShape implements HitShape {
     }
 
     @Override
-    public boolean isHit(Location origin, Vector direction, Entity target, double reach) {
+    public boolean isHit(Location origin, Vector direction, Entity target, double reach, double rotation) {
         Location targetLoc = target.getLocation().add(0, target.getHeight() / 2, 0);
-        Vector toTarget = targetLoc.toVector().subtract(origin.toVector());
-        double distance = toTarget.length();
+        Vector v = targetLoc.toVector().subtract(origin.toVector());
+        double distance = v.length();
 
         if (distance > reach) return false;
-        if (Math.abs(toTarget.getY()) > thickness / 2 + target.getHeight() / 2) return false;
+        if (distance < 0.01) return true; // 至近距離
 
-        // 水平方向の角度チェック
-        Vector dirH = direction.clone().setY(0).normalize();
-        Vector toTargetH = toTarget.clone().setY(0).normalize();
+        // --- ローカル座標系への変換 ---
+        Vector forward = direction.clone().normalize();
         
-        if (dirH.lengthSquared() == 0 || toTargetH.lengthSquared() == 0) {
-            // 真上・真下を向いている場合は、水平方向の角度チェックをスキップするか、特殊処理が必要
-            // 簡易的に、非常に近い場合はヒットとする
-            return distance < 1.0;
-        }
+        // ローカル右軸 (X)
+        Vector right = new Vector(0, 1, 0).crossProduct(forward);
+        if (right.lengthSquared() < 0.001) right = new Vector(1, 0, 0);
+        right.normalize();
+        
+        // ローカル上軸 (Y)
+        Vector up = forward.clone().crossProduct(right).normalize();
 
-        double dot = dirH.dot(toTargetH);
-        double angle = Math.toDegrees(Math.acos(Math.max(-1.0, Math.min(1.0, dot))));
+        // 指定された rotation (roll) 分、座標軸を回転させる
+        double rad = Math.toRadians(rotation);
+        Vector rotRight = right.clone().multiply(Math.cos(rad)).add(up.clone().multiply(Math.sin(rad)));
+        Vector rotUp = right.clone().multiply(-Math.sin(rad)).add(up.clone().multiply(Math.cos(rad)));
 
-        return angle <= angleDegrees / 2;
+        // ターゲットへのベクトルを、回転後のローカル座標系に投影
+        double localX = v.dot(rotRight);
+        double localY = v.dot(rotUp);
+        double localZ = v.dot(forward);
+
+        // Z-X平面での扇形判定
+        double distXZ = Math.sqrt(localX * localX + localZ * localZ);
+        if (distXZ > reach || distXZ < 0.001) return false;
+
+        double angle = Math.toDegrees(Math.acos(localZ / distXZ));
+        if (angle > angleDegrees / 2.0) return false;
+
+        // Y軸（厚み）の判定
+        // ターゲットの当たり判定サイズも考慮
+        return Math.abs(localY) <= (thickness / 2.0 + target.getHeight() / 2.0);
     }
 
     @Override
@@ -44,51 +61,68 @@ public class ArcShape implements HitShape {
     }
 
     @Override
-    public void drawDebug(Location origin, Vector direction, double reach) {
+    public void drawDebug(Location origin, Vector direction, double reach, double rotation) {
         double halfAngle = angleDegrees / 2.0;
-        Vector dirH = direction.clone().setY(0).normalize();
-        
-        // 扇形の外縁と骨組みを描画
+        Vector forward = direction.clone().normalize();
+        Vector right = new Vector(0, 1, 0).crossProduct(forward);
+        if (right.lengthSquared() < 0.001) right = new Vector(1, 0, 0);
+        right.normalize();
+        Vector up = forward.clone().crossProduct(right).normalize();
+
+        double radRoll = Math.toRadians(rotation);
+        Vector rotRight = right.clone().multiply(Math.cos(radRoll)).add(up.clone().multiply(Math.sin(radRoll)));
+        Vector rotUp = right.clone().multiply(-Math.sin(radRoll)).add(up.clone().multiply(Math.cos(radRoll)));
+
         for (double d = 0.5; d <= reach; d += 0.5) {
             for (double a = -halfAngle; a <= halfAngle; a += 10.0) {
-                double rad = Math.toRadians(a);
-                double x = dirH.getX() * Math.cos(rad) - dirH.getZ() * Math.sin(rad);
-                double z = dirH.getX() * Math.sin(rad) + dirH.getZ() * Math.cos(rad);
+                double radA = Math.toRadians(a);
+                Vector v = forward.clone().multiply(Math.cos(radA)).add(rotRight.clone().multiply(Math.sin(radA)));
                 
-                Location p = origin.clone().add(new Vector(x, 0, z).multiply(d));
+                Location p = origin.clone().add(v.multiply(d));
                 origin.getWorld().spawnParticle(org.bukkit.Particle.HAPPY_VILLAGER, p, 1, 0, 0, 0, 0);
             }
         }
     }
 
     @Override
-    public void spawnSlashEffect(Location origin, Vector direction, double reach, HitDetectionManager.VisualType style) {
+    public void spawnSlashEffect(Location origin, Vector direction, double reach, HitDetectionManager.VisualType style, double rotation) {
         if (style == HitDetectionManager.VisualType.HEAVY) {
             spawnHeavyEffect(origin, direction, reach);
             return;
         }
 
+        if (style == HitDetectionManager.VisualType.SWORD) {
+            // TurquoiseSlash 側でバリアントを判定に合わせる必要があるため、後ほど調整
+            TurquoiseSlash.spawn(origin, direction, reach, rotation);
+            spawnGenericArcParticles(origin, direction, reach, style, rotation);
+            return;
+        }
+
+        spawnGenericArcParticles(origin, direction, reach, style, rotation);
+    }
+
+    private void spawnGenericArcParticles(Location origin, Vector direction, double reach, HitDetectionManager.VisualType style, double rotation) {
         double halfAngle = angleDegrees / 2.0;
-        Vector dir = direction.clone().normalize();
-        
-        // 回転軸の計算（プレイヤーの視線に対する「上」方向を軸にする）
-        Vector right = new Vector(0, 1, 0).crossProduct(dir);
+        Vector forward = direction.clone().normalize();
+        Vector right = new Vector(0, 1, 0).crossProduct(forward);
         if (right.lengthSquared() < 0.001) right = new Vector(1, 0, 0);
         right.normalize();
-        Vector up = dir.clone().crossProduct(right).normalize();
+        Vector up = forward.clone().crossProduct(right).normalize();
 
-        // 密度を高めて、より「なぎ払い」らしく見せる
+        double radRoll = Math.toRadians(rotation);
+        Vector rotRight = right.clone().multiply(Math.cos(radRoll)).add(up.clone().multiply(Math.sin(radRoll)));
+
         for (double a = -halfAngle; a <= halfAngle; a += 10.0) {
-            double rad = Math.toRadians(a);
-            
-            // 視線方向を「上」軸で回転させることで、水平ななぎ払いを作る（ピッチに合わせて傾く）
-            Vector v = dir.clone();
-            v.rotateAroundAxis(up, rad);
+            double radA = Math.toRadians(a);
+            Vector v = forward.clone().multiply(Math.cos(radA)).add(rotRight.clone().multiply(Math.sin(radA)));
 
             Location p = origin.clone().add(v.multiply(reach * 0.8));
+            
+            origin.getWorld().spawnParticle(org.bukkit.Particle.DUST, p, 1, 0.02, 0.02, 0.02, 0,
+                    new org.bukkit.Particle.DustOptions(org.bukkit.Color.fromRGB(0, 255, 127), 1.0f));
+
             origin.getWorld().spawnParticle(org.bukkit.Particle.SWEEP_ATTACK, p, 1, 0.05, 0.05, 0.05, 0);
             
-            // 軌跡を強調するためのサブパーティクル
             if (style == HitDetectionManager.VisualType.SCYTHE) {
                 origin.getWorld().spawnParticle(org.bukkit.Particle.SQUID_INK, p, 1, 0.02, 0.02, 0.02, 0.01);
             }

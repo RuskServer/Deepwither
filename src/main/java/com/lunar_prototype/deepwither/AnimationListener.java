@@ -56,11 +56,6 @@ public class AnimationListener implements Listener, IManager {
         com.lunar_prototype.deepwither.modules.combat.WeaponHitProfile profile = hitDetectionManager.getProfile(item);
         if (profile != null) {
             playCategorySound(player, item, profile.visualType);
-            
-            // 剣の場合は MythicSkill も復元
-            if (profile.visualType == com.lunar_prototype.deepwither.modules.combat.HitDetectionManager.VisualType.SWORD) {
-                castMythicSkill(player, "turquoise_slash");
-            }
         } else {
             // プロファイルがない場合のみ、従来のエフェクト処理を実行
             handleWeaponEffect(player);
@@ -106,7 +101,7 @@ public class AnimationListener implements Listener, IManager {
                 reach += Deepwither.getInstance().getStatManager().getTotalStats(p).getFinal(StatType.REACH);
             }
             
-            profile.shape.spawnSlashEffect(entity.getEyeLocation(), entity.getLocation().getDirection(), reach, profile.visualType);
+            profile.shape.spawnSlashEffect(entity.getEyeLocation(), entity.getLocation().getDirection(), reach, profile.visualType, 0.0);
             
             // カテゴリ別の追加演出（サウンドなど）
             playCategorySound(entity, weapon, profile.visualType);
@@ -121,7 +116,6 @@ public class AnimationListener implements Listener, IManager {
         } else if (isScytheWeapon(weapon)) {
             spawnScytheSlashEffect(entity);
         } else if (isSwordWeapon(weapon)) {
-            castMythicSkill(entity, "turquoise_slash");
             entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1f, 1f);
         }
     }

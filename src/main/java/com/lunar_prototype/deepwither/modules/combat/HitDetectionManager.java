@@ -102,12 +102,20 @@ public class HitDetectionManager implements IManager {
         Location origin = player.getEyeLocation();
         Vector direction = origin.getDirection();
 
+        // 角度（回転）の決定
+        double rotation = 0;
+        if (profile.visualType == VisualType.SWORD) {
+            // 4つのバリアントに対応する角度を選択
+            double[] angles = {0.0, 180.0, 45.0, 135.0};
+            rotation = angles[plugin.getRandom().nextInt(angles.length)];
+        }
+
         // 実際の攻撃演出（斬撃エフェクトなど）
-        profile.shape.spawnSlashEffect(origin, direction, finalReach, profile.visualType);
+        profile.shape.spawnSlashEffect(origin, direction, finalReach, profile.visualType, rotation);
 
         // デバッグ表示
         if (debugPlayers.contains(player.getUniqueId())) {
-            profile.shape.drawDebug(origin, direction, finalReach);
+            profile.shape.drawDebug(origin, direction, finalReach, rotation);
         }
 
         // 判定対象の収集
@@ -117,10 +125,10 @@ public class HitDetectionManager implements IManager {
         for (Entity entity : candidates) {
             if (!(entity instanceof LivingEntity target) || entity.equals(player)) continue;
 
-            // 形状チェック
-            if (!profile.shape.isHit(origin, direction, target, finalReach)) continue;
+            // 形状チェック (回転角度を考慮)
+            if (!profile.shape.isHit(origin, direction, target, finalReach, rotation)) continue;
 
-            // 遮蔽チェック (壁越し判定を防止)
+            // 遮蔽チェック
             RayTraceResult ray = player.getWorld().rayTraceBlocks(origin, target.getLocation().add(0, target.getHeight()/2, 0).toVector().subtract(origin.toVector()),
                     origin.distance(target.getLocation().add(0, target.getHeight()/2, 0)), FluidCollisionMode.NEVER, true);
             if (ray != null && ray.getHitBlock() != null) continue;
