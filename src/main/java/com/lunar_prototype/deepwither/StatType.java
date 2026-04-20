@@ -55,7 +55,17 @@ public enum StatType {
     LIFESTEAL("ドレイン", NamedTextColor.RED, "❤"),
     FREEZE_CHANCE("凍結付与", NamedTextColor.AQUA, "❄"),
     AOE_CHANCE("拡散攻撃", NamedTextColor.YELLOW, "💥"),
-    MANA_REGEN("マナ回復", NamedTextColor.AQUA, "✦");
+    MANA_REGEN("マナ回復", NamedTextColor.AQUA, "✦"),
+    TRAIT_MANA_BATTERY("[魔力炉] Mana Battery", NamedTextColor.LIGHT_PURPLE, "★"),
+    TRAIT_SANGUINE_PACT("[血の盟約] Sanguine Pact", NamedTextColor.DARK_RED, "★"),
+    TRAIT_IRON_WILL("[硬質な力] Iron Will", NamedTextColor.GRAY, "★"),
+    TRAIT_AERODYNAMICS("[韋駄天] Aerodynamics", NamedTextColor.YELLOW, "★"),
+    TRAIT_RHYTHM("[激流] Rhythm", NamedTextColor.GOLD, "★"),
+    TRAIT_DUAL_CORE("[均衡] Dual Core", NamedTextColor.BLUE, "★"),
+    TRAIT_ARCANE_ECHO("[残響] Arcane Echo", NamedTextColor.AQUA, "★"),
+    TRAIT_PRECISION("[蓄積] Precision", NamedTextColor.RED, "★"),
+    TRAIT_AEGIS("[福音] Aegis", NamedTextColor.GREEN, "★"),
+    TRAIT_MANA_WELL("[理力循環] Mana Well", NamedTextColor.DARK_AQUA, "★");
 
     private final String displayName;
     private final NamedTextColor color;
@@ -177,12 +187,25 @@ class LoreBuilder {
             lore.add(Component.text(" [付加能力]", NamedTextColor.LIGHT_PURPLE, TextDecoration.BOLD)
                     .decoration(TextDecoration.ITALIC, false));
 
-            List<Component> mods = new ArrayList<>();
+            List<Component> traits = new ArrayList<>();
+            List<Component> normalMods = new ArrayList<>();
+
             for (Map.Entry<StatType, Double> entry : appliedModifiers.entrySet()) {
-                mods.add(formatModifierStat(entry.getKey(), entry.getValue()));
+                if (entry.getKey().name().startsWith("TRAIT_")) {
+                    traits.add(formatTraitLore(entry.getKey()));
+                } else {
+                    normalMods.add(formatModifierStat(entry.getKey(), entry.getValue()));
+                }
             }
-            // 中身だけを2列化
-            addTwoColumnLore(lore, mods);
+
+            // 特性を先に表示
+            for (Component traitComp : traits) {
+                lore.add(Component.text(" ").append(traitComp));
+            }
+            if (!traits.isEmpty() && !normalMods.isEmpty()) lore.add(Component.empty());
+
+            // 通常の付加能力を2列化
+            addTwoColumnLore(lore, normalMods);
             lore.add(Component.empty()); // セクション間に少し隙間
         }
 
@@ -345,6 +368,28 @@ class LoreBuilder {
             }
         }
         return length;
+    }
+
+    private static Component formatTraitLore(StatType type) {
+        String description = switch (type) {
+            case TRAIT_MANA_BATTERY -> "マナを物理ダメージに変換する";
+            case TRAIT_SANGUINE_PACT -> "減少HPに応じて魔法攻撃力が増加する";
+            case TRAIT_IRON_WILL -> "防御力の一部を最終ダメージに加算する";
+            case TRAIT_AERODYNAMICS -> "移動速度に比例した強力な初撃を放つ";
+            case TRAIT_RHYTHM -> "同一対象への連続ヒットでダメージが加速する";
+            case TRAIT_DUAL_CORE -> "物理・魔法攻撃力の差に応じてダメージが増加する";
+            case TRAIT_ARCANE_ECHO -> "スキル使用後の通常攻撃に魔法追撃を付与する";
+            case TRAIT_PRECISION -> "非会心時に次回の会心ダメージを強化する";
+            case TRAIT_AEGIS -> "付与されているバフ数に応じて被ダメージを軽減する";
+            case TRAIT_MANA_WELL -> "与えたダメージの一部をマナとして還元する";
+            default -> "";
+        };
+
+        return Component.text(type.getIcon() + " ", type.getColor())
+                .append(Component.text(type.getDisplayName(), type.getColor(), TextDecoration.BOLD))
+                .append(Component.text(": ", NamedTextColor.GRAY))
+                .append(Component.text(description, NamedTextColor.WHITE))
+                .decoration(TextDecoration.ITALIC, false);
     }
 
     private static Component formatModifierStat(StatType type, double value) {

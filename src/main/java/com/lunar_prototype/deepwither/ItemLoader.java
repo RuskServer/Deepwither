@@ -44,12 +44,57 @@ public class ItemLoader {
         }
     }
 
-    public static Map<StatType, Double> generateRandomModifiers(String rarity) {
+    public static Map<StatType, Double> generateRandomModifiers(String rarity, StatMap baseStats) {
         Map<StatType, Double> modifiers = new HashMap<>();
 
-        int maxModifiers = MAX_MODIFIERS_BY_RARITY.getOrDefault(rarity, 1);
+        String lookupKey = rarity;
+        if (!lookupKey.startsWith("&")) {
+            if (lookupKey.equals("コモン")) lookupKey = "&f&lコモン";
+            else if (lookupKey.equals("アンコモン")) lookupKey = "&a&lアンコモン";
+            else if (lookupKey.equals("レア")) lookupKey = "&b&lレア";
+            else if (lookupKey.equals("エピック")) lookupKey = "&d&lエピック";
+            else if (lookupKey.equals("レジェンダリー")) lookupKey = "&6&lレジェンダリー";
+        }
+
+        int maxModifiers = MAX_MODIFIERS_BY_RARITY.getOrDefault(lookupKey, 1);
         int modifiersToApply = random.nextInt(maxModifiers) + 1;
 
+        // 特性枠の決定
+        int maxTraits = 0;
+        if (lookupKey.contains("レア")) maxTraits = 1;
+        else if (lookupKey.contains("エピック")) maxTraits = 1;
+        else if (lookupKey.contains("レジェンダリー")) maxTraits = 2;
+
+        int traitsToApply = 0;
+        if (maxTraits > 0 && random.nextDouble() < 0.4) { // 40%の確率で特性スロットを1つ以上確保
+            traitsToApply = random.nextInt(maxTraits) + 1;
+        }
+        
+        // 特性以外の通常枠数
+        int normalToApply = Math.max(0, modifiersToApply - traitsToApply);
+
+        Set<StatType> appliedTypes = new HashSet<>();
+
+        // 1. 特性の抽選
+        if (traitsToApply > 0) {
+            List<StatType> traitPool = Arrays.stream(StatType.values())
+                    .filter(t -> t.name().startsWith("TRAIT_"))
+                    .collect(java.util.stream.Collectors.toList());
+            
+            for (int i = 0; i < traitsToApply; i++) {
+                if (traitPool.isEmpty()) break;
+                
+                // 重み付け計算
+                StatType selected = weightedTraitSelect(traitPool, baseStats);
+                if (selected != null) {
+                    modifiers.put(selected, 1.0);
+                    appliedTypes.add(selected);
+                    traitPool.remove(selected);
+                }
+            }
+        }
+
+        // 2. 通常モディファイアーの抽選
         List<ModifierDefinition> weightedModifiers = new ArrayList<>();
         for (ModifierDefinition def : MODIFIER_DEFINITIONS) {
             for (int j = 0; j < (int) (def.weight * 10); j++) {
@@ -57,9 +102,7 @@ public class ItemLoader {
             }
         }
 
-        Set<StatType> appliedTypes = new HashSet<>();
-
-        for (int m = 0; m < modifiersToApply; m++) {
+        for (int m = 0; m < normalToApply; m++) {
             if (weightedModifiers.isEmpty()) break;
 
             ModifierDefinition selectedDef = weightedModifiers.get(random.nextInt(weightedModifiers.size()));
@@ -77,11 +120,52 @@ public class ItemLoader {
             weightedModifiers.removeIf(def -> def.type == selectedDef.type);
             
             if (selectedDef.type == StatType.MAGIC_DAMAGE || selectedDef.type == StatType.MAGIC_BURST_BONUS || selectedDef.type == StatType.MAGIC_AOE_BONUS) {
-                weightedModifiers.removeIf(def -> def.type == StatType.MAGIC_DAMAGE || def.type == StatType.MAGIC_BURST_BONUS || def.type == StatType.MAGIC_AOE_BONUS);
+                weightedModifiers.removeIf(def -> def.type == selectedDef.type);
             }
         }
 
         return modifiers;
+    }
+
+    private static StatType weightedTraitSelect(List<StatType> pool, StatMap baseStats) {
+        Map<StatType, Double> weights = new HashMap<>();
+        
+        double phys = baseStats.getFinal(StatType.ATTACK_DAMAGE);
+        double mag = baseStats.getFinal(StatType.MAGIC_DAMAGE);
+        double def = baseStats.getFinal(StatType.DEFENSE);
+        double speed = baseStats.getFinal(StatType.MOVE_SPEED);
+        double mmana = baseStats.getFinal(StatType.MAX_MANA);
+
+        for (StatType trait : pool) {
+            double w = 1.0;
+            switch (trait) {
+                case TRAIT_MANA_BATTERY -> w += (phys > 0 && mmana > 0) ? 2.0 : 0.5;
+                case TRAIT_SANGUINE_PACT -> w += (mag > 0) ? 1.5 : 0.5;
+                case TRAIT_IRON_WILL -> w += (def > 20) ? 2.0 : 0.5;
+                case TRAIT_AERODYNAMICS -> w += (speed > 0.1) ? 2.0 : 0.5;
+                case TRAIT_RHYTHM -> w += (phys > 10) ? 1.5 : 0.5;
+                case TRAIT_DUAL_CORE -> w += (phys > 0 && mag > 0) ? 3.0 : 0.2;
+                case TRAIT_ARCANE_ECHO -> w += (mag > 10) ? 1.5 : 0.5;
+                case TRAIT_PRECISION -> w += (phys > 10 || mag > 10) ? 1.0 : 0.5;
+                case TRAIT_AEGIS -> w += (def > 10) ? 1.5 : 0.5;
+                case TRAIT_MANA_WELL -> w += (mag > 0 || mmana > 0) ? 1.5 : 0.5;
+            }
+            weights.put(trait, w);
+        }
+
+        double totalWeight = weights.values().stream().mapToDouble(Double::doubleValue).sum();
+        double r = random.nextDouble() * totalWeight;
+        double count = 0;
+        for (StatType trait : pool) {
+            count += weights.get(trait);
+            if (r <= count) return trait;
+        }
+        return pool.get(0);
+    }
+
+    @Deprecated
+    public static Map<StatType, Double> generateRandomModifiers(String rarity) {
+        return generateRandomModifiers(rarity, new StatMap());
     }
 
     public static int generateRandomSocketCount(String rarity) {

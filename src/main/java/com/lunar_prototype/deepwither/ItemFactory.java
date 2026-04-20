@@ -456,7 +456,7 @@ public class ItemFactory implements IManager, IItemFactory {
         List<String> flavorText = new ArrayList<>();
         String joinedFlavor = pdc.get(FLAVOR_TEXT_KEY, PersistentDataType.STRING);
         if (joinedFlavor != null) flavorText = Arrays.asList(joinedFlavor.split(java.util.regex.Pattern.quote("|~|")));
-        Map<StatType, Double> newModifiers = ItemLoader.generateRandomModifiers(rarity);
+        Map<StatType, Double> newModifiers = ItemLoader.generateRandomModifiers(rarity, baseStats);
         ItemLoader.RandomStatTracker tracker = new ItemLoader.RandomStatTracker();
         String artifactFullsetType = pdcString(pdc, ARTIFACT_FULLSET_TYPE);
         ItemBuildContext ctx = ItemBuildContext.builder(item)

@@ -33,6 +33,7 @@ import java.util.Collections;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.ItemFactory;
 import com.lunar_prototype.deepwither.ItemLoader;
+import com.lunar_prototype.deepwither.ManaData;
 import com.lunar_prototype.deepwither.SkillData;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import org.bukkit.inventory.ItemStack;
@@ -42,7 +43,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.potion.PotionEffectType;
 
 @DependsOn({StatManager.class, PlayerSettingsManager.class, com.lunar_prototype.deepwither.core.UIManager.class, com.lunar_prototype.deepwither.party.PartyManager.class})
-public class DamageProcessor implements IManager {
+public class DamageProcessor implements IManager, org.bukkit.event.Listener {
 
     private final JavaPlugin plugin;
     private final IStatManager statManager;
@@ -58,6 +59,12 @@ public class DamageProcessor implements IManager {
     private static final long COOLDOWN_IGNORE_MS = 300;
     private final Map<UUID, Long> lastSpecialAttackTime = new HashMap<>();
 
+    private final Map<UUID, Long> aerodynamicsCooldown = new HashMap<>();
+    private final Map<UUID, Map<UUID, Integer>> rhythmStacks = new HashMap<>();
+    private final Map<UUID, Map<UUID, Long>> rhythmLastHit = new HashMap<>();
+    private final Map<UUID, Integer> precisionStacks = new HashMap<>();
+    private final Map<UUID, Long> lastSkillUsedTime = new HashMap<>();
+
     public DamageProcessor(JavaPlugin plugin, IStatManager statManager, com.lunar_prototype.deepwither.core.UIManager uiManager, DeepwitherPartyAPI partyAPI) {
         this.plugin = plugin;
         this.statManager = statManager;
@@ -66,7 +73,14 @@ public class DamageProcessor implements IManager {
     }
 
     @Override
-    public void init() {}
+    public void init() {
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @org.bukkit.event.EventHandler
+    public void onSkillCast(com.lunar_prototype.deepwither.api.event.SkillCastEvent e) {
+        lastSkillUsedTime.put(e.getPlayer().getUniqueId(), System.currentTimeMillis());
+    }
 
     @Override
     public void shutdown() {}
@@ -80,30 +94,111 @@ public class DamageProcessor implements IManager {
 
         // パーティー内FF（フレンドリーファイア）防止
         if (attacker instanceof Player pAtk && victim instanceof Player pVic) {
-            // 同じパーティーに所属している場合はダメージをキャンセル
-            if (partyAPI.isInSameParty(pAtk, pVic)) {
-                return;
-            }
+            if (partyAPI.isInSameParty(pAtk, pVic)) return;
+        }
+
+        // 追撃（Echo）からの再帰発動を防止
+        if (context.hasTag("TRAIT_ECHO")) {
+            applyDamage(context);
+            return;
         }
 
         double damage = context.getFinalDamage();
+        long currentTime = System.currentTimeMillis();
 
         // --- 特殊効果のフック (攻撃) ---
         SpecialItemEffectManager effectManager = Deepwither.getInstance().getSpecialItemEffectManager();
-        if (effectManager != null) {
-            if (attacker instanceof Player) {
-                com.lunar_prototype.deepwither.api.item.ISpecialItemEffect effect = effectManager.getEffect(context.getWeapon());
-                if (effect != null) {
-                    effect.onAttack(context, context.getWeapon());
-                    damage = context.getFinalDamage(); // 効果によって変更された可能性を考慮
-                }
+        if (effectManager != null && attacker instanceof Player) {
+            com.lunar_prototype.deepwither.api.item.ISpecialItemEffect effect = effectManager.getEffect(context.getWeapon());
+            if (effect != null) {
+                effect.onAttack(context, context.getWeapon());
+                damage = context.getFinalDamage();
             }
         }
 
         com.lunar_prototype.deepwither.StatMap attackerStats = null;
+        com.lunar_prototype.deepwither.StatMap victimStats = (victim instanceof Player p) ? statManager.getTotalStats(p) : new com.lunar_prototype.deepwither.StatMap();
         
         if (attacker instanceof Player player) {
             attackerStats = statManager.getTotalStats(player);
+            UUID attackerUUID = player.getUniqueId();
+            
+            // --- 特性の計算用データ準備 ---
+            double currentMana = Deepwither.getInstance().getManaManager().get(attackerUUID).getCurrentMana();
+            double maxMana = Deepwither.getInstance().getManaManager().get(attackerUUID).getMaxMana();
+            double currentHp = statManager.getActualCurrentHealth(player);
+            double maxHp = statManager.getActualMaxHealth(player);
+            double baseAttack = attackerStats.getFlat(com.lunar_prototype.deepwither.StatType.ATTACK_DAMAGE);
+            double baseMagic = attackerStats.getFlat(com.lunar_prototype.deepwither.StatType.MAGIC_DAMAGE);
+            double attackerDefense = attackerStats.getFinal(com.lunar_prototype.deepwither.StatType.DEFENSE);
+            double moveSpeed = player.getAttribute(org.bukkit.attribute.Attribute.MOVEMENT_SPEED).getValue();
+
+            // --- 特性 (Trait) 発動ロジック: 攻撃側 ---
+            
+            // 1. [魔力炉] Mana Battery: マナ -> 物理ダメージ (基礎攻撃力の10%上限)
+            if (attackerStats.getFlat(com.lunar_prototype.deepwither.StatType.TRAIT_MANA_BATTERY) > 0 && !context.isMagic()) {
+                double bonus = currentMana * 0.05; // マナの5%を物理ダメージに
+                double cap = baseAttack * 0.10;
+                damage += Math.min(bonus, cap);
+            }
+
+            // 2. [血の盟約] Sanguine Pact: 減少HP% -> 魔法攻撃力 (+1%につき+1%、最大+50%)
+            if (attackerStats.getFlat(com.lunar_prototype.deepwither.StatType.TRAIT_SANGUINE_PACT) > 0 && context.isMagic()) {
+                double hpRatio = currentHp / maxHp;
+                double missingHpPct = Math.max(0, (1.0 - hpRatio) * 100.0);
+                double bonusMult = 1.0 + (Math.min(missingHpPct, 50.0) / 100.0);
+                damage *= bonusMult;
+            }
+
+            // 3. [硬質な力] Iron Will: 防御力 -> 最終ダメージ (防御力の5%加算)
+            if (attackerStats.getFlat(com.lunar_prototype.deepwither.StatType.TRAIT_IRON_WILL) > 0) {
+                damage += attackerDefense * 0.05;
+            }
+
+            // 4. [韋駄天] Aerodynamics: 初撃強化 (CD15秒)
+            if (attackerStats.getFlat(com.lunar_prototype.deepwither.StatType.TRAIT_AERODYNAMICS) > 0) {
+                long lastAero = aerodynamicsCooldown.getOrDefault(attackerUUID, 0L);
+                if (currentTime - lastAero >= 15000L) {
+                    damage += (baseAttack * 0.30) * (moveSpeed / 0.1); // 移動速度が高いほど強化
+                    aerodynamicsCooldown.put(attackerUUID, currentTime);
+                    uiManager.of(player).message(PlayerSettingsManager.SettingType.SHOW_SPECIAL_LOG, 
+                            Component.text("★ [韋駄天] 疾風の初撃！", NamedTextColor.YELLOW));
+                }
+            }
+
+            // 5. [激流] Rhythm: 同一対象ヒットでダメージ加速 (最大5スタック、維持0.5秒)
+            if (attackerStats.getFlat(com.lunar_prototype.deepwither.StatType.TRAIT_RHYTHM) > 0) {
+                Map<UUID, Integer> stacks = rhythmStacks.computeIfAbsent(attackerUUID, k -> new HashMap<>());
+                Map<UUID, Long> lastHits = rhythmLastHit.computeIfAbsent(attackerUUID, k -> new HashMap<>());
+                UUID victimUUID = victim.getUniqueId();
+                
+                long lastHitTime = lastHits.getOrDefault(victimUUID, 0L);
+                int currentStacks = (currentTime - lastHitTime <= 500L) ? stacks.getOrDefault(victimUUID, 0) : 0;
+                
+                damage *= (1.0 + (currentStacks * 0.05)); // 1スタックにつき5%
+                
+                stacks.put(victimUUID, Math.min(currentStacks + 1, 5));
+                lastHits.put(victimUUID, currentTime);
+            }
+
+            // 6. [均衡] Dual Core: 物理・魔法差に基づくダメージUP (最大30%)
+            if (attackerStats.getFlat(com.lunar_prototype.deepwither.StatType.TRAIT_DUAL_CORE) > 0) {
+                double diff = Math.abs(baseAttack - baseMagic);
+                // 漸近式: 30% * (diff / (diff + 100))
+                double bonusPct = 30.0 * (diff / (diff + 100.0));
+                damage *= (1.0 + (bonusPct / 100.0));
+            }
+
+            // 8. [蓄積] Precision: 非会心時に次回会心強化 (最大3スタック)
+            if (attackerStats.getFlat(com.lunar_prototype.deepwither.StatType.TRAIT_PRECISION) > 0) {
+                int pStacks = precisionStacks.getOrDefault(attackerUUID, 0);
+                if (context.isCrit()) {
+                    damage *= (1.0 + (pStacks * 0.15)); // 1スタックにつき会心ダメージ15%加算
+                    precisionStacks.put(attackerUUID, 0);
+                } else {
+                    precisionStacks.put(attackerUUID, Math.min(pStacks + 1, 3));
+                }
+            }
             
             // 基礎攻撃力加算 (物理/魔法)
             if (context.isMagic()) {
@@ -165,6 +260,13 @@ public class DamageProcessor implements IManager {
         if (victim != null && !context.isTrueDamage()) {
             com.lunar_prototype.deepwither.StatMap vStats = (victim instanceof Player p) ? statManager.getTotalStats(p) : new com.lunar_prototype.deepwither.StatMap();
             
+            // 9. [福音] Aegis: バフ数 -> 被ダメージ軽減 (最大20%)
+            if (vStats.getFlat(com.lunar_prototype.deepwither.StatType.TRAIT_AEGIS) > 0) {
+                int buffCount = victim.getActivePotionEffects().size();
+                double reduction = Math.min(buffCount * 0.04, 0.20); // 1つにつき4%
+                damage *= (1.0 - reduction);
+            }
+
             // 盾ブロック計算
             if (victim instanceof Player pVictim && pVictim.isBlocking() && attacker != null) {
                 Vector toAttackerVec = attacker.getLocation().toVector().subtract(victim.getLocation().toVector()).normalize();
@@ -327,6 +429,31 @@ public class DamageProcessor implements IManager {
     }
 
     private void handlePostDamageEffects(Player attacker, LivingEntity victim, com.lunar_prototype.deepwither.StatMap attackerStats, double damage) {
+        UUID attackerUUID = attacker.getUniqueId();
+        
+        // 10. [理力循環] Mana Well: 与ダメージ -> マナ還元 (最大マナの25%を上限)
+        if (attackerStats.getFlat(com.lunar_prototype.deepwither.StatType.TRAIT_MANA_WELL) > 0) {
+            double manaGain = damage * 0.03; // 与ダメの3%還元
+            ManaData manaData = Deepwither.getInstance().getManaManager().get(attackerUUID);
+            double gainCap = manaData.getMaxMana() * 0.25;
+            manaData.regen(Math.min(manaGain, gainCap));
+        }
+
+        // 7. [残響] Arcane Echo: スキル使用後 -> 魔法追撃
+        long lastSkill = lastSkillUsedTime.getOrDefault(attackerUUID, 0L);
+        if (attackerStats.getFlat(com.lunar_prototype.deepwither.StatType.TRAIT_ARCANE_ECHO) > 0 && (System.currentTimeMillis() - lastSkill <= 5000L)) {
+            double echoDamage = damage * 0.20;
+            double baseMagic = attackerStats.getFlat(com.lunar_prototype.deepwither.StatType.MAGIC_DAMAGE);
+            echoDamage = Math.min(echoDamage, baseMagic);
+            
+            if (echoDamage > 0.1) {
+                // 追撃は別のDamageContextで処理
+                DamageContext echoCtx = new DamageContext(attacker, victim, DeepwitherDamageEvent.DamageType.MAGIC, echoDamage);
+                echoCtx.addTag("TRAIT_ECHO");
+                process(echoCtx);
+            }
+        }
+
         double lifeSteal = attackerStats.getFinal(com.lunar_prototype.deepwither.StatType.LIFESTEAL);
         if (lifeSteal > 0) {
             double healAmount = damage * (lifeSteal / 100.0);

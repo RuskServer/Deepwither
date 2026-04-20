@@ -33,43 +33,8 @@ public class ModifierProcessor implements ItemProcessor {
                 rarity = "&7&l刻印";
                 socketsMax = 3 + random.nextInt(3); // 3-5個
             } else {
-                String lookupKey = rarity;
-                if (!lookupKey.startsWith("&")) {
-                    if (lookupKey.equals("コモン")) lookupKey = "&f&lコモン";
-                    else if (lookupKey.equals("アンコモン")) lookupKey = "&a&lアンコモン";
-                    else if (lookupKey.equals("レア")) lookupKey = "&b&lレア";
-                    else if (lookupKey.equals("エピック")) lookupKey = "&d&lエピック";
-                    else if (lookupKey.equals("レジェンダリー")) lookupKey = "&6&lレジェンダリー";
-                }
-
-                int maxModifiers = ItemLoader.MAX_MODIFIERS_BY_RARITY.getOrDefault(lookupKey, 1);
-                int modifiersToApply = random.nextInt(maxModifiers) + 1;
-                List<ItemLoader.ModifierDefinition> weightedModifiers = new ArrayList<>();
-                for (ItemLoader.ModifierDefinition def : ItemLoader.MODIFIER_DEFINITIONS) {
-                    for (int j = 0; j < (int) (def.weight * 10); j++) {
-                        weightedModifiers.add(def);
-                    }
-                }
-                
-                Set<StatType> appliedTypes = new HashSet<>();
-                for (int m = 0; m < modifiersToApply; m++) {
-                    if (weightedModifiers.isEmpty()) break;
-                    ItemLoader.ModifierDefinition selectedDef = weightedModifiers.get(random.nextInt(weightedModifiers.size()));
-                    if (appliedTypes.contains(selectedDef.type)) {
-                        weightedModifiers.removeIf(def -> def.type == selectedDef.type);
-                        m--; 
-                        continue;
-                    }
-                    
-                    double modValue = selectedDef.minFlat + random.nextDouble() * (selectedDef.maxFlat - selectedDef.minFlat);
-                    modifiers.put(selectedDef.type, modValue);
-                    appliedTypes.add(selectedDef.type);
-                    weightedModifiers.removeIf(def -> def.type == selectedDef.type);
-                    
-                    if (selectedDef.type == StatType.MAGIC_DAMAGE || selectedDef.type == StatType.MAGIC_BURST_BONUS || selectedDef.type == StatType.MAGIC_AOE_BONUS) {
-                        weightedModifiers.removeIf(def -> def.type == StatType.MAGIC_DAMAGE || def.type == StatType.MAGIC_BURST_BONUS || def.type == StatType.MAGIC_AOE_BONUS);
-                    }
-                }
+                Map<StatType, Double> generated = ItemLoader.generateRandomModifiers(rarity, context.getBaseStats());
+                modifiers.putAll(generated);
                 
                 if (socketsMax == 0) {
                     socketsMax = ItemLoader.generateRandomSocketCount(rarity);
