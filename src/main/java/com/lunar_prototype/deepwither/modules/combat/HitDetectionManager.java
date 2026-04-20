@@ -99,8 +99,9 @@ public class HitDetectionManager implements IManager {
         double reachBonus = statManager.getTotalStats(player).getFinal(StatType.REACH);
         double finalReach = profile.baseReach + reachBonus;
 
-        Location origin = player.getEyeLocation();
-        Vector direction = origin.getDirection();
+        // 起点を胸の高さ付近に下げる
+        Location origin = player.getEyeLocation().subtract(0, 0.4, 0);
+        Vector direction = player.getEyeLocation().getDirection();
 
         // 角度（回転）の決定
         double rotation = 0;
@@ -124,6 +125,9 @@ public class HitDetectionManager implements IManager {
 
         for (Entity entity : candidates) {
             if (!(entity instanceof LivingEntity target) || entity.equals(player)) continue;
+            
+            // 除外対象: アーマースタンド、絵画、額縁などの装飾・システム用エンティティ
+            if (entity instanceof org.bukkit.entity.ArmorStand || entity instanceof org.bukkit.entity.Hanging) continue;
 
             // 形状チェック (回転角度を考慮)
             if (!profile.shape.isHit(origin, direction, target, finalReach, rotation)) continue;

@@ -3,7 +3,6 @@ package com.lunar_prototype.deepwither.modules.combat;
 import com.lunar_prototype.deepwither.Deepwither;
 import org.bukkit.*;
 import org.bukkit.entity.ArmorStand;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -46,35 +45,49 @@ public class TurquoiseSlash {
         double y = 0.0; // vertical offset
         double so = 0.0; // side offset
 
-        // rotation に基づいてオフセットを決定 (MythicMobsのバリアントを再現)
+        // rotation に基づいてオフセットを決定 (MythicMobsのバリアントを再現しつつ高さを抑える)
+        double baseOffset = -1.7; 
+        
         if (Math.abs(rotation - 0.0) < 1.0) { // turquoise_slash_1
-            y = 0.3;
+            y = 0.1;
         } else if (Math.abs(rotation - 180.0) < 1.0) { // turquoise_slash_2
-            y = -0.5;
+            y = -0.2;
         } else if (Math.abs(rotation - 45.0) < 1.0) { // turquoise_slash_3
-            y = 0.3;
-            so = -0.5;
+            y = 0.1;
+            so = -0.3;
         } else if (Math.abs(rotation - 135.0) < 1.0) { // turquoise_slash_4
-            y = -0.5;
-            so = -0.5;
+            y = -0.2;
+            so = -0.3;
         }
 
-        Location summonLoc = origin.clone().add(dirH.clone().multiply(f)).add(0, y, 0).add(right.clone().multiply(so));
+        Location summonLoc = origin.clone().add(dirH.clone().multiply(f)).add(0, baseOffset + y, 0).add(right.clone().multiply(so));
         summonLoc.setDirection(dirH);
 
-        // --- 3. ArmorStand 生成 ---
-        ArmorStand stand = (ArmorStand) world.spawnEntity(summonLoc, EntityType.ARMOR_STAND);
-        stand.setMarker(true);
-        stand.setSmall(false);
-        stand.setInvisible(true);
-        stand.setInvulnerable(true);
-        stand.setBasePlate(false);
-        stand.setGravity(false);
-        stand.setHeadPose(new EulerAngle(0, 0, Math.toRadians(rotation)));
+        // --- 3. ArmorStand 生成 (スポーン前に属性を適用) ---
+        ArmorStand stand = world.spawn(summonLoc, ArmorStand.class, s -> {
+            s.setMarker(true);
+            s.setSmall(false);
+            s.setInvisible(true);
+            s.setInvulnerable(true);
+            s.setBasePlate(false);
+            s.setGravity(false);
+            s.setCanTick(true);
+            s.setHeadPose(new EulerAngle(0, 0, Math.toRadians(-rotation)));
+            
+            // 最初のフレームを即座にセット
+            ItemStack modelItem = new ItemStack(Material.PAPER);
+            ItemMeta meta = modelItem.getItemMeta();
+            if (meta != null) {
+                meta.setCustomModelData(7600);
+                meta.setHideTooltip(true);
+                modelItem.setItemMeta(meta);
+            }
+            s.getEquipment().setItem(EquipmentSlot.HEAD, modelItem);
+        });
 
-        // --- 4. アニメーション実行 (7フレーム) ---
+        // --- 4. アニメーション実行 (2フレーム目から開始) ---
         new BukkitRunnable() {
-            int frame = 1;
+            int frame = 2;
 
             @Override
             public void run() {
@@ -84,7 +97,6 @@ public class TurquoiseSlash {
                     return;
                 }
 
-                // 7600 + (frame-1) の CustomModelData を持つ Paper を頭にセット
                 ItemStack modelItem = new ItemStack(Material.PAPER);
                 ItemMeta meta = modelItem.getItemMeta();
                 if (meta != null) {
