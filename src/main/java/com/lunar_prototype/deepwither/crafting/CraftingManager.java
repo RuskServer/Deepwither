@@ -1,5 +1,6 @@
 package com.lunar_prototype.deepwither.crafting;
 
+import com.lunar_prototype.deepwither.DatabaseManager;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.FabricationGrade;
 import com.lunar_prototype.deepwither.ItemFactory;
@@ -31,6 +32,7 @@ public class CraftingManager implements IManager, com.lunar_prototype.deepwither
     private CraftingDataStore dataStore;
     private PlayerRecipeJsonStore recipeStore;
     private final Map<String, CraftingRecipe> recipes = new HashMap<>();
+    private final java.util.Random random = new java.util.Random();
 
     private NamespacedKey customIdKey;
     public static final NamespacedKey BLUEPRINT_KEY = new NamespacedKey(Deepwither.getInstance(), "blueprint_recipe_id");
@@ -106,7 +108,9 @@ public class CraftingManager implements IManager, com.lunar_prototype.deepwither
                 }
             }
 
-            CraftingRecipe baseRecipe = new CraftingRecipe(key, result, time, ingredients);
+            int requiredCraftLevel = section.getInt(key + ".required_craft_level", 0);
+
+            CraftingRecipe baseRecipe = new CraftingRecipe(key, result, time, ingredients, requiredCraftLevel);
             if (registerStandard) recipes.put(key, baseRecipe);
             // generateHigherGradeRecipes は等級システム廃止のため呼ばない
         }
@@ -121,7 +125,7 @@ public class CraftingManager implements IManager, com.lunar_prototype.deepwither
                 data.setUnlockedRecipes(unlocked);
                 cache.set(com.lunar_prototype.deepwither.crafting.CraftingData.class, data);
             })
-        );
+        ).thenCompose(unused -> loadCraftSkillAsync(uuid, cache));
     }
 
     @Override
@@ -131,6 +135,10 @@ public class CraftingManager implements IManager, com.lunar_prototype.deepwither
             if (data != null) {
                 dataStore.saveData(data);
                 recipeStore.saveUnlockedRecipes(uuid, data.getUnlockedRecipes());
+            }
+            CraftingSkillData skillData = cache.get(CraftingSkillData.class);
+            if (skillData != null) {
+                saveCraftSkill(uuid, skillData);
             }
         }, plugin.getAsyncExecutor());
     }
@@ -177,6 +185,17 @@ public class CraftingManager implements IManager, com.lunar_prototype.deepwither
         CraftingRecipe recipe = recipes.get(recipeId);
         if (recipe == null) return false;
 
+        // クラフトLvチェック
+        int playerCraftLv = getCraftLevel(player);
+        if (playerCraftLv < recipe.getRequiredCraftLevel()) {
+            player.sendMessage(
+                Component.text("クラフトLv が不足しています！", NamedTextColor.RED)
+                    .append(Component.text(" (必要: Lv" + recipe.getRequiredCraftLevel()
+                        + " / あなた: Lv" + playerCraftLv + ")", NamedTextColor.YELLOW))
+            );
+            return false;
+        }
+
         CraftingData data = getData(player);
 
         if (!hasIngredients(player, recipe.getIngredients())) {
@@ -222,6 +241,9 @@ public class CraftingManager implements IManager, com.lunar_prototype.deepwither
         dataStore.saveData(data);
 
         player.sendMessage(Component.text("アイテムを受け取りました！", NamedTextColor.GOLD));
+
+        // クラフトスキル経験値付与 (10〜15 exp)
+        addCraftExp(player, 10 + random.nextInt(6));
     }
 
     private String getCustomId(ItemStack item) {
@@ -265,5 +287,122 @@ public class CraftingManager implements IManager, com.lunar_prototype.deepwither
 
     public CraftingRecipe getRecipe(String recipeId) {
         return recipes.get(recipeId);
+    }
+
+    // ===== クラフトスキル関連 =====
+
+    /** プレイヤーの現在クラフトLvを返す。データがない場合は 1 を返す。 */
+    public int getCraftLevel(Player player) {
+        CraftingSkillData data = DW.cache().getCache(player.getUniqueId()).get(CraftingSkillData.class);
+        return data != null ? data.getCraftLevel() : 1;
+    }
+
+    /** プレイヤーのクラフトスキルデータを返す。なければ新規作成。 */
+    public CraftingSkillData getCraftSkillData(Player player) {
+        CraftingSkillData data = DW.cache().getCache(player.getUniqueId()).get(CraftingSkillData.class);
+        return data != null ? data : new CraftingSkillData();
+    }
+
+    /**
+     * クラフト経験値を加算し、レベルアップした場合にメッセージを送る。
+     */
+    private void addCraftExp(Player player, double amount) {
+        com.lunar_prototype.deepwither.core.PlayerCache cache = DW.cache().getCache(player.getUniqueId());
+        CraftingSkillData data = cache.get(CraftingSkillData.class);
+        if (data == null) data = new CraftingSkillData();
+
+        int before = data.getCraftLevel();
+        boolean leveledUp = data.addExp(amount);
+        int after = data.getCraftLevel();
+        cache.set(CraftingSkillData.class, data);
+
+        // 経験値獲得メッセージ
+        player.sendMessage(
+            Component.text("[クラフト] ", net.kyori.adventure.text.format.NamedTextColor.DARK_AQUA)
+                .append(Component.text("+" + (int) amount + " exp", net.kyori.adventure.text.format.NamedTextColor.AQUA))
+                .append(Component.text(" (Lv" + after + " / " + (int) data.getCraftExp() + "/"
+                    + data.getRequiredExp() + ")", net.kyori.adventure.text.format.NamedTextColor.GRAY))
+        );
+
+        if (leveledUp) {
+            if (after >= CraftingSkillData.getMaxLevel()) {
+                player.sendMessage(
+                    Component.text("★ クラフトスキルが最大レベル(Lv100)に達しました！",
+                        net.kyori.adventure.text.format.NamedTextColor.GOLD,
+                        net.kyori.adventure.text.format.TextDecoration.BOLD)
+                );
+            } else {
+                player.sendMessage(
+                    Component.text("★ クラフトスキルが Lv" + before + " → Lv" + after + " にアップしました！",
+                        net.kyori.adventure.text.format.NamedTextColor.GREEN)
+                );
+            }
+            player.playSound(player.getLocation(), org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1.2f);
+
+            // 非同期でDBに保存
+            final CraftingSkillData toSave = data;
+            plugin.getAsyncExecutor().execute(() -> saveCraftSkill(player.getUniqueId(), toSave));
+        }
+    }
+
+    /** クラフトスキルデータを DB から非同期でロードし PlayerCache にセット */
+    private java.util.concurrent.CompletableFuture<Void> loadCraftSkillAsync(UUID uuid,
+            com.lunar_prototype.deepwither.core.PlayerCache cache) {
+        return java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try (java.sql.Connection conn = plugin.get(DatabaseManager.class).getConnection();
+                 java.sql.PreparedStatement ps = conn.prepareStatement(
+                     "SELECT craft_level, craft_exp FROM player_levels WHERE uuid = ?")) {
+                ps.setString(1, uuid.toString());
+                try (java.sql.ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        int lv = rs.getInt("craft_level");
+                        double exp = rs.getDouble("craft_exp");
+                        // NULL の場合 (列が0として返る) はデフォルト値に
+                        if (lv <= 0) lv = 1;
+                        cache.set(CraftingSkillData.class, new CraftingSkillData(lv, exp));
+                    } else {
+                        cache.set(CraftingSkillData.class, new CraftingSkillData());
+                    }
+                }
+            } catch (java.sql.SQLException e) {
+                plugin.getLogger().warning("[CraftingManager] クラフトスキルのロードに失敗: " + e.getMessage());
+                cache.set(CraftingSkillData.class, new CraftingSkillData());
+            }
+        }, plugin.getAsyncExecutor());
+    }
+
+    /** クラフトスキルデータを DB に保存 */
+    private void saveCraftSkill(UUID uuid, CraftingSkillData data) {
+        try (java.sql.Connection conn = plugin.get(DatabaseManager.class).getConnection()) {
+            // player_levels に行があるか確認 (LevelManager は別途管理しているが、列だけ更新)
+            boolean exists;
+            try (java.sql.PreparedStatement checkPs = conn.prepareStatement(
+                    "SELECT 1 FROM player_levels WHERE uuid = ?")) {
+                checkPs.setString(1, uuid.toString());
+                try (java.sql.ResultSet rs = checkPs.executeQuery()) {
+                    exists = rs.next();
+                }
+            }
+            if (exists) {
+                try (java.sql.PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE player_levels SET craft_level = ?, craft_exp = ? WHERE uuid = ?")) {
+                    ps.setInt(1, data.getCraftLevel());
+                    ps.setDouble(2, data.getCraftExp());
+                    ps.setString(3, uuid.toString());
+                    ps.executeUpdate();
+                }
+            } else {
+                // 行がない場合は INSERT (LevelManager 初期化前にセーブが走ったケース)
+                try (java.sql.PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO player_levels (uuid, \"level\", exp, craft_level, craft_exp) VALUES (?,1,0,?,?)")) {
+                    ps.setString(1, uuid.toString());
+                    ps.setInt(2, data.getCraftLevel());
+                    ps.setDouble(3, data.getCraftExp());
+                    ps.executeUpdate();
+                }
+            }
+        } catch (java.sql.SQLException e) {
+            plugin.getLogger().warning("[CraftingManager] クラフトスキルの保存に失敗: " + e.getMessage());
+        }
     }
 }

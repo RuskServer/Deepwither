@@ -48,6 +48,7 @@ public class MenuGUI implements Listener, IManager {
     private com.lunar_prototype.deepwither.party.PartyGUI partyGUI;
     private FastTravelGUI fastTravelGUI;
     private MaterialGuideGUI materialGuideGUI;
+    private com.lunar_prototype.deepwither.crafting.CraftingManager craftingManager;
 
     public static final Component GUI_TITLE = Component.text("Main Menu", NamedTextColor.DARK_GRAY).decoration(TextDecoration.ITALIC, false);
     private static final int GUI_SIZE = 54;
@@ -67,6 +68,7 @@ public class MenuGUI implements Listener, IManager {
         this.partyGUI = new com.lunar_prototype.deepwither.party.PartyGUI(plugin.getPartyManager(), plugin);
         this.fastTravelGUI = new FastTravelGUI(plugin, plugin.get(FastTravelManager.class));
         this.materialGuideGUI = plugin.getMaterialGuideGUI();
+        this.craftingManager = plugin.get(com.lunar_prototype.deepwither.crafting.CraftingManager.class);
 
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
@@ -216,6 +218,15 @@ public class MenuGUI implements Listener, IManager {
                 lore.add(Component.text(" " + typeName + ": ", NamedTextColor.GRAY)
                         .append(Component.text("Lv." + profLevel, NamedTextColor.GREEN))
                         .append(Component.text(" (" + totalExp + " xp)", NamedTextColor.GRAY))
+                        .decoration(TextDecoration.ITALIC, false));
+            }
+
+            // クラフトスキル
+            if (craftingManager != null) {
+                com.lunar_prototype.deepwither.crafting.CraftingSkillData csd = craftingManager.getCraftSkillData(player);
+                lore.add(Component.text(" クラフト: ", NamedTextColor.GRAY)
+                        .append(Component.text("Lv." + csd.getCraftLevel(), NamedTextColor.DARK_AQUA))
+                        .append(Component.text(String.format(" (%.1f%%)", csd.getExpProgress() * 100), NamedTextColor.YELLOW))
                         .decoration(TextDecoration.ITALIC, false));
             }
         } else {

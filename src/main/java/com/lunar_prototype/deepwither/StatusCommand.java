@@ -1,6 +1,8 @@
 package com.lunar_prototype.deepwither;
 
 import com.lunar_prototype.deepwither.api.stat.IStatManager;
+import com.lunar_prototype.deepwither.crafting.CraftingManager;
+import com.lunar_prototype.deepwither.crafting.CraftingSkillData;
 import com.lunar_prototype.deepwither.modules.economy.trader.TraderManager;
 import com.lunar_prototype.deepwither.fishing.FishingManager;
 import com.lunar_prototype.deepwither.modules.mine.MiningSkillService;
@@ -30,16 +32,18 @@ public class StatusCommand implements CommandExecutor {
     private final ProfessionManager professionManager;
     private final FishingManager fishingManager;
     private final MiningSkillService miningSkillService;
+    private final CraftingManager craftingManager;
 
     public StatusCommand(LevelManager levelManager, IStatManager statManager, CreditManager creditManager,
                          ProfessionManager professionManager, FishingManager fishingManager,
-                         MiningSkillService miningSkillService) {
+                         MiningSkillService miningSkillService, CraftingManager craftingManager) {
         this.levelManager = levelManager;
         this.statManager = statManager;
         this.creditManager = creditManager;
         this.professionManager = professionManager;
         this.fishingManager = fishingManager;
         this.miningSkillService = miningSkillService;
+        this.craftingManager = craftingManager;
     }
 
     @Override
@@ -124,6 +128,17 @@ public class StatusCommand implements CommandExecutor {
 
             player.sendMessage(line);
         }
+
+        // クラフトスキル
+        if (craftingManager != null) {
+            CraftingSkillData csd = craftingManager.getCraftSkillData(player);
+            double craftPercent = csd.getExpProgress() * 100;
+            Component craftLine = Component.text("  クラフト: ", NamedTextColor.GRAY)
+                    .append(Component.text("Lv." + csd.getCraftLevel(), NamedTextColor.GREEN))
+                    .append(Component.text(String.format(" (%.1f%%)", craftPercent), NamedTextColor.YELLOW));
+            player.sendMessage(craftLine);
+        }
+
         player.sendMessage(Component.empty());
 
         player.sendMessage(Component.text(" [ 信用度 ]", NamedTextColor.YELLOW, TextDecoration.BOLD));

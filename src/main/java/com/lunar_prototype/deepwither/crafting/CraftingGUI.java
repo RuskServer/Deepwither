@@ -100,6 +100,18 @@ public class CraftingGUI implements IManager {
 
             lore.add(Component.empty());
             lore.add(Component.text("【製作可能】", NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false));
+
+            // クラフトLv 表示
+            int requiredLv = recipe.getRequiredCraftLevel();
+            if (requiredLv > 0) {
+                int playerLv = Deepwither.getInstance().getCraftingManager().getCraftLevel(player);
+                NamedTextColor lvColor = playerLv >= requiredLv ? NamedTextColor.GREEN : NamedTextColor.RED;
+                lore.add(Component.text("必要クラフトLv: ", NamedTextColor.GRAY)
+                        .append(Component.text(requiredLv, lvColor))
+                        .append(Component.text(" (あなた: Lv" + playerLv + ")", NamedTextColor.GRAY))
+                        .decoration(TextDecoration.ITALIC, false));
+            }
+
             lore.add(Component.text("--- 必要素材 ---", NamedTextColor.GOLD).decoration(TextDecoration.ITALIC, false));
             List<Component> finalLore = lore;
             recipe.getIngredients().forEach((id, amount) -> {

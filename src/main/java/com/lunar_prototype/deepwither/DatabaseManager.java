@@ -209,6 +209,12 @@ public class DatabaseManager implements IManager, IDatabaseManager {
                     uuid TEXT PRIMARY KEY, "level" INTEGER, exp REAL
                 )""");
 
+            // クラフトスキル用カラムを追加 (既存DBとの互換性のため try-catch で安全に実行)
+            try { stmt.executeUpdate("ALTER TABLE player_levels ADD COLUMN craft_level INTEGER DEFAULT 1"); }
+            catch (SQLException ignored) {} // 既に存在する場合は無視
+            try { stmt.executeUpdate("ALTER TABLE player_levels ADD COLUMN craft_exp REAL DEFAULT 0"); }
+            catch (SQLException ignored) {} // 既に存在する場合は無視
+
             // SkilltreeManager用
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS player_skilltree (
