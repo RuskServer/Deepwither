@@ -42,7 +42,7 @@ public class CraftingListener implements Listener, IManager {
     public void onInventoryClick(InventoryClickEvent e) {
         Component titleComp = e.getView().title();
         String title = PlainTextComponentSerializer.plainText().serialize(titleComp);
-        
+
         if (!title.startsWith("Craft - ") && !title.startsWith("Confirm - ")) {
             return;
         }
@@ -69,27 +69,19 @@ public class CraftingListener implements Listener, IManager {
             }
         }
 
+        // ナビゲーションボタンの処理
         if (clicked.getItemMeta().getPersistentDataContainer().has(CraftingGUI.NAV_ACTION_KEY, PersistentDataType.STRING)) {
             String action = clicked.getItemMeta().getPersistentDataContainer().get(CraftingGUI.NAV_ACTION_KEY, PersistentDataType.STRING);
             int page = clicked.getItemMeta().getPersistentDataContainer().getOrDefault(CraftingGUI.PAGE_KEY, PersistentDataType.INTEGER, 0);
-            int gradeId = clicked.getItemMeta().getPersistentDataContainer().getOrDefault(CraftingGUI.GRADE_TAB_KEY, PersistentDataType.INTEGER, 1);
-            FabricationGrade grade = FabricationGrade.fromId(gradeId);
 
-            if (action.equals("prev")) plugin.getCraftingGUI().openRecipeList(player, grade, page - 1);
-            if (action.equals("next")) plugin.getCraftingGUI().openRecipeList(player, grade, page + 1);
+            if (action.equals("prev")) plugin.getCraftingGUI().openRecipeList(player, page - 1);
+            if (action.equals("next")) plugin.getCraftingGUI().openRecipeList(player, page + 1);
             if (action.equals("to_queue")) plugin.getCraftingGUI().openQueueList(player);
             if (action.equals("to_recipe")) plugin.getCraftingGUI().openRecipeList(player);
             return;
         }
 
-        if (clicked.getItemMeta().getPersistentDataContainer().has(CraftingGUI.GRADE_TAB_KEY, PersistentDataType.INTEGER)
-                && !clicked.getItemMeta().getPersistentDataContainer().has(CraftingGUI.NAV_ACTION_KEY, PersistentDataType.STRING)) {
-
-            int gradeId = clicked.getItemMeta().getPersistentDataContainer().get(CraftingGUI.GRADE_TAB_KEY, PersistentDataType.INTEGER);
-            plugin.getCraftingGUI().openRecipeList(player, FabricationGrade.fromId(gradeId), 0);
-            return;
-        }
-
+        // レシピアイコンのクリック処理 (等級タブ処理は廃止済み)
         if (title.contains("Craft -")) {
             NamespacedKey key = CraftingGUI.RECIPE_KEY;
             if (clicked.getItemMeta().getPersistentDataContainer().has(key, PersistentDataType.STRING)) {
@@ -99,14 +91,7 @@ public class CraftingListener implements Listener, IManager {
 
                 if (recipe == null) return;
 
-                CraftingData data = plugin.getCraftingManager().getData(player);
-                boolean isLocked = (recipe.getGrade() != FabricationGrade.STANDARD) && !data.hasRecipe(recipe.getId());
-
-                if (isLocked) {
-                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-                    player.sendMessage(Component.text("この設計図はまだ習得していません。", NamedTextColor.RED));
-                    return;
-                }
+                // 等級システム廃止: ロック判定を削除し、全レシピが製作可能
 
                 if (e.getClick().isLeftClick()) {
                     new RecipeDetailGUI().openDetail(player, recipe);
@@ -162,7 +147,8 @@ public class CraftingListener implements Listener, IManager {
             Player player = e.getPlayer();
             int targetGrade = item.getItemMeta().getPersistentDataContainer().get(ItemFactory.RECIPE_BOOK_KEY, PersistentDataType.INTEGER);
 
-            String learnedItemName = plugin.getCraftingManager().unlockRandomRecipe(player, targetGrade);
+            // 等級システム廃止: targetGrade を 0 (全グレード対象) として扱う
+            String learnedItemName = plugin.getCraftingManager().unlockRandomRecipe(player, 0);
 
             if (learnedItemName != null) {
                 item.setAmount(item.getAmount() - 1);
@@ -174,7 +160,7 @@ public class CraftingListener implements Listener, IManager {
                 player.playSound(player.getLocation(), org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
                 player.playSound(player.getLocation(), org.bukkit.Sound.ITEM_BOOK_PAGE_TURN, 1f, 1f);
             } else {
-                player.sendMessage(Component.text("この等級のレシピは全て習得済みです！", NamedTextColor.RED));
+                player.sendMessage(Component.text("習得可能なレシピは全て習得済みです！", NamedTextColor.RED));
                 player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 1f, 1f);
             }
         }

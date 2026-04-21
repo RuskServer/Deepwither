@@ -227,13 +227,12 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length < 1) {
-            sender.sendMessage(Component.text("使い方: /giveitem <id> [プレイヤー名] [グレード(1-5)]", NamedTextColor.RED));
+            sender.sendMessage(Component.text("使い方: /giveitem <id> [プレイヤー名]", NamedTextColor.RED));
             return true;
         }
 
         String id = args[0];
         Player targetPlayer = player;
-        FabricationGrade grade = FabricationGrade.STANDARD;
 
         if (args.length >= 2) {
             Player found = Bukkit.getPlayer(args[1]);
@@ -245,16 +244,8 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
             }
         }
 
-        if (args.length >= 3) {
-            try {
-                grade = FabricationGrade.fromId(Integer.parseInt(args[2]));
-            } catch (NumberFormatException e) {
-                sender.sendMessage(Component.text("グレードは数値(1-5)で指定してください。", NamedTextColor.RED));
-                return true;
-            }
-        }
-
-        ItemStack item = itemFactory.getItem(id, grade);
+        // 等級システム廃止: grade 引数は無視し、常に STANDARD で生成
+        ItemStack item = itemFactory.getItem(id);
 
         if (item == null) {
             sender.sendMessage(Component.text("そのIDのアイテムは存在しません。", NamedTextColor.RED));
@@ -265,8 +256,6 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
 
         Component successMsg = Component.text("アイテム ", NamedTextColor.GREEN)
                 .append(Component.text(id, NamedTextColor.YELLOW))
-                .append(Component.text(" "))
-                .append(Component.text(grade.getDisplayName()))
                 .append(Component.text(" を ", NamedTextColor.GREEN))
                 .append(Component.text(targetPlayer.getName(), NamedTextColor.YELLOW))
                 .append(Component.text(" に付与しました。", NamedTextColor.GREEN));
@@ -274,8 +263,6 @@ public class ItemCommand implements CommandExecutor, TabCompleter {
         if (!sender.equals(targetPlayer)) {
             targetPlayer.sendMessage(Component.text("アイテム ", NamedTextColor.GREEN)
                     .append(Component.text(id, NamedTextColor.YELLOW))
-                    .append(Component.text(" "))
-                    .append(Component.text(grade.getDisplayName()))
                     .append(Component.text(" を付与されました。", NamedTextColor.GREEN)));
         }
         return true;

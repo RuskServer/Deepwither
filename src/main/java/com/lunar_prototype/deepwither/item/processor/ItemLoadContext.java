@@ -18,7 +18,8 @@ public class ItemLoadContext {
     private final String key;
     private final YamlConfiguration config;
     private final ItemFactory factory;
-    private final FabricationGrade grade;
+    /** 等級システム廃止のため常に STANDARD。 */
+    private final FabricationGrade grade = FabricationGrade.STANDARD;
 
     private Material material;
     private ItemStack item;
@@ -33,11 +34,12 @@ public class ItemLoadContext {
     private boolean isGear;
     private boolean valid = true;
 
+    /** @deprecated grade 引数は等級システム廃止のため無視され、常に STANDARD を使用します。 */
+    @Deprecated
     public ItemLoadContext(String key, YamlConfiguration config, ItemFactory factory, FabricationGrade grade) {
         this.key = key;
         this.config = config;
         this.factory = factory;
-        this.grade = grade != null ? grade : FabricationGrade.STANDARD;
         this.tracker = new RandomStatTracker();
         this.baseStats = new StatMap();
         this.modifiers = new HashMap<>();

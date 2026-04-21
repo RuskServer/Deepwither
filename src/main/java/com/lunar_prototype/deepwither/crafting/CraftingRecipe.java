@@ -8,19 +8,26 @@ public class CraftingRecipe {
     private final String resultItemId;
     private final int timeSeconds;
     private final Map<String, Integer> ingredients;
-    private final FabricationGrade grade; // 追加: 製造等級
 
+    /** @deprecated 等級システム廃止のため grade 引数は無視される。 */
+    @Deprecated
     public CraftingRecipe(String id, String resultItemId, int timeSeconds, Map<String, Integer> ingredients, FabricationGrade grade) {
+        this(id, resultItemId, timeSeconds, ingredients);
+    }
+
+    public CraftingRecipe(String id, String resultItemId, int timeSeconds, Map<String, Integer> ingredients) {
         this.id = id;
         this.resultItemId = resultItemId;
         this.timeSeconds = timeSeconds;
         this.ingredients = ingredients;
-        this.grade = grade;
     }
 
     public String getId() { return id; }
     public String getResultItemId() { return resultItemId; }
     public int getTimeSeconds() { return timeSeconds; }
     public Map<String, Integer> getIngredients() { return ingredients; }
-    public FabricationGrade getGrade() { return grade; }
+
+    /** 等級システム廃止のため常に STANDARD を返す。 */
+    @Deprecated
+    public FabricationGrade getGrade() { return FabricationGrade.STANDARD; }
 }

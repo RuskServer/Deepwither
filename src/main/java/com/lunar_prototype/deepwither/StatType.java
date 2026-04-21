@@ -118,9 +118,7 @@ class LoreBuilder {
         LegacyComponentSerializer serializer = LegacyComponentSerializer.legacySection();
 
         // --- ヘッダー ---
-        if (grade != null) {
-            lore.add(serializer.deserialize(grade.getDisplayName()));
-        }
+        // 等級表示は廃止済みのため削除
 
         Component infoLine = Component.empty();
         if (rarity != null) {

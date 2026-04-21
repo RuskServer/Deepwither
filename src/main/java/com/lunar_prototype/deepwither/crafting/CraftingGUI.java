@@ -8,15 +8,11 @@ import com.lunar_prototype.deepwither.util.IManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
-import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -33,6 +29,8 @@ public class CraftingGUI implements IManager {
     public static final NamespacedKey RECIPE_KEY = new NamespacedKey(Deepwither.getInstance(), "gui_recipe_id");
     public static final NamespacedKey JOB_KEY = new NamespacedKey(Deepwither.getInstance(), "gui_job_id");
     public static final NamespacedKey PAGE_KEY = new NamespacedKey(Deepwither.getInstance(), "gui_page");
+    /** @deprecated 等級システム廃止のため使用されない。互換性のために残す。 */
+    @Deprecated
     public static final NamespacedKey GRADE_TAB_KEY = new NamespacedKey(Deepwither.getInstance(), "gui_grade_tab");
     public static final NamespacedKey NAV_ACTION_KEY = new NamespacedKey(Deepwither.getInstance(), "gui_nav_action");
 
@@ -46,22 +44,28 @@ public class CraftingGUI implements IManager {
     @Override
     public void shutdown() {}
 
-    // レシピ一覧を開く (デフォルト: Standard, Page 0)
+    // レシピ一覧を開く (Page 0)
     public void openRecipeList(Player player) {
-        openRecipeList(player, FabricationGrade.STANDARD, 0);
+        openRecipeList(player, 0);
     }
 
+    /** @deprecated 等級システム廃止のため grade 引数は無視される。 */
+    @Deprecated
     public void openRecipeList(Player player, FabricationGrade grade, int page) {
+        openRecipeList(player, page);
+    }
+
+    public void openRecipeList(Player player, int page) {
         Component title = TITLE_PREFIX
-                .append(LegacyComponentSerializer.legacySection().deserialize(grade.getDisplayName()))
+                .append(Component.text("レシピ一覧"))
                 .append(Component.text(" (P." + (page + 1) + ")"))
                 .decoration(TextDecoration.ITALIC, false);
-        
+
         Inventory gui = Bukkit.createInventory(null, 54, title);
         CraftingManager manager = plugin.getCraftingManager();
-        CraftingData data = manager.getData(player);
 
-        List<CraftingRecipe> recipes = manager.getRecipesByGrade(grade);
+        // 等級システム廃止: 全レシピを一覧表示
+        List<CraftingRecipe> recipes = new ArrayList<>(manager.getRecipesByGrade(FabricationGrade.STANDARD));
 
         // ページング計算 (1ページあたり45個: 0-44スロット)
         int slotsPerPage = 45;
@@ -74,18 +78,10 @@ public class CraftingGUI implements IManager {
 
         for (int i = startIndex; i < endIndex; i++) {
             CraftingRecipe recipe = recipes.get(i);
-            boolean isLocked = (grade != FabricationGrade.STANDARD) && !data.hasRecipe(recipe.getId());
 
             // アイコン生成
-            ItemStack icon;
-            if (isLocked) {
-                // ロック時はバリア or グレイスケール的な表現
-                icon = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
-            } else {
-                // 通常表示 (指定Gradeで生成してプレビュー)
-                icon = Deepwither.getInstance().getItemFactory().getCustomItemStack(recipe.getResultItemId(), grade);
-                if (icon == null) icon = new ItemStack(Material.BARRIER);
-            }
+            ItemStack icon = Deepwither.getInstance().getItemFactory().getCustomItemStack(recipe.getResultItemId());
+            if (icon == null) icon = new ItemStack(Material.BARRIER);
 
             ItemMeta meta = icon.getItemMeta();
             // 名前がなければID
@@ -101,18 +97,9 @@ public class CraftingGUI implements IManager {
                 nonItalicLore.add(l.decoration(TextDecoration.ITALIC, false));
             }
             lore = nonItalicLore;
-            
+
             lore.add(Component.empty());
-
-            if (isLocked) {
-                String plainName = PlainTextComponentSerializer.plainText().serialize(meta.displayName());
-                meta.displayName(Component.text("🔒 " + plainName, NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
-                lore.add(Component.text("【未習得】", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
-                lore.add(Component.text("必要: 設計図", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
-            } else {
-                lore.add(Component.text("【製作可能】", NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false));
-            }
-
+            lore.add(Component.text("【製作可能】", NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false));
             lore.add(Component.text("--- 必要素材 ---", NamedTextColor.GOLD).decoration(TextDecoration.ITALIC, false));
             List<Component> finalLore = lore;
             recipe.getIngredients().forEach((id, amount) -> {
@@ -134,42 +121,21 @@ public class CraftingGUI implements IManager {
         // --- ナビゲーションバー (45-53) ---
         addGlassPane(gui);
 
-        // Gradeタブ切り替え (45-49)
-        int tabSlot = 45;
-        for (FabricationGrade g : FabricationGrade.values()) {
-            ItemStack tabIcon = new ItemStack(getGradeIconMaterial(g));
-            ItemMeta tMeta = tabIcon.getItemMeta();
-            boolean isSelected = (g == grade);
-
-            Component tabName = isSelected ? 
-                    Component.text("▶ ", NamedTextColor.GREEN).append(LegacyComponentSerializer.legacySection().deserialize(g.getDisplayName())) :
-                    Component.text("", NamedTextColor.GRAY).append(LegacyComponentSerializer.legacySection().deserialize(g.getDisplayName()));
-            
-            tMeta.displayName(tabName.decoration(TextDecoration.ITALIC, false));
-            if (isSelected) {
-                tMeta.addEnchant(Enchantment.DENSITY, 1, true);
-                tMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-            }
-            tMeta.getPersistentDataContainer().set(GRADE_TAB_KEY, PersistentDataType.INTEGER, g.getId());
-            tabIcon.setItemMeta(tMeta);
-            gui.setItem(tabSlot++, tabIcon);
-        }
-
-        // ページ送り (50, 52)
+        // ページ送り (50, 51)
         if (page > 0) {
-            gui.setItem(50, createNavButton(Material.ARROW, Component.text("<< 前のページ", NamedTextColor.YELLOW), "prev", page, grade.getId()));
+            gui.setItem(50, createNavButton(Material.ARROW, Component.text("<< 前のページ", NamedTextColor.YELLOW), "prev", page));
         }
         if (page < totalPages - 1) {
-            gui.setItem(51, createNavButton(Material.ARROW, Component.text("次のページ >>", NamedTextColor.YELLOW), "next", page, grade.getId()));
+            gui.setItem(51, createNavButton(Material.ARROW, Component.text("次のページ >>", NamedTextColor.YELLOW), "next", page));
         }
 
         // キュー画面へ (53)
-        gui.setItem(53, createNavButton(Material.CHEST, Component.text("進行状況を確認", NamedTextColor.AQUA), "to_queue", 0, 0));
+        gui.setItem(53, createNavButton(Material.CHEST, Component.text("進行状況を確認", NamedTextColor.AQUA), "to_queue", 0));
 
         player.openInventory(gui);
     }
 
-    // 進行状況リスト (変更は少ないがGrade表示を考慮)
+    // 進行状況リスト
     public void openQueueList(Player player) {
         Inventory gui = Bukkit.createInventory(null, 54, TITLE_PREFIX.append(Component.text("Queue")).decoration(TextDecoration.ITALIC, false));
         CraftingManager manager = plugin.getCraftingManager();
@@ -177,11 +143,7 @@ public class CraftingGUI implements IManager {
 
         int slot = 0;
         for (CraftingJob job : data.getJobs()) {
-            // JobIDからレシピを参照してGradeを取得
-            CraftingRecipe recipe = manager.getRecipe(job.getRecipeId());
-            FabricationGrade grade = (recipe != null) ? recipe.getGrade() : FabricationGrade.STANDARD;
-
-            ItemStack icon = Deepwither.getInstance().getItemFactory().getCustomItemStack(job.getResultItemId(), grade);
+            ItemStack icon = Deepwither.getInstance().getItemFactory().getCustomItemStack(job.getResultItemId());
             if (icon == null) icon = new ItemStack(Material.PAPER);
 
             ItemMeta meta = icon.getItemMeta();
@@ -205,18 +167,17 @@ public class CraftingGUI implements IManager {
 
         addGlassPane(gui);
         // レシピへ戻るボタン (53)
-        gui.setItem(53, createNavButton(Material.CRAFTING_TABLE, Component.text("レシピ一覧へ", NamedTextColor.GREEN), "to_recipe", 0, 1)); // Default to Standard
+        gui.setItem(53, createNavButton(Material.CRAFTING_TABLE, Component.text("レシピ一覧へ", NamedTextColor.GREEN), "to_recipe", 0));
 
         player.openInventory(gui);
     }
 
-    private ItemStack createNavButton(Material mat, Component name, String action, int currentPage, int gradeId) {
+    private ItemStack createNavButton(Material mat, Component name, String action, int currentPage) {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
         meta.displayName(name.decoration(TextDecoration.ITALIC, false));
         meta.getPersistentDataContainer().set(NAV_ACTION_KEY, PersistentDataType.STRING, action);
         meta.getPersistentDataContainer().set(PAGE_KEY, PersistentDataType.INTEGER, currentPage);
-        meta.getPersistentDataContainer().set(GRADE_TAB_KEY, PersistentDataType.INTEGER, gradeId);
         item.setItemMeta(meta);
         return item;
     }
@@ -229,15 +190,5 @@ public class CraftingGUI implements IManager {
         for (int i = 45; i < 54; i++) {
             if (gui.getItem(i) == null) gui.setItem(i, glass);
         }
-    }
-
-    private Material getGradeIconMaterial(FabricationGrade g) {
-        return switch (g) {
-            case STANDARD -> Material.IRON_INGOT;
-            case INDUSTRIAL -> Material.GOLD_INGOT;
-            case MILITARY -> Material.DIAMOND;
-            case ADVANCED -> Material.NETHERITE_INGOT;
-            case AETHERBOUND -> Material.NETHER_STAR;
-        };
     }
 }

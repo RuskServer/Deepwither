@@ -218,31 +218,20 @@ public class ItemFactory implements IManager, IItemFactory {
         return ctx.getItem();
     }
 
+    /** 等級システム廃止のため常に STANDARD を返す。PDC への等級の書き込みも行わない。 */
     private FabricationGrade resolveGrade(ItemMeta meta, @Nullable FabricationGrade grade) {
-        if (grade == null) {
-            int gid = meta.getPersistentDataContainer().getOrDefault(GRADE_KEY, PersistentDataType.INTEGER, 1);
-            return FabricationGrade.fromId(gid);
-        } else {
-            meta.getPersistentDataContainer().set(GRADE_KEY, PersistentDataType.INTEGER, grade.getId());
-            return grade;
-        }
+        return FabricationGrade.STANDARD;
     }
 
+    /** 等級システム廃止のため、baseStats の値をそのまま finalStats として使用する（乗算なし）。 */
     private StatMap calculateFinalStats(ItemMeta meta, StatMap baseStats, FabricationGrade grade) {
         StatMap finalStats = new StatMap();
-        double multiplier = grade.getMultiplier();
-        Set<StatType> ignoredMultipliers = EnumSet.of(StatType.CRIT_CHANCE, StatType.ATTACK_SPEED, StatType.MOVE_SPEED);
 
         for (StatType type : baseStats.getAllTypes()) {
             double baseFlat = baseStats.getFlat(type);
             double basePercent = baseStats.getPercent(type);
             saveStatValue(meta, "base", type, baseFlat, basePercent);
-            
-            double finalFlat = baseFlat;
-            if (!ignoredMultipliers.contains(type) && baseFlat != 0) {
-                finalFlat *= multiplier;
-            }
-            finalStats.setFlat(type, finalFlat);
+            finalStats.setFlat(type, baseFlat);
             finalStats.setPercent(type, basePercent);
         }
         return finalStats;
@@ -394,14 +383,10 @@ public class ItemFactory implements IManager, IItemFactory {
         return applyStatsToItem(ctx);
     }
 
+    /** 等級システム廃止のため no-op。アイテムをそのまま返す。 */
     @Deprecated
     public ItemStack upgradeItemGrade(ItemStack item) {
-        if (item == null || !item.hasItemMeta()) return item;
-        int currentGid = item.getItemMeta().getPersistentDataContainer()
-                .getOrDefault(GRADE_KEY, PersistentDataType.INTEGER, 1);
-        FabricationGrade nextGrade = FabricationGrade.fromId(currentGid + 1);
-        if (nextGrade.getId() == currentGid) return item;
-        return updateItem(item, nextGrade);
+        return item;
     }
 
     public ItemStack applyStatsToItem(ItemStack item, StatMap stats, @Nullable String itemType, @Nullable List<String> flavorText, ItemLoader.RandomStatTracker tracker, @Nullable String rarity, Map<StatType, Double> appliedModifiers) {

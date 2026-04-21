@@ -25,11 +25,13 @@ public interface IItemFactory {
 
     /**
      * IDと等級を指定してカスタムアイテムを取得します。
+     * @deprecated 等級システム廃止のため grade 引数は無視され、STANDARD と同等に動作します。
      * @param id アイテムID
-     * @param grade 製造等級
+     * @param grade 製造等級 (廃止済み・無視される)
      * @return ItemStack、見つからない場合はnull
      */
     @Nullable
+    @Deprecated
     ItemStack getItem(String id, FabricationGrade grade);
 
     /**
@@ -49,20 +51,17 @@ public interface IItemFactory {
     void giveItem(Player player, String id);
 
     /**
-     * アイテムの製造グレードを更新します。
-     * @param item 対象アイテム
-     * @param newGrade 新しいグレード
-     * @return 更新されたItemStack
+     * @deprecated 等級システム廃止のため no-op です。元のアイテムをそのまま返します。
      */
     @Nullable
+    @Deprecated
     ItemStack updateGrade(ItemStack item, FabricationGrade newGrade);
 
     /**
-     * アイテムの製造グレードを1段階上昇させます。
-     * @param item 対象アイテム
-     * @return 更新されたItemStack
+     * @deprecated 等級システム廃止のため no-op です。元のアイテムをそのまま返します。
      */
     @Nullable
+    @Deprecated
     ItemStack upgradeGrade(ItemStack item);
 
     /**
@@ -132,10 +131,9 @@ public interface IItemFactory {
         void give(String id);
 
         /**
-         * アイテムを指定された等級で付与します。
-         * @param id アイテムID
-         * @param grade 等級
+         * @deprecated 等級システム廃止のため grade 引数は無視されます。
          */
+        @Deprecated
         void give(String id, FabricationGrade grade);
     }
 }

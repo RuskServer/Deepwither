@@ -54,8 +54,8 @@ public class CraftingManager implements IManager, com.lunar_prototype.deepwither
     public void loadRecipes() {
         recipes.clear();
         loadRecipeFile("crafting.yml", true);
-        loadRecipeFile("grade_crafting.yml", false);
-        plugin.getLogger().info("Loaded " + recipes.size() + " crafting recipes (total).");
+        // grade_crafting.yml の読み込みは等級システム廃止のため停止
+        plugin.getLogger().info("Loaded " + recipes.size() + " crafting recipes.");
     }
 
     public String unlockRandomRecipe(Player player, int targetGradeId) {
@@ -106,30 +106,13 @@ public class CraftingManager implements IManager, com.lunar_prototype.deepwither
                 }
             }
 
-            CraftingRecipe baseRecipe = new CraftingRecipe(key, result, time, ingredients, FabricationGrade.STANDARD);
+            CraftingRecipe baseRecipe = new CraftingRecipe(key, result, time, ingredients);
             if (registerStandard) recipes.put(key, baseRecipe);
-            generateHigherGradeRecipes(baseRecipe);
+            // generateHigherGradeRecipes は等級システム廃止のため呼ばない
         }
     }
 
-    private void generateHigherGradeRecipes(CraftingRecipe base) {
-        for (FabricationGrade grade : FabricationGrade.values()) {
-            if (grade == FabricationGrade.STANDARD) continue;
-
-            double multiplier = grade.getMultiplier();
-            String newId = base.getId() + "_fg" + grade.getId();
-
-            Map<String, Integer> newIngredients = new HashMap<>();
-            base.getIngredients().forEach((k, v) -> {
-                newIngredients.put(k, (int) Math.ceil(v * multiplier));
-            });
-
-            int newTime = (int) (base.getTimeSeconds() * multiplier);
-
-            CraftingRecipe upgradeRecipe = new CraftingRecipe(newId, base.getResultItemId(), newTime, newIngredients, grade);
-            recipes.put(newId, upgradeRecipe);
-        }
-    }
+    // generateHigherGradeRecipes は等級システム廃止のため削除済み
 
     @Override
     public java.util.concurrent.CompletableFuture<Void> loadData(UUID uuid, com.lunar_prototype.deepwither.core.PlayerCache cache) {
@@ -157,8 +140,9 @@ public class CraftingManager implements IManager, com.lunar_prototype.deepwither
         return data != null ? data : new CraftingData(player.getUniqueId());
     }
 
+    /** 等級システム廃止のため grade 引数は無視し、全レシピを返す。 */
     public List<CraftingRecipe> getRecipesByGrade(FabricationGrade grade) {
-        return recipes.values().stream().filter(r -> r.getGrade() == grade).collect(Collectors.toList());
+        return new ArrayList<>(recipes.values());
     }
 
     public void unlockRecipe(Player player, String recipeId) {
@@ -179,7 +163,7 @@ public class CraftingManager implements IManager, com.lunar_prototype.deepwither
 
         ItemStack item = new ItemStack(Material.PAPER);
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text("製造設計図: " + recipe.getResultItemId() + " (" + recipe.getGrade().getDisplayName() + ")", NamedTextColor.AQUA));
+        meta.displayName(Component.text("製造設計図: " + recipe.getResultItemId(), NamedTextColor.AQUA));
         meta.lore(List.of(
                 Component.text("使用してレシピを習得する", NamedTextColor.GRAY),
                 Component.text("ID: " + recipeId, NamedTextColor.DARK_GRAY)
@@ -195,13 +179,6 @@ public class CraftingManager implements IManager, com.lunar_prototype.deepwither
 
         CraftingData data = getData(player);
 
-        if (recipe.getGrade() != FabricationGrade.STANDARD) {
-            if (!data.hasRecipe(recipeId)) {
-                player.sendMessage(Component.text("このレシピはまだ習得していません！設計図が必要です。", NamedTextColor.RED));
-                return false;
-            }
-        }
-
         if (!hasIngredients(player, recipe.getIngredients())) {
             player.sendMessage(Component.text("素材が不足しています。", NamedTextColor.RED));
             return false;
@@ -213,7 +190,7 @@ public class CraftingManager implements IManager, com.lunar_prototype.deepwither
         data.addJob(new CraftingJob(recipe.getId(), recipe.getResultItemId(), finishTime));
         dataStore.saveData(data);
 
-        player.sendMessage(Component.text("製作を開始しました！ (" + recipe.getGrade().getDisplayName() + ")", NamedTextColor.GREEN));
+        player.sendMessage(Component.text("製作を開始しました！", NamedTextColor.GREEN));
         return true;
     }
 
@@ -234,10 +211,7 @@ public class CraftingManager implements IManager, com.lunar_prototype.deepwither
             return;
         }
 
-        CraftingRecipe recipe = recipes.get(job.getRecipeId());
-        FabricationGrade grade = (recipe != null) ? recipe.getGrade() : FabricationGrade.STANDARD;
-
-        ItemStack resultItem = Deepwither.getInstance().getItemFactory().getCustomItemStack(job.getResultItemId(), grade);
+        ItemStack resultItem = Deepwither.getInstance().getItemFactory().getCustomItemStack(job.getResultItemId());
         if (resultItem == null) {
             player.sendMessage(Component.text("アイテム生成エラー", NamedTextColor.RED));
             return;
