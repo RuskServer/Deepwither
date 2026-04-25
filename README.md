@@ -23,31 +23,37 @@ Deepwitherは、RuskServerが開発・運用している大規模MMORPGサーバ
 
 ```text
 src/main/java/com/lunar_prototype/deepwither/
-├── aethelgard/       # クエスト・対話システム
-├── api/              # 外部連携用API
-├── booster/          # 経験値/通貨ブースター
-├── command/          # 各種コマンド実装
-├── companion/        # コンパニオンシステム
-├── core/             # プラグインの基盤ロジック
-├── crafting/         # 製作システム
-├── dungeon/          # ダンジョンシステム
+├── api/              # 外部連携用および各種イベントAPI
+├── booster/          # 経験値/通貨ブースターシステム
+├── command/          # 各種コマンドの実装
+├── companion/        # コンパニオン（ペット）システム
+├── core/             # プラグインの基盤ロジック・キャッシュ管理
+├── crafting/         # 製作（クラフト）システム
+├── data/             # データクラスおよび設定管理
+├── dungeon/          # ダンジョン管理システム
+├── fasttravel/       # ファストトラベル機能
+├── item/             # アイテムの独自実装と生成機能
+├── layer_move/       # 階層移動および転送システム
 ├── loot/             # ドロップ・戦利品管理
 ├── modules/          # モジュール化された機能群
+│   ├── aethelgard/   # 対話・NPC関連
+│   ├── chat/         # チャット制御
 │   ├── combat/       # 戦闘システム関連
-│   ├── core/         # モジュール基盤
-│   ├── dynamic_quest/# 動的クエスト生成
-│   ├── economy/      # 経済システム
-│   ├── infrastructure/# インフラ・データ管理
-│   ├── integration/  # 他プラグイン連携
-│   ├── mob/          # モブ動作・管理
-│   ├── quest/        # 定常クエスト
-│   └── rune/         # ルーンシステム
-├── profession/       # 職業システム
-├── SkilltreeManager  # スキルシステム
-├── StatManager       # ステータス・属性管理
-├── util/             # ユーティリティ
-├── Deepwither        # メインクラス
-└── ItemFactory       # アイテム生成エンジン
+│   ├── economy/      # 経済システム・ショップ
+│   ├── infrastructure/# インフラ・データベース管理
+│   ├── integration/  # 他プラグイン（MythicMobs等）連携
+│   ├── mine/         # 採掘システム関連
+│   ├── minidungeon/  # 小規模ダンジョン
+│   ├── mob/          # カスタムモブフレームワーク
+│   ├── outpost/      # 前哨基地システム
+│   └── quest/        # クエスト管理
+├── party/            # パーティシステム
+├── profession/       # 職業（プロフェッション）システム
+├── profiler/         # 戦闘分析・プロファイラー機能
+├── raidboss/         # レイドボス管理
+├── town/             # タウン（街）システム関連
+├── util/             # 汎用ユーティリティ
+└── Deepwither.java   # プラグインのエントリポイント（メインクラス）
 ```
 
 ## 🛠️ サポートとポリシー (Support Policy)
