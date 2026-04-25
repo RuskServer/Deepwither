@@ -8,6 +8,10 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 
 import java.util.UUID;
+import java.util.Random;
+import org.bukkit.inventory.ItemStack;
+import com.lunar_prototype.deepwither.api.DW;
+import com.lunar_prototype.deepwither.Deepwither;
 
 /**
  * カスタムモブのロジックを定義する基底クラス
@@ -18,6 +22,7 @@ public abstract class CustomMob {
     protected UUID uuid;
     protected String mobId;
     protected int ticksLived = 0;
+    protected static final Random random = new Random();
 
     /**
      * モブが初期化される際に呼び出されます
@@ -97,5 +102,27 @@ public abstract class CustomMob {
      */
     protected boolean castSkill(ISkillLogic skill, int level) {
         return skill.cast(entity, null, level);
+    }
+
+    /**
+     * キャッシュを利用して防具・武器を装備します。
+     * キャッシュにない場合は生成してキャッシュに保存されます。
+     */
+    protected boolean equipIfPresent(String itemId, java.util.function.Consumer<ItemStack> slotSetter) {
+        ItemStack item = DW.get(CustomMobManager.class).getCachedItem(itemId);
+        if (item == null) return false;
+        slotSetter.accept(item);
+        return true;
+    }
+
+    /**
+     * ランダムなステータスを持つ可能性があるため、キャッシュを使用せずにその都度生成してドロップします。
+     */
+    protected void dropIfPresent(String itemId, double chance, Location loc) {
+        if (random.nextDouble() >= chance) return;
+        ItemStack item = DW.items().getItem(itemId);
+        if (item != null) {
+            loc.getWorld().dropItemNaturally(loc, item);
+        }
     }
 }

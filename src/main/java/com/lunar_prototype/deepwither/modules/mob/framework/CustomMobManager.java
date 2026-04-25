@@ -14,6 +14,8 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.NamespacedKey;
+import org.bukkit.inventory.ItemStack;
+import com.lunar_prototype.deepwither.api.DW;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -29,6 +31,7 @@ public class CustomMobManager implements IManager, Listener {
     private final Map<String, Class<? extends CustomMob>> mobRegistry = new HashMap<>();
     private final Map<String, EntityType> mobEntityTypes = new HashMap<>();
     private final Map<UUID, CustomMob> activeMobs = new ConcurrentHashMap<>();
+    private final Map<String, ItemStack> itemCache = new ConcurrentHashMap<>();
     private final NamespacedKey mobIdKey;
 
     public CustomMobManager(Deepwither plugin) {
@@ -45,6 +48,24 @@ public class CustomMobManager implements IManager, Listener {
     @Override
     public void shutdown() {
         activeMobs.clear();
+        itemCache.clear();
+    }
+
+    /**
+     * キャッシュからアイテムのクローンを取得します。
+     * キャッシュにない場合は新たに生成して保存します。
+     */
+    public ItemStack getCachedItem(String itemId) {
+        ItemStack cached = itemCache.computeIfAbsent(itemId, id -> DW.items().getItem(id));
+        return cached != null ? cached.clone() : null;
+    }
+
+    /**
+     * アイテムキャッシュをクリアします。
+     * リロード時などに呼び出してください。
+     */
+    public void clearItemCache() {
+        itemCache.clear();
     }
 
     /**

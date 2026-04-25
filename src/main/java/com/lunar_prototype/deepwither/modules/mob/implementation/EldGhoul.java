@@ -44,7 +44,6 @@ public class EldGhoul extends CustomMob {
     private static final int POUNCE_COOLDOWN = 120;
     private static final int HELLFLARE_COOLDOWN = 160;
 
-    private final Random random = new Random();
     private int chargeCooldown;
     private int pounceCooldown;
     private int hellflareCooldown;
@@ -278,22 +277,6 @@ public class EldGhoul extends CustomMob {
                 player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 50, 1, true, true, true));
             }
         }
-    }
-
-    private void dropIfPresent(String itemId, double chance, Location loc) {
-        if (random.nextDouble() >= chance) return;
-
-        ItemStack item = DW.items().getItem(itemId);
-        if (item != null) {
-            loc.getWorld().dropItemNaturally(loc, item);
-        }
-    }
-
-    private boolean equipIfPresent(String itemId, java.util.function.Consumer<ItemStack> slotSetter) {
-        ItemStack item = DW.items().getItem(itemId);
-        if (item == null) return false;
-        slotSetter.accept(item);
-        return true;
     }
 
     private LivingEntity resolveTarget() {

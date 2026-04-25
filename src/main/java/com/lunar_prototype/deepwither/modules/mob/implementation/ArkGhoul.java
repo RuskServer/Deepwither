@@ -46,7 +46,6 @@ public class ArkGhoul extends CustomMob {
     private static final int CHARGE_COOLDOWN = 70;
     private static final int POUNCE_COOLDOWN = 120;
 
-    private final Random random = new Random();
     private int iceShotCooldown;
     private int chargeCooldown;
     private int pounceCooldown;
@@ -260,22 +259,6 @@ public class ArkGhoul extends CustomMob {
             knockback.setY(0.18);
             living.setVelocity(knockback);
         }
-    }
-
-    private void dropIfPresent(String itemId, double chance, Location loc) {
-        if (random.nextDouble() >= chance) return;
-
-        ItemStack item = DW.items().getItem(itemId);
-        if (item != null) {
-            loc.getWorld().dropItemNaturally(loc, item);
-        }
-    }
-
-    private boolean equipIfPresent(String itemId, java.util.function.Consumer<ItemStack> slotSetter) {
-        ItemStack item = DW.items().getItem(itemId);
-        if (item == null) return false;
-        slotSetter.accept(item);
-        return true;
     }
 
     private LivingEntity resolveTarget() {
