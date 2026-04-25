@@ -8,26 +8,28 @@ package com.lunar_prototype.deepwither.profiler;
 import com.lunar_prototype.deepwither.Deepwither;
 import com.lunar_prototype.deepwither.StatManager;
 import com.lunar_prototype.deepwither.StatType;
-import com.lunar_prototype.deepwither.api.event.onPlayerRecevingDamageEvent;
+import com.lunar_prototype.deepwither.api.DW;
+import com.lunar_prototype.deepwither.api.event.DeepwitherDamageEvent;
+import com.lunar_prototype.deepwither.LevelManager;
 import com.lunar_prototype.deepwither.companion.CompanionManager;
+import com.lunar_prototype.deepwither.modules.mob.util.MobRegionService;
 import com.lunar_prototype.deepwither.util.DependsOn;
 import com.lunar_prototype.deepwither.util.IManager;
-import java.io.PrintStream;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-import java.util.logging.Logger;
 import org.bukkit.Bukkit;
 import org.bukkit.Input;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.util.Vector;
+
+import java.io.PrintStream;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.logging.Logger;
 
 @DependsOn({CompanionManager.class, StatManager.class})
 public class CombatAnalyzer implements Listener, IManager {
@@ -54,32 +56,46 @@ public class CombatAnalyzer implements Listener, IManager {
             priority = EventPriority.MONITOR,
             ignoreCancelled = true
     )
-    public void onMobDamage(EntityDamageByEntityEvent e) {
-        Entity var3 = e.getEntity();
-        if (var3 instanceof LivingEntity victim) {
-            Entity var4 = e.getDamager();
-            if (var4 instanceof Player player) {
-                CombatProfile var8 = (CombatProfile)this.activeProfiles.computeIfAbsent(victim.getUniqueId(), (k) -> new CombatProfile(k, victim.getName(), victim.getMaxHealth()));
-                Input input = player.getCurrentInput();
-                Vector inputVec = new Vector(input.isLeft() ? 1 : (input.isRight() ? -1 : 0), input.isJump() ? 1 : 0, input.isForward() ? 1 : (input.isBackward() ? -1 : 0));
-                var8.lastAttackerUUID = player.getUniqueId();
-                var8.damageHistory.add(new CombatProfile.DamageRecord(System.currentTimeMillis(), e.getFinalDamage(), player.getInventory().getItemInMainHand().getType().toString(), victim.getLocation().distance(player.getLocation()), inputVec));
+    public void onDeepwitherDamage(DeepwitherDamageEvent e) {
+        LivingEntity victim = e.getVictim();
+        LivingEntity attacker = e.getAttacker();
+
+        if (victim instanceof Player player && attacker != null) {
+            CombatProfile profile = this.activeProfiles.get(attacker.getUniqueId());
+            if (profile != null) {
+                profile.totalPlayerDamageTaken += e.getDamage();
+                if (profile.playerEquipScore == 0) {
+                    profile.playerEquipScore = this.calculateEquipScore(player);
+                }
+            }
+        } else if (attacker instanceof Player player) {
+            CombatProfile profile = this.activeProfiles.computeIfAbsent(victim.getUniqueId(), (k) -> {
+                CombatProfile p = new CombatProfile(k, victim.getName(), victim.getMaxHealth());
+                try {
+                    LevelManager lm = DW.get(LevelManager.class);
+                    if (lm != null && lm.get(player) != null) {
+                        p.playerLevel = lm.get(player).getLevel();
+                    }
+                    MobRegionService rs = DW.get(MobRegionService.class);
+                    if (rs != null) {
+                        int tier = rs.getTierFromLocation(victim.getLocation());
+                        p.regionLayer = "T" + tier;
+                    }
+                } catch (Exception ex) {}
+                return p;
+            });
+
+            Input input = player.getCurrentInput();
+            Vector inputVec = new Vector(input.isLeft() ? 1 : (input.isRight() ? -1 : 0), input.isJump() ? 1 : 0, input.isForward() ? 1 : (input.isBackward() ? -1 : 0));
+            profile.lastAttackerUUID = player.getUniqueId();
+            profile.damageHistory.add(new CombatProfile.DamageRecord(System.currentTimeMillis(), e.getDamage(), player.getInventory().getItemInMainHand().getType().toString(), victim.getLocation().distance(player.getLocation()), inputVec, e.getType()));
+            
+            if (e.getType() == DeepwitherDamageEvent.DamageType.MAGIC) {
+                profile.totalMagicDamageDealt += e.getDamage();
+            } else {
+                profile.totalPhysicalDamageDealt += e.getDamage();
             }
         }
-    }
-
-    @EventHandler
-    public void onPlayerDamage(onPlayerRecevingDamageEvent e) {
-        LivingEntity mob = e.getattacker();
-        Player player = e.getvictim();
-        CombatProfile profile = (CombatProfile)this.activeProfiles.get(mob.getUniqueId());
-        if (profile != null) {
-            profile.totalPlayerDamageTaken += e.getdamage();
-            if (profile.playerEquipScore == 0) {
-                profile.playerEquipScore = this.calculateEquipScore(player);
-            }
-        }
-
     }
 
     private int calculateEquipScore(Player player) {
@@ -107,6 +123,7 @@ public class CombatAnalyzer implements Listener, IManager {
         double avgDist = profile.damageHistory.stream().mapToDouble((d) -> d.distance()).average().orElse((double)0.0F);
         StringBuilder weaknessTags = new StringBuilder();
         System.out.println("---- Combat Analysis: " + profile.mobInternalName + " ----");
+        System.out.println("Tier/Region: " + profile.regionLayer + " | PlayerLevel: " + profile.playerLevel);
         System.out.println("生存時間: " + (double)duration / (double)1000.0F + "秒");
         PrintStream var10000 = System.out;
         Object[] var10002 = new Object[]{avgDist};
@@ -124,6 +141,11 @@ public class CombatAnalyzer implements Listener, IManager {
 
         if (duration < 2000L && profile.initialHealth > (double)50.0F) {
             System.out.println("[分析] 短時間で高ダメージを受けています。ノックバック耐性(Attribute)の強化を推奨。");
+        }
+
+        if (profile.totalMagicDamageDealt > profile.totalPhysicalDamageDealt * 1.5 && avgDist < 4.0F) {
+            System.out.println("[分析] 魔法職にもかかわらず敵に密着しすぎています。被弾リスク大。");
+            weaknessTags.append("[BAD_POSITIONING]");
         }
 
         System.out.println("-------------------------------------------");

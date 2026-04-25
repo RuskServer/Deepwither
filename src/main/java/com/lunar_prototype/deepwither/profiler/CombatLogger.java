@@ -35,7 +35,7 @@ public class CombatLogger {
 
     private void writeHeader() {
         try (PrintWriter out = new PrintWriter(new FileWriter(this.logFile, true))) {
-            out.println("Timestamp,MobName,Duration,AvgDist,TotalDmg,BackRate,JumpRate,HPLoss%,EquipScore,WeaknessTag");
+            out.println("Timestamp,PlayerLevel,Tier,CombatClass,MobName,Duration,AvgDist,TotalDmgDealt,TotalDmgTaken,BackRate,JumpRate,HPLoss%,EquipScore,WeaknessTag");
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -44,14 +44,38 @@ public class CombatLogger {
 
     public void logProfile(CombatProfile profile, double hpLossPercent, String weaknessTag) {
         long durationMs = System.currentTimeMillis() - profile.startTime;
-        double totalDmg = profile.damageHistory.stream().mapToDouble((d) -> d.damage()).sum();
+        double totalDmgDealt = profile.totalPhysicalDamageDealt + profile.totalMagicDamageDealt;
         double avgDist = profile.damageHistory.stream().mapToDouble((d) -> d.distance()).average().orElse((double)0.0F);
         long totalHits = (long)profile.damageHistory.size();
         double backwardRate = totalHits == 0L ? (double)0.0F : (double)profile.damageHistory.stream().filter((d) -> d.playerInput().getZ() < (double)0.0F).count() / (double)totalHits;
         double jumpRate = totalHits == 0L ? (double)0.0F : (double)profile.damageHistory.stream().filter((d) -> d.playerInput().getY() > (double)0.0F).count() / (double)totalHits;
+        
+        String combatClass = "HYBRID";
+        if (profile.totalMagicDamageDealt > profile.totalPhysicalDamageDealt * 1.5) {
+            combatClass = "MAGIC";
+        } else if (profile.totalPhysicalDamageDealt > profile.totalMagicDamageDealt * 1.5) {
+            combatClass = "PHYSICAL";
+        }
+
+        final String finalCombatClass = combatClass;
+
         Bukkit.getScheduler().runTaskAsynchronously(this.plugin, () -> {
             try (PrintWriter out = new PrintWriter(new FileWriter(this.logFile, true))) {
-                out.printf("%s,%s,%.2f,%.2f,%.2f,%.2f,%.2f,%.1f%%,%d,%s%n", this.dateFormat.format(new Date()), profile.mobInternalName, (double)durationMs / (double)1000.0F, avgDist, totalDmg, backwardRate, jumpRate, hpLossPercent, profile.playerEquipScore, weaknessTag);
+                out.printf("%s,%d,%s,%s,%s,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.1f%%,%d,%s%n", 
+                    this.dateFormat.format(new Date()), 
+                    profile.playerLevel,
+                    profile.regionLayer,
+                    finalCombatClass,
+                    profile.mobInternalName, 
+                    (double)durationMs / 1000.0F, 
+                    avgDist, 
+                    totalDmgDealt, 
+                    profile.totalPlayerDamageTaken,
+                    backwardRate, 
+                    jumpRate, 
+                    hpLossPercent, 
+                    profile.playerEquipScore, 
+                    weaknessTag);
             } catch (IOException e) {
                 e.printStackTrace();
             }
