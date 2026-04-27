@@ -20,6 +20,8 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import com.lunar_prototype.deepwither.api.DW;
+import com.lunar_prototype.deepwither.tutorial.TutorialController;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
@@ -71,6 +73,20 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
 
     private record NodePosition(int x, int y) {}
 
+    /**
+     * プレイヤーがコマンドを実行した際にスキルツリーの選択画面または指定ツリーのGUIを開く。
+     *
+     * <p>コンソールなどの非プレイヤー送信者を拒否し、設定ファイルに定義されたツリー一覧を元に
+     * ・チュートリアルの特定ステージであれば最初のツリーをプレイヤーの最後のカメラ位置で直接開く
+     * ・それ以外はツリー一覧を並べた選択用インベントリを作成して開く
+     * という振る舞いを行う。また、処理開始時に OpenSkilltree イベントを発行する。</p>
+     *
+     * @param sender コマンド送信者（プレイヤーである必要がある）
+     * @param command 実行されたコマンド
+     * @param label 使用されたエイリアスまたはラベル
+     * @param args コマンド引数
+     * @return 常に `true`
+     */
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
@@ -85,6 +101,19 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
         }
 
         Bukkit.getPluginManager().callEvent(new OpenSkilltree(player));
+
+        TutorialController tutorialController = DW.get(TutorialController.class);
+        TutorialController.TutorialStage stage = tutorialController != null ? tutorialController.getTutorialStage(player) : null;
+        boolean isSkillTutorial = stage == TutorialController.TutorialStage.WAIT_UNLOCK_STARTER || stage == TutorialController.TutorialStage.WAIT_UNLOCK_SKILL_NODE;
+
+        if (isSkillTutorial && !trees.isEmpty()) {
+            Map<?, ?> firstTree = trees.get(0);
+            String firstTreeId = (String) firstTree.get("id");
+            NodePosition lastPos = getLastPosition(player, firstTreeId);
+            openTreeGUI(player, firstTreeId, lastPos.x(), lastPos.y());
+            return true;
+        }
+
         Inventory inv = Bukkit.createInventory(player, 9 * ((trees.size() + 8) / 9), Component.text("スキルツリー選択", NamedTextColor.DARK_GREEN));
         int slot = 0;
         for (Map<?, ?> tree : trees) {
@@ -175,6 +204,18 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
         }
     }
 
+    /**
+     * 指定したスキルツリーをプレイヤーに表示するGUIを構築して開く。
+     *
+     * 指定されたツリー定義からノード配置を計算し、現在のカメラ位置に応じて表示可能なノードをインベントリに配置する。
+     * チュートリアルの特定段階にある場合は表示対象とカメラをチュートリアル用ターゲットに合わせ、移動ボタンは表示されない。
+     * 各ノードアイテムにはツリーID・ノードID・カメラ座標を永続データとして埋め込み、下段にSP表示と（チュートリアルでない場合は）移動コントロールを追加する。
+     *
+     * @param player 表示対象のプレイヤー
+     * @param treeId 表示するツリーの識別子
+     * @param camX   カメラのXオフセット（ツリー座標系）
+     * @param camY   カメラのYオフセット（ツリー座標系）
+     */
     private void openTreeGUI(Player player, String treeId, int camX, int camY) {
         Map<?, ?> currentTree = getTreeConfigMap(treeId);
         if (currentTree == null) {
@@ -190,6 +231,37 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
         if (starter != null) nodeMap.put((String) starter.get("id"), (Map<String, Object>) starter);
 
         Map<String, NodePosition> layout = calculateTreeLayout(starter, nodeMap);
+
+        TutorialController tutorialController = DW.get(TutorialController.class);
+        TutorialController.TutorialStage stage = tutorialController != null ? tutorialController.getTutorialStage(player) : null;
+        boolean isSkillTutorial = stage == TutorialController.TutorialStage.WAIT_UNLOCK_STARTER || stage == TutorialController.TutorialStage.WAIT_UNLOCK_SKILL_NODE;
+
+        if (isSkillTutorial) {
+            String targetNodeId = null;
+            if (stage == TutorialController.TutorialStage.WAIT_UNLOCK_STARTER) {
+                targetNodeId = (String) starter.get("id");
+            } else {
+                // Find a node that has starter as requirement
+                String starterId = (String) starter.get("id");
+                targetNodeId = nodeMap.values().stream()
+                        .filter(n -> {
+                            List<String> reqs = (List<String>) n.get("requirements");
+                            return reqs != null && reqs.contains(starterId);
+                        })
+                        .map(n -> (String) n.get("id"))
+                        .findFirst().orElse(null);
+            }
+
+            if (targetNodeId != null) {
+                NodePosition targetPos = layout.get(targetNodeId);
+                if (targetPos != null) {
+                    camX = targetPos.x - 4;
+                    camY = targetPos.y - 2;
+                    final String finalTarget = targetNodeId;
+                    layout.entrySet().removeIf(e -> !e.getKey().equals(finalTarget));
+                }
+            }
+        }
 
         Inventory inv = Bukkit.createInventory(player, GUI_ROWS * 9, Component.text("Skilltree: " + currentTree.get("name"), NamedTextColor.DARK_AQUA));
 
@@ -227,11 +299,13 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
         glass.setItemMeta(gMeta);
         for (int i = 45; i < 54; i++) inv.setItem(i, glass);
 
-        createControlBtn(inv, 45, Material.RED_STAINED_GLASS_PANE, Component.text("← 左へ", NamedTextColor.RED), "LEFT", treeId, camX, camY);
-        createControlBtn(inv, 46, Material.LIME_STAINED_GLASS_PANE, Component.text("↑ 上へ", NamedTextColor.GREEN), "UP", treeId, camX, camY);
-        createControlBtn(inv, 49, Material.COMPASS, Component.text("位置リセット (" + camX + ", " + camY + ")", NamedTextColor.YELLOW), "RESET", treeId, camX, camY);
-        createControlBtn(inv, 52, Material.LIME_STAINED_GLASS_PANE, Component.text("↓ 下へ", NamedTextColor.GREEN), "DOWN", treeId, camX, camY);
-        createControlBtn(inv, 53, Material.RED_STAINED_GLASS_PANE, Component.text("右へ →", NamedTextColor.RED), "RIGHT", treeId, camX, camY);
+        if (!isSkillTutorial) {
+            createControlBtn(inv, 45, Material.RED_STAINED_GLASS_PANE, Component.text("← 左へ", NamedTextColor.RED), "LEFT", treeId, camX, camY);
+            createControlBtn(inv, 46, Material.LIME_STAINED_GLASS_PANE, Component.text("↑ 上へ", NamedTextColor.GREEN), "UP", treeId, camX, camY);
+            createControlBtn(inv, 49, Material.COMPASS, Component.text("位置リセット (" + camX + ", " + camY + ")", NamedTextColor.YELLOW), "RESET", treeId, camX, camY);
+            createControlBtn(inv, 52, Material.LIME_STAINED_GLASS_PANE, Component.text("↓ 下へ", NamedTextColor.GREEN), "DOWN", treeId, camX, camY);
+            createControlBtn(inv, 53, Material.RED_STAINED_GLASS_PANE, Component.text("右へ →", NamedTextColor.RED), "RIGHT", treeId, camX, camY);
+        }
 
         ItemStack spItem = new ItemStack(Material.EXPERIENCE_BOTTLE);
         ItemMeta spMeta = spItem.getItemMeta();
