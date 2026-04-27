@@ -20,6 +20,8 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import com.lunar_prototype.deepwither.api.DW;
+import com.lunar_prototype.deepwither.tutorial.TutorialController;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
@@ -85,6 +87,19 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
         }
 
         Bukkit.getPluginManager().callEvent(new OpenSkilltree(player));
+
+        TutorialController tutorialController = DW.get(TutorialController.class);
+        TutorialController.TutorialStage stage = tutorialController != null ? tutorialController.getTutorialStage(player) : null;
+        boolean isSkillTutorial = stage == TutorialController.TutorialStage.WAIT_UNLOCK_STARTER || stage == TutorialController.TutorialStage.WAIT_UNLOCK_SKILL_NODE;
+
+        if (isSkillTutorial && !trees.isEmpty()) {
+            Map<?, ?> firstTree = trees.get(0);
+            String firstTreeId = (String) firstTree.get("id");
+            NodePosition lastPos = getLastPosition(player, firstTreeId);
+            openTreeGUI(player, firstTreeId, lastPos.x(), lastPos.y());
+            return true;
+        }
+
         Inventory inv = Bukkit.createInventory(player, 9 * ((trees.size() + 8) / 9), Component.text("スキルツリー選択", NamedTextColor.DARK_GREEN));
         int slot = 0;
         for (Map<?, ?> tree : trees) {
@@ -191,6 +206,37 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
 
         Map<String, NodePosition> layout = calculateTreeLayout(starter, nodeMap);
 
+        TutorialController tutorialController = DW.get(TutorialController.class);
+        TutorialController.TutorialStage stage = tutorialController != null ? tutorialController.getTutorialStage(player) : null;
+        boolean isSkillTutorial = stage == TutorialController.TutorialStage.WAIT_UNLOCK_STARTER || stage == TutorialController.TutorialStage.WAIT_UNLOCK_SKILL_NODE;
+
+        if (isSkillTutorial) {
+            String targetNodeId = null;
+            if (stage == TutorialController.TutorialStage.WAIT_UNLOCK_STARTER) {
+                targetNodeId = (String) starter.get("id");
+            } else {
+                // Find a node that has starter as requirement
+                String starterId = (String) starter.get("id");
+                targetNodeId = nodeMap.values().stream()
+                        .filter(n -> {
+                            List<String> reqs = (List<String>) n.get("requirements");
+                            return reqs != null && reqs.contains(starterId);
+                        })
+                        .map(n -> (String) n.get("id"))
+                        .findFirst().orElse(null);
+            }
+
+            if (targetNodeId != null) {
+                NodePosition targetPos = layout.get(targetNodeId);
+                if (targetPos != null) {
+                    camX = targetPos.x - 4;
+                    camY = targetPos.y - 2;
+                    final String finalTarget = targetNodeId;
+                    layout.entrySet().removeIf(e -> !e.getKey().equals(finalTarget));
+                }
+            }
+        }
+
         Inventory inv = Bukkit.createInventory(player, GUI_ROWS * 9, Component.text("Skilltree: " + currentTree.get("name"), NamedTextColor.DARK_AQUA));
 
         NamespacedKey keyTree = new NamespacedKey("deepwither", "tree_id");
@@ -227,11 +273,13 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
         glass.setItemMeta(gMeta);
         for (int i = 45; i < 54; i++) inv.setItem(i, glass);
 
-        createControlBtn(inv, 45, Material.RED_STAINED_GLASS_PANE, Component.text("← 左へ", NamedTextColor.RED), "LEFT", treeId, camX, camY);
-        createControlBtn(inv, 46, Material.LIME_STAINED_GLASS_PANE, Component.text("↑ 上へ", NamedTextColor.GREEN), "UP", treeId, camX, camY);
-        createControlBtn(inv, 49, Material.COMPASS, Component.text("位置リセット (" + camX + ", " + camY + ")", NamedTextColor.YELLOW), "RESET", treeId, camX, camY);
-        createControlBtn(inv, 52, Material.LIME_STAINED_GLASS_PANE, Component.text("↓ 下へ", NamedTextColor.GREEN), "DOWN", treeId, camX, camY);
-        createControlBtn(inv, 53, Material.RED_STAINED_GLASS_PANE, Component.text("右へ →", NamedTextColor.RED), "RIGHT", treeId, camX, camY);
+        if (!isSkillTutorial) {
+            createControlBtn(inv, 45, Material.RED_STAINED_GLASS_PANE, Component.text("← 左へ", NamedTextColor.RED), "LEFT", treeId, camX, camY);
+            createControlBtn(inv, 46, Material.LIME_STAINED_GLASS_PANE, Component.text("↑ 上へ", NamedTextColor.GREEN), "UP", treeId, camX, camY);
+            createControlBtn(inv, 49, Material.COMPASS, Component.text("位置リセット (" + camX + ", " + camY + ")", NamedTextColor.YELLOW), "RESET", treeId, camX, camY);
+            createControlBtn(inv, 52, Material.LIME_STAINED_GLASS_PANE, Component.text("↓ 下へ", NamedTextColor.GREEN), "DOWN", treeId, camX, camY);
+            createControlBtn(inv, 53, Material.RED_STAINED_GLASS_PANE, Component.text("右へ →", NamedTextColor.RED), "RIGHT", treeId, camX, camY);
+        }
 
         ItemStack spItem = new ItemStack(Material.EXPERIENCE_BOTTLE);
         ItemMeta spMeta = spItem.getItemMeta();

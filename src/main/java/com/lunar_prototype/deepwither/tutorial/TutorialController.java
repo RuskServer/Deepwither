@@ -252,7 +252,16 @@ public class TutorialController implements Listener, IManager {
         p.sendMessage(Component.text("[Tutorial] ", NamedTextColor.YELLOW).append(Component.text("基本操作の確認完了。クエストを開始します...", NamedTextColor.WHITE)));
         p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (EQFPlugin.getInstance() != null) EQFPlugin.getInstance().getQuestManager().startQuest(p, "tutorial");
+            try {
+                if (EQFPlugin.getInstance() != null) {
+                    EQFPlugin.getInstance().getQuestManager().startQuest(p, "tutorial");
+                } else {
+                    plugin.getLogger().warning("EQFPlugin is not loaded! Skipping quest start for " + p.getName());
+                }
+            } catch (Exception ex) {
+                plugin.getLogger().log(java.util.logging.Level.SEVERE, "Failed to start EQF quest for " + p.getName(), ex);
+            }
+
             stageMap.put(p.getUniqueId(), TutorialStage.COMPLETE);
             
             AdvancementManager am = DW.get(AdvancementManager.class);
@@ -263,6 +272,10 @@ public class TutorialController implements Listener, IManager {
             p.showTitle(Title.title(Component.empty(), Component.empty()));
             p.sendMessage(Component.text("[Tutorial] ", NamedTextColor.GREEN).append(Component.text("移動制限が解除されました！", NamedTextColor.WHITE)));
         }, 60L);
+    }
+
+    public TutorialStage getTutorialStage(Player p) {
+        return stage(p);
     }
 
     private TutorialStage stage(Player p) {
