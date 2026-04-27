@@ -73,6 +73,20 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
 
     private record NodePosition(int x, int y) {}
 
+    /**
+     * プレイヤーがコマンドを実行した際にスキルツリーの選択画面または指定ツリーのGUIを開く。
+     *
+     * <p>コンソールなどの非プレイヤー送信者を拒否し、設定ファイルに定義されたツリー一覧を元に
+     * ・チュートリアルの特定ステージであれば最初のツリーをプレイヤーの最後のカメラ位置で直接開く
+     * ・それ以外はツリー一覧を並べた選択用インベントリを作成して開く
+     * という振る舞いを行う。また、処理開始時に OpenSkilltree イベントを発行する。</p>
+     *
+     * @param sender コマンド送信者（プレイヤーである必要がある）
+     * @param command 実行されたコマンド
+     * @param label 使用されたエイリアスまたはラベル
+     * @param args コマンド引数
+     * @return 常に `true`
+     */
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
@@ -190,6 +204,18 @@ public class SkilltreeGUI implements CommandExecutor, Listener {
         }
     }
 
+    /**
+     * 指定したスキルツリーをプレイヤーに表示するGUIを構築して開く。
+     *
+     * 指定されたツリー定義からノード配置を計算し、現在のカメラ位置に応じて表示可能なノードをインベントリに配置する。
+     * チュートリアルの特定段階にある場合は表示対象とカメラをチュートリアル用ターゲットに合わせ、移動ボタンは表示されない。
+     * 各ノードアイテムにはツリーID・ノードID・カメラ座標を永続データとして埋め込み、下段にSP表示と（チュートリアルでない場合は）移動コントロールを追加する。
+     *
+     * @param player 表示対象のプレイヤー
+     * @param treeId 表示するツリーの識別子
+     * @param camX   カメラのXオフセット（ツリー座標系）
+     * @param camY   カメラのYオフセット（ツリー座標系）
+     */
     private void openTreeGUI(Player player, String treeId, int camX, int camY) {
         Map<?, ?> currentTree = getTreeConfigMap(treeId);
         if (currentTree == null) {

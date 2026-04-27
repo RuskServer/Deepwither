@@ -247,6 +247,13 @@ public class TutorialController implements Listener, IManager {
         p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f);
     }
 
+    /**
+     * プレイヤーをEQFへの引き継ぎ状態に移行し、チュートリアルの完了処理を行う。
+     *
+     * 指定したプレイヤーを EQF_HANDOVER ステージに設定し、即座に通知と効果音を送信する。遅延後に
+     * EQF プラグインが存在する場合は `"tutorial"` クエストの開始を試み、プラグイン未導入または開始中の例外はログに記録する。
+     * その後ステージを COMPLETE に更新し、可能であれば実績 `tutorial_clear` を付与し、タイトル表示をクリアして移動制限解除の通知を送る。
+     */
     private void handOverToEQF(Player p) {
         stageMap.put(p.getUniqueId(), TutorialStage.EQF_HANDOVER);
         p.sendMessage(Component.text("[Tutorial] ", NamedTextColor.YELLOW).append(Component.text("基本操作の確認完了。クエストを開始します...", NamedTextColor.WHITE)));
@@ -274,10 +281,21 @@ public class TutorialController implements Listener, IManager {
         }, 60L);
     }
 
+    /**
+     * プレイヤーの現在のチュートリアル進行ステージを取得する。
+     *
+     * @param p 取得対象のプレイヤー
+     * @return プレイヤーの現在の `TutorialStage`
+     */
     public TutorialStage getTutorialStage(Player p) {
         return stage(p);
     }
 
+    /**
+     * プレイヤーの現在のチュートリアルステージを返す。
+     *
+     * @return {@code TutorialStage}。プレイヤーの記録が存在しない場合は {@code TutorialStage.INIT} を返す。
+     */
     private TutorialStage stage(Player p) {
         return stageMap.getOrDefault(p.getUniqueId(), TutorialStage.INIT);
     }
