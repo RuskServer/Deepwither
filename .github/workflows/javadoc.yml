@@ -35,7 +35,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: build-assets
-          path: build/libs/*.jar
+          path: build/libs/deepwither-1.0-SNAPSHOT.jar
           archive: false
 
       - name: Upload Pages artifact
