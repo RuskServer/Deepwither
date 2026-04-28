@@ -10,3 +10,5 @@ lib/deepwither-1.0-SNAPSHOT.jar
 /bin/
 /gradlew
 /gradlew.bat
+/deepwither-zed-extension/target/
+/deepwither-zed-extension/server/target/

@@ -1,0 +1,3 @@
+name = "Deepwither Item"
+grammar = "yaml"
+path_suffixes = ["yml", "yaml"]

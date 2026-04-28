@@ -1,0 +1,11 @@
+id = "deepwither-item-support"
+name = "Deepwither Item Support"
+version = "0.1.0"
+schema_version = 1
+authors = ["RuskDev"]
+description = "Zed extension for Deepwither item balancing and development."
+repository = "https://github.com/RuskDev/Deepwither"
+
+[language_servers.deepwither-lsp]
+name = "Deepwither LSP"
+languages = ["Deepwither Item"]
