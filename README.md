@@ -56,6 +56,31 @@ src/main/java/com/lunar_prototype/deepwither/
 └── Deepwither.java   # プラグインのエントリポイント（メインクラス）
 ```
 
+## 🚀 Zed 拡張機能 (Deepwither Item Support)
+
+アイテム製作とバランス調整を劇的に効率化するための、[Zed エディタ](https://zed.dev/)専用拡張機能が `deepwither-zed-extension/` に同梱されています。
+
+### 🌟 主な機能
+- **リアルタイムDPS分析:** カーソルを合わせるだけで、物理・遠距離・魔法それぞれの期待DPSを自動算出。
+- **グローバルランキング:** ワークスペース内の全アイテムを自動走査し、現在のアイテムが全アイテム中何位か（上位何%か）を即座に表示。
+- **ステータス別分析:** 攻撃力、HP、防御力など各項目ごとの順位と偏差を可視化（🥇, 🔥 などのインジケータ付き）。
+- **階層別シンタックスハイライト:** アイテムID、プロパティ、数値を階層ごとに色分けし、複雑なYAML構造を直感的に把握可能。
+- **StatType 補完:** `ATTACK_DAMAGE` や `CRIT_CHANCE` など、Deepwither 独自の全ステータス項目を強力に補完。
+
+### 🛠️ 導入方法
+1.  **LSPサーバーのビルド:**
+    ```bash
+    cd deepwither-zed-extension/server && cargo build --release
+    ```
+2.  **拡張機能（WASM）のビルド:**
+    ```bash
+    cd deepwither-zed-extension && cargo build --target wasm32-wasip1 --release
+    ```
+3.  **Zedへのインストール:**
+    Zedのコマンドパレットから `Extensions: Install Dev Extension` を実行し、`deepwither-zed-extension` ディレクトリを選択してください。
+
+※ パス内に `items/` を含むYAMLファイルを開くと自動的に有効化されます。
+
 ## 🛠️ サポートとポリシー (Support Policy)
 
 本プロジェクトはOSSとして公開されていますが、**公式な個別サポートや動作保証は提供しておりません。**
